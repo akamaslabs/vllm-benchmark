@@ -230,6 +230,37 @@ self-contained). Update this file:
 - **Q3 — Optimization pack versions**: pack lifecycle (which parameters/metrics exist)
   is managed outside this repo. When a study starts, record in its README exactly which
   pack versions were installed at the time — packs can change independently of this repo.
+  - **2026-09-14 — vLLM 0.22.0 is no longer enough; next study should pin
+    `vllm/vllm-openai:v0.29.0`** (released 2026-09-09, amd64 image verified on Docker Hub).
+    Checked against vLLM `v0.22.0` and `v0.29.0` sources while extending the vLLM pack after
+    the vLLM x AgentX post (`knowledge/notes/2026-09-vllm-agentx-agentic-serving.md`):
+    - `--prefill-schedule-interval` and `--watermark` exist only from **0.24.0**;
+      `--max-num-queued-reqs`/`--max-num-queued-tokens` only from **0.29.0**.
+    - **0.28.0 removed `--max-num-partial-prefills` and `--max-long-partial-prefills`**: the
+      pack keeps both parameters (instance-wide definitions), so a 0.28+ study must drop the
+      two flags in its deploy-rendering script (`apply_config.sh`-style) or vLLM fails at
+      startup on an unknown argument. `--long-prefill-token-threshold` survives with the
+      per-step-cap semantics the post describes, and 0.29 raises if it exceeds `max_model_len`.
+    - Every categorical value the pack already declares (`attention_backend`, `kv_cache_dtype`,
+      `tokenizer_mode`, `prefix_caching_hash_algo`, `performance_mode`, `scheduling_policy`) is
+      still accepted by 0.29.0; the 37 `vllm:*` Prometheus series are unchanged.
+    - Do **not** rewrite the historical studies' `v0.22.0` image pins (studies #0-#9 are
+      factual records); the upgrade applies to whatever study is scaffolded next, whose README
+      must record the vLLM tag and the pack versions actually installed.
+    - Pack MRs opened the same day, both targeting `develop`, both validated only offline
+      (`akamas build` + the packs' unit tests; the Akamas instance was unreachable from the
+      CLI): vLLM pack **1.9.0**
+      (<https://gitlab.com/akamas/optimization-packs/vllm/-/merge_requests/5>: 8 scheduling/KV
+      admission knobs, 9 latency-breakdown metrics incl. `request_queue_time_p95` and
+      `total_token_throughput`) and Kubernetes pack **1.9.0-dev**
+      (<https://gitlab.com/akamas/optimization-packs/kubernetes/-/merge_requests/10>: new
+      metrics-only `Kubernetes Node` component type, 71 `k8s_node_*` metrics = kube-state-metrics
+      capacity/allocatable/requests/GPU + node-exporter OS set + per-node PSI; ships without the
+      signed `crpCredits` licensing field, to be added by the pack maintainers). Both are
+      numbered above the still-unmerged `feature/gpu-efficiency-metrics` (vLLM 1.8.0, needed by
+      study #9) and `feature/psi-ratio-convention` (Kubernetes 1.8.1-dev) branches. A study
+      using `Kubernetes Node` needs its own Prometheus telemetry queries for `k8s_node_*` (the
+      pack ships names only; the Linux-pack query mapping can be reused for the OS metrics).
 - **Q4 — Prefix-cache hit rate as a hard constraint, not just an observed metric**: per
   `knowledge/notes/2026-07-vllm-official-auto-tune-script.md`, vLLM's own `auto_tune.sh`
   supports `MIN_CACHE_HIT_PCT` as an admission gate — a configuration that tanks cache
@@ -348,6 +379,7 @@ of this backlog that isn't one of these two goals has moved to **Section F
 | 4 | `<tbd>` | vLLM + GPU/Kubernetes (DRA→MIG, classic fallback) | **Goal B, sub-GPU granularity** — given a (smaller) target throughput, find the minimum MIG slice that satisfies it. Primary path via DRA; explicit classic device-plugin fallback if DRA's MIG support proves unworkable (confirmed still not officially supported upstream as of 2026-07-15). **Setup detail: Section D, study #4.** | IDEA |
 | 8 | [8-parallelism-tuning](studies/8-parallelism-tuning/README.md) | vLLM (4-GPU topology + per-instance) | **Tests H5's second angle and H6 directly (scaffolded 2026-09-09)** — same goodput goal/SLA/windowing as `2-larger-model-g7e` and the same 4x L4 `g6.12xlarge` node, per-GPU components and 102-metric telemetry as `7-tensor-parallelism`, but `tensor_parallel_size` and `data_parallel_size` (both [1,4]) join the 14 tuned vLLM parameters so the optimizer searches the TP/replica split itself instead of running it as presets. Two topology `parameterConstraints` (`TP x DP <= 4`, `TP != 3` — 28 attention heads) leave 7 valid pairs. Not Goal B/#3 (no right-sizing, no DRA): fixed 4-GPU budget, maximize goodput. | TODO |
 | 9 | [9-goodput-per-gpu](studies/9-goodput-per-gpu/README.md) | vLLM (4-GPU topology + per-instance) | **Same search as #8 (16 parameters, 7 valid TP/DP topologies), different objective (scaffolded 2026-09-10)**: maximize `(prefill_token_throughput + decode_token_throughput) / active_gpus` — goodput per GPU actually holding weights — instead of raw goodput, so a configuration is not rewarded merely for occupying all four L4s. `active_gpus` (DCGM-sourced) and `active_dp_engines` (vLLM `engine` label) are new vLLM-pack 1.8.0 metrics; the DCGM counter set was also aligned with NVIDIA's Run:ai GPU-profiling reference (+3 NVLink fields, GPU pack 1.2.0 — empty on L4). Complements #8: #8 answers "most goodput from this node", #9 answers "most goodput per GPU" — the pair measures TP/DP scaling efficiency directly (H5's 3.5x-for-4-GPUs ballpark). | TODO |
+| 10 | [10-gpt-oss-20b-goodput-per-gpu](studies/10-gpt-oss-20b-goodput-per-gpu/README.md) | vLLM (MoE model, 4-GPU topology + expert parallelism) | **Same goodput-per-GPU objective as #9, new model (scaffolded 2026-09-14)**: `openai/gpt-oss-20b` (21B MoE, 32 experts / top-4, MXFP4 expert weights = 12.8 GiB, attention sinks + alternating sliding window) on vLLM **0.29.0** — the version the vLLM pack 1.9.0 now references. Source-verified fit on one L4: Marlin MXFP4 MoE kernel (capability >= 7.5) keeps weights 4-bit, `TRITON_ATTN` is the only sink-capable attention backend on SM 8.9, so TP1 is legal and the optimizer compares TP1/TP2/TP4 x DP layouts plus `enable_expert_parallel` (constraints: `TP x DP <= 4`, `TP != 3` for 64/8 heads, EP only if TP x DP > 1, per-GPU memory fit). Carries the study-9 lessons: `gpu_memory_utilization` <= 0.90 and a workflow restart guard that fails crashed trials. Blocked on `g6.12xlarge` capacity (node group DEGRADED since 2026-09-14); `g6e.12xlarge` (L40S, same SM 8.9 path) or a region move are the alternatives — see its `infra/README.md`. | TODO |
 
 Before activating a study: run `/new-study` (reads this roadmap and `knowledge/README.md`
 for you), pick a real name, and let it scaffold `studies/<name>/` from the template.

@@ -1,0 +1,199 @@
+# vLLM Deployment template for 10-gpt-oss-20b-goodput-per-gpu — rendered per trial by the
+# Akamas FileConfigurator (every ${vLLM.*} token is a tuned parameter) into
+# 01-deployment.yaml, then applied by apply_config.sh.
+#
+# Model: openai/gpt-oss-20b (MoE, 32 experts / top-4, 24 layers, 64 heads / 8 KV heads,
+# head_dim 64, alternating sliding-window(128)/full attention, attention sinks). Weights are
+# shipped MXFP4 for the experts (12.8 GiB total on disk). On the L4 (compute capability
+# 8.9) vLLM 0.29.0 keeps them 4-bit through the Marlin MXFP4 MoE kernel (capability >= 7.5;
+# the OpenAI triton_kernels path needs SM90-SM100 and is skipped), so one L4 holds the
+# whole model with ~5-6 GiB left for KV cache at gpu_memory_utilization 0.85 — TP > 1 is
+# NOT required for memory. Verified from the v0.29.0 source tree on 2026-09-14
+# (vllm/model_executor/layers/fused_moe/oracle/mxfp4.py, experts/marlin_moe.py,
+# experts/gpt_oss_triton_kernels_moe.py). NOT yet run on a real L4 — see smoke_test.sh.
+#
+# Pinned (not tuned) flags and why:
+#   --attention-backend TRITON_ATTN   the only backend on SM 8.9 that supports gpt-oss's
+#                                     attention sinks (FLASH_ATTN: "sink not supported on
+#                                     compute capability < 9.0"; FLASHINFER: sinks only on
+#                                     SM100/SM120) — v1/attention/backends/*.py, v0.29.0.
+#                                     It also accepts fp8 KV on capability >= 8.9.
+#   --reasoning-parser openai_gptoss  harmony "analysis" channel returned as
+#                                     reasoning_content instead of leaking into content.
+#   --max-model-len 32768             gpt-oss defaults to 131072 (YaRN); the startup
+#                                     memory profile reserves KV for that length, which
+#                                     on a 24 GB card steals headroom from max_num_seqs.
+#                                     ShareGPT prompts are far shorter than 32k.
+#   --no-enable-prefix-caching        same methodology as studies 1/2/7/8/9 and the vLLM
+#                                     gpt-oss recipe's benchmark config.
+#   --enable-mfu-metrics              feeds the pack's MFU/bandwidth metrics (still a
+#                                     valid flag in 0.29.0).
+# Dropped vs. study 9's tuned set: attention_backend (pinned above), disable_cascade_attn
+# (TRITON_ATTN never uses cascade attention), tokenizer_mode (gpt-oss ships a fast
+# tokenizer only; "slow" would fail at startup and burn the 20-minute deadline).
+# Added: enable_expert_parallel (MoE) — see the study's parameterConstraints.
+#
+# Boolean flags (--enforce-eager, --async-scheduling, --enable-expert-parallel) are
+# rendered as --flag=true/false and rewritten to --flag/--no-flag by apply_config.sh.
+# Unrendered tokens (baseline step) are stripped by apply_config.sh, so vLLM's own
+# default applies.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm
+  namespace: llm-serving
+spec:
+  replicas: 1
+  # 20 min: model download on a cold cache (12.8 GiB) + Marlin weight repacking + the
+  # optional torch.compile at optimization_level 2-3. Same value studies 8/9 needed.
+  progressDeadlineSeconds: 1200
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: vllm
+  template:
+    metadata:
+      labels:
+        app: vllm
+      annotations:
+        kubectl.kubernetes.io/default-container: vllm
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        node-role: llm-serving-l4
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: vllm
+          # Reference vLLM version of the vLLM optimization pack 1.9.0. Same CUDA 13.0.2
+          # base as the v0.22.0 image studies 7-9 ran on this AMI (checked 2026-09-14).
+          image: vllm/vllm-openai:v0.29.0
+          command: ["vllm", "serve"]
+          args:
+            - "openai/gpt-oss-20b"
+            - "--served-model-name=gpt-oss-20b"
+            - "--port=8000"
+            - "--host=0.0.0.0"
+            - "--enable-mfu-metrics"
+            - "--no-enable-prefix-caching"
+            - "--attention-backend=TRITON_ATTN"
+            - "--reasoning-parser=openai_gptoss"
+            - "--max-model-len=32768"
+
+            # --- Tuned (parametersSelection, 14 parameters) ---
+            - "--gpu-memory-utilization=${vLLM.gpu_memory_utilization}"
+            - "--max-num-seqs=${vLLM.max_num_seqs}"
+            - "--max-num-batched-tokens=${vLLM.max_num_batched_tokens}"
+            - "--kv-cache-dtype=${vLLM.kv_cache_dtype}"
+            - "--performance-mode=${vLLM.performance_mode}"
+            - "--optimization-level=${vLLM.optimization_level}"
+            - "--block-size=${vLLM.block_size}"
+            - "--enforce-eager=${vLLM.enforce_eager}"
+            - "--scheduling-policy=${vLLM.scheduling_policy}"
+            - "--async-scheduling=${vLLM.async_scheduling}"
+            - "--max-cudagraph-capture-size=${vLLM.max_cudagraph_capture_size}"
+            - "--tensor-parallel-size=${vLLM.tensor_parallel_size}"
+            - "--data-parallel-size=${vLLM.data_parallel_size}"
+            - "--enable-expert-parallel=${vLLM.enable_expert_parallel}"
+
+            # --- Optional, vLLM pack 1.9.0 only (MR !5, not installed as of 2026-09-14) ---
+            # Uncomment together with the matching parametersSelection entry in
+            # akamas/10-GPT-OSS-20B-Goodput-Per-GPU.yaml once pack 1.9.0 is installed.
+            # Left as a token, it is stripped by apply_config.sh when unrendered.
+            # - "--stream-interval=${vLLM.stream_interval}"
+          env:
+            - name: VLLM_LOGGING_LEVEL
+              value: INFO
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          resources:
+            # All 4 L4s are requested on every trial so tensor_parallel_size x
+            # data_parallel_size up to 4 can be rendered without changing the pod; unused
+            # GPUs idle (active_gpus counts only the ones holding weights).
+            requests:
+              nvidia.com/gpu: "4"
+              cpu: "16"
+              memory: "64Gi"
+            limits:
+              nvidia.com/gpu: "4"
+              cpu: "40"
+              memory: "160Gi"
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            failureThreshold: 120
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 30
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 60
+            failureThreshold: 3
+          volumeMounts:
+            - name: shm
+              mountPath: /dev/shm
+            - name: model-cache
+              mountPath: /root/.cache/huggingface
+        - name: kv-cache-exporter
+          image: python:3.12-alpine
+          command: ["python3", "-u", "/app/kv_cache_exporter.py"]
+          env:
+            - name: VLLM_METRICS_URL
+              value: http://127.0.0.1:8000/metrics
+            - name: EXPORTER_PORT
+              value: "9400"
+            - name: POLL_INTERVAL_SECONDS
+              value: "5"
+            # gpt-oss-20b: 24 layers x 8 KV heads x head_dim 64 x 2 (K,V) x 2 B = 49152 B/token
+            # in bf16. CAVEAT: 12 of the 24 layers are sliding-window (128 tokens) and vLLM's
+            # hybrid KV-cache manager sizes them separately, so both this constant and
+            # num_gpu_blocks x block_size are approximations of the real KV footprint —
+            # treat kv_cache_capacity_* as indicative, not exact (fp8 trials read 2x high
+            # as in study 9).
+            - name: MODEL_NUM_LAYERS
+              value: "24"
+            - name: MODEL_NUM_KV_HEADS
+              value: "8"
+            - name: MODEL_HEAD_DIM
+              value: "64"
+            - name: KV_CACHE_DTYPE_BYTES
+              value: "2"
+          ports:
+            - name: kv-exporter
+              containerPort: 9400
+              protocol: TCP
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          volumeMounts:
+            - name: kv-cache-exporter
+              mountPath: /app
+              readOnly: true
+      volumes:
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 12Gi
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: vllm-model-cache-gptoss
+        - name: kv-cache-exporter
+          configMap:
+            name: kv-cache-exporter
+            defaultMode: 0444

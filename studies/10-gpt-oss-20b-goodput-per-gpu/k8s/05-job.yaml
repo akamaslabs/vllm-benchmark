@@ -1,0 +1,125 @@
+# AIPerf load test for 10-gpt-oss-20b-goodput-per-gpu — same closed-loop, 12-level
+# concurrency sweep (150 -> 1024, 300 s per level) and ShareGPT replay as studies 2/7/8/9,
+# so the load shape is unchanged and only the model differs. Two differences:
+#   --model gpt-oss-20b / --tokenizer openai/gpt-oss-20b   the served name and the real
+#                                                           tokenizer (token counting).
+#   --extra-inputs reasoning_effort:low   gpt-oss is a reasoning model: every reply carries
+#       a chain of thought in the harmony "analysis" channel before the answer. At the
+#       default (medium) effort the CoT dominates output length and the sweep would
+#       saturate far earlier than study 9's calibration. `reasoning_effort` is a top-level
+#       field of vLLM 0.29.0's chat-completions request (entrypoints/openai/chat_completion/
+#       protocol.py, values none/minimal/low/medium/high/xhigh/max) and is forwarded to the
+#       harmony chat template. Reasoning tokens are still generated and counted by vLLM's
+#       own generation_tokens_total (the goal's decode_token_throughput); with
+#       --reasoning-parser openai_gptoss they stream as `reasoning_content`, which AIPerf
+#       0.11 counts as reasoning tokens — check `reasoning_tokens` in its JSON export
+#       after the smoke test before trusting client-side TTFT/ITL.
+# Cached ShareGPT inputs.json is reused from earlier studies (same prompts); the one-time
+# prep run only happens on an empty cache.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aiperf-benchmark
+  namespace: llm-benchmark
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node-role: system-m8a
+      initContainers:
+        - name: wait-for-vllm
+          image: alpine:3
+          command:
+            - sh
+            - -c
+            - |
+              until wget -qO- http://vllm.llm-serving.svc.cluster.local:8000/health >/dev/null 2>&1; do
+                echo "$(date -u +%T) waiting for vLLM readiness..."
+                sleep 10
+              done
+              echo "vLLM is ready."
+      containers:
+        - name: aiperf
+          image: python:3.12-slim
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              pip install --quiet aiperf==0.11.0
+              # Keep only the latest run's artifacts on the 10 Gi results volume.
+              find /benchmarks -mindepth 1 -maxdepth 1 -name 'aiperf-*' -exec rm -rf {} +
+              CACHE_FILE=/benchmarks/sharegpt-cache/inputs.json
+              if [ ! -f "$CACHE_FILE" ]; then
+                echo "No cached ShareGPT inputs.json — generating once (one-time ~5min dataset validation pass)..."
+                set +e
+                aiperf profile \
+                  --model gpt-oss-20b \
+                  --tokenizer openai/gpt-oss-20b \
+                  --url http://vllm.llm-serving.svc.cluster.local:8000 \
+                  --endpoint-type chat \
+                  --streaming \
+                  --public-dataset sharegpt \
+                  --concurrency 1 \
+                  --request-count 1 \
+                  --extra-inputs reasoning_effort:low \
+                  --ui simple \
+                  --output-artifact-dir /tmp/sharegpt-prep
+                set -e
+                if [ ! -f /tmp/sharegpt-prep/inputs.json ]; then
+                  echo "ERROR: prep run did not produce inputs.json — see log above" >&2
+                  exit 1
+                fi
+                mkdir -p /benchmarks/sharegpt-cache
+                cp /tmp/sharegpt-prep/inputs.json "$CACHE_FILE"
+              else
+                echo "Reusing cached ShareGPT inputs.json from $CACHE_FILE (skips dataset validation)."
+              fi
+              # Same 12-level ramp as studies 2/7/8/9 (calibrated on 1x A10G with Qwen2.5-7B —
+              # recalibrate after the first trials if gpt-oss saturates the SLA much earlier).
+              CONCURRENCY_LIST="150,179,213,253,302,359,428,509,606,722,860,1024"
+
+              aiperf profile \
+                --model gpt-oss-20b \
+                --tokenizer openai/gpt-oss-20b \
+                --url http://vllm.llm-serving.svc.cluster.local:8000 \
+                --endpoint-type chat \
+                --streaming \
+                --input-file "$CACHE_FILE" \
+                --custom-dataset-type inputs_json \
+                --concurrency "$CONCURRENCY_LIST" \
+                --benchmark-duration 300 \
+                --extra-inputs reasoning_effort:low \
+                --goodput "time_to_first_token:1500 inter_token_latency:300" \
+                --ui simple \
+                --output-artifact-dir "/benchmarks/aiperf-$(date +%s)"
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+                  optional: true   # gpt-oss-20b is not gated; kept for parity with 03-hf-secret.yaml
+            - name: AIPERF_DATASET_CONFIGURATION_TIMEOUT
+              value: "900"
+            - name: AIPERF_SERVICE_PROFILE_CONFIGURE_TIMEOUT
+              value: "1200"
+          resources:
+            requests:
+              cpu: "2"
+              memory: "6Gi"
+            limits:
+              memory: "12Gi"
+          volumeMounts:
+            - name: results
+              mountPath: /benchmarks
+            - name: hf-cache
+              mountPath: /root/.cache/huggingface
+      volumes:
+        - name: results
+          persistentVolumeClaim:
+            claimName: aiperf-results
+        - name: hf-cache
+          persistentVolumeClaim:
+            claimName: hf-cache

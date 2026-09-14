@@ -148,8 +148,13 @@ dumps its logs).
   ones verified for study 8 on 2026-09-08.
 - Offline: manifest/telemetry/system/workflow cross-references consistent; every
   parameter and metric name resolves on the local pack clone at 1.8.0.
-- **Live `akamas create` NOT done**: requires vLLM pack 1.8.0 AND GPU pack 1.2.0 installed
-  first (the telemetry instance references their new metrics) and a logged-in `toolbox` CLI.
+- **Live, 2026-09-11 12:35-12:37 UTC — `9-Goodput-Per-GPU-v3`**: `akamas create -f` of this
+  manifest accepted (6 `parameterConstraints`, 3 steps); after `akamas start` the baseline
+  was imported at once, the bootstrap step went RUNNING → FINISHED in 1 m 44 s with the 19
+  listed experiments (v3 experiments 2..20, scores identical to the source's), and the
+  `optimize` step started experiment 21 — the first new configuration under the
+  `max_num_batched_tokens >= max_num_seqs` constraint — at 12:37 UTC. The two imported
+  CONSTRAINTS_VIOLATED experiments (source 18 and 21) count as "# exp with errors: 2".
 
 ## Placeholders / secrets
 

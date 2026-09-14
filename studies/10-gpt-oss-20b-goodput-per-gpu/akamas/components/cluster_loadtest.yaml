@@ -1,0 +1,20 @@
+kind: component
+system: vLLM_Benchmark_10_GPT_OSS_20B
+
+name: cluster_loadtest
+description: The node running the AIPerf load test (node-role system-m8a, see k8s/05-job.yaml's nodeSelector)
+componentType: Kubernetes Cluster
+# Added 2026-09-07: a second instance of the same component type as `cluster` (which
+# is scoped to the GPU node), so this study can see the load generator's own node-level
+# pressure (CPU/memory/IO contention on the load-test node from running AIPerf itself),
+# not just the GPU node's. Same node-join mechanism as `cluster` — see
+# telemetry/prometheus.yaml's k8s_cluster_* queries — just a different $NODE_ROLE$.
+# Addressed in study results as `cluster_loadtest.<metricName>`.
+#
+# node_role CHANGED 2026-09-07 (same day, later): system -> system-m8a. The shared
+# monitoring/ingress stack was migrated off the "system" node group onto the new
+# system-m8a the same day (see infra/README.md), and this study's own AIPerf Job
+# (k8s/05-job.yaml) follows suit so "system" can be scaled to 0.
+properties:
+  prometheus:
+    node_role: system-m8a

@@ -15,3 +15,11 @@ id_dsa.*
 
 # Private original knowledge sources 
 knowledge/sources
+
+# Toolbox SSH keys referenced by the studies' Akamas workflows — live only on the toolbox
+# host, never in git (2026-09-14: five studies had committed theirs, see ROADMAP.md
+# section E security debt; this rule prevents new ones, it does not untrack the old files).
+studies/*/id_rsa
+studies/*/akamas/id_rsa
+id_rsa
+id_rsa.pub

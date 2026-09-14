@@ -128,7 +128,7 @@ steps:
     type: baseline
     numberOfTrials: 1
     values:
-      vLLM.gpu_memory_utilization: 0.85
+      vLLM.gpu_memory_utilization: 0.90
     doNotRenderParameters:
       - vLLM.max_num_seqs
       - vLLM.max_num_batched_tokens

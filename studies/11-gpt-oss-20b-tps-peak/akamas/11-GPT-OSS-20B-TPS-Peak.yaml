@@ -158,5 +158,5 @@ steps:
   # this one's experiments, as study 9 did).
   - name: optimize
     type: optimize
-    numberOfExperiments: 60
-    maxFailedExperiments: 12
+    numberOfExperiments: 200
+    maxFailedExperiments: 40

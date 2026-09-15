@@ -1,0 +1,10 @@
+kind: component
+system: vLLM_Benchmark_13_GPT_OSS_20B_TP
+
+name: vLLM
+description: vLLM component type
+componentType: vLLM
+properties:
+  prometheus:
+    pod: .*
+    model: .*

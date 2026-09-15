@@ -1,0 +1,112 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: vllm-bench
+  region: us-east-2
+  version: "1.35"
+  tags:
+    Project: vllm-bench
+    Provisioner: eksctl
+
+iam:
+  withOIDC: true
+
+addons:
+  - name: aws-ebs-csi-driver
+    wellKnownPolicies:
+      ebsCSIController: true
+
+managedNodeGroups:
+
+  - name: system
+    instanceType: m6i.xlarge
+    desiredCapacity: 1
+    minSize: 1
+    maxSize: 1
+    volumeSize: 50
+    labels:
+      node-role: system
+
+  # Added for studies/6-data-parallelism (2026-09-07, scaffolded only — NOT yet
+  # created or migrated to): a candidate replacement for the `system` node group
+  # above, on m8a.xlarge instead of m6i.xlarge (explicit request: "should be more
+  # performant than what we're using now"). A managed node group's instance type is
+  # immutable once created, so this can't be an in-place edit of `system` — it has to
+  # be a separate node group, created alongside the existing one, with workloads
+  # migrated over and the old `system` group decommissioned afterward as a SEPARATE,
+  # deliberate step (per explicit instruction: "crea i nodegroup nuovi poi spostiamo
+  # dopo" — create the new node groups now, migrate later, step by step). Until that
+  # migration happens, `system` (above) remains the live node-role: system group that
+  # every study's aiperf Job / monitoring stack actually targets — do not point
+  # anything at node-role: system-m8a yet.
+  - name: system-m8a
+    instanceType: m8a.xlarge
+    desiredCapacity: 0
+    minSize: 0
+    maxSize: 1
+    volumeSize: 50
+    labels:
+      node-role: system-m8a
+
+  - name: akamas
+    instanceType: r6i.xlarge
+    desiredCapacity: 1
+    minSize: 1
+    maxSize: 1
+    volumeSize: 50
+    labels:
+      node-role: akamas
+
+  # Existing A10G node group (0-explorative/1-goodput-realistic-load/3-comparison-a10/
+  # 5-pack-changes) — kept here as part of this cluster's full node-group snapshot
+  # (this repo's convention, see other studies' own cluster.yaml). NOT used by
+  # 6-data-parallelism itself — this study's GPU workload runs on the new
+  # llm-serving-l4 group below.
+  - name: llm-serving
+    instanceType: g5.2xlarge
+    desiredCapacity: 1
+    minSize: 0
+    maxSize: 1
+    volumeSize: 100
+    amiFamily: AmazonLinux2023
+    labels:
+      node-role: llm-serving
+    taints:
+      - key: nvidia.com/gpu
+        value: "present"
+        effect: NoSchedule
+
+  # Added for studies/6-data-parallelism (2026-09-07, scaffolded only — NOT yet
+  # created on the live cluster): 4x NVIDIA L4 (24GB each, Ada Lovelace/SM89), needed
+  # to actually test data_parallel_size/tensor_parallel_size>1 (see study README for
+  # why this GPU generation specifically — no NVLink, PCIe-only interconnect, which
+  # favors data parallelism over tensor parallelism).
+  #
+  # amiFamily left as AmazonLinux2023 (no explicit `ami:` override) — UNVERIFIED
+  # assumption that eksctl's own hardcoded GPU-instance-type list recognizes `g6` and
+  # auto-selects the NVIDIA-enabled AMI variant. This is NOT guaranteed: the sibling
+  # `llm-serving-g7e` node group (studies/2-larger-model-g7e/infra/eks/cluster.yaml)
+  # hit exactly this failure mode for `g7e` — eksctl silently fell back to the
+  # standard (non-GPU) AMI, no NVIDIA driver, device plugin found "No devices found" —
+  # and needed an explicit `ami:` pin. `g6` is a much older, more established instance
+  # family than `g7e`, so it likely doesn't have the same gap, but this has NOT been
+  # confirmed against a real `eksctl create nodegroup` run yet. Verify at actual
+  # provisioning time (see infra/README.md) — if the same failure occurs, resolve the
+  # correct AMI ID the same way that study did:
+  #   aws ssm get-parameter --region us-east-2 \
+  #     --name /aws/service/eks/optimized-ami/1.35/amazon-linux-2023/x86_64/nvidia/recommended/image_id \
+  #     --query 'Parameter.Value' --output text
+  - name: llm-serving-l4
+    instanceType: g6.12xlarge
+    desiredCapacity: 0
+    minSize: 0
+    maxSize: 1
+    volumeSize: 200
+    amiFamily: AmazonLinux2023
+    labels:
+      node-role: llm-serving-l4
+    taints:
+      - key: nvidia.com/gpu
+        value: "present"
+        effect: NoSchedule

@@ -166,5 +166,5 @@ steps:
   # measurement per experiment. maxFailedExperiments 9 keeps the same 20% guard ratio.
   - name: optimize
     type: optimize
-    numberOfExperiments: 45
-    maxFailedExperiments: 9
+    numberOfExperiments: 400
+    maxFailedExperiments: 20

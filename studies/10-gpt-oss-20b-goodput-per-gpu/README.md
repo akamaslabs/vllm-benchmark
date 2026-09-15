@@ -1,6 +1,6 @@
 # 10-gpt-oss-20b-goodput-per-gpu
 
-**Status:** TODO (scaffolded, never run — the GPU node group has no capacity, see "Prerequisites")
+**Status:** TODO (scaffolded 2026-09-14; created on Akamas and smoke-tested 5/5 on 2026-09-15; not started yet)
 **Dates:** Scaffolded 2026-09-14
 
 ## Objective
@@ -51,13 +51,15 @@ at >= 0.90, including the "best" experiment 64 at 0.949 with 353 MiB free.
 
 - **Akamas:** 3.7.1 (`akamas.lab.akamas.io`, workspace `default`), CLI 3.0.1 in the `toolbox`
   pod (login expires roughly daily — `akamas login` before using it).
-- **Optimization packs:** vLLM **1.8.0** vocabulary (`active_gpus`, `active_dp_engines`,
-  `gpu_memory_allocated_gb`, `kv_cache_*` — branch `feature/gpu-efficiency-metrics`, the
-  version study 9 already requires; check `akamas describe optimization-pack vLLM`), GPU
-  **1.2.0**, Kubernetes **1.8.0-dev**. The vLLM pack **1.9.0** (MR !5: agentic scheduling
-  knobs, reference vLLM 0.29.0) is **optional**: its `stream_interval` appears only in
-  commented-out blocks in `akamas/10-GPT-OSS-20B-Goodput-Per-GPU.yaml` and
-  `k8s/01-deployment_template.yaml`.
+- **Optimization packs:** vLLM **>= 1.9.1** — the union release that carries both the
+  1.7.0/1.8.0 metrics this telemetry needs (`active_gpus`, `active_dp_engines`,
+  `gpu_memory_allocated_gb`, `kv_cache_*`) and the 1.9.0 agentic knobs / vLLM 0.29.0
+  reference (branch `feature/agentic-scheduling-knobs-1.9.1`, built as `vLLM_1-9-1.json`).
+  **1.9.0 alone is not enough**: installed on 2026-09-14 from `develop`, it dropped those
+  seven metrics and `akamas create telemetry-instance` failed with "metric(s) are not
+  present in System" (check with `akamas describe optimization-pack vLLM | grep -E
+  'version|active_gpus'`). GPU **1.2.0**, Kubernetes **1.8.0-dev**. `stream_interval`
+  (1.9.x) stays optional: commented-out blocks in the study manifest and the template.
 - **Workload under test:** `vllm/vllm-openai:v0.29.0` (CUDA 13.0.2, same base and driver
   requirement as the `v0.22.0` image studies 7-9 ran on this node's AL2023 NVIDIA AMI),
   model `openai/gpt-oss-20b` served as `gpt-oss-20b`, pinned flags `--attention-backend
@@ -69,7 +71,10 @@ at >= 0.90, including the "best" experiment 64 at 0.949 with 353 MiB free.
   `InsufficientInstanceCapacity` situation means.
 - **Load generator:** NVIDIA AIPerf **0.11.0**, closed-loop concurrency sweep
   `150,179,213,253,302,359,428,509,606,722,860,1024` x 300 s, streaming chat completions,
-  cached ShareGPT `inputs.json` replay, **`--extra-inputs reasoning_effort:low`**
+  ShareGPT replay from a **model-specific** cache file (`inputs-gpt-oss-20b.json`, derived
+  from studies 1-9's `inputs.json` by rewriting the per-request `model` field — that legacy
+  file embeds `qwen2.5-7b` and caused 14 339 x HTTP 404 on the first baseline, 2026-09-15),
+  **`--extra-inputs reasoning_effort:low`**
   (`reasoning_effort` is a top-level field of vLLM 0.29.0's chat request and is forwarded to
   the harmony chat template; without it every reply carries a medium-effort chain of
   thought and the sweep saturates far earlier than study 9's calibration). The ramp is the
@@ -113,6 +118,39 @@ configurations that crashed at a concurrency step and were still marked VALID be
 `stability` window landed before the crash. The windowing block itself is unchanged
 (methodological continuity; no gpt-oss/L4 data to calibrate a real `maxStdDev` yet).
 
+## Smoke test run on 2026-09-15 (node back in us-east-2c): 5/5 configurations passed
+
+`k8s/smoke_test.sh`, run from the toolbox at 06:57-07:13 UTC right after the `g6.12xlarge`
+node relaunched (full log: `results/smoke_test_2026-09-15.log`). Every rollout succeeded, every
+chat completion with `reasoning_effort: low` returned an answer, and vLLM's own log confirms the
+source-verified kernel path on the L4: `Using 'MARLIN' Mxfp4 MoE backend` / `Using MarlinExperts`
+in all five runs (weights stay 4-bit; 1.9 s to load from the cache).
+
+| Config | TP/DP/EP | KV dtype | eager / opt | KV cache (tokens, per engine) | GPU memory used (MiB, per active GPU) |
+|---|---|---|---|---|---|
+| tp1-auto | 1/1/no | auto | false / 2 | 82 819 | 18 604 (GPU 0 only) |
+| tp1-fp8 | 1/1/no | fp8 | false / 3 | 130 986 | 20 056 |
+| tp1-block96 | 1/1/no | auto, `block_size` 96 | false / 2 | 82 453 | 18 606 |
+| tp2-ep | 2/1/yes | fp8_e4m3 | false / 2 | 1 125 105 | 20 985 on GPUs 0-1 |
+| dp4 | 1/4/no | auto | **true** / 1 | 438 932 per engine | 20 041 on all 4 |
+
+Three things the numbers say before any optimization ran:
+
+- **Memory is the lever.** Same TP1/auto/0.85 settings give 82 819 KV tokens with CUDA graphs
+  and torch.compile (`enforce_eager false`, level 2) but 438 932 per engine with
+  `enforce_eager true`, level 1 (dp4 row): the compiled path reserves several GiB per GPU for
+  graphs and compile workspaces on this MoE/Marlin model. The optimizer will see that trade-off
+  (KV capacity vs. per-step speed) directly.
+- **TP2 + EP** halves the weight shard per GPU and, with fp8 KV, reaches 1.1 M KV tokens —
+  the 34x "maximum concurrency" figure is at 32 768-token requests.
+- `block_size` 96 (does not divide the 128-token sliding window) is accepted by the hybrid
+  KV-cache manager; fp8 and fp8_e4m3 KV work with attention sinks on TRITON_ATTN.
+
+One warning per start, harmless for serving: `Auto-initialization of reasoning token IDs failed.
+Please check whether your reasoning parser has implemented the reasoning_start_str and
+reasoning_end_str` (the `openai_gptoss` parser does not expose those; `reasoning_content` is
+still returned). The last configuration (dp4) is left deployed; the study's baseline replaces it.
+
 ## Prerequisites before this study can be started
 
 1. **GPU node.** `llm-serving-l4` is `DEGRADED` since 2026-09-14 14:36 UTC:
@@ -123,11 +161,13 @@ configurations that crashed at a concurrency step and were still marked VALID be
    `vllm-model-cache-gptoss`, `gp3-ephemeral`, WaitForFirstConsumer) — it binds where the
    pod first starts. Study 9's `vllm-model-cache` (us-east-2c) is not used and not deleted
    here.
-3. **Packs:** vLLM >= 1.8.0 (with `active_gpus`), GPU 1.2.0, Kubernetes 1.8.0-dev
-   installed — `akamas describe optimization-pack vLLM | grep -E 'version|active_gpus'`.
-4. **Smoke test first:** `bash k8s/smoke_test.sh` on the toolbox (four configurations:
-   TP1 auto KV, TP1 fp8, TP2 + EP, DP4). Nothing here has run on a real L4; each rollout
-   failure inside the study costs the 20-minute deadline.
+3. **Packs:** vLLM >= **1.9.1** (1.9.0 lacks `active_gpus` and the `kv_cache_*` metrics),
+   GPU 1.2.0, Kubernetes 1.8.0-dev installed —
+   `akamas install -f optimization-pack /work/vLLM_1-9-1.json` in the toolbox, then
+   `akamas describe optimization-pack vLLM | grep -E 'version|active_gpus'`.
+4. **Smoke test first:** `bash k8s/smoke_test.sh` on the toolbox (five configurations:
+   TP1 auto KV, TP1 fp8, TP1 block 96, TP2 + EP, DP4) — **done 2026-09-15, 5/5 passed**, see
+   the section above. Re-run it after any change to the template or the domains.
 5. **Toolbox checkout and key:** `git pull` in `/work/vllm-benchmark`; copy the SSH key to
    `/work/vllm-benchmark/studies/10-gpt-oss-20b-goodput-per-gpu/akamas/id_rsa`
    (never in git — see `.gitignore`).
@@ -175,14 +215,15 @@ akamas list experiment "10-GPT-OSS-20B-Goodput-Per-GPU"
 ```
 
 If the telemetry instance fails with "metric(s) are not present in System", the installed
-vLLM pack predates 1.8.0 (`active_gpus`) — install it first, exactly as study 9's README
-describes.
+vLLM pack is 1.9.0 or older (no `active_gpus`/`kv_cache_*`) — install 1.9.1 first (see
+"Prerequisites"), then re-create only the telemetry instance, the workflow and the study:
+the system and its components are created independently and can stay.
 
 ## Known caveats
 
-- **Never run on an L4.** Kernel/backend selection is source-verified, not observed; the
-  smoke test is the gate. If `fp8`/`fp8_e4m3` KV fails with sinks on TRITON_ATTN, drop them
-  from `kv_cache_dtype` (needs a new study instance; on 3.7 only `goal` is editable).
+- **No optimization trial has run yet.** Kernel/backend selection and the fp8/fp8_e4m3 KV +
+  sinks + TRITON_ATTN combination are now observed on the L4 (smoke test 2026-09-15), but
+  behaviour under the AIPerf sweep, and the crash behaviour at high `max_num_seqs`, are not.
 - Reasoning tokens inflate `decode_token_throughput` relative to a non-reasoning model:
   the goal measures engine tokens/s per GPU, not "useful answer tokens". AIPerf's own
   goodput numbers treat `reasoning_content` deltas as reasoning tokens — read

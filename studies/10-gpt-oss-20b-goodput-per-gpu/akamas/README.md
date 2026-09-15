@@ -12,11 +12,11 @@ telemetry instance, 3-task workflow) and rewriting only what the model change re
 | `10-GPT-OSS-20B-Goodput-Per-GPU-Workflow.yaml` | paths under `studies/10-gpt-oss-20b-goodput-per-gpu/`, same operators/timeouts |
 | `10-GPT-OSS-20B-Goodput-Per-GPU.yaml` | 14 tuned parameters, 5 `parameterConstraints`, baseline pinned at `gpu_memory_utilization 0.85`, optimize 200/40 — rationale inline |
 
-Pack vocabulary used: vLLM pack **1.8.0** (`active_gpus`, `active_dp_engines`,
-`gpu_memory_allocated_gb`, `kv_cache_*`), GPU pack **1.2.0**, Kubernetes pack **1.8.0-dev** —
-the same versions study 9 requires. The vLLM pack **1.9.0** knobs (`stream_interval`, ...)
-are referenced only in commented-out blocks; `akamas create` would fail on them until that
-pack version (MR !5 on `gitlab.com/akamas/optimization-packs/vllm`) is installed.
+Pack vocabulary used: vLLM pack **>= 1.9.1** (the union of 1.8.0's `active_gpus`,
+`active_dp_engines`, `gpu_memory_allocated_gb`, `kv_cache_*` and 1.9.0's agentic knobs —
+1.9.0 alone lacks the seven metrics and the telemetry instance fails to create), GPU pack
+**1.2.0**, Kubernetes pack **1.8.0-dev**. The 1.9.x-only knob `stream_interval` is referenced
+only in commented-out blocks.
 
 `id_rsa` (the toolbox SSH key the workflow uses) must be placed at
 `/work/vllm-benchmark/studies/10-gpt-oss-20b-goodput-per-gpu/akamas/id_rsa` on the toolbox

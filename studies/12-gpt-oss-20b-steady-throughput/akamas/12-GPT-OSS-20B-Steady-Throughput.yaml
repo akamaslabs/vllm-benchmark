@@ -130,10 +130,25 @@ steps:
     numberOfTrials: 1
     values:
       vLLM.gpu_memory_utilization: 0.90
+      # kv_cache_dtype PINNED for study 12 (2026-09-15) — studies 10/11 left it unrendered.
+      # Measured on this node during study 12's first (aborted) baseline: with `auto` the KV
+      # cache holds 119,483 tokens, and 256 running sequences of ~430 tokens already fill
+      # 92% of it. Serving the 512 concurrent requests this study offers needs ~220,000
+      # tokens of KV, which one L4 simply does not have in bf16 — so the default baseline
+      # ran 256 requests and left 253 queued permanently, with engine-side TTFT p95 at
+      # 38,355 ms against the 1500 ms SLA: infeasible, and therefore useless as the
+      # reference every other experiment is scored against.
+      # fp8 halves the per-token KV footprint, roughly doubling capacity to ~239,000 tokens
+      # — enough for 512 sequences at the same ~92% fill level that ran with zero
+      # preemptions at 256. Note this makes the baseline "the minimum configuration that can
+      # actually serve the offered load" rather than "vLLM's own defaults"; raising
+      # max_num_seqs instead would NOT have worked, since the binding limit is KV capacity,
+      # not the sequence cap — it would only have admitted requests vLLM then had to preempt.
+      # The parameter stays free in parametersSelection, so the optimizer can still move it.
+      vLLM.kv_cache_dtype: fp8
     doNotRenderParameters:
       - vLLM.max_num_seqs
       - vLLM.max_num_batched_tokens
-      - vLLM.kv_cache_dtype
       - vLLM.performance_mode
       - vLLM.optimization_level
       - vLLM.enforce_eager

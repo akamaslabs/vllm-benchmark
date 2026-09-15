@@ -49,6 +49,36 @@ scheduler queue and report their true sustained peak, while configurations below
 breach the TTFT SLA, and are correctly rejected as infeasible. That is exactly the
 discrimination the goal is meant to make.
 
+## The baseline pins `kv_cache_dtype: fp8`, and why it had to
+
+Studies 10 and 11 left `kv_cache_dtype` unrendered in the baseline, so vLLM's own default
+(`auto`, i.e. bf16) applied. At this study's constant load of 512 that produces an
+**infeasible baseline**, measured directly during the first (aborted) run on 2026-09-15:
+
+| | value |
+|---|---|
+| KV cache size with `auto` | **119,483 tokens** |
+| running / waiting at concurrency 512 | 256 / 253 |
+| KV cache usage | 92.4% (with 256 running) |
+| preemptions | 0 |
+| **engine-side TTFT p95** | **38,355 ms** vs. the 1500 ms SLA |
+
+The binding limit is **KV capacity, not `max_num_seqs`**: 256 sequences of ~430 tokens
+already fill 92% of the cache, and serving 512 of them would need ~220,000 tokens, which
+one L4 does not have in bf16. Raising `max_num_seqs` would therefore have made things
+worse, not better — vLLM would admit requests it then has to preempt (preemptions are
+currently zero).
+
+`fp8` halves the per-token KV footprint and roughly doubles capacity to ~239,000 tokens,
+enough for 512 sequences at the same ~92% fill level that runs preemption-free at 256.
+
+**What this costs in interpretation:** the baseline is no longer "vLLM's own defaults", it
+is *the minimum configuration that can actually serve the offered load*. That is the
+deliberate trade: a reference every other experiment is scored against has to be
+admissible, otherwise the normalized score has no meaning. `kv_cache_dtype` stays in
+`parametersSelection`, so the optimizer is still free to move it (including back to
+`auto`, which it should then find infeasible at this load).
+
 ## What changes vs. studies 10 and 11
 
 | | study 10 | study 11 | **this study** |
@@ -58,7 +88,8 @@ discrimination the goal is meant to make.
 | experiment wall-clock | ~75 min | ~12.5 min | **~15.5 min** |
 | windowing | stability, is: max | stability + `resolution: 15s` | **`trim: [2m, 30s]` on RunTest** |
 | experiments | 200 | 60 | **45** (~11.5 h) |
-| goal, SLA, parameters, domains, `parameterConstraints`, baseline | | | **all identical** |
+| baseline | vLLM defaults + `gpu_memory_utilization` | idem | **+ `kv_cache_dtype: fp8`** (see above) |
+| goal, SLA, parameters, domains, `parameterConstraints` | | | **all identical** |
 
 `--concurrency-ramp-duration 20` opens the 512 sessions gradually rather than in one
 burst, so the steady state is reached cleanly; the trim discards that window anyway.

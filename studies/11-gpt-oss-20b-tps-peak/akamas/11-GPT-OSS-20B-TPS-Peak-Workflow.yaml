@@ -1,0 +1,43 @@
+kind: workflow
+name: 11-GPT-OSS-20B-TPS-Peak-Workflow
+# Same three-task shape as studies 7/8/9: render the Deployment template, apply it and wait
+# for the rollout (vLLM logs dumped to stdout), run the AIPerf sweep (job logs dumped to
+# stdout, trial FAILED if vLLM restarted during the test — see k8s/run_test_goodput.sh).
+# The SSH key must exist on the toolbox host at the path below and is NEVER committed
+# (see .gitignore). Timeouts: Apply config 75 m (20 m rollout deadline + model download on
+# a cold cache + torch.compile), RunTest 105 m (95 m kubectl wait + margin).
+tasks:
+  - name: Write config
+    operator: FileConfigurator
+    arguments:
+      ignoreUnsubstitutedTokens: true
+      source:
+        hostname: toolbox
+        username: akamas
+        key: /work/vllm-benchmark/studies/11-gpt-oss-20b-tps-peak/akamas/id_rsa
+        path: /work/vllm-benchmark/studies/11-gpt-oss-20b-tps-peak/k8s/01-deployment_template.yaml
+      target:
+        hostname: toolbox
+        username: akamas
+        key: /work/vllm-benchmark/studies/11-gpt-oss-20b-tps-peak/akamas/id_rsa
+        path: /work/vllm-benchmark/studies/11-gpt-oss-20b-tps-peak/k8s/01-deployment.yaml
+  - name: Apply config
+    operator: Executor
+    arguments:
+      retries: 0
+      timeout: 75m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /work/vllm-benchmark/studies/11-gpt-oss-20b-tps-peak/akamas/id_rsa
+      command: bash /work/vllm-benchmark/studies/11-gpt-oss-20b-tps-peak/k8s/apply_config.sh
+  - name: RunTest
+    operator: Executor
+    arguments:
+      retries: 0
+      timeout: 105m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /work/vllm-benchmark/studies/11-gpt-oss-20b-tps-peak/akamas/id_rsa
+      command: bash /work/vllm-benchmark/studies/11-gpt-oss-20b-tps-peak/k8s/run_test_goodput.sh

@@ -1,0 +1,16 @@
+kind: component
+system: vLLM_Benchmark_11_GPT_OSS_20B_TPS_Peak
+
+name: container_loadtest
+description: The AIPerf load-test's own container (Job aiperf-benchmark, namespace llm-benchmark)
+componentType: Kubernetes Container
+# Added 2026-09-07: a second instance of the same component type as `container`
+# (which is scoped to vLLM's own pod) — same metric catalog, different pod regex, so
+# this study can see the load generator's own CPU/memory/PSI, not just the workload
+# under test. Addressed in study results as `container_loadtest.<metricName>`, per
+# Akamas' component-instance-scoped metric evaluation (the same query template in
+# telemetry/prometheus.yaml is evaluated once per component using that component's own
+# $POD$ substitution).
+properties:
+  prometheus:
+    pod: ^aiperf-benchmark-.*

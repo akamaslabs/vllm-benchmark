@@ -1,0 +1,17 @@
+kind: component
+system: vLLM_Benchmark_11_GPT_OSS_20B_TPS_Peak
+
+name: gpu3
+description: NVIDIA L4 index 3 of 4 on the llm-serving-l4 node (g6.12xlarge) — one component per GPU so every DCGM metric is its own series per GPU instance in Akamas
+componentType: GPU
+# One component per physical GPU (2026-09-08; replaces the single `gpu` component that
+# had `gpu: .*`). The Prometheus provider substitutes `$GPU$` with this exact DCGM `gpu`
+# label value (the device index, "0".."3"), so every per-GPU DCGM query in
+# telemetry/prometheus.yaml returns one series for this GPU only — no aggregation
+# across GPUs. Quoted so YAML keeps it a string; PromQL regex matchers are anchored,
+# so `gpu=~"3"` matches only index 3. Pre-run check that the index values really
+# are 0-3 on this node: `count by(gpu)(DCGM_FI_DEV_GPU_UTIL)` against Prometheus.
+properties:
+  prometheus:
+    pod: .*
+    gpu: "3"

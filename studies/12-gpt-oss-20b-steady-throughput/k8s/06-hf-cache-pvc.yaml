@@ -1,0 +1,17 @@
+# Persists AIPerf's own HuggingFace cache (~/.cache/huggingface — the ShareGPT
+# dataset download, ~670MB, plus the tokenizer) across trials, mounted read-write
+# at /root/.cache/huggingface in 05-job.yaml. Same claim as studies 1-9 (same ShareGPT
+# dataset); this study's tokenizer (openai/gpt-oss-20b, not gated) is downloaded into it
+# by AIPerf on the first run.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hf-cache
+  namespace: llm-benchmark
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3-ephemeral
+  resources:
+    requests:
+      storage: 5Gi

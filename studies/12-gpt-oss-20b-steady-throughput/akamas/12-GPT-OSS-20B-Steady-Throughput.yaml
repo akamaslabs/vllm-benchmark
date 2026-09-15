@@ -1,0 +1,155 @@
+kind: study
+name: 12-GPT-OSS-20B-Steady-Throughput
+system: vLLM_Benchmark_12_GPT_OSS_20B_Steady
+workflow: 12-GPT-OSS-20B-Steady-Throughput-Workflow
+
+# Same objective as 9-goodput-per-gpu: goodput per GPU actually holding weights. With
+# gpt-oss-20b a TP1/DP1 configuration fits one L4 (12.8 GiB MXFP4 weights), so the
+# optimizer is free to compare single-GPU replicas against TP2/TP4 and DP2-4 layouts on the
+# same footing. Reasoning tokens (harmony "analysis" channel) are generated tokens and
+# count in decode_token_throughput; the AIPerf job asks for reasoning_effort low.
+goal:
+  objective: maximize
+  function:
+    formula: (vLLM.prefill_token_throughput + vLLM.decode_token_throughput) / vLLM.active_gpus
+  constraints:
+    absolute:
+      # Interactive-chat SLA carried forward from studies 1/2/7/8/9 — NOT calibrated on
+      # gpt-oss-20b/L4; recalibrate once the baseline reports real TTFT/ITL (a reasoning
+      # model's first visible token is the first reasoning token: vLLM's histogram counts
+      # it, so TTFT here is engine-side and unaffected by the reasoning/answer split).
+      - name: TTFT P95 interactive-chat SLA
+        formula: vLLM.time_to_first_token_p95 <= 1500
+      - name: ITL P95 interactive-chat SLA
+        formula: vLLM.inter_token_latency_p95 <= 300
+
+# Unchanged from studies 8/9 for methodological continuity (same 12-level, 300 s/level
+# ramp). Known limitation, documented in ~/akamas/2026-09-14-study9-exp64-collasso-throughput.md:
+# maxStdDev is in the metric's own unit (tokens/s), so 3e8 disables the stability filter
+# and the window is simply the 6 samples around the prefill peak — a trial that crashes
+# after its peak would still score on the healthy window. This study closes that hole in
+# the workflow instead (k8s/run_test_goodput.sh fails the trial on any vLLM restart) rather
+# than guessing a maxStdDev that no gpt-oss/L4 data exists to calibrate yet.
+windowing:
+  # TRIM, not stability (changed for study 12, 2026-09-15). Studies 10/11 used
+  # `stability` with `when: prefill_token_throughput is: max` because a concurrency ramp
+  # puts several regimes inside one trial and something has to choose between them. This
+  # study offers one constant concurrency level, so the whole RunTest task is a single
+  # regime and there is nothing to select: trimming the warm-up leaves a window that is
+  # steady state by construction. That also removes the selection bias entirely — no rule
+  # can prefer a congested sub-window, because there are no sub-windows to prefer.
+  #
+  # Bounds measured on this workflow (study 11, job pod started 10:52:06):
+  #   ~34s  pip install aiperf
+  #   ~54s  cumulative when the cached ShareGPT inputs are reloaded
+  #   ~63s  profiling actually starts
+  #   +20s  --concurrency-ramp-duration
+  # so everything before ~85s is setup, not load. 2m of head trim leaves ~35s of margin
+  # for a slower pip install; 30s of tail trim drops the drain at the end of the run.
+  # RunTest lasts ~11.5 min (65s setup + 20s ramp + 600s benchmark + teardown), so the
+  # scored window is ~9 min of steady state.
+  type: trim
+  trim: [2m, 30s]
+  task: RunTest
+
+parametersSelection:
+  - name: vLLM.gpu_memory_utilization
+    domain: [0.80, 0.90]
+  - name: vLLM.max_num_seqs
+    domain: [16, 1024]
+  - name: vLLM.max_num_batched_tokens
+    domain: [256, 8192]
+  - name: vLLM.kv_cache_dtype
+    categories: [auto, fp8, fp8_e4m3]
+  - name: vLLM.performance_mode
+    categories: [balanced, interactivity, throughput]
+  - name: vLLM.optimization_level
+    domain: [0, 3]
+  - name: vLLM.enforce_eager
+    categories: ["true", "false"]
+  - name: vLLM.scheduling_policy
+    categories: [fcfs, priority]
+  - name: vLLM.async_scheduling
+    categories: ["true", "false"]
+  - name: vLLM.max_cudagraph_capture_size
+    domain: [1, 1024]
+  - name: vLLM.block_size
+    categories: ["16", "32", "48", "64", "80", "96", "112", "128"]
+  - name: vLLM.tensor_parallel_size
+    domain: [1, 4]
+  - name: vLLM.data_parallel_size
+    domain: [1, 4]
+  - name: vLLM.enable_expert_parallel
+    categories: ["true", "false"]
+  # --- Optional, vLLM pack 1.9.0 only (MR !5, not installed as of 2026-09-14). Uncomment
+  #     together with the --stream-interval token in k8s/01-deployment_template.yaml and add
+  #     it to the baseline's doNotRenderParameters list below. The gpt-oss recipe ships
+  #     stream-interval 20 in its benchmark configs.
+  # - name: vLLM.stream_interval
+  #   domain: [1, 64]
+
+# Relationships the optimizer must respect. All read from the vLLM v0.29.0 source and the
+# gpt-oss-20b config.json (2026-09-14); the memory-fit rule is arithmetic on this hardware.
+parameterConstraints:
+  # vLLM's own scheduler rule (each step must fit one token per running sequence) —
+  # study 9 lost three experiments to it before re-adding it.
+  - name: max_num_batched_tokens must be at least max_num_seqs
+    formula: vLLM.max_num_batched_tokens >= vLLM.max_num_seqs
+  # The pod requests all 4 L4s; vLLM needs TP x DP GPUs.
+  - name: TP x DP must fit the 4 L4s the pod requests
+    formula: vLLM.tensor_parallel_size * vLLM.data_parallel_size <= 4
+  # gpt-oss-20b: 64 attention heads, 8 KV heads — both must divide by TP, so 3 is invalid
+  # (vLLM raises at engine init). 1, 2 and 4 are valid.
+  - name: TP must divide gpt-oss-20b's 64 attention heads / 8 KV heads
+    formula: vLLM.tensor_parallel_size != 3
+  # Expert parallelism shards the 32 experts over the TP x DP ranks: with a single rank it
+  # is a no-op, so tuning it there would only waste experiments (efficiency rule, same
+  # shape as study 9's enforce_eager note).
+  # (comparisons only, no arithmetic mixed with the categorical operand: both sizes are >= 1,
+  #  so "TP > 1 or DP > 1" is exactly "TP x DP > 1")
+  - name: expert parallelism needs more than one GPU
+    formula: vLLM.enable_expert_parallel == "false" || vLLM.tensor_parallel_size > 1 || vLLM.data_parallel_size > 1
+  # Memory fit per GPU (GiB): usable L4 framebuffer 22.5 x gpu_memory_utilization must
+  # hold the weights shard (12.8 GiB MXFP4 / TP) plus at least 4 GiB for activations +
+  # KV cache. Always true inside the current domains (TP1 at 0.80 leaves 5.2 GiB); it is
+  # here so that widening gpu_memory_utilization downwards, or moving to a bigger model,
+  # cannot silently produce trials that cannot even load. Data parallelism does not
+  # change the per-GPU footprint (each replica holds full weights).
+  - name: weights shard plus KV headroom must fit one L4
+    formula: vLLM.gpu_memory_utilization * 22.5 - 12.8 / vLLM.tensor_parallel_size >= 4
+
+steps:
+  # Baseline = vLLM defaults for gpt-oss-20b (TP1/DP1/no EP, TRITON_ATTN, auto KV dtype,
+  # optimization level 2, reasoning parser on) with only gpu_memory_utilization pinned:
+  # 0.85 is the value the vLLM gpt-oss recipe uses for its benchmark configs and sits in
+  # the middle of the tuned domain. Every other tuned parameter is left unrendered
+  # (apply_config.sh strips the token) so vLLM's own default applies — same convention as
+  # studies 7/8/9. active_gpus = 1 at baseline, so its score is raw goodput.
+  - name: baseline
+    type: baseline
+    numberOfTrials: 1
+    values:
+      vLLM.gpu_memory_utilization: 0.90
+    doNotRenderParameters:
+      - vLLM.max_num_seqs
+      - vLLM.max_num_batched_tokens
+      - vLLM.kv_cache_dtype
+      - vLLM.performance_mode
+      - vLLM.optimization_level
+      - vLLM.enforce_eager
+      - vLLM.scheduling_policy
+      - vLLM.async_scheduling
+      - vLLM.max_cudagraph_capture_size
+      - vLLM.block_size
+      - vLLM.tensor_parallel_size
+      - vLLM.data_parallel_size
+      - vLLM.enable_expert_parallel
+  # ~15.5 min per experiment: ~3.5 min of vLLM rollout, then a RunTest task of ~11.75 min
+  # (65s setup + 20s concurrency ramp + 600s of steady load + teardown). 45 experiments is
+  # therefore ~11.5 hours — one overnight run. Study 11 fits ~60 in the same time because
+  # its ramp only loads for 6 min; this study trades experiment count for a much cleaner
+  # measurement per experiment. maxFailedExperiments 9 keeps the same 20% guard ratio.
+  - name: optimize
+    type: optimize
+    numberOfExperiments: 45
+    maxFailedExperiments: 9

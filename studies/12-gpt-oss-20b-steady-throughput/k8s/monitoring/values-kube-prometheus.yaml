@@ -1,0 +1,77 @@
+# Helm values for kube-prometheus-stack.
+#
+# NOTE: this is almost certainly ALREADY INSTALLED cluster-wide from 0-explorative's
+# provisioning (one Prometheus/Grafana release per cluster, not per study) — kept here
+# as this study's own reference copy per the atomic-per-study convention, not something
+# to blindly re-apply. Confirm the existing release covers what this study needs
+# (serviceMonitorSelectorNilUsesHelmValues: false already makes it namespace-agnostic,
+# so this study's own ServiceMonitor — see servicemonitor.yaml — should already be
+# picked up without any change here) before reinstalling anything.
+#
+# Install command, if this cluster is ever provisioned from scratch:
+#
+#   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#   helm repo update
+#   helm upgrade --install kube-prometheus-stack \
+#     prometheus-community/kube-prometheus-stack \
+#     --namespace monitoring \
+#     -f studies/6-data-parallelism/k8s/monitoring/values-kube-prometheus.yaml
+
+# Disable rules for control-plane components EKS does not expose.
+defaultRules:
+  rules:
+    etcd: false
+    kubeScheduler: false
+    kubeControllerManager: false
+
+grafana:
+  adminPassword: "changeme"  # override with --set grafana.adminPassword=... or a secret
+  nodeSelector:
+    node-role: system
+  persistence:
+    enabled: true
+    storageClassName: gp3
+    size: 10Gi
+
+prometheus:
+  prometheusSpec:
+    nodeSelector:
+      node-role: system
+    # Allow the operator to pick up ServiceMonitors from ALL namespaces,
+    # not just the ones matching the Helm release label selector.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelector: {}
+    serviceMonitorNamespaceSelector: {}
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 20Gi
+
+alertmanager:
+  alertmanagerSpec:
+    nodeSelector:
+      node-role: system
+
+prometheusOperator:
+  nodeSelector:
+    node-role: system
+
+kube-state-metrics:
+  nodeSelector:
+    node-role: system
+
+# node-exporter must run on GPU nodes too to capture host-level metrics.
+# The toleration lets it schedule despite the nvidia.com/gpu taint — same taint
+# key/value on llm-serving (A10G), llm-serving-g7e (RTX PRO 6000 Blackwell), and this
+# study's own llm-serving-l4 (4x NVIDIA L4), so this one toleration already covers all
+# three node groups without change.
+prometheusNodeExporter:
+  tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule

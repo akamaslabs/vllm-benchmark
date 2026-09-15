@@ -1,0 +1,260 @@
+# KV-cache absolute-metrics exporter — sidecar script for the vLLM pod (ADDED 2026-09-08).
+#
+# WHY: vLLM v0.22.0 exports KV-cache usage only as a ratio (vllm:kv_cache_usage_perc) and
+# the capacity only as STRING LABELS on the info gauge vllm:cache_config_info
+# (num_gpu_blocks, block_size). PromQL cannot convert a label value to a number, so an
+# absolute KV-cache metric (tokens / bytes) cannot be built in Prometheus alone. This
+# sidecar reads vLLM's own /metrics on localhost and republishes numeric gauges
+# (vllm_kv_cache_capacity_tokens, vllm_kv_cache_used_tokens, vllm_kv_cache_capacity_bytes,
+# vllm_kv_cache_used_bytes, ...) on :9400 — see the script's docstring for the full list
+# and the exact derivations. Consumed by the vLLM optimization pack 1.7.0 metrics
+# kv_cache_capacity_tokens / kv_cache_used_tokens / kv_cache_capacity_gb / kv_cache_used_gb
+# (akamas/telemetry/prometheus.yaml).
+#
+# HOW IT IS WIRED: 01-deployment_template.yaml mounts this ConfigMap at /app in the
+# `kv-cache-exporter` sidecar container (python:3.12-alpine, stdlib only); 02-service.yaml
+# exposes port 9400 (`kv-exporter`) and monitoring/servicemonitor.yaml scrapes it every 5s.
+# The script lives in a ConfigMap ON PURPOSE: the deployment template is rendered by
+# Akamas' FileConfigurator and sed-processed by apply_config.sh, so no script text may be
+# embedded there.
+#
+# ONE-TIME APPLY (before the first trial — a missing ConfigMap leaves the vLLM pod stuck
+# in ContainerCreating until apply_config.sh's rollout timeout):
+#   kubectl apply -f studies/9-goodput-per-gpu/k8s/04-kv-cache-exporter-configmap.yaml
+# Verify once the pod is up:
+#   kubectl -n llm-serving exec deploy/vllm -c kv-cache-exporter -- python3 -c \
+#     "import urllib.request;print(urllib.request.urlopen('http://127.0.0.1:9400/metrics').read().decode())"
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kv-cache-exporter
+  namespace: llm-serving
+  labels:
+    app: vllm
+data:
+  kv_cache_exporter.py: |
+    #!/usr/bin/env python3
+    """kv-cache exporter sidecar for vLLM.
+
+    vLLM (v0.22.0) exports KV-cache usage only as a ratio (vllm:kv_cache_usage_perc) and
+    KV-cache capacity only as *string labels* on the info gauge vllm:cache_config_info
+    (num_gpu_blocks, block_size). PromQL has no label-to-number conversion, so an absolute
+    KV-cache metric cannot be derived in Prometheus. This sidecar reads vLLM's own /metrics
+    on localhost and republishes numeric gauges:
+
+      vllm_kv_cache_capacity_tokens      num_gpu_blocks * block_size
+      vllm_kv_cache_used_tokens          capacity_tokens * mean(kv_cache_usage_perc over engines)
+                                         (usage gauges only once vLLM has served a request:
+                                         with data_parallel_size > 1 kv_cache_usage_perc has
+                                         no samples before that; capacity is published as soon
+                                         as cache_config_info exists)
+      vllm_kv_cache_capacity_bytes       capacity_tokens * KV bytes per token   (only if configured)
+      vllm_kv_cache_used_bytes           used_tokens * KV bytes per token       (only if configured)
+      vllm_kv_cache_capacity_blocks, vllm_kv_cache_block_size_tokens, vllm_kv_cache_usage_ratio
+      vllm_kv_cache_exporter_scrape_success   1 if the last read of vLLM's /metrics succeeded
+
+    Notes:
+    - vLLM's API-server process sums num_gpu_blocks across engines at startup (v0.22.0
+      vllm/v1/engine/core_client.py) and every cache_config_info row carries that total, so
+      it is treated as TOTAL capacity and the per-engine usage ratios are averaged.
+    - KV bytes per token = 2 (K and V) * layers * KV heads * head_dim * dtype bytes. Either
+      set KV_CACHE_BYTES_PER_TOKEN directly or MODEL_NUM_LAYERS / MODEL_NUM_KV_HEADS /
+      MODEL_HEAD_DIM / KV_CACHE_DTYPE_BYTES. If neither is set, the *_bytes gauges are omitted.
+    - Stdlib only. While vLLM is still starting, the exporter serves scrape_success 0 and no
+      value gauges (so Prometheus records nothing stale) and retries quietly.
+    """
+    import logging
+    import os
+    import re
+    import sys
+    import threading
+    import time
+    import urllib.error
+    import urllib.request
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    VLLM_METRICS_URL = os.environ.get("VLLM_METRICS_URL", "http://127.0.0.1:8000/metrics")
+    EXPORTER_PORT = int(os.environ.get("EXPORTER_PORT", "9400"))
+    POLL_INTERVAL_SECONDS = float(os.environ.get("POLL_INTERVAL_SECONDS", "5"))
+    HTTP_TIMEOUT_SECONDS = float(os.environ.get("HTTP_TIMEOUT_SECONDS", "4"))
+
+    _LABELS_RE = re.compile(r'(\w+)="((?:[^"\\]|\\.)*)"')
+    _SAMPLE_RE = re.compile(r"^([A-Za-z_:][A-Za-z0-9_:]*)(?:\{(.*)\})?\s+(\S+)(?:\s+\S+)?\s*$")
+
+
+    def bytes_per_token_from_env(env=os.environ):
+        direct = env.get("KV_CACHE_BYTES_PER_TOKEN")
+        if direct:
+            return int(direct)
+        try:
+            layers = int(env["MODEL_NUM_LAYERS"])
+            kv_heads = int(env["MODEL_NUM_KV_HEADS"])
+            head_dim = int(env["MODEL_HEAD_DIM"])
+            dtype_bytes = int(env["KV_CACHE_DTYPE_BYTES"])
+        except (KeyError, ValueError):
+            return 0
+        return 2 * layers * kv_heads * head_dim * dtype_bytes
+
+
+    def parse_metrics(text):
+        """Return (cache_config_rows, usage_perc_by_engine) from Prometheus text format."""
+        cache_config_rows = []
+        usage = {}
+        for line in text.splitlines():
+            if not line or line.startswith("#"):
+                continue
+            m = _SAMPLE_RE.match(line)
+            if not m:
+                continue
+            name, raw_labels, value = m.group(1), m.group(2) or "", m.group(3)
+            if name == "vllm:cache_config_info":
+                cache_config_rows.append(dict(_LABELS_RE.findall(raw_labels)))
+            elif name == "vllm:kv_cache_usage_perc":
+                labels = dict(_LABELS_RE.findall(raw_labels))
+                try:
+                    usage[labels.get("engine", "0")] = float(value)
+                except ValueError:
+                    continue
+        return cache_config_rows, usage
+
+
+    def compute(cache_config_rows, usage, bytes_per_token):
+        """Return the gauge dict, or None if vLLM has not published its cache config yet."""
+        num_gpu_blocks = block_size = None
+        for row in cache_config_rows:
+            try:
+                num_gpu_blocks = int(row.get("num_gpu_blocks", ""))
+                block_size = int(row.get("block_size", ""))
+                break
+            except ValueError:
+                continue
+        if not num_gpu_blocks or not block_size:
+            return None
+        # CHANGED 2026-09-10: capacity no longer waits for vllm:kv_cache_usage_perc. With
+        # data_parallel_size > 1 that gauge has no samples until the first request is
+        # served (verified on v0.22.0, DP=3), which hid the capacity - known since startup
+        # from cache_config_info - for the whole idle phase. Usage gauges are still only
+        # published when usage samples exist, so nothing stale or invented is exported.
+        capacity_tokens = num_gpu_blocks * block_size
+        gauges = {
+            "vllm_kv_cache_capacity_blocks": num_gpu_blocks,
+            "vllm_kv_cache_block_size_tokens": block_size,
+            "vllm_kv_cache_capacity_tokens": capacity_tokens,
+        }
+        if bytes_per_token > 0:
+            gauges["vllm_kv_cache_bytes_per_token"] = bytes_per_token
+            gauges["vllm_kv_cache_capacity_bytes"] = capacity_tokens * bytes_per_token
+        if usage:
+            usage_ratio = sum(usage.values()) / len(usage)
+            used_tokens = capacity_tokens * usage_ratio
+            gauges["vllm_kv_cache_usage_ratio"] = usage_ratio
+            gauges["vllm_kv_cache_used_tokens"] = used_tokens
+            if bytes_per_token > 0:
+                gauges["vllm_kv_cache_used_bytes"] = used_tokens * bytes_per_token
+        return gauges
+
+
+    _HELP = {
+        "vllm_kv_cache_capacity_blocks": "Total KV cache capacity in blocks (vllm:cache_config_info num_gpu_blocks).",
+        "vllm_kv_cache_block_size_tokens": "KV cache block size in tokens (vllm:cache_config_info block_size).",
+        "vllm_kv_cache_capacity_tokens": "Total KV cache capacity in tokens (num_gpu_blocks * block_size).",
+        "vllm_kv_cache_usage_ratio": "KV cache usage ratio, mean of vllm:kv_cache_usage_perc over engines.",
+        "vllm_kv_cache_used_tokens": "KV cache tokens in use (capacity_tokens * usage_ratio).",
+        "vllm_kv_cache_bytes_per_token": "Configured KV cache bytes per token (2 * layers * kv_heads * head_dim * dtype_bytes).",
+        "vllm_kv_cache_capacity_bytes": "Total KV cache capacity in bytes (capacity_tokens * bytes_per_token).",
+        "vllm_kv_cache_used_bytes": "KV cache bytes in use (used_tokens * bytes_per_token).",
+        "vllm_kv_cache_exporter_scrape_success": "1 if the last read of vLLM's /metrics succeeded and contained the KV cache config, else 0.",
+    }
+
+
+    def render(gauges, success):
+        out = []
+        values = dict(gauges or {})
+        values["vllm_kv_cache_exporter_scrape_success"] = 1 if success else 0
+        for name in _HELP:
+            if name not in values:
+                continue
+            out.append(f"# HELP {name} {_HELP[name]}")
+            out.append(f"# TYPE {name} gauge")
+            out.append(f"{name} {values[name]!r}" if isinstance(values[name], float) else f"{name} {values[name]}")
+        return "\n".join(out) + "\n"
+
+
+    class State:
+        def __init__(self):
+            self.lock = threading.Lock()
+            self.gauges = None
+            self.success = False
+
+
+    def poll_loop(state, bytes_per_token):
+        log = logging.getLogger("kv-cache-exporter")
+        last_error = None
+        announced = False
+        while True:
+            try:
+                with urllib.request.urlopen(VLLM_METRICS_URL, timeout=HTTP_TIMEOUT_SECONDS) as resp:
+                    text = resp.read().decode("utf-8", errors="replace")
+                rows, usage = parse_metrics(text)
+                gauges = compute(rows, usage, bytes_per_token)
+                with state.lock:
+                    state.gauges = gauges
+                    state.success = gauges is not None
+                if gauges is None:
+                    err = "vLLM /metrics reachable but no cache_config_info yet"
+                    if err != last_error:
+                        log.info(err)
+                        last_error = err
+                else:
+                    last_error = None
+                    if not announced:
+                        log.info("KV cache capacity: %d blocks x %d tokens = %d tokens%s",
+                                 gauges["vllm_kv_cache_capacity_blocks"], gauges["vllm_kv_cache_block_size_tokens"],
+                                 gauges["vllm_kv_cache_capacity_tokens"],
+                                 f" = {gauges['vllm_kv_cache_capacity_bytes'] / 1e9:.2f} GB" if "vllm_kv_cache_capacity_bytes" in gauges else "")
+                        announced = True
+            except (urllib.error.URLError, OSError, ValueError) as exc:
+                with state.lock:
+                    state.gauges = None
+                    state.success = False
+                err = f"cannot read {VLLM_METRICS_URL}: {exc}"
+                if err != last_error:
+                    log.info("%s (retrying every %ss)", err, POLL_INTERVAL_SECONDS)
+                    last_error = err
+                announced = False
+            time.sleep(POLL_INTERVAL_SECONDS)
+
+
+    def make_handler(state):
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                if self.path.split("?")[0] != "/metrics":
+                    self.send_response(404)
+                    self.end_headers()
+                    return
+                with state.lock:
+                    body = render(state.gauges, state.success).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *_):
+                return
+        return Handler
+
+
+    def main():
+        logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s", stream=sys.stdout)
+        bytes_per_token = bytes_per_token_from_env()
+        logging.getLogger("kv-cache-exporter").info(
+            "starting: source=%s port=%d poll=%ss bytes_per_token=%s",
+            VLLM_METRICS_URL, EXPORTER_PORT, POLL_INTERVAL_SECONDS, bytes_per_token or "unset (byte gauges omitted)")
+        state = State()
+        threading.Thread(target=poll_loop, args=(state, bytes_per_token), daemon=True).start()
+        ThreadingHTTPServer(("0.0.0.0", EXPORTER_PORT), make_handler(state)).serve_forever()
+
+
+    if __name__ == "__main__":
+        main()

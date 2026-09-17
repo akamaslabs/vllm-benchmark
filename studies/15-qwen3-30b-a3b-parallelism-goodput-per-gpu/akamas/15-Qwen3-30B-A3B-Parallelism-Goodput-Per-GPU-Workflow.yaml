@@ -1,0 +1,55 @@
+kind: workflow
+name: 15-Qwen3-30B-A3B-Parallelism-Goodput-Per-GPU-Workflow
+# Same three-task shape as studies 7/8/9/13/14: render the Deployment template, apply it
+# and wait for the rollout (vLLM logs dumped to stdout), run the AIPerf sweep (job logs
+# dumped to stdout, trial FAILED if vLLM restarted during the test — see
+# k8s/run_test_goodput.sh).
+#
+# Unlike study 14 — which reused study 13's workflow so its imported experiments stayed
+# comparable — this study owns its workflow and points at ITS OWN k8s/ folder: the model
+# differs, so there is nothing to keep comparable and nothing to import.
+#
+# TODO BEFORE RUNNING: the SSH private key must already exist on the toolbox host at
+# /work/vllm-benchmark/studies/15-qwen3-30b-a3b-parallelism-goodput-per-gpu/akamas/id_rsa
+# (same key the other studies use — it is the toolbox's own key). It is NEVER committed:
+# `.gitignore` has `studies/*/akamas/id_rsa`, and this repo's history already contains one
+# leaked key (ROADMAP.md, section E security debt). Copy it on the host, do not add it here.
+#
+# Timeouts: Apply config 90 m (30 m rollout deadline + the 31.18 GB cold-cache model
+# download + torch.compile over 128 experts — studies 13/14 used 75 m for a 12.8 GiB
+# model); RunTest 105 m (95 m kubectl wait + margin).
+tasks:
+  - name: Write config
+    operator: FileConfigurator
+    arguments:
+      ignoreUnsubstitutedTokens: true
+      source:
+        hostname: toolbox
+        username: akamas
+        key: /work/vllm-benchmark/studies/15-qwen3-30b-a3b-parallelism-goodput-per-gpu/akamas/id_rsa
+        path: /work/vllm-benchmark/studies/15-qwen3-30b-a3b-parallelism-goodput-per-gpu/k8s/01-deployment_template.yaml
+      target:
+        hostname: toolbox
+        username: akamas
+        key: /work/vllm-benchmark/studies/15-qwen3-30b-a3b-parallelism-goodput-per-gpu/akamas/id_rsa
+        path: /work/vllm-benchmark/studies/15-qwen3-30b-a3b-parallelism-goodput-per-gpu/k8s/01-deployment.yaml
+  - name: Apply config
+    operator: Executor
+    arguments:
+      retries: 0
+      timeout: 90m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /work/vllm-benchmark/studies/15-qwen3-30b-a3b-parallelism-goodput-per-gpu/akamas/id_rsa
+      command: bash /work/vllm-benchmark/studies/15-qwen3-30b-a3b-parallelism-goodput-per-gpu/k8s/apply_config.sh
+  - name: RunTest
+    operator: Executor
+    arguments:
+      retries: 0
+      timeout: 105m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /work/vllm-benchmark/studies/15-qwen3-30b-a3b-parallelism-goodput-per-gpu/akamas/id_rsa
+      command: bash /work/vllm-benchmark/studies/15-qwen3-30b-a3b-parallelism-goodput-per-gpu/k8s/run_test_goodput.sh

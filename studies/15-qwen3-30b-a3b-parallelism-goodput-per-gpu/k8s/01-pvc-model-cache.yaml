@@ -1,0 +1,24 @@
+# Model cache for Qwen/Qwen3-30B-A3B-Instruct-2507-FP8 (31.18 GB of safetensors, 4 shards
+# — measured via the HF API on 2026-09-17).
+#
+# Its own claim name, separate from study 13/14's `vllm-model-cache-gptoss` and from
+# studies 7/8/9's `vllm-model-cache`: a study that reuses another model's cache volume
+# would pull 31 GB into a volume already holding someone else's weights, and deleting one
+# study's cache would silently break the other. 80Gi leaves room for the checkpoint plus
+# the HF blobs/refs layout (which keeps a second copy while downloading).
+#
+# `gp3-ephemeral` (WaitForFirstConsumer) binds in whichever Availability Zone the GPU node
+# actually lands: an EBS volume is AZ-pinned, and the `llm-serving-l4` node group spans
+# us-east-2a/b/c while g6.12xlarge capacity has been served only in a/b (2026-09-14).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vllm-model-cache-qwen3moe
+  namespace: llm-serving
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3-ephemeral
+  resources:
+    requests:
+      storage: 80Gi

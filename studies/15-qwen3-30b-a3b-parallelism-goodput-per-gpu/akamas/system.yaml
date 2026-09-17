@@ -1,0 +1,16 @@
+kind: system
+name: vLLM_Benchmark_15_Qwen3_30B_A3B
+description: >-
+  Goodput-per-GPU study for 15-qwen3-30b-a3b-parallelism-goodput-per-gpu
+  (Qwen/Qwen3-30B-A3B-Instruct-2507-FP8 — MoE, 128 experts / top-8, 48 layers, FP8 e4m3
+  block-quantized weights, 29.03 GiB — on 1x g6.12xlarge, 4x NVIDIA L4 24GB, vLLM 0.29.0).
+  Same goal as studies 9/10/12/13/14 — (prefill + decode token throughput) /
+  vLLM.active_gpus under a P95 TTFT/ITL SLA — same 9 components and Prometheus telemetry
+  catalog. What changes is the model: at 29.03 GiB the weights do not fit a single 24 GB
+  L4, so every trial is multi-GPU by construction, while 2-GPU layouts remain loadable
+  (~14.5 GiB/GPU) and therefore comparable against 4-GPU ones — which is what makes the
+  per-GPU objective discriminate. 14 tuned vLLM parameters with tensor_parallel_size in
+  [1,4] (TP != 3) and data_parallel_size in [1,4] (TP x DP <= 4, TP x DP >= 2 enforced by
+  the memory-fit constraint); study 10's 12-level AIPerf ramp, re-floored to 24 for this
+  model, and stability windowing. vLLM optimization pack 1.9.1, GPU pack 1.2.0,
+  Kubernetes pack 1.8.0-dev.

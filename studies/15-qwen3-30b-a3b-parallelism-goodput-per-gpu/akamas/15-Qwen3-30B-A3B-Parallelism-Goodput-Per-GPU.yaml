@@ -1,21 +1,32 @@
 kind: study
 name: 15-Qwen3-30B-A3B-Parallelism-Goodput-Per-GPU
+# NOTE: `description` is capped at 1024 characters by the API (the first version of this
+# file was 1183 and would be rejected, as system.yaml's 1031 was). The long-form rationale
+# lives here in comments and in ../README.md — not in the field.
+#
+# Why a different model: gpt-oss-20b fits one L4, so studies 10-14 could not tell a
+# parallelism benefit from the simple fact of not needing parallelism at all. This model's
+# weights are 29.03 GiB (FP8 e4m3, block-quantized 128x128), which does NOT fit one 24 GB
+# L4: every configuration is multi-GPU, while 2-GPU layouts stay loadable (~14.5 GiB/GPU)
+# and can be compared against 4-GPU ones (~7.3 GiB/GPU).
+# Why no import: study 13/14's experiments ran a different model and are not on this scale,
+# so there is no `baseline from` and no `bootstrap` step.
+# Why presets instead of Sobol: study 13's Sobol head aliased kv_cache_dtype with
+# enable_expert_parallel perfectly (ROADMAP.md section C), and Sobol is deterministic from
+# initial_offset = 0, so the same head would be drawn again here.
+# Decided in the 2026-09-17 thread as phase 1 of two: topology first, NCCL interconnect
+# tunables second (those are not modeled by vLLM pack 1.9.1 — see ROADMAP.md section E).
 description: >-
   Goodput-per-GPU over the TP/DP/expert-parallel topology of
   Qwen/Qwen3-30B-A3B-Instruct-2507-FP8 on 4x NVIDIA L4 (g6.12xlarge), vLLM 0.29.0.
   Same goal, SLA, windowing, KPIs and 14 tuned parameters as study 14
-  (14-GPT-OSS-20B-Parallelism-And-KV-Goodput-Per-GPU) — the model is what changes, and
-  it changes the question. gpt-oss-20b fits one L4, so studies 10-14 could not tell a
-  parallelism benefit from the simple fact of not needing parallelism at all. This
-  model's weights are 29.03 GiB (FP8 e4m3, block-quantized 128x128), which does NOT fit
-  one 24 GB L4: every configuration is multi-GPU, while 2-GPU layouts stay loadable
-  (~14.5 GiB/GPU) and can be compared against 4-GPU ones (~7.3 GiB/GPU).
-  NO baseline `from` and NO bootstrap: study 13/14's experiments ran a different model
-  and are not on this scale. The initial design is 10 explicit presets with
-  numberOfInitExperiments: 0 — the lesson of study 13, whose Sobol head aliased
-  kv_cache_dtype with enable_expert_parallel perfectly (ROADMAP.md section C).
-  Decided in the 2026-09-17 thread as phase 1 of two: topology first, NCCL interconnect
-  tunables second (those are not modeled by vLLM pack 1.9.1 — see ROADMAP.md section E).
+  (14-GPT-OSS-20B-Parallelism-And-KV-Goodput-Per-GPU) — the model is what changes, and it
+  changes the question: at 29.03 GiB the weights do not fit one 24 GB L4, so every
+  configuration is multi-GPU, while 2-GPU layouts stay loadable and comparable against
+  4-GPU ones. No baseline `from` and no bootstrap (different model, different scale).
+  Initial design: 10 explicit presets with numberOfInitExperiments 0, covering all 5
+  reachable topologies and all 4 cells of kv_cache_dtype x enable_expert_parallel.
+  Phase 1 of the topology-then-NCCL plan agreed on 2026-09-17.
 
 system: vLLM_Benchmark_15_Qwen3_30B_A3B
 workflow: 15-Qwen3-30B-A3B-Parallelism-Goodput-Per-GPU-Workflow

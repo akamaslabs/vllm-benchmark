@@ -1,0 +1,22 @@
+# Model cache for openai/gpt-oss-20b (12.8 GiB of safetensors; vLLM's default
+# --ignore-patterns skips the duplicate `original/` and `metal/` checkpoints).
+#
+# Deliberately a NEW claim name (not study 7/8/9's `vllm-model-cache`): an EBS volume is
+# bound to one Availability Zone and the old PV is pinned to us-east-2c, while the
+# `llm-serving-l4` node group spans us-east-2a/b/c and AWS has been serving g6.12xlarge
+# capacity only in a/b (2026-09-14). With `gp3-ephemeral` (WaitForFirstConsumer) this
+# claim binds in whichever AZ the GPU node actually lands, on first pod start. The old
+# claim holds Qwen2.5-7B weights this study does not need — delete it only once study 9
+# is finished (not done by anything in this folder).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vllm-model-cache-gptoss
+  namespace: llm-serving
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3-ephemeral
+  resources:
+    requests:
+      storage: 60Gi

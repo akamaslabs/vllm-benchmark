@@ -1,0 +1,3 @@
+kind: system
+name: vLLM_Benchmark_13_GPT_OSS_20B_TP
+description: Goodput-per-GPU study for 13-gpt-oss-20b-tp-goodput-per-gpu (openai/gpt-oss-20b, MoE 32 experts, MXFP4 weights, on 1x g6.12xlarge, 4x NVIDIA L4 24GB, vLLM 0.29.0). Same goal as 9/10/12 — (prefill + decode token throughput) / vLLM.active_gpus under P95 TTFT/ITL SLA — same 9 components and 108-metric Prometheus telemetry; 14 tuned vLLM parameters with tensor_parallel_size in [2,4] (TP != 3) and data_parallel_size in [1,2] (TP x DP <= 4), so every trial shards the model over at least two L4s; a sampler-warmup memory guard couples gpu_memory_utilization and max_num_seqs; study 10's 12-level AIPerf ramp and stability windowing. vLLM optimization pack 1.9.1, GPU pack 1.2.0, Kubernetes pack 1.8.0-dev.

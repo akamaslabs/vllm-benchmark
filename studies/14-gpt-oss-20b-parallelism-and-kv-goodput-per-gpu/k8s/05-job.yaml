@@ -1,0 +1,156 @@
+# AIPerf load test for 13-gpt-oss-20b-tp-goodput-per-gpu — study 10's closed-loop, 12-level
+# concurrency sweep (150 -> 1024, 300 s per level) and ShareGPT replay, taken back
+# unchanged (2026-09-15) after study 12 replaced it with one constant level of 512 for
+# 600 s. The ramp costs ~67 min of load per trial against study 12's 10, but it lets the
+# stability window find each topology's own peak: with TP >= 2 the aggregate capacity
+# spans 2x to 4x a single L4, so no single constant level discriminates every valid
+# configuration the way 512 did for study 12's single-GPU baseline. Study 12's caveats
+# about a ramp still hold (AIPerf reconnects between levels, leaving ~30 s with nothing in
+# flight; the window may straddle a level change) — with 300 s levels and a 6-sample window
+# they cost far less than they did on study 11's 90 s levels. Two model-specific flags:
+#   --model gpt-oss-20b / --tokenizer openai/gpt-oss-20b   the served name and the real
+#                                                           tokenizer (token counting).
+#   --extra-inputs reasoning_effort:low   gpt-oss is a reasoning model: every reply carries
+#       a chain of thought in the harmony "analysis" channel before the answer. At the
+#       default (medium) effort the CoT dominates output length and the sweep would
+#       saturate far earlier than study 9's calibration. `reasoning_effort` is a top-level
+#       field of vLLM 0.29.0's chat-completions request (entrypoints/openai/chat_completion/
+#       protocol.py, values none/minimal/low/medium/high/xhigh/max) and is forwarded to the
+#       harmony chat template. Reasoning tokens are still generated and counted by vLLM's
+#       own generation_tokens_total (the goal's decode_token_throughput); with
+#       --reasoning-parser openai_gptoss they stream as `reasoning_content`, which AIPerf
+#       0.11 counts as reasoning tokens — check `reasoning_tokens` in its JSON export
+#       after the smoke test before trusting client-side TTFT/ITL.
+# The ShareGPT dataset cache is model-specific (see the CACHE_FILE block below): the legacy
+# inputs.json of studies 1-9 embeds "qwen2.5-7b" in every request and cannot be reused as-is.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aiperf-benchmark
+  namespace: llm-benchmark
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node-role: system-m8a
+      initContainers:
+        - name: wait-for-vllm
+          image: alpine:3
+          command:
+            - sh
+            - -c
+            - |
+              until wget -qO- http://vllm.llm-serving.svc.cluster.local:8000/health >/dev/null 2>&1; do
+                echo "$(date -u +%T) waiting for vLLM readiness..."
+                sleep 10
+              done
+              echo "vLLM is ready."
+      containers:
+        - name: aiperf
+          image: python:3.12-slim
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              pip install --quiet aiperf==0.11.0
+              # Keep only the latest run's artifacts on the 10 Gi results volume.
+              find /benchmarks -mindepth 1 -maxdepth 1 -name 'aiperf-*' -exec rm -rf {} +
+              # Dataset cache — MODEL-SPECIFIC. AIPerf's inputs.json embeds the model name in
+              # every payload, so the file shared by studies 1-9 carries "qwen2.5-7b": reused
+              # as-is on this study's first baseline (2026-09-15) it produced 14 339 x HTTP 404
+              # "The model `qwen2.5-7b` does not exist" against 32 successful requests. This
+              # study therefore keeps its own file, derived from the legacy one when present
+              # (identical ShareGPT prompts, only the per-request model field rewritten) and
+              # generated from scratch otherwise; a final guard refuses any other model name.
+              MODEL_NAME=gpt-oss-20b
+              CACHE_DIR=/benchmarks/sharegpt-cache
+              CACHE_FILE=$CACHE_DIR/inputs-$MODEL_NAME.json
+              LEGACY_CACHE=$CACHE_DIR/inputs.json
+              mkdir -p "$CACHE_DIR"
+              if [ ! -f "$CACHE_FILE" ] && [ -f "$LEGACY_CACHE" ]; then
+                echo "Deriving $CACHE_FILE from $LEGACY_CACHE (rewriting the per-request model field to $MODEL_NAME)..."
+                sed -E 's/"model": *"[^"]*"/"model": "'"$MODEL_NAME"'"/g' "$LEGACY_CACHE" > "$CACHE_FILE.tmp" && mv "$CACHE_FILE.tmp" "$CACHE_FILE"
+              fi
+              if [ ! -f "$CACHE_FILE" ]; then
+                echo "No cached ShareGPT inputs for $MODEL_NAME — generating once (one-time ~5min dataset validation pass)..."
+                set +e
+                aiperf profile \
+                  --model "$MODEL_NAME" \
+                  --tokenizer openai/gpt-oss-20b \
+                  --url http://vllm.llm-serving.svc.cluster.local:8000 \
+                  --endpoint-type chat \
+                  --streaming \
+                  --public-dataset sharegpt \
+                  --concurrency 1 \
+                  --request-count 1 \
+                  --extra-inputs reasoning_effort:low \
+                  --ui simple \
+                  --output-artifact-dir /tmp/sharegpt-prep
+                set -e
+                if [ ! -f /tmp/sharegpt-prep/inputs.json ]; then
+                  echo "ERROR: prep run did not produce inputs.json — see log above" >&2
+                  exit 1
+                fi
+                cp /tmp/sharegpt-prep/inputs.json "$CACHE_FILE"
+              else
+                echo "Reusing cached ShareGPT inputs for $MODEL_NAME from $CACHE_FILE (skips dataset validation)."
+              fi
+              # Guard against the stale-cache bug: every model field must be this study's model.
+              if grep -o '"model": *"[^"]*"' "$CACHE_FILE" | grep -qv "\"$MODEL_NAME\""; then
+                echo "ERROR: $CACHE_FILE references a model other than $MODEL_NAME:" >&2
+                grep -o '"model": *"[^"]*"' "$CACHE_FILE" | sort | uniq -c | head -5 >&2
+                exit 1
+              fi
+              # Same 12-level ramp as studies 2/7/8/9/10 (calibrated on 1x A10G with Qwen2.5-7B).
+              # Measured on this node (study 10 baseline, study 11 exp 3): one L4 at the default
+              # max_num_seqs=256 queues from level 302, while TP2/DP2 with max_num_seqs=394 is
+              # still queue-free at 512 and queues ~233 requests at 1024 — so the 1024 ceiling is
+              # high enough for every TP >= 2 topology this study can render to hit its peak
+              # inside the ramp. No --concurrency-ramp-duration: each level starts as in study 10.
+              CONCURRENCY_LIST="150,179,213,253,302,359,428,509,606,722,860,1024"
+
+              aiperf profile \
+                --model "$MODEL_NAME" \
+                --tokenizer openai/gpt-oss-20b \
+                --url http://vllm.llm-serving.svc.cluster.local:8000 \
+                --endpoint-type chat \
+                --streaming \
+                --input-file "$CACHE_FILE" \
+                --custom-dataset-type inputs_json \
+                --concurrency "$CONCURRENCY_LIST" \
+                --benchmark-duration 300 \
+                --extra-inputs reasoning_effort:low \
+                --goodput "time_to_first_token:1500 inter_token_latency:300" \
+                --ui simple \
+                --output-artifact-dir "/benchmarks/aiperf-$(date +%s)"
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+                  optional: true   # gpt-oss-20b is not gated; kept for parity with 03-hf-secret.yaml
+            - name: AIPERF_DATASET_CONFIGURATION_TIMEOUT
+              value: "900"
+            - name: AIPERF_SERVICE_PROFILE_CONFIGURE_TIMEOUT
+              value: "1200"
+          resources:
+            requests:
+              cpu: "2"
+              memory: "6Gi"
+            limits:
+              memory: "12Gi"
+          volumeMounts:
+            - name: results
+              mountPath: /benchmarks
+            - name: hf-cache
+              mountPath: /root/.cache/huggingface
+      volumes:
+        - name: results
+          persistentVolumeClaim:
+            claimName: aiperf-results
+        - name: hf-cache
+          persistentVolumeClaim:
+            claimName: hf-cache

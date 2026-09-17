@@ -27,6 +27,26 @@ goal:
       - name: ITL P95 interactive-chat SLA
         formula: vLLM.inter_token_latency_p95 <= 300
 
+# KPIs tracked in the UI (added 2026-09-16). These are exactly the five metrics the goal
+# and the two constraints already reference, i.e. the set Akamas would derive on its own if
+# this block were absent — it is written out only to pin each metric's `direction`, which
+# auto-derivation cannot infer for `active_gpus` (it sits in the goal's divisor, so fewer
+# GPUs at equal goodput is the better configuration: minimize). `name` is left out so the
+# UI label defaults to the metric name, and `aggregation` is left out so it stays `avg`:
+# the two p95 metrics are already quantiles computed by the Prometheus query, and averaging
+# them over the stability window is how the constraints evaluate them too.
+kpis:
+  - formula: vLLM.active_gpus
+    direction: minimize
+  - formula: vLLM.decode_token_throughput
+    direction: maximize
+  - formula: vLLM.inter_token_latency_p95
+    direction: minimize
+  - formula: vLLM.prefill_token_throughput
+    direction: maximize
+  - formula: vLLM.time_to_first_token_p95
+    direction: minimize
+
 # Study 10's block, byte for byte (2026-09-15). The load is study 10's 12-level
 # concurrency ramp again (k8s/05-job.yaml), so one trial holds several regimes and the
 # window has to pick one: the 6 samples around the prefill-throughput peak. Known

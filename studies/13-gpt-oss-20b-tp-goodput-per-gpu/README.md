@@ -1,8 +1,27 @@
 # 13-gpt-oss-20b-tp-goodput-per-gpu
 
-**Status:** TODO (scaffolded 2026-09-15 from `12-gpt-oss-20b-steady-throughput`; Akamas
-resources created on the live instance the same day, study not started)
-**Dates:** Scaffolded 2026-09-15
+**Status:** STOPPED after 16 of 100 experiments — superseded by
+[`14-gpt-oss-20b-parallelism-and-kv-goodput-per-gpu`](../14-gpt-oss-20b-parallelism-and-kv-goodput-per-gpu/README.md),
+which reuses this study's system, telemetry instance and workflow and imports all 16
+experiments.
+**Dates:** Scaffolded 2026-09-15; ran 2026-09-15 19:42 UTC -> 2026-09-16; stopped 2026-09-16
+(the last state read live from the instance was RUNNING with 16 experiments finished and the
+17th in progress; the stop is per study 14's manifest and was not re-verified — the shared
+toolbox CLI session lost its Administrator role).
+
+> **Outcome in one line.** Best experiment 16: **2345.31 tokens/s per active GPU (+18.49%**
+> over the 1979.41 baseline) with TP2/DP1, expert parallelism on, `kv_cache_dtype` auto,
+> `gpu_memory_utilization` 0.80, `max_num_seqs` 1024, `max_num_batched_tokens` 7781,
+> `block_size` 96, optimization level 3. It was stopped early because its Sobol initial
+> design **perfectly aliased `kv_cache_dtype == fp8` with `enable_expert_parallel == false`**
+> across all 15 optimizer experiments, so neither effect is identifiable — see study 14's
+> README for the contingency table and the fix. The full recap (Results/Conclusions below)
+> is still to be written with the `study-recap` skill.
+
+**Note on the `kpis` block** added to the manifest on 2026-09-16: it was never applied to
+the running study (there is no `akamas update` verb for `kpis`, and re-creating the study
+would have discarded the 16 experiments study 14 imports). Study 14 carries an 8-KPI block
+of its own.
 
 ## Objective
 
@@ -20,6 +39,28 @@ subject to  vLLM.time_to_first_token_p95 <= 1500 ms,  vLLM.inter_token_latency_p
 
 `active_gpus` (GPUs with > 1 GiB of framebuffer in use, i.e. TP x DP) is 2 for TP2/DP1 and
 4 for TP2/DP2 and TP4/DP1, so the three topologies are compared on the same per-GPU footing.
+
+### KPIs (added 2026-09-16)
+
+The manifest carries an explicit `kpis` block with the five metrics the goal and the two
+constraints already reference — the same set Akamas derives by itself when the block is
+absent. It is written out only to pin each metric's direction, which the UI otherwise has
+no way to infer for `active_gpus`:
+
+| KPI | direction | why |
+|---|---|---|
+| `vLLM.active_gpus` | minimize | it is the goal's divisor: at equal goodput, fewer GPUs wins |
+| `vLLM.decode_token_throughput` | maximize | goal numerator |
+| `vLLM.prefill_token_throughput` | maximize | goal numerator (and the windowing metric) |
+| `vLLM.inter_token_latency_p95` | minimize | SLA constraint (<= 300 ms) |
+| `vLLM.time_to_first_token_p95` | minimize | SLA constraint (<= 1500 ms) |
+
+`name` is omitted so each KPI's UI label defaults to the metric name, and `aggregation` is
+omitted so it stays `avg` over the stability window — the two p95 metrics are already
+quantiles computed inside the Prometheus query, and `avg` is how the constraints evaluate
+them too. The score is still the goal formula and the optimizer still reads only goal and
+constraints; per the 3.7 docs the `kpis` block drives the UI (the "Best `<name>`" badges and
+the per-KPI columns).
 
 ## What changes vs. studies 10 and 12
 
@@ -244,13 +285,22 @@ akamas create study             studies/13-gpt-oss-20b-tp-goodput-per-gpu/akamas
 #    or, bulk form (every file self-describes kind:/system:; same dependency order applies):
 akamas create -f studies/13-gpt-oss-20b-tp-goodput-per-gpu/akamas/
 
+# 1b. MOOT as of 2026-09-16 — kept for the record only. The `kpis` block was added to this
+#     manifest after the study had already run 16 experiments, and `akamas update study` has
+#     no verb for it; re-creating the study would have discarded the experiments study 14
+#     imports, so it was never applied. Study 14 carries its own 8-KPI block.
+#     (Original note: delete and re-create the study only — the system, components,
+#     telemetry instance and workflow are untouched.)
+akamas delete study "13-GPT-OSS-20B-TP-Goodput-Per-GPU"
+akamas create study  studies/13-gpt-oss-20b-tp-goodput-per-gpu/akamas/13-GPT-OSS-20B-TP-Goodput-Per-GPU.yaml
+
 # 2. check, then start (only once study 12 is finished — see Prerequisites)
-akamas describe study "13-GPT-OSS-20B-TP-Goodput-Per-GPU"      # expect 14 parameters, 5 parameterConstraints, 2 steps
+akamas describe study "13-GPT-OSS-20B-TP-Goodput-Per-GPU"      # expect 14 parameters, 5 parameterConstraints, 5 KPIs, 2 steps
 akamas start study "13-GPT-OSS-20B-TP-Goodput-Per-GPU"
 akamas list experiment "13-GPT-OSS-20B-TP-Goodput-Per-GPU"
 ```
 
-There is no `akamas update` verb for domains, constraints, windowing or steps: to change
+There is no `akamas update` verb for domains, constraints, KPIs, windowing or steps: to change
 any of them, `akamas delete study "13-GPT-OSS-20B-TP-Goodput-Per-GPU"` and re-create it
 (the system, components, telemetry instance and workflow can stay). Only the `goal` can be
 edited in place on a running study.

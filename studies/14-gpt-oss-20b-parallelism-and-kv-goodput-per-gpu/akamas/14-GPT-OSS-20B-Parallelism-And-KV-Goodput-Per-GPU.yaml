@@ -1,0 +1,406 @@
+kind: study
+name: 14-GPT-OSS-20B-Parallelism-And-KV-Goodput-Per-GPU
+description: >-
+  Successore di 13-GPT-OSS-20B-TP-Goodput-Per-GPU (cfc20747-9318-484c-92c7-d7871c3ade81).
+  Tre differenze rispetto al predecessore:
+    1. tensor_parallel_size aperto a 1 e data_parallel_size aperto a 4 (il pack
+       consente [1,16] e [1,8]; era lo study a restringere a [2,4] e [1,2]).
+    2. Bootstrap Sobol sostituito da preset espliciti: Sobol parte da
+       initial_offset=0, e' deterministico, e nello study 13 ha prodotto un
+       aliasing perfetto fra kv_cache_dtype=fp8 e enable_expert_parallel=false
+       su tutti e 10 i punti iniziali.
+    3. Gli esperimenti dello study 13 sono importati come storia.
+  Goal, vincoli, windowing, workflow e benchmark sono IDENTICI allo study 13:
+  e' la condizione perche' i punti importati siano confrontabili con i nuovi.
+
+system: vLLM_Benchmark_13_GPT_OSS_20B_TP
+workflow: 13-GPT-OSS-20B-TP-Goodput-Per-GPU-Workflow
+
+# ---------------------------------------------------------------- goal
+# INVARIATO rispetto allo study 13. Non toccare: qualunque modifica qui
+# rende i 16 esperimenti importati incomparabili con i nuovi.
+goal:
+  objective: maximize
+  function:
+    formula: (vLLM.prefill_token_throughput + vLLM.decode_token_throughput) / vLLM.active_gpus
+    unit: tokens per second/gpus
+  constraints:
+    absolute:
+      - name: TTFT P95 interactive-chat SLA
+        formula: vLLM.time_to_first_token_p95 <= 1500
+      - name: ITL P95 interactive-chat SLA
+        formula: vLLM.inter_token_latency_p95 <= 300
+
+# ---------------------------------------------------------------- windowing
+# INVARIATO rispetto allo study 13.
+windowing:
+  type: stability
+  stability:
+    metric: vLLM.prefill_token_throughput
+    width: 6
+    maxStdDev: 300000000
+    when:
+      metric: vLLM.prefill_token_throughput
+      is: max
+
+numberOfTrials: 1
+
+# ---------------------------------------------------------------- parametri
+# Cambiano SOLO i domini di tensor_parallel_size e data_parallel_size.
+# Tutti gli altri sono identici allo study 13.
+parametersSelection:
+  - name: vLLM.tensor_parallel_size
+    domain: [1, 4]            
+  - name: vLLM.data_parallel_size
+    domain: [1, 4]            
+  - name: vLLM.max_num_seqs
+    domain: [16, 1024]
+  - name: vLLM.max_num_batched_tokens
+    domain: [256, 8192]
+  - name: vLLM.max_cudagraph_capture_size
+    domain: [1, 1024]
+  - name: vLLM.optimization_level
+    domain: [0, 3]
+  - name: vLLM.gpu_memory_utilization
+    domain: [0.8, 0.9]
+  - name: vLLM.block_size
+    categories: ["16", "32", "48", "64", "80", "96", "112", "128"]
+  - name: vLLM.kv_cache_dtype
+    categories: ["auto", "fp8", "fp8_e4m3"]
+  - name: vLLM.performance_mode
+    categories: ["balanced", "interactivity", "throughput"]
+  - name: vLLM.scheduling_policy
+    categories: ["fcfs", "priority"]
+  - name: vLLM.enforce_eager
+    categories: ["true", "false"]
+  - name: vLLM.enable_expert_parallel
+    categories: ["true", "false"]
+  - name: vLLM.async_scheduling
+    categories: ["true", "false"]
+
+# ---------------------------------------------------------------- vincoli
+# INVARIATI rispetto allo study 13. Restano tutti validi con tp=1:
+#   tp=1, gpu_mem=0.80  ->  0.80*22.5 - 12.8/1 = 5.2 >= 4   OK
+#   tp=1, dp=4          ->  1*4 = 4 <= 4                     OK
+parameterConstraints:
+  - name: max_num_batched_tokens must be at least max_num_seqs
+    formula: vLLM.max_num_batched_tokens >= vLLM.max_num_seqs
+  - name: sampler warmup logits must fit the memory gpu_memory_utilization leaves free
+    formula: vLLM.gpu_memory_utilization * 22.03 + vLLM.max_num_seqs * 0.00375 <= 21.63
+  - name: TP must divide gpt-oss-20b's 64 attention heads / 8 KV heads
+    formula: vLLM.tensor_parallel_size != 3
+  - name: TP x DP must fit the 4 L4s the pod requests
+    formula: vLLM.tensor_parallel_size * vLLM.data_parallel_size <= 4
+  - name: weights shard plus KV headroom must fit one L4
+    formula: vLLM.gpu_memory_utilization * 22.5 - 12.8 / vLLM.tensor_parallel_size >= 4
+
+# ---------------------------------------------------------------- kpi
+# Limite di prodotto: massimo 8 KPI. La formula deve essere una singola metrica
+# <componente>.<metrica>, non sono ammesse espressioni.
+# Scelte le otto che nell'analisi dello study 13 hanno deciso qualcosa.
+kpis:
+
+  # Il batch realmente raggiunto nella finestra di scoring: la variabile che
+  # spiega lo score meglio di ogni parametro. NON coincide con max_num_seqs
+  # (esp. 12: cap 1024, batch reale 505).
+  - name: Batch raggiunto
+    formula: vLLM.num_requests_running
+    direction: maximize
+
+  # Lo score divide per active_gpus e nasconde il throughput grezzo: con questo
+  # vedi subito che dp=2 fa piu' totale ma meno per GPU.
+  - name: Throughput totale
+    formula: vLLM.total_token_throughput
+    direction: maximize
+
+  # La KV cache lega o no? Nello study 13 mai: uso massimo 46%.
+  - name: Utilizzo KV cache
+    formula: vLLM.kv_cache_usage_avg
+    direction: maximize
+
+  # Se si stacca da zero il batch sta thrashing. Aggregazione max: la preemption
+  # arriva a raffiche e la media la diluirebbe fino a farla sparire.
+  - name: Preemption (picco)
+    formula: vLLM.preemption_rate
+    direction: minimize
+    aggregation: max
+
+  # Il vincolo che morde davvero: e' il TTFT a fissare il ginocchio, non l'ITL.
+  - name: TTFT P95
+    formula: vLLM.time_to_first_token_p95
+    direction: minimize
+
+  # TTFT = coda + prefill. Con TTFT e coda, il prefill si ricava per differenza:
+  # dice se una config e' lenta a calcolare o soltanto satura.
+  - name: Tempo in coda P95
+    formula: vLLM.request_queue_time_p95
+    direction: minimize
+
+  - name: ITL P95
+    formula: vLLM.inter_token_latency_p95
+    direction: minimize
+
+  # DRAM_ACTIVE x 300 GB/s = banda sostenuta. E' la metrica che ha rivelato che
+  # le config a 4 GPU reggono ~60% della banda di quelle a 2 a pari batch per
+  # replica. gpu0 e' attiva in ogni configurazione e i device sono bilanciati
+  # entro 1.5 punti, quindi come proxy regge.
+  - name: Banda memoria GPU0
+    formula: gpu0.gpu_dram_active
+    direction: maximize
+
+steps:
+
+  # ------------------------------------------------------------ 0. baseline
+  # IMPORTATA, non rieseguita: con "from" non viene lanciato nessun esperimento,
+  # si prende la configurazione e il risultato del baseline dello study 13.
+  # Rieseguirlo costerebbe 70 minuti e darebbe un numero leggermente diverso,
+  # spostando il riferimento dello score normalizzato di tutti i punti importati.
+  # Nota: con "from" non si possono usare renderParameters / doNotRenderParameters,
+  # perche' non c'e' niente da renderizzare.
+  - name: baseline
+    type: baseline
+    from:
+      - study: cfc20747-9318-484c-92c7-d7871c3ade81
+        experiments: [1]
+
+  # ------------------------------------------------------------ 1. bootstrap
+  # Importa gli esperimenti 2-16 dello study 13 (il 17 e' ABORTED senza score: escluso) con i loro trial e le metriche
+  # di sistema. Valgono ~19 ore di macchina.
+  # Verifica il numero dell'ultimo esperimento FINISHED prima di lanciare:
+  #   akamas list experiment cfc20747-9318-484c-92c7-d7871c3ade81
+  # Al momento del controllo gli esperimenti 1-15 erano tutti FINISHED con
+  # score valorizzato (failedExperimentsIndex vuoto, nessuno score null); il 3
+  # e' CONSTRAINTS_VIOLATED ma ha comunque stato FINISHED e il suo score.
+  # Verificato: 1-16 tutti FINISHED con score. Il 17 e' ABORTED per terminazione
+  # dello step, senza score: NON va importato.
+  - name: bootstrap study 13
+    type: bootstrap
+    from:
+      - study: cfc20747-9318-484c-92c7-d7871c3ade81
+        experiments: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+
+  # ------------------------------------------------------------ 2. preset
+  # Dieci punti scelti, non campionati. Ogni preset specifica TUTTI e 14 i
+  # parametri: se ne ometti uno non viene renderizzato e va al default vLLM,
+  # e ti ritrovi a confrontare config che differiscono anche per cose che non
+  # hai scelto.
+  #
+  # S1 e' l'ancora (copia esatta dell'esp. 16, il best attuale (2345.3)). S2-S4 cambiano
+  # UNA cosa sola rispetto a S1. S5-S9 sono la famiglia "prefill veloce"
+  # (block_size=32 e optimization_level=0, il profilo dell'esp. 8 che ha dato
+  # il TTFT piu' basso del dataset: 498 ms). S10 viene da Sobol all'indice 1026,
+  # cioe' fuori dalla testa degenere della sequenza.
+
+  - name: S1 ancora best attuale
+    type: preset
+    values:
+      vLLM.tensor_parallel_size: 2
+      vLLM.data_parallel_size: 1
+      vLLM.max_num_seqs: 1024
+      vLLM.max_num_batched_tokens: 7781
+      vLLM.max_cudagraph_capture_size: 1
+      vLLM.optimization_level: 3
+      vLLM.gpu_memory_utilization: 0.8
+      vLLM.block_size: "96"
+      vLLM.kv_cache_dtype: "auto"
+      vLLM.performance_mode: "balanced"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.enforce_eager: "false"
+      vLLM.enable_expert_parallel: "true"
+      vLLM.async_scheduling: "true"
+
+  # S1 + kv quantizzata. Unica variabile cambiata (piu' seqs a 1024, che il
+  # vincolo sui logit consente a gpu_mem=0.80: 17.624 + 3.84 = 21.46 <= 21.63).
+  - name: S2 kv fp8 e4m3
+    type: preset
+    values:
+      vLLM.tensor_parallel_size: 2
+      vLLM.data_parallel_size: 1
+      vLLM.max_num_seqs: 1024
+      vLLM.max_num_batched_tokens: 7781
+      vLLM.max_cudagraph_capture_size: 1
+      vLLM.optimization_level: 3
+      vLLM.gpu_memory_utilization: 0.8
+      vLLM.block_size: "96"
+      vLLM.kv_cache_dtype: "fp8_e4m3"
+      vLLM.performance_mode: "balanced"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.enforce_eager: "false"
+      vLLM.enable_expert_parallel: "true"
+      vLLM.async_scheduling: "true"
+
+  # ROMPE L'ALIAS, lato 1: kv=fp8 con expert parallel ACCESO.
+  # Nello study 13 fp8 implicava sempre ep=false, su tutti e 4 i punti.
+  - name: S3 alias breaker fp8 con ep on
+    type: preset
+    values:
+      vLLM.tensor_parallel_size: 2
+      vLLM.data_parallel_size: 1
+      vLLM.max_num_seqs: 1024
+      vLLM.max_num_batched_tokens: 7781
+      vLLM.max_cudagraph_capture_size: 1
+      vLLM.optimization_level: 3
+      vLLM.gpu_memory_utilization: 0.8
+      vLLM.block_size: "96"
+      vLLM.kv_cache_dtype: "fp8"
+      vLLM.performance_mode: "balanced"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.enforce_eager: "false"
+      vLLM.enable_expert_parallel: "true"
+      vLLM.async_scheduling: "true"
+
+  # ROMPE L'ALIAS, lato 2: kv=auto con expert parallel SPENTO.
+  - name: S4 alias breaker auto con ep off
+    type: preset
+    values:
+      vLLM.tensor_parallel_size: 2
+      vLLM.data_parallel_size: 1
+      vLLM.max_num_seqs: 1024
+      vLLM.max_num_batched_tokens: 7781
+      vLLM.max_cudagraph_capture_size: 1
+      vLLM.optimization_level: 3
+      vLLM.gpu_memory_utilization: 0.8
+      vLLM.block_size: "96"
+      vLLM.kv_cache_dtype: "auto"
+      vLLM.performance_mode: "balanced"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.enforce_eager: "false"
+      vLLM.enable_expert_parallel: "false"
+      vLLM.async_scheduling: "true"
+
+  # L'IPOTESI PRINCIPALE: kv quantizzata + batch pieno + profilo prefill veloce.
+  # Il modello di banda mette questa combinazione sopra i 4000 tok/s per GPU.
+  # Nessun esperimento dello study 13 l'ha mai provata.
+  - name: S5 ipotesi fp8 batch pieno prefill veloce
+    type: preset
+    values:
+      vLLM.tensor_parallel_size: 2
+      vLLM.data_parallel_size: 1
+      vLLM.max_num_seqs: 1024
+      vLLM.max_num_batched_tokens: 7781
+      vLLM.max_cudagraph_capture_size: 1
+      vLLM.optimization_level: 0
+      vLLM.gpu_memory_utilization: 0.8
+      vLLM.block_size: "32"
+      vLLM.kv_cache_dtype: "fp8_e4m3"
+      vLLM.performance_mode: "balanced"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.enforce_eager: "false"
+      vLLM.enable_expert_parallel: "true"
+      vLLM.async_scheduling: "true"
+
+  # LA CASELLA VUOTA: tp=1. Nello study 13 il dominio partiva da 2, quindi non
+  # esiste un solo punto senza tensor parallelism. Serve kv quantizzata perche'
+  # a tp=1 i pesi occupano 12.8 GB su una sola L4 e alla KV restano ~6 GB.
+  - name: S6 tp1 dp1 senza parallelismo
+    type: preset
+    values:
+      vLLM.tensor_parallel_size: 1
+      vLLM.data_parallel_size: 1
+      vLLM.max_num_seqs: 1024
+      vLLM.max_num_batched_tokens: 7781
+      vLLM.max_cudagraph_capture_size: 1
+      vLLM.optimization_level: 0
+      vLLM.gpu_memory_utilization: 0.8
+      vLLM.block_size: "32"
+      vLLM.kv_cache_dtype: "fp8_e4m3"
+      vLLM.performance_mode: "balanced"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.enforce_eager: "false"
+      vLLM.enable_expert_parallel: "true"
+      vLLM.async_scheduling: "true"
+
+  # QUATTRO REPLICHE INDIPENDENTI: una per L4, nessun collettivo fra GPU.
+  # E' la configurazione che concettualmente massimizza il throughput per GPU
+  # se i collettivi sono il problema. Richiede dp fino a 4.
+  - name: S7 tp1 dp4 repliche indipendenti
+    type: preset
+    values:
+      vLLM.tensor_parallel_size: 1
+      vLLM.data_parallel_size: 4
+      vLLM.max_num_seqs: 1024
+      vLLM.max_num_batched_tokens: 7781
+      vLLM.max_cudagraph_capture_size: 1
+      vLLM.optimization_level: 0
+      vLLM.gpu_memory_utilization: 0.8
+      vLLM.block_size: "32"
+      vLLM.kv_cache_dtype: "fp8_e4m3"
+      vLLM.performance_mode: "balanced"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.enforce_eager: "false"
+      vLLM.enable_expert_parallel: "false"
+      vLLM.async_scheduling: "true"
+
+  # DIAGNOSTICO LOCKSTEP. Nello study 13 entrambi i dp=2 avevano ep=true e
+  # sostenevano ~60% della banda per GPU dei dp=1 a pari batch per replica.
+  # S8 vs S9 isola expert parallel a parita' di tutto il resto: se la banda per
+  # GPU di S8 risale sopra i 90 GB/s, il lockstep fra repliche era la causa.
+  - name: S8 tp2 dp2 ep off diagnostico
+    type: preset
+    values:
+      vLLM.tensor_parallel_size: 2
+      vLLM.data_parallel_size: 2
+      vLLM.max_num_seqs: 1024
+      vLLM.max_num_batched_tokens: 7781
+      vLLM.max_cudagraph_capture_size: 1
+      vLLM.optimization_level: 0
+      vLLM.gpu_memory_utilization: 0.8
+      vLLM.block_size: "32"
+      vLLM.kv_cache_dtype: "fp8_e4m3"
+      vLLM.performance_mode: "balanced"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.enforce_eager: "false"
+      vLLM.enable_expert_parallel: "false"
+      vLLM.async_scheduling: "true"
+
+  - name: S9 tp2 dp2 ep on controllo
+    type: preset
+    values:
+      vLLM.tensor_parallel_size: 2
+      vLLM.data_parallel_size: 2
+      vLLM.max_num_seqs: 1024
+      vLLM.max_num_batched_tokens: 7781
+      vLLM.max_cudagraph_capture_size: 1
+      vLLM.optimization_level: 0
+      vLLM.gpu_memory_utilization: 0.8
+      vLLM.block_size: "32"
+      vLLM.kv_cache_dtype: "fp8_e4m3"
+      vLLM.performance_mode: "balanced"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.enforce_eager: "false"
+      vLLM.enable_expert_parallel: "true"
+      vLLM.async_scheduling: "true"
+
+  # COPERTURA SPACE-FILLING: punto Sobol all'indice 1026, non allo 0-35 dove
+  # le coordinate degenerano (a indice 3 quarantatre coppie di dimensioni hanno
+  # lo stesso identico valore; oltre 1024 la media scende sotto 0.3).
+  # Esplora una regione che nessuna delle mie ipotesi tocca, e per inciso
+  # rompe l'alias una terza volta (fp8 con ep=true).
+  - name: S10 sobol idx1026 copertura
+    type: preset
+    values:
+      vLLM.tensor_parallel_size: 4
+      vLLM.data_parallel_size: 1
+      vLLM.max_num_seqs: 325
+      vLLM.max_num_batched_tokens: 1003
+      vLLM.max_cudagraph_capture_size: 504
+      vLLM.optimization_level: 0
+      vLLM.gpu_memory_utilization: 0.8447
+      vLLM.block_size: "128"
+      vLLM.kv_cache_dtype: "fp8"
+      vLLM.performance_mode: "balanced"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.enforce_eager: "true"
+      vLLM.enable_expert_parallel: "true"
+      vLLM.async_scheduling: "true"
+
+  # ------------------------------------------------------------ 3. optimize
+  # numberOfInitExperiments: 0 e' obbligatorio. Con qualunque valore > 0 il
+  # campaign service rifa' il bootstrap Sobol sopra i preset, riportandosi
+  # dentro gli stessi punti degeneri.
+  - name: optimize
+    type: optimize
+    optimizer: AKAMAS
+    numberOfInitExperiments: 0
+    numberOfExperiments: 100
+    maxFailedExperiments: 20

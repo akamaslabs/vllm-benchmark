@@ -43,7 +43,7 @@ the model does not fit one card.
 | `components/container.yaml`, `container_loadtest.yaml` | `Kubernetes Container`, vLLM's pod and AIPerf's pod |
 | `telemetry/prometheus.yaml` | telemetry instance `Prometheus_15_Qwen3_30B_A3B` |
 | `15-Qwen3-30B-A3B-Parallelism-Goodput-Per-GPU-Workflow.yaml` | workflow (3 tasks: render → apply+rollout → AIPerf) |
-| `15-Qwen3-30B-A3B-Parallelism-Goodput-Per-GPU.yaml` | the study manifest |
+| `15-Qwen3-30B-A3B-Parallelism-Goodput-Per-GPU.yaml` | the study manifest — 15 parameters, 6 constraints, 8 KPIs, 12 steps |
 
 ## Steps
 

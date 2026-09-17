@@ -19,7 +19,7 @@ name: 15-Qwen3-30B-A3B-Parallelism-Goodput-Per-GPU
 description: >-
   Goodput-per-GPU over the TP/DP/expert-parallel topology of
   Qwen/Qwen3-30B-A3B-Instruct-2507-FP8 on 4x NVIDIA L4 (g6.12xlarge), vLLM 0.29.0.
-  Same goal, SLA, windowing, KPIs and 14 tuned parameters as study 14
+  Same goal, SLA, windowing and KPIs as study 14, and its 14 tuned parameters plus disable_custom_all_reduce
   (14-GPT-OSS-20B-Parallelism-And-KV-Goodput-Per-GPU) — the model is what changes, and it
   changes the question: at 29.03 GiB the weights do not fit one 24 GB L4, so every
   configuration is multi-GPU, while 2-GPU layouts stay loadable and comparable against
@@ -65,7 +65,7 @@ windowing:
 numberOfTrials: 1
 
 # ---------------------------------------------------------------- parameters
-# The same 14 parameters as study 14, same domains. Every domain below is a subset of the
+# Study 14's 14 parameters, same domains, plus disable_custom_all_reduce (15th). Every domain below is a subset of the
 # one vLLM pack 1.9.1 declares (verified against the installed pack on 2026-09-17:
 # tensor_parallel_size [1,16], data_parallel_size [1,8], max_num_seqs [1,4096],
 # max_num_batched_tokens [1,65536], max_cudagraph_capture_size [1,1024],
@@ -99,6 +99,15 @@ parametersSelection:
   - name: vLLM.enable_expert_parallel
     categories: ["true", "false"]
   - name: vLLM.async_scheduling
+    categories: ["true", "false"]
+  # Added 2026-09-17 (15th parameter, the one thing this study tunes that study 14 did
+  # not): vLLM's custom all-reduce kernel, the only interconnect knob the pack already
+  # models — the NCCL environment variables of phase 2 do not exist as parameters yet
+  # (ROADMAP.md section E). Only meaningful at tensor_parallel_size > 1, and vLLM may
+  # disable the kernel by itself on a PCIe-only node regardless of this flag, so treat a
+  # null effect as "not applicable here" rather than "measured no difference" unless the
+  # Apply-config log shows the kernel was actually in use.
+  - name: vLLM.disable_custom_all_reduce
     categories: ["true", "false"]
 
 # ---------------------------------------------------------------- constraints
@@ -238,6 +247,7 @@ steps:
       - vLLM.async_scheduling
       - vLLM.max_cudagraph_capture_size
       - vLLM.block_size
+      - vLLM.disable_custom_all_reduce
 
   # ------------------------------------------------------------ 1. presets
   # Ten chosen points, not sampled ones — the initial design, replacing Sobol's (see the
@@ -280,6 +290,7 @@ steps:
       vLLM.enforce_eager: "false"
       vLLM.enable_expert_parallel: "true"
       vLLM.async_scheduling: "true"
+      vLLM.disable_custom_all_reduce: "false"
 
   # Same 4 GPUs as S1, split differently: two replicas of a 2-way tensor-parallel engine.
   # Doni's "2x2 vs 1x4" question — with the caveat that the experts are spread over all
@@ -302,6 +313,7 @@ steps:
       vLLM.enforce_eager: "false"
       vLLM.enable_expert_parallel: "true"
       vLLM.async_scheduling: "true"
+      vLLM.disable_custom_all_reduce: "false"
 
   # Four DP ranks, no tensor parallelism: attention replicated four ways, experts spread
   # over all four GPUs. The layout that would be "four independent replicas" on a dense
@@ -323,6 +335,7 @@ steps:
       vLLM.enforce_eager: "false"
       vLLM.enable_expert_parallel: "true"
       vLLM.async_scheduling: "true"
+      vLLM.disable_custom_all_reduce: "false"
 
   # THE POINT OF THE STUDY: half the hardware. 14.5 GiB of weights per card leaves ~5 GiB
   # of KV, so this trades batch size for GPUs — and the per-GPU objective is what decides
@@ -344,6 +357,7 @@ steps:
       vLLM.enforce_eager: "false"
       vLLM.enable_expert_parallel: "true"
       vLLM.async_scheduling: "true"
+      vLLM.disable_custom_all_reduce: "false"
 
   - name: S5 tp1 dp2 ep on kv auto
     type: preset
@@ -362,6 +376,7 @@ steps:
       vLLM.enforce_eager: "false"
       vLLM.enable_expert_parallel: "true"
       vLLM.async_scheduling: "true"
+      vLLM.disable_custom_all_reduce: "false"
 
   # Isolates expert parallelism against S4, one variable apart. Only legal at 2 ranks
   # (768 / 2 = 384 is a multiple of the 128-wide quantization block; 768 / 4 = 192 is not).
@@ -382,6 +397,7 @@ steps:
       vLLM.enforce_eager: "false"
       vLLM.enable_expert_parallel: "false"
       vLLM.async_scheduling: "true"
+      vLLM.disable_custom_all_reduce: "false"
 
   # Isolates the KV dtype against S1. On this model KV is 96 KiB/token — 2x gpt-oss-20b —
   # so quantizing it is worth about twice as much headroom as it was in studies 10-14.
@@ -402,6 +418,7 @@ steps:
       vLLM.enforce_eager: "false"
       vLLM.enable_expert_parallel: "true"
       vLLM.async_scheduling: "true"
+      vLLM.disable_custom_all_reduce: "false"
 
   # The leading hypothesis: on 2 GPUs the KV cache is the binding resource, so halving
   # its per-token cost should move this configuration more than it moves S7.
@@ -422,6 +439,7 @@ steps:
       vLLM.enforce_eager: "false"
       vLLM.enable_expert_parallel: "true"
       vLLM.async_scheduling: "true"
+      vLLM.disable_custom_all_reduce: "false"
 
   # The fourth cell of the kv_cache_dtype x enable_expert_parallel table — the one study
   # 13's Sobol head never reached. Legal here because TP x DP = 2.
@@ -442,6 +460,7 @@ steps:
       vLLM.enforce_eager: "false"
       vLLM.enable_expert_parallel: "false"
       vLLM.async_scheduling: "true"
+      vLLM.disable_custom_all_reduce: "false"
 
   # Space-filling: the only preset that moves the non-topology parameters too, so the
   # optimizer starts with at least one point far from the S1-S9 plane (small batch, eager,
@@ -470,6 +489,7 @@ steps:
       vLLM.enforce_eager: "true"
       vLLM.enable_expert_parallel: "true"
       vLLM.async_scheduling: "false"
+      vLLM.disable_custom_all_reduce: "false"
 
   # ------------------------------------------------------------ 2. optimize
   # numberOfInitExperiments: 0 is mandatory. With any value > 0 the campaign service runs

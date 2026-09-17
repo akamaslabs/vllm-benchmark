@@ -81,9 +81,11 @@ chain-of-thought channel would dominate output length under ShareGPT replay.
 
 ## Parameters tuned
 
-The same 14 parameters and domains as study 14 (`tensor_parallel_size` and
-`data_parallel_size` both fully open), so the two studies differ by the model and nothing
-else in the search space.
+Study 14's 14 parameters and domains (`tensor_parallel_size` and `data_parallel_size` both
+fully open), **plus `disable_custom_all_reduce`** — 15 in total. That one was added on
+2026-09-17 after a review: it is the only interconnect knob vLLM pack 1.9.1 already models,
+it was named explicitly in the thread that scoped this study, and `apply_config.sh` already
+carried it in its boolean-rewrite list while nothing rendered it.
 
 | Parameter | Domain | Baseline |
 |---|---|---|
@@ -101,6 +103,7 @@ else in the search space.
 | `vLLM.scheduling_policy` | fcfs / priority | vLLM default |
 | `vLLM.enforce_eager` | true / false | vLLM default |
 | `vLLM.async_scheduling` | true / false | vLLM default |
+| `vLLM.disable_custom_all_reduce` | true / false | vLLM default (`false`) |
 
 ### Constraints (6)
 
@@ -138,7 +141,14 @@ four cells of that 2×2 and cover all five reachable topologies:
 `kv_cache_dtype` × `enable_expert_parallel`: (auto, on) S1-S5 · (auto, off) S6 ·
 (fp8*, on) S7/S8/S10 · (fp8*, off) S9. Everything outside the three dimensions under test
 is held fixed across S1-S9 (`gpu_memory_utilization` 0.88, `max_num_seqs` 768, …); S10 is
-the one space-filling point.
+the one space-filling point. `disable_custom_all_reduce` is pinned to `false` (vLLM's own
+default) in **all ten** presets, so the preset phase stays a clean topology comparison at
+fixed interconnect behaviour — the optimizer is what explores that flag afterwards. Caveat
+when reading its effect: vLLM disables the custom all-reduce kernel by itself when the
+topology cannot support it (no GPU P2P, PCIe-only peers), which is plausible on this node
+at TP4 and less so at TP2, so a null effect must be checked against the
+"Custom allreduce is disabled" line in the Apply-config log before being read as
+"measured no difference".
 
 **Budget:** ≈ 85 min per experiment (30 min worst-case rollout + 60 min of ramp);
 1 baseline + 10 presets + 100 optimize ≈ 6.5 days of node time.

@@ -43,7 +43,8 @@
 # Instruct-2507 variant of Qwen3 is NON-thinking and emits no CoT channel — that is why
 # the Instruct variant was chosen over the Thinking one, see the study README).
 #
-# Boolean flags (--enforce-eager, --async-scheduling, --enable-expert-parallel) are
+# Boolean flags (--enforce-eager, --async-scheduling, --enable-expert-parallel,
+# --disable-custom-all-reduce) are
 # rendered as --flag=true/false and rewritten to --flag/--no-flag by apply_config.sh.
 # Unrendered tokens (baseline step) are stripped by apply_config.sh, so vLLM's own
 # default applies.
@@ -98,7 +99,7 @@ spec:
             - "--attention-backend=TRITON_ATTN"
             - "--max-model-len=8192"
 
-            # --- Tuned (parametersSelection, 14 parameters — same set as study 14) ---
+            # --- Tuned (parametersSelection, 15 parameters: study 14's 14 + disable_custom_all_reduce) ---
             - "--gpu-memory-utilization=${vLLM.gpu_memory_utilization}"
             - "--max-num-seqs=${vLLM.max_num_seqs}"
             - "--max-num-batched-tokens=${vLLM.max_num_batched_tokens}"
@@ -113,6 +114,14 @@ spec:
             - "--tensor-parallel-size=${vLLM.tensor_parallel_size}"
             - "--data-parallel-size=${vLLM.data_parallel_size}"
             - "--enable-expert-parallel=${vLLM.enable_expert_parallel}"
+            # Added 2026-09-17: the one interconnect knob the vLLM pack already models.
+            # vLLM's custom all-reduce kernel replaces NCCL for small tensor-parallel
+            # collectives, and vLLM disables it by itself when the topology cannot support
+            # it (no GPU P2P / too many PCIe-only peers) — so on this NVLink-less node it
+            # may well be a no-op at TP4 while still mattering at TP2. Check the
+            # "Custom allreduce is disabled" line in the Apply-config logs of the first
+            # TP >= 2 trials before reading anything into this parameter's effect.
+            - "--disable-custom-all-reduce=${vLLM.disable_custom_all_reduce}"
           env:
             - name: VLLM_LOGGING_LEVEL
               value: INFO

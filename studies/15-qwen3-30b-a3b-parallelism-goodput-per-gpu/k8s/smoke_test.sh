@@ -41,6 +41,10 @@ OUT=/tmp/vllm-smoke.yaml
 # is here precisely to check that the last one is needed — see the header.
 # gmu 0.88 throughout: at 0.85 the 2-GPU layouts have only 4.6 GiB left after the 14.5 GiB
 # weight shard, and the manifest's fit constraint puts their floor at ~0.845.
+# disable_custom_all_reduce is not a column: it is rendered as "false" (vLLM's default) in
+# every row, since the smoke test checks that configurations start, not how fast they are.
+# Its log line ("Custom allreduce is disabled ...", or its absence) is worth reading here
+# anyway — it tells you whether that parameter can do anything at all on this node.
 CONFIGS='
 tp4-ep      0.88 768 8192 auto     balanced   2 16 false fcfs true  512 4 1 true
 tp2dp2-ep   0.88 768 8192 auto     balanced   2 16 false fcfs true  512 2 2 true
@@ -66,8 +70,9 @@ while read -r name gmu seqs batched kv perf opt block eager policy async cg tp d
       -e "s#\${vLLM.scheduling_policy}#$policy#" -e "s#\${vLLM.async_scheduling}#$async#" \
       -e "s#\${vLLM.max_cudagraph_capture_size}#$cg#" -e "s#\${vLLM.tensor_parallel_size}#$tp#" \
       -e "s#\${vLLM.data_parallel_size}#$dp#" -e "s#\${vLLM.enable_expert_parallel}#$ep#" \
+      -e "s#\${vLLM.disable_custom_all_reduce}#false#" \
       "$TEMPLATE" > "$OUT"
-  for flag in enforce-eager async-scheduling enable-expert-parallel; do
+  for flag in enforce-eager async-scheduling enable-expert-parallel disable-custom-all-reduce; do
     sed -i "s/--${flag}=true/--${flag}/; s/--${flag}=false/--no-${flag}/" "$OUT"
   done
   sed -i -E '/\$\{vLLM\./d' "$OUT"

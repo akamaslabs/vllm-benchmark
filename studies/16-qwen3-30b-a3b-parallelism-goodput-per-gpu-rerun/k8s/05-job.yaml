@@ -1,0 +1,153 @@
+# AIPerf load test for 15-qwen3-30b-a3b-parallelism-goodput-per-gpu — the same closed-loop
+# 12-level concurrency sweep + ShareGPT replay as studies 10/13/14, with two deliberate
+# changes for this model:
+#
+#  1. THE RAMP STARTS MUCH LOWER: 24 -> 1024 (x sqrt(2) per level) instead of 150 -> 1024.
+#     Studies 10-14's floor of 150 was calibrated on gpt-oss-20b, whose KV cost is 48 KiB/
+#     token and whose weights leave ~14 GiB per card free for KV at TP1. Qwen3-30B-A3B
+#     costs 96 KiB/token and its weights take 14.5 GiB of each card in the 2-GPU layouts,
+#     leaving ~5 GiB => on the order of 50k KV tokens. A 2-GPU layout could therefore be
+#     queueing (and breaching the 1500 ms TTFT SLA) already at the OLD first level, which
+#     would make every 2-GPU cell infeasible and silently answer the study's question by
+#     construction. The ceiling stays 1024 so the 4-GPU layouts still reach their knee.
+#     RE-CALIBRATE after the baseline: read `Waiting` and engine-side TTFT p95 per level
+#     from the baseline trial, exactly as study 10's baseline did for gpt-oss.
+#  2. NO `--extra-inputs reasoning_effort:low`: that flag is gpt-oss-specific. The
+#     Instruct-2507 variant of Qwen3-30B-A3B is non-thinking and emits no reasoning
+#     channel, so output length needs no damping.
+#
+# Tokenizer is the served model's own repo (not gated — HF API, 2026-09-17), so token
+# counting matches what vLLM sees.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aiperf-benchmark
+  namespace: llm-benchmark
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node-role: system-m8a
+      initContainers:
+        - name: wait-for-vllm
+          image: alpine:3
+          command:
+            - sh
+            - -c
+            - |
+              until wget -qO- http://vllm.llm-serving.svc.cluster.local:8000/health >/dev/null 2>&1; do
+                echo "$(date -u +%T) waiting for vLLM readiness..."
+                sleep 10
+              done
+              echo "vLLM is ready."
+      containers:
+        - name: aiperf
+          image: python:3.12-slim
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              pip install --quiet aiperf==0.11.0
+              # Keep only the latest run's artifacts on the 10 Gi results volume.
+              find /benchmarks -mindepth 1 -maxdepth 1 -name 'aiperf-*' -exec rm -rf {} +
+              # Dataset cache — MODEL-SPECIFIC. AIPerf's inputs.json embeds the model name
+              # in every payload: study 13's first baseline reused studies 1-9's file
+              # verbatim and got 14 339 x HTTP 404 "The model `qwen2.5-7b` does not exist"
+              # against 32 successful requests. This study keeps its own file, derived from
+              # the legacy one when present (identical ShareGPT prompts, only the
+              # per-request model field rewritten) and generated from scratch otherwise.
+              MODEL_NAME=qwen3-30b-a3b
+              TOKENIZER=Qwen/Qwen3-30B-A3B-Instruct-2507-FP8
+              CACHE_DIR=/benchmarks/sharegpt-cache
+              CACHE_FILE=$CACHE_DIR/inputs-$MODEL_NAME.json
+              LEGACY_CACHE=$CACHE_DIR/inputs.json
+              mkdir -p "$CACHE_DIR"
+              if [ ! -f "$CACHE_FILE" ] && [ -f "$LEGACY_CACHE" ]; then
+                echo "Deriving $CACHE_FILE from $LEGACY_CACHE (rewriting the per-request model field to $MODEL_NAME)..."
+                sed -E 's/"model": *"[^"]*"/"model": "'"$MODEL_NAME"'"/g' "$LEGACY_CACHE" > "$CACHE_FILE.tmp" && mv "$CACHE_FILE.tmp" "$CACHE_FILE"
+                # Guard added for this study: study 13/14's own cache files carry
+                # "reasoning_effort" in every payload (gpt-oss-only field). If the legacy
+                # file ever gets replaced by one of those, the derived file would send an
+                # unknown field to Qwen on every request — regenerate instead.
+                if grep -q 'reasoning_effort' "$CACHE_FILE"; then
+                  echo "Legacy cache carries gpt-oss's reasoning_effort field — discarding the derived file and regenerating."
+                  rm -f "$CACHE_FILE"
+                fi
+              fi
+              if [ ! -f "$CACHE_FILE" ]; then
+                echo "No cached ShareGPT inputs for $MODEL_NAME — generating once (one-time ~5min dataset validation pass)..."
+                set +e
+                aiperf profile \
+                  --model "$MODEL_NAME" \
+                  --tokenizer "$TOKENIZER" \
+                  --url http://vllm.llm-serving.svc.cluster.local:8000 \
+                  --endpoint-type chat \
+                  --streaming \
+                  --public-dataset sharegpt \
+                  --concurrency 1 \
+                  --request-count 1 \
+                  --ui simple \
+                  --output-artifact-dir /tmp/sharegpt-prep
+                set -e
+                if [ ! -f /tmp/sharegpt-prep/inputs.json ]; then
+                  echo "ERROR: prep run did not produce inputs.json — see log above" >&2
+                  exit 1
+                fi
+                cp /tmp/sharegpt-prep/inputs.json "$CACHE_FILE"
+              else
+                echo "Reusing cached ShareGPT inputs for $MODEL_NAME from $CACHE_FILE (skips dataset validation)."
+              fi
+              # Guard against the stale-cache bug: every model field must be this study's model.
+              if grep -o '"model": *"[^"]*"' "$CACHE_FILE" | grep -qv "\"$MODEL_NAME\""; then
+                echo "ERROR: $CACHE_FILE references a model other than $MODEL_NAME:" >&2
+                grep -o '"model": *"[^"]*"' "$CACHE_FILE" | sort | uniq -c | head -5 >&2
+                exit 1
+              fi
+              # 12 levels, x sqrt(2) apart, 24 -> 1024 (see the header for why the floor
+              # moved down from studies 10/13/14's 150). 300 s per level = 60 min of load.
+              CONCURRENCY_LIST="24,34,48,68,96,136,192,271,384,543,768,1024"
+
+              aiperf profile \
+                --model "$MODEL_NAME" \
+                --tokenizer "$TOKENIZER" \
+                --url http://vllm.llm-serving.svc.cluster.local:8000 \
+                --endpoint-type chat \
+                --streaming \
+                --input-file "$CACHE_FILE" \
+                --custom-dataset-type inputs_json \
+                --concurrency "$CONCURRENCY_LIST" \
+                --benchmark-duration 300 \
+                --goodput "time_to_first_token:1500 inter_token_latency:300" \
+                --ui simple \
+                --output-artifact-dir "/benchmarks/aiperf-$(date +%s)"
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+                  optional: true   # Qwen3-30B-A3B-Instruct-2507-FP8 is not gated (HF API, 2026-09-17)
+            - name: AIPERF_DATASET_CONFIGURATION_TIMEOUT
+              value: "900"
+            - name: AIPERF_SERVICE_PROFILE_CONFIGURE_TIMEOUT
+              value: "1200"
+          resources:
+            requests:
+              cpu: "2"
+              memory: "6Gi"
+            limits:
+              memory: "12Gi"
+          volumeMounts:
+            - name: results
+              mountPath: /benchmarks
+            - name: hf-cache
+              mountPath: /root/.cache/huggingface
+      volumes:
+        - name: results
+          persistentVolumeClaim:
+            claimName: aiperf-results
+        - name: hf-cache
+          persistentVolumeClaim:
+            claimName: hf-cache

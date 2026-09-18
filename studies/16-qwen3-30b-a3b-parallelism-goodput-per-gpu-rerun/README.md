@@ -1,7 +1,15 @@
-# 15-qwen3-30b-a3b-parallelism-goodput-per-gpu
+# 16-qwen3-30b-a3b-parallelism-goodput-per-gpu-rerun
 
-**Status:** STOPPED — superseded by `16-qwen3-30b-a3b-parallelism-goodput-per-gpu-rerun`
-**Dates:** Created 2026-09-17, run 2026-09-18 07:51 UTC, stopped the same day
+**Status:** TODO — manifest ready, nothing created on the instance yet
+**Dates:** Created 2026-09-18, successor to `15-qwen3-30b-a3b-parallelism-goodput-per-gpu`
+
+> Same objective, model, hardware and search space as study 15 — read that study's README
+> for the full rationale of the model choice and the topology design. This folder exists
+> because study 15's memory constraint was wrong and the fix cannot be applied to a study
+> that has already run (on Akamas 3.7 only the `goal` is editable in place). It **reuses
+> study 15's system, telemetry instance and workflow**, so study 15's experiments can be
+> imported and compared; `akamas/` keeps byte-identical copies of those for the record,
+> and `k8s/`/`infra/` are snapshots — the running workflow reads study 15's folder.
 
 ## Objective
 
@@ -201,36 +209,16 @@ days** of node time as a floor.
 5. **Re-calibrate the ramp after the baseline**, from per-level `Waiting` and TTFT p95, as
    study 10 did for gpt-oss.
 
-## The run, and the OOM that stopped it (2026-09-18)
+## Why this study exists: the OOM that stopped study 15 (2026-09-18)
 
-The first run (`15-Qwen3-30B-A3B-Parallelism-Goodput-Per-GPU`,
-id `4fcd1c0f-b8e6-49b3-9a61-9256c9526281`) completed 3 experiments and lost one:
+Study 15 (id `4fcd1c0f-b8e6-49b3-9a61-9256c9526281`) got through these experiments:
 
-| exp | step | topology | GPU | score (tok/s per GPU) | vs baseline |
-|---|---|---|---|---|---|
-| 1 | baseline | TP4/DP1, gmu 0.85, vLLM defaults | 4 | 607.19 | — |
-| 2 | S1 | TP4/DP1, gmu 0.88, seqs 768 | 4 | 827.90 | +36.35% |
-| 3 | S2 | TP2/DP2 | 4 | — | **ERROR** — sampler OOM |
-| 4 | S3 | **TP1/DP4** | 4 | **1415.55** | **+133.13%** |
-| 5 | S4 | TP2/DP1 | 2 | 645.45 | +6.30% |
-| 6 | S5 | TP1/DP2 | 2 | — | **ERROR** |
-| 7 | (S6) | — | — | — | ABORTED on stop |
-
-**The headline result: `TP1/DP4` at 1415.55 tokens/s per GPU, +133% over the baseline and
-+71% over `TP4/DP1`.** Four data-parallel ranks beat tensor parallelism outright on this
-PCIe-only node — which is the shape the 2026-09-17 thread expected ("the configuration of
-the experiments with the best scores"), now measured on a model that cannot fit one GPU.
-Note it is *not* four independent replicas: with a MoE, vLLM shards the experts across the
-whole TP x DP world regardless, so this is DP-replicated attention over shared experts.
-Also worth noting, `TP2/DP1` on **half the hardware** scores +6.3% per GPU over a 4-GPU
-baseline — the per-GPU objective is doing exactly what it was designed to do.
-
-**The two failures are both `data_parallel_size = 2.** DP1 (exp 2, 5) and DP4 (exp 4)
-start fine at the same 0.88/768 — including exp 5, a 2-GPU layout carrying 14.5 GiB of
-weights per card — so the boundary is not simply "2 GPUs are too tight". Experiment 6's
-log was never read (the AWS endpoint was unreachable at the time, and the pod is gone), so
-whether it is the same sampler OOM as experiment 3 is **inferred from the 5m 44s duration
-matching experiment 3's crash-loop signature, not confirmed**.
+| exp | step | topology | score (tok/s per GPU) | |
+|---|---|---|---|---|
+| 1 | baseline | TP4/DP1, gmu 0.85, vLLM defaults | **607.19** | reference |
+| 2 | S1 | TP4/DP1, gmu 0.88, seqs 768 | **827.90** | **+36.35%** |
+| 3 | S2 | TP2/DP2, gmu 0.88, seqs 768 | — | **ERROR: CUDA OOM**, 7m 14s |
+| 4 | S3 | TP1/DP4, gmu 0.88, seqs 768 | — | ran ~19 min then imported |
 
 **What confirmed the study's assumptions.** The baseline measured 7.4 GiB of weights per
 GPU against the 7.26 calculated (2% off), `Available KV cache memory: 9.2 GiB` and
@@ -251,8 +239,7 @@ experiment 4, which did start with the same settings: 22,261 MiB of 23,034 in us
 edge; TP2/DP2 adds a third communication group (`tp` on top of `dp` and `ep`) and goes
 over. See ROADMAP.md section C.
 
-**The fix lives in study 16**, not here: on Akamas 3.7 `parameterConstraints` and step
-values cannot be edited on a study that has already run. The lever is `max_num_seqs`, not
+**The fix, in this study's manifest.** The lever is `max_num_seqs`, not
 `gpu_memory_utilization`: the failing allocation scales linearly with the first and not at
 all with the second, and lowering the second would shrink the KV cache on exactly the
 2-GPU layouts this study exists to measure (their weights already take 14.5 of the ~18
@@ -266,11 +253,15 @@ gpu_memory_utilization x 22.03 + max_num_seqs x 0.0006 <= 19.7
    (0.88, 256) = 19.54  admitted — the new preset value
 ```
 
-`16-qwen3-30b-a3b-parallelism-goodput-per-gpu-rerun` imports experiment 1 as its baseline
-(same score scale) and bootstraps the experiments that finished with a valid score, then
-runs the 13 presets not yet executed plus the optimize step. Experiments 3 and 6 have no
-score and are not imported. **Experiment 6 also failed** (2026-09-18) and its log was not
-read — the AWS endpoint was unreachable from the workstation at the time.
+This study imports experiment 1 as its baseline (same score scale) and bootstraps the
+other experiments that finished with a valid score, then runs the 13 presets not yet
+executed plus the optimize step. Experiments 3 and 6 are not imported: they have no score.
+
+**Experiment 6 also failed** and its log was never read — the AWS endpoint was unreachable
+from the workstation at the time. It must be read before starting this study: if it is
+another sampler OOM the fix above covers it, but if the 2-GPU layouts are failing on KV
+cache instead, the ones at 2 GPUs need `kv_cache_dtype` pinned to `fp8_e4m3` (which halves
+the 96 KiB/token cost) rather than a smaller batch.
 
 **Caveat on the imported points:** they carry `max_num_seqs` 768, which the recalibrated
 constraint no longer admits. They are valid measurements taken before the correction, but

@@ -1,0 +1,10 @@
+kind: component
+system: vLLM_Benchmark_15_Qwen3_30B_A3B
+
+name: vLLM
+description: vLLM component type
+componentType: vLLM
+properties:
+  prometheus:
+    pod: .*
+    model: .*

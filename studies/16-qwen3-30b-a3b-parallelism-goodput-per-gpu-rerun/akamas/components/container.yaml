@@ -1,0 +1,19 @@
+kind: component
+system: vLLM_Benchmark_15_Qwen3_30B_A3B
+
+name: container
+description: vLLM's own container (Deployment `vllm`, namespace llm-serving)
+componentType: Kubernetes Container
+# Added 2026-09-07: needed to resolve $POD$ for this study's new container-level
+# metrics (PSI + the rest of the Kubernetes pack's Container catalog) — this component
+# had zero metrics wired in prior studies, so it never needed this property before.
+# Scoped to `vllm-.*` (NOT `.*`, unlike gpu.yaml/vllm.yaml's wildcards): those two
+# components' `.*` is safe because their underlying metric families (vLLM's own
+# `vllm:*` metrics, DCGM) only ever exist for the vLLM workload/GPU node in the first
+# place. Generic Kubernetes container metrics (cAdvisor/kube-state-metrics) exist for
+# *every* pod in the cluster — an unscoped `.*` here would silently aggregate every
+# pod's CPU/memory into these queries, not just vLLM's. See the new `container_loadtest`
+# component for the equivalent scoped to the load-test's own pod instead.
+properties:
+  prometheus:
+    pod: ^vllm-.*

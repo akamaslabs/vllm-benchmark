@@ -1,0 +1,23 @@
+kind: system
+name: vLLM_Benchmark_15_Qwen3_30B_A3B
+# NOTE: `description` is capped at 1024 characters by the API (the first version of this
+# file was 1031 and was rejected). Keep the long-form rationale here, in comments, or in
+# README.md — not in the field.
+#
+# Full context: same goal as studies 9/10/12/13/14 — (prefill + decode token throughput) /
+# vLLM.active_gpus under a P95 TTFT/ITL SLA — same 9 components and Prometheus telemetry
+# catalog, same 14 tuned vLLM parameters. What changes is the model: at 29.03 GiB the
+# weights do not fit a single 24 GB L4, so every trial is multi-GPU by construction, while
+# 2-GPU layouts stay loadable (~14.5 GiB/GPU) and therefore comparable against 4-GPU ones
+# (~7.3 GiB/GPU) — which is what makes the per-GPU objective discriminate.
+# tensor_parallel_size in [1,4] (TP != 3), data_parallel_size in [1,4], TP x DP <= 4, and
+# TP x DP >= 2 enforced implicitly by the memory-fit constraint. Study 10's 12-level AIPerf
+# ramp, re-floored to 24 for this model, and stability windowing.
+description: >-
+  Goodput-per-GPU study for 15-qwen3-30b-a3b-parallelism-goodput-per-gpu
+  (Qwen/Qwen3-30B-A3B-Instruct-2507-FP8 — MoE, 128 experts / top-8, 48 layers, FP8 e4m3
+  block-quantized weights, 29.03 GiB — on 1x g6.12xlarge, 4x NVIDIA L4 24GB, vLLM 0.29.0).
+  Goal: (prefill + decode token throughput) / vLLM.active_gpus under a P95 TTFT/ITL SLA.
+  First study here whose model does not fit one GPU, so every configuration is multi-GPU
+  and 2-GPU layouts can be compared against 4-GPU ones. 9 components, 14 tuned vLLM
+  parameters. vLLM optimization pack 1.9.1, GPU pack 1.2.0, Kubernetes pack 1.8.0-dev.

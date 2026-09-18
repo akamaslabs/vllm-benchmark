@@ -1,0 +1,14 @@
+kind: component
+system: vLLM_Benchmark_15_Qwen3_30B_A3B
+
+name: cluster
+description: The GPU node (node-role llm-serving-l4), where vLLM itself runs
+componentType: Kubernetes Cluster
+# Ported from 5-pack-changes (which introduced this component type). node_role
+# becomes the $NODE_ROLE$ placeholder used in telemetry/prometheus.yaml's node-join
+# query, matching the node-role: llm-serving-l4 label used as this study's GPU
+# nodeSelector (see k8s/01-deployment.yaml / k8s/monitoring/dcgm-exporter-values.yaml).
+# See `cluster_loadtest` for the equivalent scoped to the load-test's own node instead.
+properties:
+  prometheus:
+    node_role: llm-serving-l4

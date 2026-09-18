@@ -1,0 +1,232 @@
+# vLLM Deployment template for 15-qwen3-30b-a3b-parallelism-goodput-per-gpu — rendered per
+# trial by the Akamas FileConfigurator (every ${vLLM.*} token is a tuned parameter) into
+# 01-deployment.yaml, then applied by apply_config.sh.
+#
+# Model: Qwen/Qwen3-30B-A3B-Instruct-2507-FP8 (MoE, 128 experts / top-8, 48 layers,
+# 32 attention heads / 4 KV heads, head_dim 128, hidden 2048, moe_intermediate 768,
+# vocab 151936, full attention on every layer — no sliding window, no attention sinks).
+# Weights are shipped FP8 e4m3 with fine-grained block quantization (weight_block_size
+# [128, 128], dynamic activation scales); lm_head and the norms/gates stay bf16.
+# Read from the model card's own config.json + HF API on 2026-09-17:
+#   safetensors total 31.18 GB = 29.03 GiB   (the bf16 sibling is 56.87 GiB)
+#
+# WHY THIS MODEL (see the study README): 29.03 GiB does NOT fit one 24 GB L4 (~22 GiB
+# usable), so every trial is multi-GPU by construction — which is the point of the study.
+# It does fit 2 L4s (~14.5 GiB/GPU) and 4 (~7.3 GiB/GPU), so `active_gpus` really varies
+# and the goodput-per-GPU objective can compare a 2-GPU layout against a 4-GPU one.
+#
+# MoE sharding note (measured by SC on study 14's gpt-oss runs, 2026-09-16): vLLM always
+# shards MoE expert weights across the whole TP x DP world — there is no way to make DP
+# replicate them. So per-GPU weight footprint follows TP x DP, not TP, and `dp=2` is NOT
+# two independent replicas: it is DP-replicated attention over experts spread on all ranks.
+#
+# Pinned (not tuned) flags and why:
+#   --attention-backend TRITON_ATTN   kept from studies 13/14 for parity: it is the
+#                                     backend that accepted all 8 block_size categories
+#                                     (including the non-power-of-2 48/80/96/112) and
+#                                     accepts fp8 KV on compute capability >= 8.9.
+#                                     Qwen3 has no attention sinks, so FLASH_ATTN /
+#                                     FLASHINFER are legal here too — a deliberate
+#                                     follow-up dimension, NOT changed in the same study
+#                                     that changes the model.
+#   --max-model-len 8192              Qwen3-30B-A3B-Instruct-2507's native context is
+#                                     262144; vLLM sizes the startup KV profile on it, and
+#                                     at 96 KiB/token (48 layers x 4 KV heads x 128 x 2 x
+#                                     2 B) one 262k sequence alone would need 24 GiB.
+#                                     8192 tokens = 0.75 GiB, which is what makes the
+#                                     2-GPU layouts (14.5 GiB of weights per card)
+#                                     loadable at all. ShareGPT prompts+outputs are far
+#                                     below 8k — verified in study 1's dataset stats.
+#   --no-enable-prefix-caching        same methodology as studies 1/2/7-14.
+#   --enable-mfu-metrics              feeds the pack's MFU/bandwidth metrics.
+# Dropped vs. studies 13/14: --reasoning-parser openai_gptoss (gpt-oss-specific; the
+# Instruct-2507 variant of Qwen3 is NON-thinking and emits no CoT channel — that is why
+# the Instruct variant was chosen over the Thinking one, see the study README).
+#
+# Boolean flags (--enforce-eager, --async-scheduling, --enable-expert-parallel,
+# --disable-custom-all-reduce) are
+# rendered as --flag=true/false and rewritten to --flag/--no-flag by apply_config.sh.
+# Unrendered tokens (baseline step) are stripped by apply_config.sh, so vLLM's own
+# default applies.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm
+  namespace: llm-serving
+spec:
+  replicas: 1
+  # 30 min (studies 13/14 used 20): the cold-cache download is 31.18 GB against gpt-oss's
+  # 12.8 GiB on the same gp3 volume, and torch.compile at optimization_level 2-3 has 128
+  # experts x 48 layers to work through. MEASURE THIS at the smoke test and tighten it:
+  # an over-long deadline only costs time on a trial that was going to fail anyway, but
+  # the crash-loop guard in apply_config.sh is what actually catches deterministic OOMs.
+  progressDeadlineSeconds: 1800
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: vllm
+  template:
+    metadata:
+      labels:
+        app: vllm
+      annotations:
+        kubectl.kubernetes.io/default-container: vllm
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        node-role: llm-serving-l4
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: vllm
+          # Same image as studies 13/14 — reference vLLM version of the vLLM optimization
+          # pack 1.9.x. FP8 block-wise checkpoints on Ada (SM 8.9) run through FP8 Marlin
+          # as w8a16 (vLLM >= 0.9.0): the weights stay 8-bit in VRAM, which is what the
+          # memory arithmetic above assumes. CONFIRM in the startup logs at the smoke test
+          # (apply_config.sh greps for the kernel-selection lines).
+          image: vllm/vllm-openai:v0.29.0
+          command: ["vllm", "serve"]
+          args:
+            - "Qwen/Qwen3-30B-A3B-Instruct-2507-FP8"
+            - "--served-model-name=qwen3-30b-a3b"
+            - "--port=8000"
+            - "--host=0.0.0.0"
+            - "--enable-mfu-metrics"
+            - "--no-enable-prefix-caching"
+            - "--attention-backend=TRITON_ATTN"
+            - "--max-model-len=8192"
+
+            # --- Tuned (parametersSelection, 16 parameters: study 14's 14 + disable_custom_all_reduce
+            #     + pipeline_parallel_size) ---
+            - "--gpu-memory-utilization=${vLLM.gpu_memory_utilization}"
+            - "--max-num-seqs=${vLLM.max_num_seqs}"
+            - "--max-num-batched-tokens=${vLLM.max_num_batched_tokens}"
+            - "--kv-cache-dtype=${vLLM.kv_cache_dtype}"
+            - "--performance-mode=${vLLM.performance_mode}"
+            - "--optimization-level=${vLLM.optimization_level}"
+            - "--block-size=${vLLM.block_size}"
+            - "--enforce-eager=${vLLM.enforce_eager}"
+            - "--scheduling-policy=${vLLM.scheduling_policy}"
+            - "--async-scheduling=${vLLM.async_scheduling}"
+            - "--max-cudagraph-capture-size=${vLLM.max_cudagraph_capture_size}"
+            - "--tensor-parallel-size=${vLLM.tensor_parallel_size}"
+            - "--data-parallel-size=${vLLM.data_parallel_size}"
+            # Added 2026-09-18. PP splits the 48 layers across stages and moves only
+            # the boundary activations (once per stage), against tensor parallelism's
+            # two all-reduces PER LAYER — on a PCIe-only node that is the cheapest
+            # collective pattern available, which is why it belongs in a topology
+            # study run on exactly this hardware. 48 layers divide evenly by 2, 3
+            # and 4, so no divisibility constraint is needed.
+            - "--pipeline-parallel-size=${vLLM.pipeline_parallel_size}"
+            - "--enable-expert-parallel=${vLLM.enable_expert_parallel}"
+            # Added 2026-09-17: the one interconnect knob the vLLM pack already models.
+            # vLLM's custom all-reduce kernel replaces NCCL for small tensor-parallel
+            # collectives, and vLLM disables it by itself when the topology cannot support
+            # it (no GPU P2P / too many PCIe-only peers) — so on this NVLink-less node it
+            # may well be a no-op at TP4 while still mattering at TP2. Check the
+            # "Custom allreduce is disabled" line in the Apply-config logs of the first
+            # TP >= 2 trials before reading anything into this parameter's effect.
+            - "--disable-custom-all-reduce=${vLLM.disable_custom_all_reduce}"
+          env:
+            - name: VLLM_LOGGING_LEVEL
+              value: INFO
+            # NCCL tunables are NOT set here on purpose: they are phase 2 of the plan
+            # agreed in the 2026-09-17 thread (topology first, interconnect second), and
+            # they are not modeled by the vLLM optimization pack yet — see ROADMAP.md
+            # section E. Adding them as literals would silently change the interconnect
+            # behaviour this study is meant to measure untouched.
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          resources:
+            # All 4 L4s are requested on every trial so tensor_parallel_size x
+            # data_parallel_size up to 4 can be rendered without changing the pod; unused
+            # GPUs idle (active_gpus counts only the ones holding weights).
+            requests:
+              nvidia.com/gpu: "4"
+              cpu: "16"
+              memory: "64Gi"
+            limits:
+              nvidia.com/gpu: "4"
+              cpu: "40"
+              memory: "160Gi"
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            # 180 x 10 s = 30 min, matching progressDeadlineSeconds above (studies 13/14
+            # had 120 x 10 s = 20 min for a 2.4x smaller download).
+            failureThreshold: 180
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 30
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 60
+            failureThreshold: 3
+          volumeMounts:
+            - name: shm
+              mountPath: /dev/shm
+            - name: model-cache
+              mountPath: /root/.cache/huggingface
+        - name: kv-cache-exporter
+          image: python:3.12-alpine
+          command: ["python3", "-u", "/app/kv_cache_exporter.py"]
+          env:
+            - name: VLLM_METRICS_URL
+              value: http://127.0.0.1:8000/metrics
+            - name: EXPORTER_PORT
+              value: "9400"
+            - name: POLL_INTERVAL_SECONDS
+              value: "5"
+            # Qwen3-30B-A3B: 48 layers x 4 KV heads x head_dim 128 x 2 (K,V) x 2 B =
+            # 98304 B/token = 96 KiB/token in bf16 — exactly 2x gpt-oss-20b's nominal
+            # figure, and unlike gpt-oss EVERY layer is full attention, so there is no
+            # hybrid sliding-window allocator distorting the estimate. It is still only an
+            # estimate for fp8 KV trials (vLLM halves the per-token cost; studies 9/13 read
+            # 2x high there).
+            - name: MODEL_NUM_LAYERS
+              value: "48"
+            - name: MODEL_NUM_KV_HEADS
+              value: "4"
+            - name: MODEL_HEAD_DIM
+              value: "128"
+            - name: KV_CACHE_DTYPE_BYTES
+              value: "2"
+          ports:
+            - name: kv-exporter
+              containerPort: 9400
+              protocol: TCP
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          volumeMounts:
+            - name: kv-cache-exporter
+              mountPath: /app
+              readOnly: true
+      volumes:
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 12Gi
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: vllm-model-cache-qwen3moe
+        - name: kv-cache-exporter
+          configMap:
+            name: kv-cache-exporter
+            defaultMode: 0444

@@ -43,28 +43,33 @@ the model does not fit one card.
 | `components/container.yaml`, `container_loadtest.yaml` | `Kubernetes Container`, vLLM's pod and AIPerf's pod |
 | `telemetry/prometheus.yaml` | telemetry instance `Prometheus_15_Qwen3_30B_A3B` |
 | `15-Qwen3-30B-A3B-Parallelism-Goodput-Per-GPU-Workflow.yaml` | workflow (3 tasks: render → apply+rollout → AIPerf) |
-| `15-Qwen3-30B-A3B-Parallelism-Goodput-Per-GPU.yaml` | the study manifest — 15 parameters, 6 constraints, 8 KPIs, 12 steps |
+| `15-Qwen3-30B-A3B-Parallelism-Goodput-Per-GPU.yaml` | the study manifest — 16 parameters, 7 constraints, 8 KPIs, 17 steps |
 
 ## Steps
 
 1. **baseline** — TP4/DP1 + expert parallelism, `gpu_memory_utilization` 0.85, everything
    else left to vLLM's defaults via `doNotRenderParameters`. It cannot be the pack/vLLM
    default (TP1/DP1 does not fit this model) and it cannot be imported (different model).
-2. **10 presets** — the initial design, replacing Sobol's, with `numberOfInitExperiments: 0`.
-   Full 5-topology × kv_cache_dtype × expert-parallel skeleton pruned by the constraints;
-   all four cells of the `kv_cache_dtype` × `enable_expert_parallel` table are occupied,
-   which is exactly what study 13's Sobol head failed to do (ROADMAP.md section C).
+2. **15 presets** — the initial design, replacing Sobol's, with `numberOfInitExperiments: 0`.
+   They cover 10 of the 11 topologies reachable on a 4-GPU node (all but `TP1/DP2/PP2`),
+   including both head-to-head TP-vs-PP pairs at equal `active_gpus` (S4 vs S11 on 2 GPUs,
+   S1 vs S12 on 4), and all four cells of the `kv_cache_dtype` × `enable_expert_parallel`
+   table — which is exactly what study 13's Sobol head failed to do (ROADMAP.md section C).
 3. **optimize** — AKAMAS, 100 experiments, `maxFailedExperiments: 20`.
 
-≈ 85 min per experiment → roughly 6.5 days of node time for the whole study.
+≈ 85 min per experiment → roughly 6.8 days of node time for the whole study (116 experiments).
 
-## Two things to settle before starting
+## Three things to settle before starting
 
 1. **`tp4-noep` in `../k8s/smoke_test.sh`.** The last `parameterConstraint` ("expert
    parallelism is required once the model is split over 4 ranks") is an inference from the
    checkpoint's `weight_block_size [128, 128]` against `moe_intermediate_size` 768 — not a
    measurement. If that smoke configuration starts fine, **delete the constraint**.
-2. **The SSH key.** The workflow references
+2. **`pp2` / `pp4` in `../k8s/smoke_test.sh`.** Pipeline parallelism on its own is
+   documented upstream, but PP combined with DP on vLLM V1 was not verified from the
+   source. If a PP+DP trial later fails, add `pipeline_parallel_size == 1 ||
+   data_parallel_size == 1` to the manifest.
+3. **The SSH key.** The workflow references
    `/work/vllm-benchmark/studies/15-qwen3-30b-a3b-parallelism-goodput-per-gpu/akamas/id_rsa`
    on the toolbox host. It is **not** in this repo and must never be committed
    (`.gitignore`: `studies/*/akamas/id_rsa`); copy the toolbox's own key into place there.

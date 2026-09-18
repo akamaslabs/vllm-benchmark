@@ -99,7 +99,8 @@ spec:
             - "--attention-backend=TRITON_ATTN"
             - "--max-model-len=8192"
 
-            # --- Tuned (parametersSelection, 15 parameters: study 14's 14 + disable_custom_all_reduce) ---
+            # --- Tuned (parametersSelection, 16 parameters: study 14's 14 + disable_custom_all_reduce
+            #     + pipeline_parallel_size) ---
             - "--gpu-memory-utilization=${vLLM.gpu_memory_utilization}"
             - "--max-num-seqs=${vLLM.max_num_seqs}"
             - "--max-num-batched-tokens=${vLLM.max_num_batched_tokens}"
@@ -113,6 +114,13 @@ spec:
             - "--max-cudagraph-capture-size=${vLLM.max_cudagraph_capture_size}"
             - "--tensor-parallel-size=${vLLM.tensor_parallel_size}"
             - "--data-parallel-size=${vLLM.data_parallel_size}"
+            # Added 2026-09-18. PP splits the 48 layers across stages and moves only
+            # the boundary activations (once per stage), against tensor parallelism's
+            # two all-reduces PER LAYER — on a PCIe-only node that is the cheapest
+            # collective pattern available, which is why it belongs in a topology
+            # study run on exactly this hardware. 48 layers divide evenly by 2, 3
+            # and 4, so no divisibility constraint is needed.
+            - "--pipeline-parallel-size=${vLLM.pipeline_parallel_size}"
             - "--enable-expert-parallel=${vLLM.enable_expert_parallel}"
             # Added 2026-09-17: the one interconnect knob the vLLM pack already models.
             # vLLM's custom all-reduce kernel replaces NCCL for small tensor-parallel

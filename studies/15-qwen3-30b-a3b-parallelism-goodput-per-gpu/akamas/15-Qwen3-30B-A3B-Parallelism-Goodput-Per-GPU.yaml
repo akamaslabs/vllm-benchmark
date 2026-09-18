@@ -76,6 +76,15 @@ parametersSelection:
     domain: [1, 4]
   - name: vLLM.data_parallel_size
     domain: [1, 4]
+  # Added 2026-09-18 (16th parameter). Pipeline parallelism splits the 48 layers across
+  # stages and ships only the boundary activations — once per stage — against tensor
+  # parallelism's two all-reduces per layer. On a node whose GPUs talk over PCIe with no
+  # NVLink that is the cheapest collective pattern available, so leaving it out would mean
+  # running a topology study without the topology this hardware most plausibly favours.
+  # 48 layers divide evenly by 2, 3 and 4, so PP needs no divisibility constraint of its
+  # own (unlike TP, which must divide the 4 KV heads).
+  - name: vLLM.pipeline_parallel_size
+    domain: [1, 4]
   - name: vLLM.max_num_seqs
     domain: [16, 1024]
   - name: vLLM.max_num_batched_tokens
@@ -131,36 +140,50 @@ parameterConstraints:
     formula: vLLM.tensor_parallel_size != 3
 
   # The pod requests all 4 L4s; vLLM needs TP x DP of them.
-  - name: TP x DP must fit the 4 L4s the pod requests
-    formula: vLLM.tensor_parallel_size * vLLM.data_parallel_size <= 4
+  - name: TP x DP x PP must fit the 4 L4s the pod requests
+    formula: vLLM.tensor_parallel_size * vLLM.data_parallel_size * vLLM.pipeline_parallel_size <= 4
 
   # Per-GPU memory fit — and, as a side effect, what makes this study multi-GPU-only.
-  # Readable form:  gpu_memory_utilization x 22.5 - 29.03 / (TP x DP) >= 4
+  # Readable form:  gpu_memory_utilization x 22.5 - 29.03 / (TP x DP x PP) >= 4
   # i.e. the usable framebuffer budget must hold this rank's weight shard plus >= 4 GiB
   # for activations and KV cache. Written multiplied out by TP x DP (always > 0) so the
   # formula needs only +, * and >=. MoE-aware: vLLM shards expert weights over the whole
   # TP x DP world whether or not expert parallelism is on (measured on study 14's runs,
-  # 2026-09-16), and the experts are ~93% of the 29.03 GiB, so the per-GPU footprint
-  # follows the PRODUCT, not TP alone — data parallelism does not replicate the weights
-  # here the way it would on a dense model.
+  # 2026-09-16), and the experts are ~93% of the 29.03 GiB; pipeline parallelism splits the
+  # 48 layers, which splits the weights the same way. So the per-GPU footprint follows the
+  # TRIPLE PRODUCT, not TP alone — data parallelism does not replicate the weights here the
+  # way it would on a dense model.
   # Consequences inside the domains above:
-  #   TP x DP = 1                -> never satisfiable  => single-GPU layouts are excluded
-  #   TP x DP = 2 (14.52 GiB)    -> needs gpu_memory_utilization >= ~0.845
-  #   TP x DP = 4 (7.26 GiB)     -> satisfied on the whole [0.8, 0.9] domain
+  #   TP x DP x PP = 1             -> never satisfiable  => single-GPU layouts are excluded
+  #   TP x DP x PP = 2 (14.52 GiB) -> needs gpu_memory_utilization >= ~0.845
+  #   TP x DP x PP = 3 ( 9.68 GiB) -> satisfied on the whole [0.8, 0.9] domain
+  #   TP x DP x PP = 4 ( 7.26 GiB) -> satisfied on the whole [0.8, 0.9] domain
   - name: weights shard plus KV headroom must fit one L4
-    formula: vLLM.gpu_memory_utilization * 22.5 * vLLM.tensor_parallel_size * vLLM.data_parallel_size >= 29.03 + 4 * vLLM.tensor_parallel_size * vLLM.data_parallel_size
+    formula: vLLM.gpu_memory_utilization * 22.5 * vLLM.tensor_parallel_size * vLLM.data_parallel_size * vLLM.pipeline_parallel_size >= 29.03 + 4 * vLLM.tensor_parallel_size * vLLM.data_parallel_size * vLLM.pipeline_parallel_size
 
   # FP8 block quantization vs. tensor-parallel sharding. The checkpoint is quantized with
   # weight_block_size [128, 128], so every sharded weight dimension must stay a multiple
   # of 128. moe_intermediate_size is 768: over 2 ranks that is 384 (fine), over 4 ranks
   # 192 (NOT a multiple of 128) and vLLM raises at create_weights. Expert parallelism
   # keeps each expert whole on one rank, which side-steps the split entirely — so at 4
-  # GPUs it is required, at 2 it is free to vary.
+  # expert-sharding ranks it is required, below that it is free to vary.
+  # NOTE the formula is deliberately on TP x DP and NOT on the triple product: pipeline
+  # parallelism splits whole LAYERS, never the matrices inside a layer, so a PP stage holds
+  # its experts at full 768 width. TP1/DP1/PP4 therefore needs no expert parallelism at all
+  # — it is the only way to occupy 4 GPUs with the flag off.
   # THIS IS AN INFERENCE FROM THE CHECKPOINT'S OWN METADATA, NOT A MEASUREMENT: the smoke
   # test's `tp4-noep` configuration exists to confirm it. If that configuration comes up
   # fine, delete this constraint before starting the study.
   - name: expert parallelism is required once the model is split over 4 ranks
     formula: vLLM.enable_expert_parallel == "true" || vLLM.tensor_parallel_size * vLLM.data_parallel_size < 4
+
+  # vLLM does not support async scheduling together with pipeline parallelism (upstream
+  # issue vllm-project/vllm#32701, opened 2026-01-20 and still open as of 2026-09-18 — the
+  # combination is being worked on, not shipped, in the 0.29.0 line this study runs).
+  # Without this rule the optimizer would keep proposing PP > 1 with async_scheduling on,
+  # and every such experiment would either fail or silently degrade.
+  - name: async scheduling cannot be combined with pipeline parallelism
+    formula: vLLM.pipeline_parallel_size == 1 || vLLM.async_scheduling == "false"
 
 # ---------------------------------------------------------------- kpis
 # Product limit: at most 8 KPIs, each a single <component>.<metric> (no expressions).
@@ -234,6 +257,7 @@ steps:
     values:
       vLLM.tensor_parallel_size: 4
       vLLM.data_parallel_size: 1
+      vLLM.pipeline_parallel_size: 1
       vLLM.enable_expert_parallel: "true"
       vLLM.gpu_memory_utilization: 0.85
     doNotRenderParameters:
@@ -263,12 +287,22 @@ steps:
   #                                 admits at 0.88 (limit ~791).
   #   max_num_batched_tokens 8192, max_cudagraph_capture_size 512, optimization_level 2,
   #   block_size 16, performance_mode balanced, scheduling_policy fcfs,
-  #   enforce_eager false, async_scheduling true.
+  #   enforce_eager false, disable_custom_all_reduce false.
+  #   async_scheduling FALSE in every preset (2026-09-18): vLLM cannot combine it with
+  #   pipeline parallelism, so leaving it on in the PP=1 presets would confound every
+  #   TP-vs-PP comparison with a second changed variable. The optimizer explores it
+  #   afterwards, where the constraint allows.
   #
-  # The design is a full 5 x 2 x 2 skeleton over (topology, kv_cache_dtype,
-  # enable_expert_parallel), pruned to 10 by the constraint that expert parallelism is
-  # mandatory at 4 ranks. All five reachable topologies appear, and the
-  # kv_cache_dtype x enable_expert_parallel table has all four cells occupied:
+  # S1-S10 are a skeleton over (topology, kv_cache_dtype, enable_expert_parallel) pruned by
+  # the constraint that expert parallelism is mandatory at 4 expert-sharding ranks;
+  # S11-S15 (added 2026-09-18) add pipeline parallelism and the 3-GPU cell, bringing the
+  # design to ALL ELEVEN reachable topologies on this 4-GPU node:
+  #   2 GPUs: TP2/DP1 (S4,S6,S8) · TP1/DP2 (S5,S9) · PP2 (S11)
+  #   3 GPUs: TP1/DP3 (S14) · PP3 (S15)
+  #   4 GPUs: TP4/DP1 (S1,S7,S10) · TP2/DP2 (S2) · TP1/DP4 (S3) · TP2/PP2 (S13) · PP4 (S12)
+  # (TP1/DP2/PP2 is the one reachable layout left to the optimizer.)
+  # Across S1-S10 the kv_cache_dtype x enable_expert_parallel table has all four cells
+  # occupied:
   #   (auto, EP on)  S1 S2 S3 S4 S5     (auto, EP off)  S6
   #   (fp8*, EP on)  S7 S8 S10          (fp8*, EP off)  S9
   # which is exactly the 2x2 study 13's Sobol head left half empty.
@@ -278,6 +312,7 @@ steps:
     values:
       vLLM.tensor_parallel_size: 4
       vLLM.data_parallel_size: 1
+      vLLM.pipeline_parallel_size: 1
       vLLM.max_num_seqs: 768
       vLLM.max_num_batched_tokens: 8192
       vLLM.max_cudagraph_capture_size: 512
@@ -289,7 +324,7 @@ steps:
       vLLM.scheduling_policy: "fcfs"
       vLLM.enforce_eager: "false"
       vLLM.enable_expert_parallel: "true"
-      vLLM.async_scheduling: "true"
+      vLLM.async_scheduling: "false"
       vLLM.disable_custom_all_reduce: "false"
 
   # Same 4 GPUs as S1, split differently: two replicas of a 2-way tensor-parallel engine.
@@ -301,6 +336,7 @@ steps:
     values:
       vLLM.tensor_parallel_size: 2
       vLLM.data_parallel_size: 2
+      vLLM.pipeline_parallel_size: 1
       vLLM.max_num_seqs: 768
       vLLM.max_num_batched_tokens: 8192
       vLLM.max_cudagraph_capture_size: 512
@@ -312,7 +348,7 @@ steps:
       vLLM.scheduling_policy: "fcfs"
       vLLM.enforce_eager: "false"
       vLLM.enable_expert_parallel: "true"
-      vLLM.async_scheduling: "true"
+      vLLM.async_scheduling: "false"
       vLLM.disable_custom_all_reduce: "false"
 
   # Four DP ranks, no tensor parallelism: attention replicated four ways, experts spread
@@ -323,6 +359,7 @@ steps:
     values:
       vLLM.tensor_parallel_size: 1
       vLLM.data_parallel_size: 4
+      vLLM.pipeline_parallel_size: 1
       vLLM.max_num_seqs: 768
       vLLM.max_num_batched_tokens: 8192
       vLLM.max_cudagraph_capture_size: 512
@@ -334,7 +371,7 @@ steps:
       vLLM.scheduling_policy: "fcfs"
       vLLM.enforce_eager: "false"
       vLLM.enable_expert_parallel: "true"
-      vLLM.async_scheduling: "true"
+      vLLM.async_scheduling: "false"
       vLLM.disable_custom_all_reduce: "false"
 
   # THE POINT OF THE STUDY: half the hardware. 14.5 GiB of weights per card leaves ~5 GiB
@@ -345,6 +382,7 @@ steps:
     values:
       vLLM.tensor_parallel_size: 2
       vLLM.data_parallel_size: 1
+      vLLM.pipeline_parallel_size: 1
       vLLM.max_num_seqs: 768
       vLLM.max_num_batched_tokens: 8192
       vLLM.max_cudagraph_capture_size: 512
@@ -356,7 +394,7 @@ steps:
       vLLM.scheduling_policy: "fcfs"
       vLLM.enforce_eager: "false"
       vLLM.enable_expert_parallel: "true"
-      vLLM.async_scheduling: "true"
+      vLLM.async_scheduling: "false"
       vLLM.disable_custom_all_reduce: "false"
 
   - name: S5 tp1 dp2 ep on kv auto
@@ -364,6 +402,7 @@ steps:
     values:
       vLLM.tensor_parallel_size: 1
       vLLM.data_parallel_size: 2
+      vLLM.pipeline_parallel_size: 1
       vLLM.max_num_seqs: 768
       vLLM.max_num_batched_tokens: 8192
       vLLM.max_cudagraph_capture_size: 512
@@ -375,7 +414,7 @@ steps:
       vLLM.scheduling_policy: "fcfs"
       vLLM.enforce_eager: "false"
       vLLM.enable_expert_parallel: "true"
-      vLLM.async_scheduling: "true"
+      vLLM.async_scheduling: "false"
       vLLM.disable_custom_all_reduce: "false"
 
   # Isolates expert parallelism against S4, one variable apart. Only legal at 2 ranks
@@ -385,6 +424,7 @@ steps:
     values:
       vLLM.tensor_parallel_size: 2
       vLLM.data_parallel_size: 1
+      vLLM.pipeline_parallel_size: 1
       vLLM.max_num_seqs: 768
       vLLM.max_num_batched_tokens: 8192
       vLLM.max_cudagraph_capture_size: 512
@@ -396,7 +436,7 @@ steps:
       vLLM.scheduling_policy: "fcfs"
       vLLM.enforce_eager: "false"
       vLLM.enable_expert_parallel: "false"
-      vLLM.async_scheduling: "true"
+      vLLM.async_scheduling: "false"
       vLLM.disable_custom_all_reduce: "false"
 
   # Isolates the KV dtype against S1. On this model KV is 96 KiB/token — 2x gpt-oss-20b —
@@ -406,6 +446,7 @@ steps:
     values:
       vLLM.tensor_parallel_size: 4
       vLLM.data_parallel_size: 1
+      vLLM.pipeline_parallel_size: 1
       vLLM.max_num_seqs: 768
       vLLM.max_num_batched_tokens: 8192
       vLLM.max_cudagraph_capture_size: 512
@@ -417,7 +458,7 @@ steps:
       vLLM.scheduling_policy: "fcfs"
       vLLM.enforce_eager: "false"
       vLLM.enable_expert_parallel: "true"
-      vLLM.async_scheduling: "true"
+      vLLM.async_scheduling: "false"
       vLLM.disable_custom_all_reduce: "false"
 
   # The leading hypothesis: on 2 GPUs the KV cache is the binding resource, so halving
@@ -427,6 +468,7 @@ steps:
     values:
       vLLM.tensor_parallel_size: 2
       vLLM.data_parallel_size: 1
+      vLLM.pipeline_parallel_size: 1
       vLLM.max_num_seqs: 768
       vLLM.max_num_batched_tokens: 8192
       vLLM.max_cudagraph_capture_size: 512
@@ -438,7 +480,7 @@ steps:
       vLLM.scheduling_policy: "fcfs"
       vLLM.enforce_eager: "false"
       vLLM.enable_expert_parallel: "true"
-      vLLM.async_scheduling: "true"
+      vLLM.async_scheduling: "false"
       vLLM.disable_custom_all_reduce: "false"
 
   # The fourth cell of the kv_cache_dtype x enable_expert_parallel table — the one study
@@ -448,6 +490,7 @@ steps:
     values:
       vLLM.tensor_parallel_size: 1
       vLLM.data_parallel_size: 2
+      vLLM.pipeline_parallel_size: 1
       vLLM.max_num_seqs: 768
       vLLM.max_num_batched_tokens: 8192
       vLLM.max_cudagraph_capture_size: 512
@@ -459,7 +502,7 @@ steps:
       vLLM.scheduling_policy: "fcfs"
       vLLM.enforce_eager: "false"
       vLLM.enable_expert_parallel: "false"
-      vLLM.async_scheduling: "true"
+      vLLM.async_scheduling: "false"
       vLLM.disable_custom_all_reduce: "false"
 
   # Space-filling: the only preset that moves the non-topology parameters too, so the
@@ -477,6 +520,7 @@ steps:
     values:
       vLLM.tensor_parallel_size: 4
       vLLM.data_parallel_size: 1
+      vLLM.pipeline_parallel_size: 1
       vLLM.max_num_seqs: 325
       vLLM.max_num_batched_tokens: 1003
       vLLM.max_cudagraph_capture_size: 504
@@ -488,6 +532,127 @@ steps:
       vLLM.scheduling_policy: "priority"
       vLLM.enforce_eager: "true"
       vLLM.enable_expert_parallel: "true"
+      vLLM.async_scheduling: "false"
+      vLLM.disable_custom_all_reduce: "false"
+
+  # ---- pipeline parallelism (added 2026-09-18) ----
+  # THE HEAD-TO-HEAD AT 2 GPUs: same two L4s as S4, same everything else, but the model is
+  # split by layer instead of by tensor. S4 pays two all-reduces on every one of the 48
+  # layers; this pays one activation transfer per forward pass. On PCIe with no NVLink that
+  # is the comparison the whole study exists to make.
+  # Expert parallelism off because TP x DP = 1 here: there is no expert-sharding world for
+  # it to act on, each stage holds its own experts whole.
+  - name: S11 tp1 dp1 pp2 pipeline su 2 gpu
+    type: preset
+    values:
+      vLLM.tensor_parallel_size: 1
+      vLLM.data_parallel_size: 1
+      vLLM.pipeline_parallel_size: 2
+      vLLM.max_num_seqs: 768
+      vLLM.max_num_batched_tokens: 8192
+      vLLM.max_cudagraph_capture_size: 512
+      vLLM.optimization_level: 2
+      vLLM.gpu_memory_utilization: 0.88
+      vLLM.block_size: "16"
+      vLLM.kv_cache_dtype: "auto"
+      vLLM.performance_mode: "balanced"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.enforce_eager: "false"
+      vLLM.enable_expert_parallel: "false"
+      vLLM.async_scheduling: "false"
+      vLLM.disable_custom_all_reduce: "false"
+
+  # THE HEAD-TO-HEAD AT 4 GPUs: against S1 (TP4/DP1). Also the only 4-GPU layout that runs
+  # with expert parallelism OFF — pipeline parallelism splits layers, never the 768-wide
+  # expert matrices, so the 128-block divisibility rule that forces EP at TP x DP = 4 does
+  # not apply. Three activation transfers per forward pass against S1's 96 all-reduces.
+  - name: S12 tp1 dp1 pp4 pipeline su 4 gpu
+    type: preset
+    values:
+      vLLM.tensor_parallel_size: 1
+      vLLM.data_parallel_size: 1
+      vLLM.pipeline_parallel_size: 4
+      vLLM.max_num_seqs: 768
+      vLLM.max_num_batched_tokens: 8192
+      vLLM.max_cudagraph_capture_size: 512
+      vLLM.optimization_level: 2
+      vLLM.gpu_memory_utilization: 0.88
+      vLLM.block_size: "16"
+      vLLM.kv_cache_dtype: "auto"
+      vLLM.performance_mode: "balanced"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.enforce_eager: "false"
+      vLLM.enable_expert_parallel: "false"
+      vLLM.async_scheduling: "false"
+      vLLM.disable_custom_all_reduce: "false"
+
+  # HYBRID: tensor parallelism inside each pipeline stage. 4 GPUs like S1/S2/S3, but the
+  # all-reduce group is only 2 GPUs wide instead of 4 — if TP collectives are the ceiling,
+  # this should sit between S1 (TP4) and S12 (no TP at all).
+  - name: S13 tp2 dp1 pp2 ibrido
+    type: preset
+    values:
+      vLLM.tensor_parallel_size: 2
+      vLLM.data_parallel_size: 1
+      vLLM.pipeline_parallel_size: 2
+      vLLM.max_num_seqs: 768
+      vLLM.max_num_batched_tokens: 8192
+      vLLM.max_cudagraph_capture_size: 512
+      vLLM.optimization_level: 2
+      vLLM.gpu_memory_utilization: 0.88
+      vLLM.block_size: "16"
+      vLLM.kv_cache_dtype: "auto"
+      vLLM.performance_mode: "balanced"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.enforce_eager: "false"
+      vLLM.enable_expert_parallel: "true"
+      vLLM.async_scheduling: "false"
+      vLLM.disable_custom_all_reduce: "false"
+
+  # THE 3-GPU CELL. It passes every constraint and no preset covered it (spotted 2026-09-18
+  # while enumerating the reachable topologies): with an objective divided by active_gpus,
+  # a layout that uses three GPUs well can beat one that uses four badly, and nothing else
+  # in the design can find it. Study 9 ran --data-parallel-size=3 on this node, so the
+  # layout is known to work here.
+  - name: S14 tp1 dp3 tre gpu
+    type: preset
+    values:
+      vLLM.tensor_parallel_size: 1
+      vLLM.data_parallel_size: 3
+      vLLM.pipeline_parallel_size: 1
+      vLLM.max_num_seqs: 768
+      vLLM.max_num_batched_tokens: 8192
+      vLLM.max_cudagraph_capture_size: 512
+      vLLM.optimization_level: 2
+      vLLM.gpu_memory_utilization: 0.88
+      vLLM.block_size: "16"
+      vLLM.kv_cache_dtype: "auto"
+      vLLM.performance_mode: "balanced"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.enforce_eager: "false"
+      vLLM.enable_expert_parallel: "true"
+      vLLM.async_scheduling: "false"
+      vLLM.disable_custom_all_reduce: "false"
+
+  # The other 3-GPU cell: 48 layers over 3 stages of 16, zero all-reduce. Its pair is S14
+  # at equal active_gpus.
+  - name: S15 tp1 dp1 pp3 tre gpu pipeline
+    type: preset
+    values:
+      vLLM.tensor_parallel_size: 1
+      vLLM.data_parallel_size: 1
+      vLLM.pipeline_parallel_size: 3
+      vLLM.max_num_seqs: 768
+      vLLM.max_num_batched_tokens: 8192
+      vLLM.max_cudagraph_capture_size: 512
+      vLLM.optimization_level: 2
+      vLLM.gpu_memory_utilization: 0.88
+      vLLM.block_size: "16"
+      vLLM.kv_cache_dtype: "auto"
+      vLLM.performance_mode: "balanced"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.enforce_eager: "false"
+      vLLM.enable_expert_parallel: "false"
       vLLM.async_scheduling: "false"
       vLLM.disable_custom_all_reduce: "false"
 

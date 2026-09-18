@@ -81,11 +81,16 @@ chain-of-thought channel would dominate output length under ShareGPT replay.
 
 ## Parameters tuned
 
-Study 14's 14 parameters and domains (`tensor_parallel_size` and `data_parallel_size` both
-fully open), **plus `disable_custom_all_reduce`** — 15 in total. That one was added on
-2026-09-17 after a review: it is the only interconnect knob vLLM pack 1.9.1 already models,
-it was named explicitly in the thread that scoped this study, and `apply_config.sh` already
-carried it in its boolean-rewrite list while nothing rendered it.
+Study 14's 14 parameters and domains, **plus `disable_custom_all_reduce`** (added
+2026-09-17: the only interconnect knob vLLM pack 1.9.1 already models, and
+`apply_config.sh` already carried it in its boolean-rewrite list while nothing rendered it)
+**plus `pipeline_parallel_size`** (added 2026-09-18) — **16 in total**.
+
+Pipeline parallelism is in scope because of this exact hardware: it splits the 48 layers
+across stages and ships only the boundary activations, once per stage, against tensor
+parallelism's two all-reduces *per layer*. On a node whose 4 L4s talk over PCIe with no
+NVLink that is the cheapest collective pattern available — running a topology study here
+without it would leave out the layout this hardware most plausibly favours.
 
 | Parameter | Domain | Baseline |
 |---|---|---|
@@ -104,44 +109,66 @@ carried it in its boolean-rewrite list while nothing rendered it.
 | `vLLM.enforce_eager` | true / false | vLLM default |
 | `vLLM.async_scheduling` | true / false | vLLM default |
 | `vLLM.disable_custom_all_reduce` | true / false | vLLM default (`false`) |
+| `vLLM.pipeline_parallel_size` | [1, 4] | 1 |
 
-### Constraints (6)
+### Constraints (7)
 
 1. `max_num_batched_tokens >= max_num_seqs` — vLLM's own scheduler rule.
 2. **Sampler-warmup guard**, re-derived for this vocabulary:
    `gpu_memory_utilization × 22.03 + max_num_seqs × 0.00283 <= 21.63`
    (5 fp32 copies of 151936 logits = 0.00283 GiB/sequence, against gpt-oss-20b's 0.00375).
 3. `tensor_parallel_size != 3` — 32 attention heads / 4 KV heads.
-4. `tensor_parallel_size × data_parallel_size <= 4`.
-5. **Memory fit, MoE-aware**: `gpu_memory_utilization × 22.5 − 29.03/(TP×DP) >= 4`, written
-   multiplied out. Because the experts (~93% of the weights) are sharded over the whole
-   TP × DP world, the per-GPU footprint follows the *product*. Side effect: TP×DP = 1 is
-   never satisfiable, so **single-GPU layouts are excluded automatically** — the multi-GPU
-   requirement is enforced by physics, not by a hand-written rule. TP×DP = 2 needs
+4. `tensor_parallel_size × data_parallel_size × pipeline_parallel_size <= 4` — the node
+   has 4 L4s and the pod requests all of them.
+5. **Memory fit, MoE-aware**: `gpu_memory_utilization × 22.5 − 29.03/(TP×DP×PP) >= 4`,
+   written multiplied out. The experts (~93% of the weights) are sharded over the whole
+   TP × DP world, and pipeline parallelism splits the layers, so the per-GPU footprint
+   follows the *triple product*. Side effect: the product 1 is never satisfiable, so
+   **single-GPU layouts are excluded automatically** — the multi-GPU requirement is
+   enforced by physics, not by a hand-written rule. Product 2 needs
    `gpu_memory_utilization >= ~0.845`.
 6. **Expert parallelism required at 4 ranks**: `moe_intermediate_size` 768 over 4 ranks is
    192, not a multiple of the checkpoint's 128-wide quantization block, so a TP×DP = 4
    layout without expert parallelism is expected to fail at weight creation. Expert
    parallelism keeps each expert whole on one rank. **This is an inference, not a
    measurement** — `smoke_test.sh`'s `tp4-noep` configuration exists to confirm it; if it
-   starts fine, drop this constraint.
+   starts fine, drop this constraint. Note it is written on `TP × DP`, **not** on the
+   triple product: pipeline parallelism splits whole layers and never the 768-wide expert
+   matrices, so `TP1/DP1/PP4` holds its experts intact and is the only 4-GPU layout that
+   runs with expert parallelism off.
+7. **No async scheduling with pipeline parallelism**:
+   `pipeline_parallel_size == 1 || async_scheduling == "false"` — vLLM does not support the
+   combination ([issue #32701](https://github.com/vllm-project/vllm/issues/32701), open as
+   of 2026-09-18). Without it the optimizer would keep proposing configurations that fail
+   or silently degrade.
 
-### Initial design: 10 presets instead of Sobol
+### Initial design: 15 presets instead of Sobol
 
 `numberOfInitExperiments: 0`, because any value > 0 makes the campaign service re-run its
 own Sobol bootstrap on top of the presets. Study 13's Sobol head aliased `kv_cache_dtype`
 with `enable_expert_parallel` perfectly (ROADMAP.md section C); the presets here fill all
 four cells of that 2×2 and cover all five reachable topologies:
 
-| | TP4/DP1 | TP2/DP2 | TP1/DP4 | TP2/DP1 | TP1/DP2 |
-|---|---|---|---|---|---|
-| **4 GPUs** | S1, S7, S10 | S2 | S3 | — | — |
-| **2 GPUs** | — | — | — | S4, S6, S8 | S5, S9 |
+| GPU attive | layouts | presets |
+|---|---|---|
+| **2** | TP2/DP1 · TP1/DP2 · **PP2** | S4, S6, S8 · S5, S9 · **S11** |
+| **3** | TP1/DP3 · **PP3** | **S14** · **S15** |
+| **4** | TP4/DP1 · TP2/DP2 · TP1/DP4 · **TP2/PP2** · **PP4** | S1, S7, S10 · S2 · S3 · **S13** · **S12** |
 
-`kv_cache_dtype` × `enable_expert_parallel`: (auto, on) S1-S5 · (auto, off) S6 ·
-(fp8*, on) S7/S8/S10 · (fp8*, off) S9. Everything outside the three dimensions under test
-is held fixed across S1-S9 (`gpu_memory_utilization` 0.88, `max_num_seqs` 768, …); S10 is
-the one space-filling point. `disable_custom_all_reduce` is pinned to `false` (vLLM's own
+All **11** reachable topologies on this 4-GPU node are covered except `TP1/DP2/PP2`, left
+to the optimizer. Two of them are head-to-head pairs at equal `active_gpus` — the
+comparison this study exists to make: **S4 (TP2) vs S11 (PP2)** on 2 GPUs, and
+**S1 (TP4) vs S12 (PP4)** on 4. `TP1/DP3` (S14) was spotted on 2026-09-18 while enumerating:
+it passes every constraint, no preset covered it, and study 9 had already run
+`--data-parallel-size=3` on this same node.
+
+Across S1-S10 the `kv_cache_dtype` × `enable_expert_parallel` table has all four cells
+occupied: (auto, on) S1-S5 · (auto, off) S6 · (fp8*, on) S7/S8/S10 · (fp8*, off) S9.
+Everything outside the dimensions under test is held fixed (`gpu_memory_utilization` 0.88,
+`max_num_seqs` 768, …); S10 is the one space-filling point. **`async_scheduling` is `false`
+in every preset**: PP cannot use it, so leaving it on in the PP=1 presets would confound
+every TP-vs-PP comparison with a second changed variable — the optimizer explores it
+afterwards, where constraint 7 allows. `disable_custom_all_reduce` is pinned to `false` (vLLM's own
 default) in **all ten** presets, so the preset phase stays a clean topology comparison at
 fixed interconnect behaviour — the optimizer is what explores that flag afterwards. Caveat
 when reading its effect: vLLM disables the custom all-reduce kernel by itself when the
@@ -150,16 +177,20 @@ at TP4 and less so at TP2, so a null effect must be checked against the
 "Custom allreduce is disabled" line in the Apply-config log before being read as
 "measured no difference".
 
-**Budget:** ≈ 85 min per experiment (30 min worst-case rollout + 60 min of ramp);
-1 baseline + 10 presets + 100 optimize ≈ 6.5 days of node time.
+**Budget:** ≈ 85 min per experiment typical (rollout + 60 min of ramp), up to ~3.3 h worst
+case (the workflow allows 90 m + 105 m); 1 baseline + 15 presets + 100 optimize ≈ **6.8
+days** of node time as a floor.
 
 ## Open items before this study can start
 
 1. **Study 14 owns the node.** It must finish or be stopped first — this also blocks the
    smoke test.
-2. **Run `k8s/smoke_test.sh`.** It checks the three assumptions this study is built on:
-   FP8 block-quant weights stay 8-bit on Ada (else nothing fits), expert parallelism is
-   required at 4 ranks (constraint 6), and the sampler-warmup constant is right.
+2. **Run `k8s/smoke_test.sh`** (10 configurations). It checks the four assumptions this
+   study is built on: FP8 block-quant weights stay 8-bit on Ada (else nothing fits), expert
+   parallelism is required at 4 expert-sharding ranks (constraint 6), pipeline parallelism
+   starts at all on this stack (`pp2`/`pp4` — PP combined with DP was **not** verified from
+   the source; if a PP+DP trial later fails, add `pipeline_parallel_size == 1 ||
+   data_parallel_size == 1`), and the sampler-warmup constant is right.
 3. **Place the SSH key** at
    `/work/vllm-benchmark/studies/15-qwen3-30b-a3b-parallelism-goodput-per-gpu/akamas/id_rsa`
    on the toolbox host — never committed (`.gitignore`).

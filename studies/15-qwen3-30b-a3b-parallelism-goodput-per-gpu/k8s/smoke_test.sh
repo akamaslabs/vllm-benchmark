@@ -18,27 +18,35 @@
 #      create_weights. `tp4-noep` tests exactly that, and `tp2-noep` (768/2 = 384, a clean
 #      multiple) is its control. If tp4-noep comes up fine, the manifest's constraint
 #      "expert parallelism required at 4 GPUs" is too strict and should be dropped.
-#   3. THE SAMPLER-WARMUP GUARD, re-derived for this model's 151936-token vocabulary:
+#   3. PIPELINE PARALLELISM AT ALL, and with data parallelism. Only PP on its own is
+#      clearly documented upstream; PP combined with DP on vLLM V1 was NOT verified from
+#      the source, so `pp2` and `pp4` check the plain case here. If they start, the PP
+#      cells of the study are sound; if a later PP+DP trial fails, add the constraint
+#      `pipeline_parallel_size == 1 || data_parallel_size == 1` to the manifest.
+#      Note async_scheduling is false on every PP row: vLLM does not support the
+#      combination (upstream issue #32701), which the manifest also enforces.
+#   4. THE SAMPLER-WARMUP GUARD, re-derived for this model's 151936-token vocabulary:
 #      gpu_memory_utilization x 22.03 + max_num_seqs x 0.00283 <= 21.63.
 #      `tp2-guard` sits just inside it (0.88 / 780). A CUDA OOM in warmup_kernels there
 #      means the constant is wrong — fix the manifest BEFORE starting the study.
 #
 # It renders the template with each configuration, applies it, waits for the rollout,
 # sends one chat completion, and prints the backend/kernel lines from vLLM's log. Every
-# configuration except `tp4-noep` must come up.
+# configuration except `tp4-noep` must come up. Budget ~10 x 15-30 min.
 #
-# Usage: bash smoke_test.sh            # all eight configs
+# Usage: bash smoke_test.sh            # all ten configs
 #        bash smoke_test.sh tp2-guard  # a single config by name
 set -u
 STUDY=/work/vllm-benchmark/studies/15-qwen3-30b-a3b-parallelism-goodput-per-gpu
 TEMPLATE=$STUDY/k8s/01-deployment_template.yaml
 OUT=/tmp/vllm-smoke.yaml
 
-# name | gmu | seqs | batched | kv dtype | perf | opt | block | eager | policy | async | cudagraph | TP | DP | EP
+# name | gmu | seqs | batched | kv dtype | perf | opt | block | eager | policy | async | cudagraph | TP | DP | EP | PP
 # (names must be valid Kubernetes object names: lowercase, hyphens only)
-# Every row satisfies the study's parameterConstraints (batched >= seqs, TP x DP <= 4,
-# TP != 3, weights-shard fit, sampler-warmup guard, EP at 4 GPUs) EXCEPT tp4-noep, which
-# is here precisely to check that the last one is needed — see the header.
+# Every row satisfies the study's seven parameterConstraints (batched >= seqs, sampler
+# warmup, TP != 3, TP x DP x PP <= 4, weights-shard fit, EP at 4 expert-sharding ranks,
+# no async scheduling with PP > 1) EXCEPT tp4-noep, which is here precisely to check that
+# the EP one is needed — see the header.
 # gmu 0.88 throughout: at 0.85 the 2-GPU layouts have only 4.6 GiB left after the 14.5 GiB
 # weight shard, and the manifest's fit constraint puts their floor at ~0.845.
 # disable_custom_all_reduce is not a column: it is rendered as "false" (vLLM's default) in
@@ -46,22 +54,24 @@ OUT=/tmp/vllm-smoke.yaml
 # Its log line ("Custom allreduce is disabled ...", or its absence) is worth reading here
 # anyway — it tells you whether that parameter can do anything at all on this node.
 CONFIGS='
-tp4-ep      0.88 768 8192 auto     balanced   2 16 false fcfs true  512 4 1 true
-tp2dp2-ep   0.88 768 8192 auto     balanced   2 16 false fcfs true  512 2 2 true
-tp1dp4-ep   0.88 768 8192 auto     balanced   2 16 false fcfs true  512 1 4 true
-tp2-ep      0.88 768 8192 auto     balanced   2 16 false fcfs true  512 2 1 true
-tp1dp2-ep   0.88 768 8192 auto     balanced   2 16 false fcfs true  512 1 2 true
-tp2-noep    0.88 768 8192 fp8_e4m3 balanced   2 32 false fcfs true  512 2 1 false
-tp4-noep    0.88 768 8192 fp8_e4m3 balanced   2 32 false fcfs true  512 4 1 false
-tp2-guard   0.88 780 8192 fp8_e4m3 throughput 3 96 false fcfs true  512 2 1 true
+tp4-ep      0.88 768 8192 auto     balanced   2 16 false fcfs true  512 4 1 true  1
+tp2dp2-ep   0.88 768 8192 auto     balanced   2 16 false fcfs true  512 2 2 true  1
+tp1dp4-ep   0.88 768 8192 auto     balanced   2 16 false fcfs true  512 1 4 true  1
+tp2-ep      0.88 768 8192 auto     balanced   2 16 false fcfs true  512 2 1 true  1
+tp1dp2-ep   0.88 768 8192 auto     balanced   2 16 false fcfs true  512 1 2 true  1
+tp2-noep    0.88 768 8192 fp8_e4m3 balanced   2 32 false fcfs true  512 2 1 false 1
+tp4-noep    0.88 768 8192 fp8_e4m3 balanced   2 32 false fcfs true  512 4 1 false 1
+tp2-guard   0.88 780 8192 fp8_e4m3 throughput 3 96 false fcfs true  512 2 1 true  1
+pp2         0.88 768 8192 auto     balanced   2 16 false fcfs false 512 1 1 false 2
+pp4         0.88 768 8192 auto     balanced   2 16 false fcfs false 512 1 1 false 4
 '
 ONLY=${1:-}
 FAILED=0
-while read -r name gmu seqs batched kv perf opt block eager policy async cg tp dp ep; do
+while read -r name gmu seqs batched kv perf opt block eager policy async cg tp dp ep pp; do
   [ -z "$name" ] && continue
   [ -n "$ONLY" ] && [ "$ONLY" != "$name" ] && continue
   echo "=================================================================="
-  echo "== smoke config: $name (TP=$tp DP=$dp EP=$ep kv=$kv gmu=$gmu seqs=$seqs)"
+  echo "== smoke config: $name (TP=$tp DP=$dp PP=$pp EP=$ep kv=$kv gmu=$gmu seqs=$seqs)"
   echo "=================================================================="
   sed -e "s#\${vLLM.gpu_memory_utilization}#$gmu#" -e "s#\${vLLM.max_num_seqs}#$seqs#" \
       -e "s#\${vLLM.max_num_batched_tokens}#$batched#" -e "s#\${vLLM.kv_cache_dtype}#$kv#" \
@@ -71,6 +81,7 @@ while read -r name gmu seqs batched kv perf opt block eager policy async cg tp d
       -e "s#\${vLLM.max_cudagraph_capture_size}#$cg#" -e "s#\${vLLM.tensor_parallel_size}#$tp#" \
       -e "s#\${vLLM.data_parallel_size}#$dp#" -e "s#\${vLLM.enable_expert_parallel}#$ep#" \
       -e "s#\${vLLM.disable_custom_all_reduce}#false#" \
+      -e "s#\${vLLM.pipeline_parallel_size}#$pp#" \
       "$TEMPLATE" > "$OUT"
   for flag in enforce-eager async-scheduling enable-expert-parallel disable-custom-all-reduce; do
     sed -i "s/--${flag}=true/--${flag}/; s/--${flag}=false/--no-${flag}/" "$OUT"

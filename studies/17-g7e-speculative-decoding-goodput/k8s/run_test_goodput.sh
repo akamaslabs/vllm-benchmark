@@ -11,17 +11,20 @@ kubectl delete -f "$BENCH_FILE" ; kubectl apply -f "$BENCH_FILE"
 # wait — print the job's own container logs first, so they land in this task's stdout
 # and show up in the Akamas UI without needing separate kubectl access.
 #
-# --timeout=4200s (70m), RECOMPUTED for study 17 (was 5700s/95m in the study this was
-# copied from): up to 900s (15min) one-time dataset-prep on a cold cache + this study's
-# 8 x 300s levels (40min, down from 12 x 300s = 60min) + ~15min buffer for pip-install,
-# per-level dataset-file generation and misc overhead = worst case under 70m.
+# --timeout=4800s (80m), recomputed 2026-09-21 with the model swap and the longer ramp:
+#   up to 900 s (15 min) one-time ShareGPT dataset prep on a cold cache — not expected,
+#     since study 16 already generated inputs-qwen3-30b-a3b.json for this same
+#     served-model-name and it is on the shared aiperf-results volume
+# + 9 x 300 s levels (45 min, the 8 -> 2048 sweep)
+# + ~15 min buffer for pip install, per-level dataset-file generation and misc overhead
+#   = worst case comfortably under 80 min.
 #
-# This MUST stay below the Akamas RunTest task's own timeout (80m, see
-# akamas/17-G7e-Speculative-Decoding-Goodput-Workflow.yaml). If Akamas kills the task
+# This MUST stay below the Akamas RunTest task's own timeout, which is 95m in
+# akamas/17-G7e-Speculative-Decoding-Goodput-Workflow.yaml. If Akamas kills the task
 # first, the `kubectl logs` dump below never runs and the trial fails with no evidence
-# of why — the whole point of the dump. Keep a margin when changing either number.
+# of why — which is the whole point of the dump. Keep a margin when changing either.
 set +e
-kubectl wait --for=condition=complete job/aiperf-benchmark -n llm-benchmark --timeout=4200s
+kubectl wait --for=condition=complete job/aiperf-benchmark -n llm-benchmark --timeout=4800s
 WAIT_EXIT=$?
 set -e
 

@@ -16,7 +16,11 @@ spec:
   # ~20min ceiling (120 x 10s) so the two stay consistent. Not yet checked on the
   # other studies in this repo (none set this field either) — worth revisiting there
   # too if their own startup time is ever close to 10min.
-  progressDeadlineSeconds: 1200
+  # RAISED 2026-09-21 from 1200 (20 min) to 1800 (30 min), together with the model
+  # swap: study 16 served this same 29.03 GiB FP8 checkpoint and needed 30 minutes.
+  # The inherited 20 minutes was sized for a 7B. Kept equal to the startupProbe's own
+  # ceiling below, or one of the two fires first and the other never gets a say.
+  progressDeadlineSeconds: 1800
   # Recreate terminates the old pod before creating the new one.
   # RollingUpdate (default) would deadlock here: the new pod waits for the GPU
   # held by the old pod, which won't be killed until the new pod is ready.
@@ -55,9 +59,24 @@ spec:
 
       containers:
         - name: vllm
-          # Model carried over unchanged from 2-larger-model-g7e (Qwen2.5-7B-Instruct
-          # on this same g7e.4xlarge / RTX PRO 6000 Blackwell), so this study's only
-          # deliberate new variable is speculative decoding.
+          # MODEL CHANGED 2026-09-21, from 2-larger-model-g7e's Qwen2.5-7B-Instruct to
+          # Qwen/Qwen3-30B-A3B-Instruct-2507-FP8. Three reasons, in order of weight:
+          #   1. The 7B was inherited from the study being duplicated, not chosen for
+          #      this question. It takes ~15 GB of a 96 GB card and leaves ~78 GB of KV
+          #      cache that no configuration will ever use.
+          #   2. Speculative decoding's payoff scales with how expensive the verifier's
+          #      forward pass is: the more a single target step costs, the more there is
+          #      to save by emitting several accepted tokens per step. A 7B decode is
+          #      cheap, which is the worst case for showing the technique working.
+          #   3. This is the exact model of studies 15 and 16, where it did NOT fit one
+          #      24 GB L4 and forced a whole topology study (TP/DP/PP over 4 GPUs). At
+          #      29.03 GiB of FP8 weights it fits this single card with ~60 GB to spare,
+          #      so the same goodput question can be asked with no parallelism
+          #      confound at all — and the two studies become comparable on the one
+          #      axis that differs.
+          # Cost: the study is now further from 2-Larger-goodput than the image bump
+          # alone made it. It was never going to import that study's experiments; it
+          # runs its own baseline.
           #
           # CHANGED for study 17: image moved from that study's v0.22.0 to v0.29.0 —
           # NOT a cosmetic bump, it is a precondition for this study's question:
@@ -82,8 +101,8 @@ spec:
           image: vllm/vllm-openai:v0.29.0
           command: ["vllm", "serve"]
           args:
-            - "Qwen/Qwen2.5-7B-Instruct"
-            - "--served-model-name=qwen2.5-7b"
+            - "Qwen/Qwen3-30B-A3B-Instruct-2507-FP8"
+            - "--served-model-name=qwen3-30b-a3b"
             - "--port=8000"
             - "--host=0.0.0.0"
             - "--enable-mfu-metrics"
@@ -108,8 +127,16 @@ spec:
             - "--async-scheduling=${vLLM.async_scheduling}"
             - "--max-cudagraph-capture-size=${vLLM.max_cudagraph_capture_size}"
 
-            # --- Pinned (single GPU, dense non-MoE model — same reasoning as
-            #     1-goodput-realistic-load's Pinned table) ---
+            # --- Pinned: one GPU, so every parallelism degree is 1 ---
+            # NOTE the reasoning changed with the model swap. The comment here used to
+            # say "dense non-MoE model", inherited from 1-goodput-realistic-load.
+            # Qwen3-30B-A3B IS a Mixture-of-Experts model (128 experts, top-8), so the
+            # parallelism knobs are pinned for a different reason now: there is exactly
+            # one GPU, so TP = DP = PP = 1 is the only legal world and expert
+            # parallelism has nothing to distribute across. That is the whole point of
+            # running this model here — studies 15/16 had to shard it over 4 L4s and
+            # spent themselves on topology; this study holds topology constant at 1 and
+            # varies speculation instead.
             - "--tensor-parallel-size=${vLLM.tensor_parallel_size}"
             - "--pipeline-parallel-size=${vLLM.pipeline_parallel_size}"
             - "--data-parallel-size=${vLLM.data_parallel_size}"
@@ -141,6 +168,18 @@ spec:
             # that keep the sentinel and a real value from ever mixing.
             - "--spec-method=${vLLM.spec_method}"
             - "--spec-tokens=${vLLM.spec_tokens}"
+            # The drafter for spec_method=draft_model. NOT an Akamas parameter, by the
+            # same reasoning that keeps the target model out of the tuned set: its valid
+            # values are paired to whichever target this study serves, so it is a study
+            # constant, and the vLLM pack's README says so explicitly.
+            # Qwen3-0.6B shares the Qwen3 tokenizer and its 151936-token vocabulary with
+            # the target, which is what vLLM requires of a drafter, and costs ~1.2 GB of
+            # the 96 GB card. VERIFY THAT PAIRING with a manual start before spending
+            # experiment budget: vLLM checks vocabulary compatibility at engine init.
+            # apply_config.sh REMOVES this line for every method except draft_model —
+            # ngram, ngram_gpu, suffix and mtp each self-assign an internal placeholder
+            # that an explicit --spec-model would fight.
+            - "--spec-model=Qwen/Qwen3-0.6B"
           # ADDED 2026-08-28 (explicit user decision, first constraint-discovery run):
           # DEBUG logging so the engine's actual resolved config (incl. computed
           # defaults for unrendered parameters, e.g. max_num_seqs when left to vLLM's
@@ -178,7 +217,7 @@ spec:
             httpGet:
               path: /health
               port: 8000
-            failureThreshold: 120
+            failureThreshold: 180   # 180 x 10 s = 30 min, matching progressDeadlineSeconds
             periodSeconds: 10
           readinessProbe:
             httpGet:

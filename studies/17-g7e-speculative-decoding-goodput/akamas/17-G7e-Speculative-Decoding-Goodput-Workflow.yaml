@@ -7,13 +7,18 @@ name: 17-G7e-Speculative-Decoding-Goodput-Workflow
 # in this git checkout) before `akamas create workflow` will accept this file.
 #
 # Timeouts, recomputed for this study rather than copied:
-#   Apply config  45m — the Deployment's own progressDeadlineSeconds is 1200s (20m) and
-#                       apply_config.sh's rollout wait is 1500s (25m), plus the log dump.
-#   RunTest       80m — the sweep is 8 levels x 300s = 40m, plus up to 15m of one-time
-#                       ShareGPT dataset prep on a cold cache, plus pip install and
-#                       per-level dataset generation. run_test_goodput.sh's own
-#                       `kubectl wait` must stay BELOW this number, or Akamas kills the
-#                       task before the script can dump the job's logs.
+#   Apply config  60m — the Deployment's progressDeadlineSeconds is 1800s (30m) and
+#                       apply_config.sh's rollout wait is 1740s (29m), plus the log dump.
+#                       Both were raised on 2026-09-21 with the swap to the 29.03 GiB
+#                       Qwen3-30B-A3B-FP8 checkpoint; study 16 needed 30m for the same
+#                       weights and the inherited 20m was sized for a 7B.
+#   RunTest       95m — the sweep is 9 levels x 300s = 45m, plus up to 15m of one-time
+#                       ShareGPT dataset prep on a cold cache (not expected: the
+#                       inputs-qwen3-30b-a3b.json file study 16 generated is already on
+#                       the volume), plus pip install and per-level dataset generation.
+#                       run_test_goodput.sh's own `kubectl wait` must stay BELOW this
+#                       number, or Akamas kills the task before the script can dump the
+#                       job's logs.
 tasks:
   - name: Write config
     operator: FileConfigurator
@@ -38,7 +43,7 @@ tasks:
     operator: Executor
     arguments:
       retries: 0
-      timeout: 45m
+      timeout: 60m
       host:
         hostname: toolbox
         username: akamas
@@ -54,7 +59,7 @@ tasks:
     operator: Executor
     arguments:
       retries: 0
-      timeout: 80m
+      timeout: 95m
       host:
         hostname: toolbox
         username: akamas

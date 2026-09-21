@@ -42,13 +42,23 @@ spec:
 
               find /benchmarks -mindepth 1 -maxdepth 1 -name 'aiperf-*' -exec rm -rf {} +
 
-              CACHE_FILE=/benchmarks/sharegpt-cache/inputs.json
+              # Dataset cache — MODEL-SPECIFIC, adopted from study 16 on 2026-09-21.
+              # AIPerf's inputs.json embeds the served model name in EVERY payload, so a
+              # shared, unsuffixed file is a landmine: study 13's first baseline reused
+              # studies 1-9's file verbatim and got 14 339 HTTP 404 "The model
+              # `qwen2.5-7b` does not exist" against 32 successful requests. The file
+              # this study needs, inputs-qwen3-30b-a3b.json, ALREADY EXISTS on the
+              # aiperf-results volume: study 16 generated it on 2026-09-18 for this same
+              # served-model-name, so there is nothing to regenerate.
+              MODEL_NAME=qwen3-30b-a3b
+              TOKENIZER=Qwen/Qwen3-30B-A3B-Instruct-2507-FP8
+              CACHE_FILE=/benchmarks/sharegpt-cache/inputs-$MODEL_NAME.json
               if [ ! -f "$CACHE_FILE" ]; then
                 echo "No cached ShareGPT inputs.json — generating once (one-time ~5min dataset validation pass)..."
                 set +e
                 aiperf profile \
-                  --model qwen2.5-7b \
-                  --tokenizer Qwen/Qwen2.5-7B-Instruct \
+                  --model "$MODEL_NAME" \
+                  --tokenizer "$TOKENIZER" \
                   --url http://vllm.llm-serving.svc.cluster.local:8000 \
                   --endpoint-type chat \
                   --streaming \
@@ -125,11 +135,20 @@ spec:
               # is still SLA-compliant with headroom, the ceiling needs raising (the
               # exact failure mode study 16 hit: 10 of its experiments were scored at
               # its ramp's last level, so their real capacity was never measured).
-              CONCURRENCY_LIST="8,16,32,64,128,256,512,1024"
+              # CEILING RAISED 2026-09-21 together with the model swap: 9 levels,
+              # 8 -> 2048. The floor stays at 8 for the reason below; the ceiling moved
+              # from 1024 because study 16 served THIS SAME MODEL and ended with 10 of
+              # its experiments scored at its ramp's last level, ITL p95 at 284-291 ms
+              # against a 300 ms SLA — i.e. their real SLA-compliant capacity was never
+              # measured, the ramp simply ran out. This card has ~4x the memory of the
+              # four L4s study 16 sharded across and no inter-GPU traffic at all, so
+              # repeating a 1024 ceiling would very likely repeat that mistake.
+              # 9 x 300 s = 45 min of load per trial.
+              CONCURRENCY_LIST="8,16,32,64,128,256,512,1024,2048"
 
               aiperf profile \
-                --model qwen2.5-7b \
-                --tokenizer Qwen/Qwen2.5-7B-Instruct \
+                --model "$MODEL_NAME" \
+                --tokenizer "$TOKENIZER" \
                 --url http://vllm.llm-serving.svc.cluster.local:8000 \
                 --endpoint-type chat \
                 --streaming \

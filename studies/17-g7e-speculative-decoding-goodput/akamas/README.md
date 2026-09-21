@@ -8,7 +8,7 @@ hand-written from memory, and nothing here has been created on a live Akamas ins
 
 Maximize `vLLM.prefill_token_throughput + vLLM.decode_token_throughput` on one NVIDIA
 RTX PRO 6000 Blackwell (g7e.4xlarge, 96 GB GDDR7, SM120) serving
-`Qwen/Qwen2.5-7B-Instruct`, subject to TTFT p95 ≤ 1500 ms and ITL p95 ≤ 300 ms. Single
+`Qwen/Qwen3-30B-A3B-Instruct-2507-FP8`, subject to TTFT p95 ≤ 1500 ms and ITL p95 ≤ 300 ms. Single
 GPU, so the goal is also the per-GPU figure. It duplicates
 `2-larger-model-g7e`'s "2-Larger-goodput" and adds speculative decoding
 (`vLLM.spec_method` / `vLLM.spec_tokens`) as the one new tuned dimension. Full rationale,
@@ -20,11 +20,11 @@ including why the goal and the new parameter pull in opposite directions, is in
 | Thing | Version | How it was established |
 |---|---|---|
 | Akamas | 3.7.x | repo-wide target (`CLAUDE.md`) |
-| vLLM optimization pack | **1.9.1** | `optimizationPack.yaml` in the local checkout, commit `8dd3991` "Release 1.9.1" |
+| vLLM optimization pack | **1.10.0 REQUIRED** | branch `feature/speculative-decoding-metrics`, committed not pushed — 1.9.1 lacks `spec_method`'s `draft_model` |
 | GPU optimization pack | **1.2.0** | same, `~/akamas/offline/optimization-packs/nvidia-gpu` |
 | Kubernetes optimization pack | **1.9.0-dev** | same, `~/akamas/offline/optimization-packs/kubernetes` — study 16's README recorded 1.8.0-dev as installed, so **re-verify which is actually on the instance** |
 | vLLM server | `vllm/vllm-openai:v0.29.0` | `../k8s/01-deployment_template.yaml` |
-| Model | `Qwen/Qwen2.5-7B-Instruct`, served as `qwen2.5-7b` | same |
+| Model | `Qwen/Qwen3-30B-A3B-Instruct-2507-FP8` as `qwen3-30b-a3b`, drafter `Qwen/Qwen3-0.6B` | same |
 | Load generator | NVIDIA AIPerf 0.11.0, ShareGPT replay | `../k8s/05-job.yaml` |
 | Telemetry provider | Prometheus (`kube-prometheus-stack`) | `telemetry/prometheus.yaml` |
 
@@ -48,7 +48,7 @@ not proof of *what is installed*. Confirm before creating anything.
 | `components/cluster_loadtest.yaml` | `component` | componentType `Kubernetes Cluster`; the CPU node (`node_role: system-m8a`) |
 | `telemetry/prometheus.yaml` | `telemetry-instance` | **126 metrics** — study 16's 110-metric catalog verbatim, plus 7 vLLM-pack and 9 Kubernetes-pack metrics no study had ever wired, plus a commented-out speculative-decoding block blocked on a pack release |
 | `17-G7e-Speculative-Decoding-Goodput-Workflow.yaml` | `workflow` | 3 tasks: FileConfigurator → Apply config → RunTest, all on `toolbox` over SSH |
-| `17-G7e-Speculative-Decoding-Goodput.yaml` | `study` | goal, 16 parameters, 7 `parameterConstraints`, 10 KPIs, baseline + 7 presets + optimize |
+| `17-G7e-Speculative-Decoding-Goodput.yaml` | `study` | goal, 16 parameters, 7 `parameterConstraints`, 8 KPIs (an Akamas hard limit), baseline + **10 presets** + optimize |
 
 ## The metrics question, answered
 
@@ -116,7 +116,7 @@ checkouts and all passed:
   resolves both to a pack-declared metric on the referencing component's type **and** to
   an entry in this study's telemetry instance.
 - Every `parameterConstraints` formula token resolves to a real parameter.
-- **All 7 presets satisfy all 7 constraints** (evaluated, not eyeballed).
+- **All 10 presets satisfy all 7 constraints** (evaluated, not eyeballed), including the three `draft_model` cells.
 - The **baseline** satisfies all 7 constraints under the pack's default values, which is
   what the unrendered parameters resolve to (`spec_method` default `none`, `spec_tokens`
   default `0`, `attention_backend` default `FLASH_ATTN` with `kv_cache_dtype` `auto`).
@@ -125,10 +125,11 @@ checkouts and all passed:
 - All 28 `${vLLM.*}` tokens in `../k8s/01-deployment_template.yaml` resolve to real
   parameters: 16 tuned, 12 pinned.
 - The speculative-flag mechanics in `../k8s/apply_config.sh` were simulated against the
-  rendered template for four cases: baseline (both tokens empty) → 0 spec flags;
-  `spec_method=none` → 0 spec flags; `spec_method=ngram, spec_tokens=3` → both flags kept
-  verbatim; the forbidden `ngram` + `0` pairing → script exits 2 with a message instead of
-  starting a doomed 40-minute trial.
+  rendered template for five cases: baseline (tokens empty) → 0 spec flags;
+  `spec_method=none` → all three flags removed; `ngram` → method and tokens kept,
+  `--spec-model` removed; `draft_model` → all three kept including
+  `--spec-model=Qwen/Qwen3-0.6B`; the forbidden real-method-plus-0 pairing → script exits
+  2 with a message instead of starting a doomed 45-minute trial.
 
 Still **unvalidated** and only resolvable against the live instance or a real run: the
 installed pack versions, whether `akamas create` accepts each file, and whether the 7

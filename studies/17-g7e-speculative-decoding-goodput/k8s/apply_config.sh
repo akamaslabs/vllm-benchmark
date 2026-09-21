@@ -24,17 +24,32 @@ done
 # than lowered. This is the generalization of Step 1's boolean rewrite that the vLLM
 # pack's README asks the consuming study to implement.
 if grep -qE '^[[:space:]]*-[[:space:]]*"--spec-method=none"[[:space:]]*$' "$DEPLOY_FILE"; then
-  echo "apply_config: spec_method=none — removing --spec-method/--spec-tokens (vLLM requires absence, not a sentinel)"
-  sed -i -E '/^[[:space:]]*-[[:space:]]*"--spec-method=/d; /^[[:space:]]*-[[:space:]]*"--spec-tokens=/d' "$DEPLOY_FILE"
-else
-  # Defensive: a real method with the 0 sentinel would crash vLLM at config
-  # construction. The study's parameterConstraints forbid this combination, so
-  # reaching here means the study YAML and this script disagree — fail loudly rather
-  # than spend a 40-minute trial discovering it in a crash loop.
-  if grep -qE '^[[:space:]]*-[[:space:]]*"--spec-tokens=0"[[:space:]]*$' "$DEPLOY_FILE"; then
-    echo "error: spec_tokens=0 rendered together with a non-none spec_method — the study's sentinel parameterConstraints are missing or wrong" >&2
+  echo "apply_config: spec_method=none — removing --spec-method/--spec-tokens/--spec-model (vLLM requires absence, not a sentinel)"
+  sed -i -E '/^[[:space:]]*-[[:space:]]*"--spec-method=/d; /^[[:space:]]*-[[:space:]]*"--spec-tokens=/d; /^[[:space:]]*-[[:space:]]*"--spec-model=/d' "$DEPLOY_FILE"
+elif grep -qE '^[[:space:]]*-[[:space:]]*"--spec-method=draft_model"[[:space:]]*$' "$DEPLOY_FILE"; then
+  # draft_model is the ONLY method that takes an explicit --spec-model. The template
+  # always renders the drafter line; here it simply survives. Fail loudly if it is
+  # missing, because vLLM would otherwise die with "num_speculative_tokens was provided
+  # but without speculative model." after a full image pull and weight load.
+  if ! grep -qE '^[[:space:]]*-[[:space:]]*"--spec-model=[^"]+"[[:space:]]*$' "$DEPLOY_FILE"; then
+    echo "error: spec_method=draft_model but no --spec-model line survived rendering — vLLM cannot start without a drafter reference" >&2
     exit 2
   fi
+  echo "apply_config: spec_method=draft_model — keeping --spec-model $(grep -oE '\-\-spec-model=[^\"]+' "$DEPLOY_FILE")"
+else
+  # ngram / ngram_gpu / suffix / mtp: each self-assigns an internal model placeholder,
+  # and an explicit --spec-model fights it. Drop only that line, keep method and tokens.
+  echo "apply_config: drafter-free speculative method — removing --spec-model"
+  sed -i -E '/^[[:space:]]*-[[:space:]]*"--spec-model=/d' "$DEPLOY_FILE"
+fi
+
+# Defensive, whatever branch ran above: a real method left with the 0 sentinel would
+# crash vLLM at config construction. The study's parameterConstraints forbid that
+# combination, so reaching here means the study YAML and this script disagree — fail
+# loudly rather than spend a 45-minute trial discovering it in a crash loop.
+if grep -qE '^[[:space:]]*-[[:space:]]*"--spec-tokens=0"[[:space:]]*$' "$DEPLOY_FILE"; then
+  echo "error: spec_tokens=0 rendered together with a non-none spec_method — the study's sentinel parameterConstraints are missing or wrong" >&2
+  exit 2
 fi
 
 # --- Step 2: strip any vLLM parameter flag left with no rendered value ---
@@ -51,7 +66,10 @@ kubectl apply -f "$DEPLOY_FILE" -n llm-serving
 # so they land in this task's stdout and show up in the Akamas UI (experiment/trial
 # view) without needing separate kubectl access.
 set +e
-kubectl rollout status deployment/vllm -n llm-serving --timeout=1500s
+# 1740s (29 min) — just under the Deployment's own 1800s progressDeadlineSeconds, so
+# the rollout's verdict comes from Kubernetes rather than from this wait expiring first.
+# Raised with the model swap: 29.03 GiB of FP8 weights, cold, do not load in 25 minutes.
+kubectl rollout status deployment/vllm -n llm-serving --timeout=1740s
 ROLLOUT_EXIT=$?
 set -e
 

@@ -1,44 +1,54 @@
 kind: study
 name: 17-G7e-Speculative-Decoding-Goodput
 
-# Duplicate of 2-larger-model-g7e's "2-Larger-goodput" study — same GPU (one RTX PRO
-# 6000 Blackwell on a g7e.4xlarge), same model (Qwen/Qwen2.5-7B-Instruct), same goal,
-# same SLA, same windowing, same 14 tuned parameters and same 3 attention/KV-dtype
-# parameterConstraints — plus ONE new dimension: speculative decoding
+# Started life as a duplicate of 2-larger-model-g7e's "2-Larger-goodput" — same single
+# RTX PRO 6000 Blackwell on a g7e.4xlarge, same goal, SLA, windowing and 14 tuned
+# parameters — and adds speculative decoding as the new dimension
 # (vLLM.spec_method / vLLM.spec_tokens).
 #
-# TWO DELIBERATE DIVERGENCES from the study it duplicates, both recorded here because
-# they mean this study's numbers are NOT directly comparable with that one's:
-#   1. vLLM image v0.22.0 -> v0.29.0. Required, not cosmetic: the pack's reference
-#      version is 0.29.0, and the speculative-decoding counters this study will
-#      eventually read are V1-engine metrics that 0.22.0 does not emit (see the
-#      telemetry instance's TODO block). This study therefore runs its own baseline
-#      rather than importing 2-Larger-goodput's experiments via `from`.
-#   2. The AIPerf concurrency sweep was re-floored from 150->1024 (12 levels) to
-#      8->1024 (8 levels). A sweep starting at 150 concurrent requests observes only
-#      the saturated regime, where speculative decoding is expected to lose anyway
-#      (ROADMAP H3) — it would answer this study's question by construction of the
-#      load pattern. See k8s/05-job.yaml for the full reasoning.
+# REQUIRES vLLM OPTIMIZATION PACK >= 1.10.0. spec_method's "draft_model" category does
+# not exist in 1.9.1, so `akamas create study` fails against it. The pack change lives
+# on branch feature/speculative-decoding-metrics in the pack's own repo and also brings
+# the five acceptance metrics this study's telemetry has commented out.
+#
+# FOUR DELIBERATE DIVERGENCES from the study it started as. Together they mean this
+# study's numbers are NOT comparable with 2-Larger-goodput's; it runs its own baseline
+# and imports nothing:
+#   1. MODEL: Qwen2.5-7B-Instruct -> Qwen/Qwen3-30B-A3B-Instruct-2507-FP8. The 7B was
+#      inherited, not chosen: it uses 15 of 96 GB and its decode is cheap, which is the
+#      worst case for showing speculation work. The 30B MoE is also the exact model of
+#      studies 15/16, where it did not fit one 24 GB L4 and forced a topology study —
+#      here it fits one card with room to spare, so topology is constant at 1.
+#   2. IMAGE: v0.22.0 -> v0.29.0. The pack's reference version, and the only engine
+#      emitting the V1 speculative counters (0.22.0 predates them, and the five metrics
+#      in vLLM's own docs are V0 legacy V1 does not emit).
+#   3. RAMP: 150->1024 in 12 levels -> 8->2048 in 9. The floor moved because a sweep
+#      starting at 150 observes only the saturated regime where speculation is expected
+#      to lose, answering the question by construction. The ceiling moved because study
+#      16 served THIS model and ended with 10 experiments scored at its ramp's last
+#      level — their real capacity was never measured.
+#   4. TIMEOUTS: raised to study 16's proven values for this checkpoint (30 min rollout
+#      deadline, not 20) — 29.03 GiB of FP8 weights do not load in a 7B's budget.
 #
 # READ THIS BEFORE INTERPRETING THE RESULT — the goal and the new parameter pull in
 # opposite directions, on purpose. Speculative decoding buys latency when the decode
 # batch is small enough to leave the verifier idle capacity; its gain shrinks and can
 # invert once the batch saturates, and this goal maximizes throughput at whatever
 # concurrency still meets the SLA, i.e. exactly the saturated end. So the optimizer is
-# expected to drive spec_method toward "none". That is a legitimate result, but only
-# if every method was actually measured rather than abandoned early — which is why the
-# seven preset steps below run the whole spec_method x spec_tokens grid head-to-head at
+# expected to drive spec_method toward "none". That is a legitimate result, but only if
+# every method was actually measured rather than abandoned early — which is why the TEN
+# preset steps below run the whole spec_method x spec_tokens grid head-to-head at
 # otherwise-identical settings BEFORE the optimize step, and why the KPI list carries
 # the latency metrics the goal itself ignores.
 description: >-
-  Speculative-decoding goodput study on one RTX PRO 6000 Blackwell (g7e.4xlarge,
-  SM120) serving Qwen/Qwen2.5-7B-Instruct with vLLM 0.29.0. Duplicates
-  2-larger-model-g7e's "2-Larger-goodput" (same goal, SLA, windowing and 14 tuned
-  parameters) and adds vLLM.spec_method / vLLM.spec_tokens. spec_method's domain
-  deliberately omits "suffix" and "mtp", both of which failed 100% of the time in
-  study 1. Seven preset steps measure the whole ngram / ngram_gpu x 3/5/8-token grid
-  head-to-head before the optimizer runs, because a throughput-maximizing goal at
-  saturation is expected to reject speculation regardless of how well it works.
+  Speculative-decoding goodput study on one RTX PRO 6000 Blackwell (g7e.4xlarge, SM120)
+  serving Qwen/Qwen3-30B-A3B-Instruct-2507-FP8 with vLLM 0.29.0 — the model studies
+  15/16 had to shard over four L4s, here on a single card so topology is constant and
+  only speculation varies. Requires vLLM pack >= 1.10.0 for spec_method's "draft_model".
+  Ten preset steps compare the three drafter families head-to-head at identical settings
+  — none, ngram and ngram_gpu at 3/5/8 tokens, and draft_model at 3/5/8 with a
+  Qwen/Qwen3-0.6B drafter — before the optimizer runs, because a throughput-maximizing
+  goal at saturation is expected to reject speculation regardless of how well it works.
 
 system: vLLM_Benchmark_17_G7e_Speculative_Decoding
 workflow: 17-G7e-Speculative-Decoding-Goodput-Workflow
@@ -111,19 +121,39 @@ parametersSelection:
   # --- NEW in this study: speculative decoding ---
   # DOMAIN NOTE — "suffix" and "mtp" are EXCLUDED DELIBERATELY, not forgotten. The
   # pack's full category list is [none, ngram, ngram_gpu, suffix, mtp] and both of the
-  # omitted values failed 100% of the time in 1-goodput-realistic-load, on this same
-  # model:
+  # omitted values failed 100% of the time in 1-goodput-realistic-load:
   #   mtp    -> NotImplementedError: Unsupported speculative method: 'mtp' (raised
-  #             unconditionally by SpeculativeConfig; Qwen2.5-7B has no MTP head, and
-  #             no other parameter value avoids it).
+  #             unconditionally by SpeculativeConfig when the target checkpoint has no
+  #             MTP layers). That was measured on Qwen2.5-7B; it still applies to this
+  #             study's Qwen3-30B-A3B-Instruct-2507, which is NOT one of the MTP-capable
+  #             families the pack lists (DeepSeek-V3/V3.2, MiMo, GLM-4.5-MoE, ERNIE,
+  #             Nemotron-H, Qwen3-NEXT — note: Next, not this checkpoint). Worth a
+  #             single manual check rather than an assumption if it ever matters.
   #   suffix -> ImportError: Arctic Inference is required for suffix decoding
   #             (the package is not in the vllm-openai image, for any configuration).
   # A categorical value that fails for every combination cannot be fenced with a
   # parameterConstraint — the only fix is not to offer it. Re-test both on v0.29.0
   # before re-adding either: the image may now ship arctic-inference, which would make
   # "suffix" worth a study of its own.
+  #
+  # "draft_model" ADDED 2026-09-21 and is why this study needs vLLM pack >= 1.10.0:
+  # 1.9.1's spec_method domain does not contain it. It is speculative decoding in its
+  # classic form — a separate, much smaller model proposes tokens the target verifies —
+  # and it COMPLEMENTS the two n-gram methods rather than being a variant of them:
+  #   ngram / ngram_gpu look up a repeated n-gram in the context, so they only pay off
+  #     on REPETITIVE text. ShareGPT chat replay is not shaped that way (ROADMAP
+  #     section F), which is the main reason to expect them to disappoint here.
+  #   draft_model asks a real 0.6B model what comes next, so its acceptance does not
+  #     depend on repetition at all — it costs GPU time the verifier would otherwise use.
+  # The drafter is Qwen/Qwen3-0.6B, rendered by k8s/01-deployment_template.yaml and kept
+  # or dropped by apply_config.sh. It is NOT an Akamas parameter, for the same reason
+  # the target model is not one: its valid values are paired to whichever target is
+  # served, so it is a study constant, not a tunable domain.
+  # UNVERIFIED: vLLM checks drafter/target vocabulary compatibility at engine init. Both
+  # are Qwen3 with a 151936-token vocabulary, but start the pair by hand once before
+  # spending experiment budget on the three draft_model presets.
   - name: vLLM.spec_method
-    categories: ["none", "ngram", "ngram_gpu"]
+    categories: ["none", "ngram", "ngram_gpu", "draft_model"]
   - name: vLLM.spec_tokens
     # 0 is an Akamas-side OFF SENTINEL, never a value vLLM sees: vLLM's own
     # num_speculative_tokens field declares gt=0, so a literal 0 on the command line is
@@ -415,6 +445,72 @@ steps:
     type: preset
     values:
       vLLM.spec_method: "ngram_gpu"
+      vLLM.spec_tokens: 8
+      vLLM.gpu_memory_utilization: 0.90
+      vLLM.max_num_seqs: 256
+      vLLM.max_num_batched_tokens: 8192
+      vLLM.kv_cache_dtype: "auto"
+      vLLM.performance_mode: "balanced"
+      vLLM.optimization_level: 2
+      vLLM.block_size: "16"
+      vLLM.attention_backend: "TRITON_ATTN"
+      vLLM.enforce_eager: "false"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.disable_cascade_attn: "false"
+      vLLM.tokenizer_mode: "auto"
+      vLLM.async_scheduling: "false"
+      vLLM.max_cudagraph_capture_size: 512
+
+  # --- draft_model cells, the other half of the comparison. Same fixed values as
+  #     S1-S7, so between "ngram at 5 tokens" and "draft_model at 5 tokens" the only
+  #     thing that differs is which drafter produced the proposal.
+  #     async_scheduling stays "false" here too. vLLM would ALLOW it on with
+  #     draft_model — only plain ngram and suffix force it off — but enabling it for
+  #     these three cells alone would make it a second variable between the families.
+  - name: S8 draft_model 3 tokens
+    type: preset
+    values:
+      vLLM.spec_method: "draft_model"
+      vLLM.spec_tokens: 3
+      vLLM.gpu_memory_utilization: 0.90
+      vLLM.max_num_seqs: 256
+      vLLM.max_num_batched_tokens: 8192
+      vLLM.kv_cache_dtype: "auto"
+      vLLM.performance_mode: "balanced"
+      vLLM.optimization_level: 2
+      vLLM.block_size: "16"
+      vLLM.attention_backend: "TRITON_ATTN"
+      vLLM.enforce_eager: "false"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.disable_cascade_attn: "false"
+      vLLM.tokenizer_mode: "auto"
+      vLLM.async_scheduling: "false"
+      vLLM.max_cudagraph_capture_size: 512
+
+  - name: S9 draft_model 5 tokens
+    type: preset
+    values:
+      vLLM.spec_method: "draft_model"
+      vLLM.spec_tokens: 5
+      vLLM.gpu_memory_utilization: 0.90
+      vLLM.max_num_seqs: 256
+      vLLM.max_num_batched_tokens: 8192
+      vLLM.kv_cache_dtype: "auto"
+      vLLM.performance_mode: "balanced"
+      vLLM.optimization_level: 2
+      vLLM.block_size: "16"
+      vLLM.attention_backend: "TRITON_ATTN"
+      vLLM.enforce_eager: "false"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.disable_cascade_attn: "false"
+      vLLM.tokenizer_mode: "auto"
+      vLLM.async_scheduling: "false"
+      vLLM.max_cudagraph_capture_size: 512
+
+  - name: S10 draft_model 8 tokens
+    type: preset
+    values:
+      vLLM.spec_method: "draft_model"
       vLLM.spec_tokens: 8
       vLLM.gpu_memory_utilization: 0.90
       vLLM.max_num_seqs: 256

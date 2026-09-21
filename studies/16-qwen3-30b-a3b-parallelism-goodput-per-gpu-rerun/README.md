@@ -1,6 +1,7 @@
 # 16-qwen3-30b-a3b-parallelism-goodput-per-gpu-rerun
 
-**Status:** TODO — manifest ready, nothing created on the instance yet
+**Status:** FINISHED — run 2026-09-18 → 2026-09-20, stopped manually to cap cost after 27 of 100
+optimizer experiments; analysed 2026-09-21 (see [Results](#results) and `results/report.html`)
 **Dates:** Created 2026-09-18, successor to `15-qwen3-30b-a3b-parallelism-goodput-per-gpu`
 
 > Same objective, model, hardware and search space as study 15 — read that study's README
@@ -276,8 +277,78 @@ before concluding anything about interconnect.
 
 ## Results
 
-<Filled in by the study-recap skill once the study finishes.>
+**Run 2026-09-18 13:24 → 2026-09-20 10:37 UTC (21 h 13 min), FINISHED — stopped manually by the
+team to cap the g6.12xlarge cost after 27 of the 100 planned optimizer experiments.** 43
+experiments: 1 imported baseline + 3 bootstrapped from study 15, 12 presets, 27 optimizer; 40
+scored, 3 failed. Full analysis in [`results/report.html`](results/report.html) (analysis of
+2026-09-21; the Akamas export was incomplete on 3.7.x, so the metric series were rebuilt from
+the cluster's Prometheus — the reconstruction reproduces all 40 scores to 0.00%).
+
+| | exp | layout | tok/s per GPU | total tok/s | SLA-max concurrency | KV / GPU |
+|---|---|---|---|---|---|---|
+| Baseline (study 15 exp 1) | 1 | TP4 | 607 | 2 429 | 192 | 9.2 GiB |
+| Best TP4 (imported, 768 seqs) | 2 | TP4 | 828 | 3 312 | 543 | 9.0 GiB |
+| Only TP1/DP4 point (imported, 768 seqs) | 3 | DP4 | 1 416 | 5 662 | 768 | 6.0 GiB |
+| DP3 preset S14 (untuned) | 15 | DP3 | 1 091 | 3 272 | 271 | 4.0 GiB |
+| Best DP3, kv auto | 25 | DP3 | 1 814 | 5 441 | 768 | 7.4 GiB |
+| **Study best** | **37** | **TP1/DP3** | **2 186 (+260%)** | **6 559** | **1 024 (ramp end)** | 7.5 GiB (fp8) |
+| Best 2-GPU layout | 9 | TP2, fp8 KV | 942 | 1 884 | 192 | 2.1 GiB |
+| Worst | 13 | PP4 | 445 | 1 781 | 192 | 9.8 GiB |
+
+- **TP1/DP3 wins, consistently**: five DP3 configurations within 1.5% of exp 37 (fp8 KV,
+  ~490 sequences, gmu 0.877, priority + async scheduling, EP off), every other layout's best is
+  below 1 420. Tuned DP3 also has the highest absolute goodput while leaving one L4 idle. Caveat:
+  26 of the 27 optimizer experiments went to DP3, so DP4 (one untuned point) and TP2/DP2 were
+  never tuned.
+- **The top configurations are capped by the ramp**: ten DP3 experiments are SLA-compliant at
+  the last level (1 024 concurrent, ITL p95 284–291 ms); their true capacity is a lower bound and
+  the ranking among them is noise (one trial each).
+- **fp8 KV cache is the lever inside DP3** (+20% vs best auto): ~490 k vs ~245 k tokens of
+  cache; all ten runs with ≥ 344 k tokens of KV (≥ 5.3 GiB per GPU, fp8 only) show zero
+  preemptions, every run at ≤ 285 k tokens (all kv-auto, and fp8 pushed to gmu ≤ 0.84) peaks at
+  10–23 preemptions/s. fp8 hurts TP4 (−4%), which is not KV-bound.
+  `fp8` and `fp8_e4m3` are the same kernel (near-twin exps 31/34).
+- **2-GPU layouts lose on KV capacity, not on the interconnect** (the open question above):
+  TP2 keeps 1.7–2.2 GiB of KV, breaches the SLA beyond 96–192 concurrent requests, moves only
+  1.5–2.8 GB/s over PCIe; fp8 KV gives it +32% (716 → 942) but it still trails DP3 by 2.3×.
+  **TP1/DP2 cannot start at all** (exp 6 and 10): vLLM reports 0.13 GiB available for KV against
+  0.75 needed — constraint 5's 4 GiB headroom does not hold for a DP replica, whose activation
+  peak is full-width. This also corrects study 15's inference about its exp 6 (KV-fit failure,
+  not sampler OOM).
+- **Pipeline parallelism is the worst family** (PP2 571, PP3 557, PP4 445, TP2/PP2 578): stages
+  busy (SM active 0.55–0.74) but serialised. TP2 beats PP2 by 25% and TP4 beats PP4 at identical
+  settings.
+- **The recalibrated warmup constraint worked**: no sampler OOM in 40 experiments (up to 980
+  sequences), and TP2/DP2 at 256 sequences (exp 5, 754) starts where study 15's 768 died.
+- **Failures**: exp 6/10 as above; exp 17 (TP1/DP3, a valid configuration) completed its
+  workflow but Akamas' telemetry service did not answer at collection time (platform incident).
+- Side effect at the top: queue time p95 of 2–9 s in the 1 024-concurrency windows while TTFT
+  and ITL meet the SLA; GPU power 71–72 W per active L4; SM activity balanced across the three
+  engines; PCIe 3.1–3.3 GB/s per GPU (expert weights are sharded over the DP world whether
+  `enable_expert_parallel` is on or off — non-KV footprint ≈ 13–16 GiB per GPU in both cases).
 
 ## Conclusions
 
-<Filled in by the study-recap skill once the study finishes.>
+1. **On a PCIe-only 4× L4 node, an MoE model that does not fit one GPU is best served with
+   data parallelism and expert sharding, not tensor or pipeline parallelism** — TP1/DP3 with fp8
+   KV reaches 2 186 tok/s per GPU (6 559 total), 2.6× the TP4 baseline per GPU and ~2× the best
+   TP4 in absolute terms. Phase 2 (NCCL tuning) should therefore target the layouts that move
+   the most PCIe traffic (TP4 at 4–6.5 GB/s per GPU, DP3/DP4 at 3–4), not TP2 or PP.
+2. **KV-cache capacity, not collectives, decides the 2-GPU cells**: with 14.5 GiB of weights per
+   card, TP2 keeps ~2 GiB of KV and DP2 keeps none. The per-GPU objective's premise ("half the
+   hardware might win per GPU") is answered negatively for this model on 24 GB cards; it would
+   need fp8 weights *and* fp8 KV *and* a smaller `max_num_batched_tokens` to be revisited.
+3. **The study did not measure what it set out to compare in full**: the optimizer spent 26 of 27
+   asks on DP3, so the DP3-vs-DP4 and DP3-vs-TP2/DP2 comparisons are tuned-vs-untuned. The
+   follow-up needs forced topologies (presets or one short study per layout) with fp8 KV and the
+   ~500-sequence region, and a ramp that goes beyond 1 024 concurrent requests, otherwise the top
+   configurations remain indistinguishable.
+4. **Constraint fixes for the next manifest**: constraint 5 must exclude TP1/DP2 (or model the
+   DP activation peak, ≈ 4–5 GiB at 8 192 batched tokens); `fp8_e4m3` can be dropped from the
+   KV domain (same kernel as `fp8`); `kv_cache_dtype` should be pinned to `fp8` for KV-bound
+   layouts; pipeline parallelism can be dropped for throughput goals on this node. Constraint 6
+   (EP required at 4 ranks) is still unverified (`smoke_test.sh tp4-noep` never ran).
+5. **Platform debt surfaced by the analysis**: `akamas export study` on 3.7.x omits
+   `last-optimization.json`/`logs.json` and caps metric files at 22 (goal metrics missing);
+   the log service rejected large INFO queries; the telemetry service failed exp 17. Raise with
+   Akamas; keep Prometheus retention (10 d) in mind when analysing a study late.

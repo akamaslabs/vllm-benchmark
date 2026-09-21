@@ -185,19 +185,32 @@ kpis:
   - name: TPOT P95
     formula: vLLM.time_per_output_token_p95
     direction: minimize
+  # The decode batch size is the variable that decides whether speculation pays at all
+  # (ROADMAP H3: the gain shrinks and inverts as the batch saturates), so it is a KPI
+  # here rather than just a metric.
   - name: Batch raggiunto
     formula: vLLM.num_requests_running
     direction: maximize
+  # Study 16 found queue times of 2-9 s hiding behind windows that met both SLAs; the
+  # goal cannot see them, so they are tracked explicitly.
   - name: Tempo in coda P95
     formula: vLLM.request_queue_time_p95
     direction: minimize
-  - name: Utilizzo KV cache
-    formula: vLLM.kv_cache_usage_avg
-    direction: maximize
-  - name: Preemption (picco)
-    formula: vLLM.preemption_rate
-    direction: minimize
-    aggregation: max
+  #
+  # AKAMAS LIMIT: a study may declare AT MOST 8 KPIs. Exceeding it fails at creation
+  # with "An error occurred: No more than 8 KPIs are allowed" (hit on 2026-09-21 with
+  # 10). Two of study 16's KPIs were therefore dropped HERE, and the choice is specific
+  # to this stack rather than a judgement that they do not matter:
+  #   vLLM.kv_cache_usage_avg  — studies 15/16 were KV-bound (a 29 GiB MoE model on
+  #     24 GB cards), so KV usage was their headline diagnostic. This study serves a 7B
+  #     model on a 96 GB card, where KV is abundant and the metric should sit low and
+  #     flat across every configuration.
+  #   vLLM.preemption_rate     — same reason: preemption is what happens when the KV
+  #     cache fills, which is not this stack's binding constraint.
+  # BOTH ARE STILL COLLECTED. The telemetry instance wires all 126 metrics regardless;
+  # dropping a KPI only removes it from the study's own per-experiment ranking, so both
+  # remain available in the export and in any analysis. Re-add them in place of a GPU
+  # KPI if a run unexpectedly shows KV pressure.
   # Study 16 found its best configurations pinned against the GPU's power cap with the
   # memory bus only ~48% active and tensor cores ~11% — i.e. spare compute. If
   # speculative decoding works here, it should show up as the drafter turning that

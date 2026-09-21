@@ -1,22 +1,39 @@
 # Helm values for NVIDIA DCGM Exporter.
 # Exposes GPU hardware metrics (utilisation, VRAM, power, temperature) to Prometheus.
 #
-# NOTE: a DCGM Exporter DaemonSet is likely already running cluster-wide from
-# 0-explorative's provisioning (nodeSelector: node-role: llm-serving, the A10G group).
-# That instance won't schedule onto llm-serving-g7e (different node-role label) — this
-# study needs its OWN DCGM Exporter release (different Helm release name, e.g.
-# `dcgm-exporter-g7e`) targeting this study's GPU node specifically (g7e.4xlarge, RTX
-# PRO 6000 Blackwell — swapped 2026-08-21 from p5.4xlarge/H100; the node-role/release
-# name kept unchanged for continuity, see infra/README.md), not a reuse of the existing
-# one.
+# A DCGM Exporter DaemonSet is already running in the `monitoring` namespace, as Helm
+# release **`dcgm-exporter`**. It is re-pointed at whichever GPU node group the current
+# study uses, by upgrading it with that study's values file — it was at revision 18 and
+# nodeSelector `llm-serving-l4` (study 16's node group) before this study, and revision
+# 19 moved it to `llm-serving-g7e`. That is the established practice here; the 18
+# revisions are the record of it.
 #
-# Install (after creating the dcgm-custom-metrics ConfigMap from dcgm_counters.csv —
-# see this study's infra/eks/provision.sh printed next-steps):
+# DO NOT try to install a SECOND release alongside it (the earlier advice in this file,
+# e.g. `dcgm-exporter-g7e`, which studies 8/12/16 also repeat). It cannot work with this
+# chart, verified against chart 4.8.3/4.8.4 on 2026-09-21:
+# `templates/metrics-configmap.yaml` creates a ConfigMap literally named
+# `exporter-metrics-config-map`, with no release-name prefix and no condition guarding
+# it, so a second release in the same namespace fails at install with
+#   "ConfigMap exporter-metrics-config-map in namespace monitoring exists and cannot be
+#    imported into the current release: invalid ownership metadata"
+# Two concurrent GPU node groups would need the second release in its own namespace,
+# with a copy of the dcgm-custom-metrics ConfigMap there — not needed while only one GPU
+# node group runs at a time (which is also the cost discipline this repo follows).
+#
+# Note the chart's own `exporter-metrics-config-map` is unused here: `extraConfigMapVolumes`
+# below mounts `dcgm-custom-metrics` over /etc/dcgm-exporter/default-counters.csv instead.
+#
+# Install / re-point (the dcgm-custom-metrics ConfigMap must already exist — it does, 50
+# counters, and this study's dcgm_counters.csv matches it byte for byte):
 #   helm repo add gpu-helm-charts https://nvidia.github.io/dcgm-exporter/helm-charts
 #   helm repo update
-#   helm upgrade --install dcgm-exporter-g7e gpu-helm-charts/dcgm-exporter \
-#     --namespace monitoring \
+#   helm upgrade dcgm-exporter gpu-helm-charts/dcgm-exporter \
+#     --namespace monitoring --version 4.8.3 --reuse-values=false \
 #     -f studies/17-g7e-speculative-decoding-goodput/k8s/monitoring/dcgm-exporter-values.yaml
+#
+# --version pins the chart the release already runs; without it `helm upgrade` also jumps
+# to whatever the repo now serves (4.8.4 at the time of writing), which is a second,
+# unintended change in the middle of setting a study up.
 
 # Run only on this study's GPU node (node-role: llm-serving-g7e) — NOT llm-serving,
 # the A10G group other studies use.

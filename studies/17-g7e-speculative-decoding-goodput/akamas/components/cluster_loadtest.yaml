@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_17_G7e_Speculative_Decoding
+
+name: cluster_loadtest
+description: >-
+  The CPU node the AIPerf Job runs on (node group "system-m8a" — the label the live cluster actually carries, per
+  k8s/05-job.yaml's nodeSelector). Same rationale as container_loadtest: node
+  pressure on the load-generator side has to be separable from the GPU node's.
+componentType: Kubernetes Cluster
+properties:
+  prometheus:
+    node_role: system-m8a

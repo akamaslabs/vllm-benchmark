@@ -1,0 +1,13 @@
+kind: component
+system: vLLM_Benchmark_17_G7e_Speculative_Decoding
+
+name: container_loadtest
+description: >-
+  The AIPerf load-generator Job's container, in namespace llm-benchmark on the
+  CPU node. Modelled separately so a CPU-starved or memory-starved load
+  generator is visible as such instead of silently being read as a slower
+  server — the failure mode that would otherwise look like a bad vLLM config.
+componentType: Kubernetes Container
+properties:
+  prometheus:
+    pod: ^aiperf-benchmark-.*

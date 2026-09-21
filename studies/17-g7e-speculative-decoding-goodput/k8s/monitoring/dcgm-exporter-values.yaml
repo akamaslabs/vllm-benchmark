@@ -1,0 +1,52 @@
+# Helm values for NVIDIA DCGM Exporter.
+# Exposes GPU hardware metrics (utilisation, VRAM, power, temperature) to Prometheus.
+#
+# NOTE: a DCGM Exporter DaemonSet is likely already running cluster-wide from
+# 0-explorative's provisioning (nodeSelector: node-role: llm-serving, the A10G group).
+# That instance won't schedule onto llm-serving-g7e (different node-role label) — this
+# study needs its OWN DCGM Exporter release (different Helm release name, e.g.
+# `dcgm-exporter-g7e`) targeting this study's GPU node specifically (g7e.4xlarge, RTX
+# PRO 6000 Blackwell — swapped 2026-08-21 from p5.4xlarge/H100; the node-role/release
+# name kept unchanged for continuity, see infra/README.md), not a reuse of the existing
+# one.
+#
+# Install (after creating the dcgm-custom-metrics ConfigMap from dcgm_counters.csv —
+# see this study's infra/eks/provision.sh printed next-steps):
+#   helm repo add gpu-helm-charts https://nvidia.github.io/dcgm-exporter/helm-charts
+#   helm repo update
+#   helm upgrade --install dcgm-exporter-g7e gpu-helm-charts/dcgm-exporter \
+#     --namespace monitoring \
+#     -f studies/17-g7e-speculative-decoding-goodput/k8s/monitoring/dcgm-exporter-values.yaml
+
+# Run only on this study's GPU node (node-role: llm-serving-g7e) — NOT llm-serving,
+# the A10G group other studies use.
+nodeSelector:
+  node-role: llm-serving-g7e
+
+# Required to schedule on the tainted GPU node.
+tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+
+# Let Prometheus (via kube-prometheus-stack) scrape DCGM metrics every 5 s.
+# serviceMonitorSelectorNilUsesHelmValues: false in prometheus values ensures
+# this ServiceMonitor is picked up without needing extra labels.
+serviceMonitor:
+  enabled: true
+  interval: 5s
+  scrapeTimeout: 4s
+  namespace: monitoring
+
+extraConfigMapVolumes:
+- name: exporter-metrics-volume
+  configMap:
+    name: dcgm-custom-metrics
+    items:
+    - key: metrics
+      path: dcgm_counters.csv
+
+extraVolumeMounts:
+- name: exporter-metrics-volume
+  mountPath: /etc/dcgm-exporter/default-counters.csv
+  subPath: dcgm_counters.csv

@@ -1,0 +1,17 @@
+kind: component
+system: vLLM_Benchmark_17_G7e_Speculative_Decoding
+
+name: vLLM
+description: >-
+  The vLLM server under test — Qwen/Qwen2.5-7B-Instruct served as "qwen2.5-7b"
+  by vllm/vllm-openai:v0.29.0 in namespace llm-serving. Carries every tuned
+  parameter, including this study's new spec_method/spec_tokens.
+componentType: vLLM
+properties:
+  prometheus:
+    # $POD$ / $MODEL$ in the telemetry instance's queries resolve from here.
+    # Left permissive (as in every study in this repo) because the Deployment
+    # is recreated with a new pod hash on every trial and the served-model-name
+    # is fixed by the deployment template, not by Akamas.
+    pod: .*
+    model: .*

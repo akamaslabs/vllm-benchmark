@@ -1,0 +1,14 @@
+kind: component
+system: vLLM_Benchmark_17_G7e_Speculative_Decoding
+
+name: gpu0
+description: >-
+  The single NVIDIA RTX PRO 6000 Blackwell Server Edition (96 GB GDDR7, SM120)
+  of the g7e.4xlarge node. One Akamas component per physical GPU is this repo's
+  convention (studies 13-16 model four); this node has exactly one, so gpu0 is
+  the whole GPU rather than a slice of a larger set.
+componentType: GPU
+properties:
+  prometheus:
+    pod: .*
+    gpu: "0"

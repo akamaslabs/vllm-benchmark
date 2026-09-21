@@ -1,0 +1,104 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: vllm-bench
+  region: us-east-2
+  version: "1.35"
+  tags:
+    Project: vllm-bench
+    Provisioner: eksctl
+
+iam:
+  withOIDC: true
+
+addons:
+  - name: aws-ebs-csi-driver
+    wellKnownPolicies:
+      ebsCSIController: true
+
+managedNodeGroups:
+
+  - name: system
+    instanceType: m6i.xlarge
+    desiredCapacity: 1
+    minSize: 1
+    maxSize: 1
+    volumeSize: 50
+    labels:
+      node-role: system
+
+  - name: akamas
+    instanceType: r6i.xlarge
+    desiredCapacity: 1
+    minSize: 1
+    maxSize: 1
+    volumeSize: 50
+    labels:
+      node-role: akamas
+
+  - name: llm-serving
+    instanceType: g5.2xlarge
+    desiredCapacity: 1
+    minSize: 0
+    maxSize: 1
+    volumeSize: 100
+    amiFamily: AmazonLinux2023
+    labels:
+      node-role: llm-serving
+    taints:
+      - key: nvidia.com/gpu
+        value: "present"
+        effect: NoSchedule
+
+  # Added for studies/17-g7e-speculative-decoding-goodput (2026-08-20) — a separate node group from
+  # the existing A10G `llm-serving` group above, so this study's GPU workload never
+  # contends with or displaces 0-explorative/1-goodput-realistic-load's own node.
+  # Same cluster (`vllm-bench`), same region — this study deliberately reuses the
+  # cluster rather than provisioning a standalone one (explicit user decision).
+  #
+  # SWAPPED 2026-08-21: originally p5.4xlarge (1x H100 80GB) — no capacity available
+  # in this region at provisioning time. Now g7e.4xlarge (1x NVIDIA RTX PRO 6000
+  # Blackwell Server Edition, 96GB GDDR7). This is NOT a like-for-like swap: RTX PRO
+  # 6000 is a workstation-class Blackwell chip (GDDR7, ~1.6TB/s bandwidth) vs H100's
+  # datacenter HBM3 (~3.35TB/s) — roughly half the memory bandwidth despite more VRAM,
+  # which matters for decode-phase throughput (bandwidth-bound). vLLM's CUDA kernel
+  # support for this GPU's compute capability (SM120) has also had more rough edges
+  # than Hopper/SM100 (FP8/FP4 kernel selection, FlashInfer JIT) — see study README
+  # "Prerequisites still open" before trusting attention_backend=FLASHINFER or any
+  # fp8-family kv_cache_dtype result on this hardware. Node group/label name kept as
+  # `llm-serving-g7e` for continuity with existing references (Akamas resource names,
+  # k8s manifests) — it no longer describes the actual GPU, rename if that confusion
+  # becomes a real problem.
+  # CONFIRMED 2026-08-21 (real provisioning attempt): eksctl 0.223.0 does not
+  # recognize `g7e` in its own hardcoded GPU-instance-type list, so leaving `ami`
+  # unset made it silently pick the STANDARD (non-GPU) AL2023 AMI for this node
+  # group — no NVIDIA driver at all, device plugin reported "No devices found".
+  # Same root cause independently confirmed against AWS CDK's own GPU allowlist
+  # (github.com/aws/aws-cdk/issues/37854). Fix: pin the AMI explicitly to the
+  # EKS-optimized AL2023 **NVIDIA** variant (no overrideBootstrapCommand needed —
+  # eksctl auto-generates the nodeadm NodeConfig for AL2023 custom AMIs). Re-resolve
+  # this AMI ID at future provisioning time via:
+  #   aws ssm get-parameter --region us-east-2 \
+  #     --name /aws/service/eks/optimized-ami/1.35/amazon-linux-2023/x86_64/nvidia/recommended/image_id \
+  #     --query 'Parameter.Value' --output text
+  # NOTE: even with the correct AMI, this specific GPU may still hit a separate,
+  # AWS-side bug — the AMI's own /etc/eks/nvidia-open-supported-devices-*.txt
+  # PCI-ID allowlist has been confirmed stale for at least one other new Blackwell
+  # workstation GPU on the sibling g7 family (awslabs/amazon-eks-ami#2768, closed
+  # "not planned") — verify `nvidia-smi` actually works on the node after this
+  # change, don't assume the AMI swap alone is sufficient.
+  - name: llm-serving-g7e
+    instanceType: g7e.4xlarge
+    desiredCapacity: 1
+    minSize: 0
+    maxSize: 1
+    volumeSize: 200
+    amiFamily: AmazonLinux2023
+    ami: ami-07648720b23706893
+    labels:
+      node-role: llm-serving-g7e
+    taints:
+      - key: nvidia.com/gpu
+        value: "present"
+        effect: NoSchedule

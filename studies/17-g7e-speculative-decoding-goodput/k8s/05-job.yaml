@@ -1,0 +1,193 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aiperf-benchmark
+  namespace: llm-benchmark
+spec:
+  # Do not retry on failure — a failed benchmark should be inspected, not silently retried.
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+
+      # Run on the CPU node; the GPU node(s) are tainted exclusively for vLLM.
+      nodeSelector:
+        node-role: system-m8a
+
+      initContainers:
+        # Poll vLLM's /health endpoint until the model is fully loaded.
+        - name: wait-for-vllm
+          image: alpine:3
+          command:
+            - sh
+            - -c
+            - |
+              until wget -qO- http://vllm.llm-serving.svc.cluster.local:8000/health >/dev/null 2>&1; do
+                echo "$(date -u +%T) waiting for vLLM readiness..."
+                sleep 10
+              done
+              echo "vLLM is ready."
+
+      containers:
+        # Same tool/version as 1-goodput-realistic-load — see that study's README
+        # "Load generator" for the full reasoning (AIPerf's closed-loop --concurrency
+        # model is self-limiting near saturation, unlike open-loop rate-based tools).
+        - name: aiperf
+          image: python:3.12-slim
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              pip install --quiet aiperf==0.11.0
+
+              find /benchmarks -mindepth 1 -maxdepth 1 -name 'aiperf-*' -exec rm -rf {} +
+
+              CACHE_FILE=/benchmarks/sharegpt-cache/inputs.json
+              if [ ! -f "$CACHE_FILE" ]; then
+                echo "No cached ShareGPT inputs.json — generating once (one-time ~5min dataset validation pass)..."
+                set +e
+                aiperf profile \
+                  --model qwen2.5-7b \
+                  --tokenizer Qwen/Qwen2.5-7B-Instruct \
+                  --url http://vllm.llm-serving.svc.cluster.local:8000 \
+                  --endpoint-type chat \
+                  --streaming \
+                  --public-dataset sharegpt \
+                  --concurrency 1 \
+                  --request-count 1 \
+                  --ui simple \
+                  --output-artifact-dir /tmp/sharegpt-prep
+                set -e
+                if [ ! -f /tmp/sharegpt-prep/inputs.json ]; then
+                  echo "ERROR: prep run did not produce inputs.json — see log above" >&2
+                  exit 1
+                fi
+                mkdir -p /benchmarks/sharegpt-cache
+                cp /tmp/sharegpt-prep/inputs.json "$CACHE_FILE"
+              else
+                echo "Reusing cached ShareGPT inputs.json from $CACHE_FILE (skips dataset validation)."
+              fi
+
+              # HISTORY: the original 2026-08-25 g7e run hit a STALE SHARED CACHE bug
+              # — this job's dataset cache file (/benchmarks/sharegpt-cache/inputs.json,
+              # on the aiperf-results PVC, shared across ALL studies in this repo's
+              # namespace/PVC-naming convention — same class of bug as
+              # vllm-model-cache's AZ/size mismatch found earlier this study) had every
+              # request's "model" field hardcoded to "qwen2.5-7b" from
+              # `1-goodput-realistic-load`'s own July run, while this study was then
+              # serving "qwen3-8-27b" — 100% 404s at every concurrency level. Fixed at
+              # the time by deleting the stale cache file.
+              #
+              # CHANGED 2026-08-27: model reverted to Qwen2.5-7B-Instruct (see
+              # 01-deployment_template.yaml and README "Model swap") — now IDENTICAL
+              # to 1-goodput-realistic-load's model, so the cache will match again once
+              # regenerated. But the cache currently on the shared PVC has
+              # "qwen3-8-27b" baked in from this study's own 2026-08-25 g7e run — the
+              # exact same stale-cache bug would recur in reverse unless that cache
+              # file is deleted before the next run so this job's own
+              # "if [ ! -f "$CACHE_FILE" ]" check regenerates it fresh. Do this before
+              # trusting the next run (see README "Prerequisites still open").
+              #
+              # This list (150->1024, log-spaced, 300s/level) was calibrated for this
+              # exact model (Qwen2.5-7B-Instruct) on an A10G in 1-goodput-realistic-load
+              # — see that study's README, "Sizing the concurrency sweep," for the full
+              # multi-week process this took. Model is no longer a confound now that
+              # it matches exactly; only the GPU differs (A10G vs. g7e.4xlarge/
+              # Blackwell) — a more powerful GPU could still saturate at a different
+              # concurrency range, so a real manual exploratory check before trusting
+              # this list for an `optimize` step is still worthwhile, just a smaller
+              # risk than before.
+              # RE-FLOORED for study 17 (2026-09-21): 8 levels, 8 -> 1024, doubling.
+              # 2-larger-model-g7e's list started at 150 and spanned 150->1024 in 12
+              # log-spaced levels. That floor makes this study unable to answer its own
+              # question. Speculative decoding pays off when the decode batch is small
+              # enough that the verifier has idle forward-pass capacity for the drafter
+              # to exploit; its gain is documented to shrink and even invert once the
+              # batch saturates (ROADMAP H3, and
+              # knowledge/notes/2026-07-distributed-inference-advanced-deployment-patterns.md).
+              # A sweep whose first level is already 150 concurrent requests observes
+              # only the regime where speculation is expected to lose, so "spec_method
+              # = none wins" would be true by construction of the load pattern rather
+              # than a finding. 8 -> 64 covers the regime where it should win, 128 ->
+              # 1024 keeps the saturation point the goodput goal actually scores.
+              #
+              # Doubling instead of 2-larger-model-g7e's x1.19 also cuts the trial from
+              # 12 x 300s (60 min) to 8 x 300s (40 min) of load, which matters: study
+              # 16 was stopped early on cost, and this study's preset grid deliberately
+              # spends its budget on breadth across spec_method/spec_tokens instead.
+              # Coarser levels are an accepted cost — with 8 levels the scored window
+              # lands on a wider concurrency bracket, so do not read small differences
+              # between two experiments' SLA-max concurrency as meaningful.
+              #
+              # Still uncalibrated on this GPU: the 150->1024 list it replaces was
+              # sized for an A10G, and this card is far larger. Re-check after the
+              # baseline that 1024 actually reaches saturation here — if the last level
+              # is still SLA-compliant with headroom, the ceiling needs raising (the
+              # exact failure mode study 16 hit: 10 of its experiments were scored at
+              # its ramp's last level, so their real capacity was never measured).
+              CONCURRENCY_LIST="8,16,32,64,128,256,512,1024"
+
+              aiperf profile \
+                --model qwen2.5-7b \
+                --tokenizer Qwen/Qwen2.5-7B-Instruct \
+                --url http://vllm.llm-serving.svc.cluster.local:8000 \
+                --endpoint-type chat \
+                --streaming \
+                --input-file "$CACHE_FILE" \
+                --custom-dataset-type inputs_json \
+                --concurrency "$CONCURRENCY_LIST" \
+                --benchmark-duration 300 \
+                --goodput "time_to_first_token:1500 inter_token_latency:300" \
+                --ui simple \
+                --output-artifact-dir "/benchmarks/aiperf-$(date +%s)"
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+                  optional: true   # only needed for gated models, see 03-hf-secret.yaml
+            # Added 2026-08-24: after the shared sharegpt-cache/inputs.json was
+            # cleared (stale-model-name incident, see CONCURRENCY_LIST comment
+            # above), the one-time full-dataset validation/construction pass (no
+            # cache to reuse) exceeded AIPerf's own internal default (300s),
+            # failing with "TimeoutError: timed out waiting for dataset
+            # configuration after 300.0s". Raised to 900s (15min) — comfortable
+            # margin over the observed near-miss. Only matters for a cold cache;
+            # a no-op once inputs.json exists again.
+            - name: AIPERF_DATASET_CONFIGURATION_TIMEOUT
+              value: "900"
+            # Added 2026-08-24, same day: AIPerf itself failed immediately on
+            # startup ("AIPERF_SERVICE_PROFILE_CONFIGURE_TIMEOUT: 600.0 must be
+            # greater than or equal to AIPERF_DATASET_CONFIGURATION_TIMEOUT:
+            # 900.0") — this env var isn't a CLI flag (doesn't show up in `aiperf
+            # profile --help`), it's an internal validation constraint between the
+            # two, defaulting to 600s. Raised above 900 with margin so it stays
+            # valid even if AIPERF_DATASET_CONFIGURATION_TIMEOUT is ever raised
+            # again.
+            - name: AIPERF_SERVICE_PROFILE_CONFIGURE_TIMEOUT
+              value: "1200"
+          # Bumped 2026-08-23 (4Gi/8Gi -> 6Gi/12Gi) after this job's container was
+          # OOMKilled tracking ~485k mostly-failed request records from the old
+          # 150->1024 sweep's first level alone (see the CONCURRENCY_LIST comment
+          # above). Node (system, m6i.xlarge) has ~14.36GiB allocatable with only
+          # ~2.3GiB already committed elsewhere, so 12Gi leaves comfortable headroom.
+          resources:
+            requests:
+              cpu: "2"
+              memory: "6Gi"
+            limits:
+              memory: "12Gi"
+          volumeMounts:
+            - name: results
+              mountPath: /benchmarks
+            - name: hf-cache
+              mountPath: /root/.cache/huggingface
+
+      volumes:
+        - name: results
+          persistentVolumeClaim:
+            claimName: aiperf-results
+        - name: hf-cache
+          persistentVolumeClaim:
+            claimName: hf-cache

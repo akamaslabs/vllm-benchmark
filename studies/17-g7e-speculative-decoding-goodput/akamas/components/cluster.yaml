@@ -1,0 +1,13 @@
+kind: component
+system: vLLM_Benchmark_17_G7e_Speculative_Decoding
+
+name: cluster
+description: >-
+  The GPU node itself (node group llm-serving-g7e, one g7e.4xlarge), for
+  node-level pressure/saturation counters that carry no pod label. $NODE_ROLE$
+  in the telemetry instance's k8s_cluster_* queries resolves from the
+  node_role property below.
+componentType: Kubernetes Cluster
+properties:
+  prometheus:
+    node_role: llm-serving-g7e

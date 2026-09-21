@@ -1,0 +1,436 @@
+kind: study
+name: 17-G7e-Speculative-Decoding-Goodput
+
+# Duplicate of 2-larger-model-g7e's "2-Larger-goodput" study — same GPU (one RTX PRO
+# 6000 Blackwell on a g7e.4xlarge), same model (Qwen/Qwen2.5-7B-Instruct), same goal,
+# same SLA, same windowing, same 14 tuned parameters and same 3 attention/KV-dtype
+# parameterConstraints — plus ONE new dimension: speculative decoding
+# (vLLM.spec_method / vLLM.spec_tokens).
+#
+# TWO DELIBERATE DIVERGENCES from the study it duplicates, both recorded here because
+# they mean this study's numbers are NOT directly comparable with that one's:
+#   1. vLLM image v0.22.0 -> v0.29.0. Required, not cosmetic: the pack's reference
+#      version is 0.29.0, and the speculative-decoding counters this study will
+#      eventually read are V1-engine metrics that 0.22.0 does not emit (see the
+#      telemetry instance's TODO block). This study therefore runs its own baseline
+#      rather than importing 2-Larger-goodput's experiments via `from`.
+#   2. The AIPerf concurrency sweep was re-floored from 150->1024 (12 levels) to
+#      8->1024 (8 levels). A sweep starting at 150 concurrent requests observes only
+#      the saturated regime, where speculative decoding is expected to lose anyway
+#      (ROADMAP H3) — it would answer this study's question by construction of the
+#      load pattern. See k8s/05-job.yaml for the full reasoning.
+#
+# READ THIS BEFORE INTERPRETING THE RESULT — the goal and the new parameter pull in
+# opposite directions, on purpose. Speculative decoding buys latency when the decode
+# batch is small enough to leave the verifier idle capacity; its gain shrinks and can
+# invert once the batch saturates, and this goal maximizes throughput at whatever
+# concurrency still meets the SLA, i.e. exactly the saturated end. So the optimizer is
+# expected to drive spec_method toward "none". That is a legitimate result, but only
+# if every method was actually measured rather than abandoned early — which is why the
+# seven preset steps below run the whole spec_method x spec_tokens grid head-to-head at
+# otherwise-identical settings BEFORE the optimize step, and why the KPI list carries
+# the latency metrics the goal itself ignores.
+description: >-
+  Speculative-decoding goodput study on one RTX PRO 6000 Blackwell (g7e.4xlarge,
+  SM120) serving Qwen/Qwen2.5-7B-Instruct with vLLM 0.29.0. Duplicates
+  2-larger-model-g7e's "2-Larger-goodput" (same goal, SLA, windowing and 14 tuned
+  parameters) and adds vLLM.spec_method / vLLM.spec_tokens. spec_method's domain
+  deliberately omits "suffix" and "mtp", both of which failed 100% of the time in
+  study 1. Seven preset steps measure the whole ngram / ngram_gpu x 3/5/8-token grid
+  head-to-head before the optimizer runs, because a throughput-maximizing goal at
+  saturation is expected to reject speculation regardless of how well it works.
+
+system: vLLM_Benchmark_17_G7e_Speculative_Decoding
+workflow: 17-G7e-Speculative-Decoding-Goodput-Workflow
+
+goal:
+  objective: maximize
+  # Single-GPU node, so this is both total goodput and goodput per GPU — no
+  # /active_gpus divisor is needed (studies 9-16 need one because they vary the GPU
+  # count; this study does not).
+  function:
+    formula: vLLM.prefill_token_throughput + vLLM.decode_token_throughput
+    unit: tokens per second
+  constraints:
+    absolute:
+      - name: TTFT P95 interactive-chat SLA
+        formula: vLLM.time_to_first_token_p95 <= 1500
+      - name: ITL P95 interactive-chat SLA
+        formula: vLLM.inter_token_latency_p95 <= 300
+
+# Unchanged from the study this duplicates. `stability` picks the best 6-sample
+# (3-minute) window of the concurrency sweep that still satisfies both constraints
+# above, so each trial is scored at its own best SLA-compliant operating point rather
+# than averaged across a ramp that ends in saturation.
+windowing:
+  type: stability
+  stability:
+    metric: vLLM.prefill_token_throughput
+    width: 6
+    maxStdDev: 300000000
+    when:
+      metric: vLLM.prefill_token_throughput
+      is: max
+
+numberOfTrials: 1
+
+parametersSelection:
+  # --- The 14 carried over unchanged from 2-Larger-goodput ---
+  - name: vLLM.gpu_memory_utilization
+    domain: [0.85, 0.95]
+  - name: vLLM.max_num_seqs
+    domain: [16, 1024]
+  - name: vLLM.max_num_batched_tokens
+    domain: [256, 8192]
+  - name: vLLM.kv_cache_dtype
+    categories: [auto, fp8, fp8_e4m3, fp8_e5m2]
+  - name: vLLM.performance_mode
+    categories: [balanced, interactivity, throughput]
+  - name: vLLM.optimization_level
+    domain: [0, 3]
+  - name: vLLM.enforce_eager
+    categories: ["true", "false"]
+  - name: vLLM.scheduling_policy
+    categories: [fcfs, priority]
+  - name: vLLM.disable_cascade_attn
+    categories: ["true", "false"]
+  - name: vLLM.tokenizer_mode
+    # The pack declares 6 categories (auto, hf, mistral, slow, deepseek_v32,
+    # deepseek_v4); this keeps the same 3-value subset 2-Larger-goodput used, the only
+    # ones meaningful for a Qwen tokenizer.
+    categories: [auto, hf, slow]
+  - name: vLLM.async_scheduling
+    categories: ["true", "false"]
+  - name: vLLM.max_cudagraph_capture_size
+    domain: [1, 1024]
+  - name: vLLM.block_size
+    categories: ["16", "32", "48", "64", "80", "96", "112", "128"]
+  - name: vLLM.attention_backend
+    categories: [FLASH_ATTN, FLASHINFER, TRITON_ATTN]
+
+  # --- NEW in this study: speculative decoding ---
+  # DOMAIN NOTE — "suffix" and "mtp" are EXCLUDED DELIBERATELY, not forgotten. The
+  # pack's full category list is [none, ngram, ngram_gpu, suffix, mtp] and both of the
+  # omitted values failed 100% of the time in 1-goodput-realistic-load, on this same
+  # model:
+  #   mtp    -> NotImplementedError: Unsupported speculative method: 'mtp' (raised
+  #             unconditionally by SpeculativeConfig; Qwen2.5-7B has no MTP head, and
+  #             no other parameter value avoids it).
+  #   suffix -> ImportError: Arctic Inference is required for suffix decoding
+  #             (the package is not in the vllm-openai image, for any configuration).
+  # A categorical value that fails for every combination cannot be fenced with a
+  # parameterConstraint — the only fix is not to offer it. Re-test both on v0.29.0
+  # before re-adding either: the image may now ship arctic-inference, which would make
+  # "suffix" worth a study of its own.
+  - name: vLLM.spec_method
+    categories: ["none", "ngram", "ngram_gpu"]
+  - name: vLLM.spec_tokens
+    # 0 is an Akamas-side OFF SENTINEL, never a value vLLM sees: vLLM's own
+    # num_speculative_tokens field declares gt=0, so a literal 0 on the command line is
+    # a startup failure. The two sentinel constraints below keep 0 paired with
+    # spec_method="none", and k8s/apply_config.sh deletes both flags in that case.
+    domain: [0, 16]
+
+parameterConstraints:
+  # --- The 3 carried over unchanged from 2-Larger-goodput ---
+  - name: FLASH_ATTN only supports auto kv_cache_dtype
+    formula: vLLM.attention_backend != "FLASH_ATTN" || vLLM.kv_cache_dtype == "auto"
+  - name: TRITON_ATTN does not support fp8_e5m2 kv_cache_dtype (query-quant bug)
+    formula: vLLM.attention_backend != "TRITON_ATTN" || vLLM.kv_cache_dtype != "fp8_e5m2"
+  - name: FLASHINFER does not support fp8_e5m2 kv_cache_dtype (query-quant bug)
+    formula: vLLM.attention_backend != "FLASHINFER" || vLLM.kv_cache_dtype != "fp8_e5m2"
+
+  # --- 4 new ones, all required for speculative decoding ---
+  # Source: the vLLM optimization pack's own README ("Speculative decoding: gate
+  # parameter + forced-sentinel dependent"). Both directions are needed — the first
+  # stops the optimizer varying spec_tokens while speculation is off (wasted budget),
+  # the second stops it ever pairing a real method with the 0 sentinel (startup crash,
+  # since vLLM's num_speculative_tokens declares gt=0).
+  - name: speculative decoding disabled forces spec_tokens to its off sentinel
+    formula: vLLM.spec_method != "none" || vLLM.spec_tokens == 0
+  - name: speculative decoding enabled requires a real spec_tokens
+    formula: vLLM.spec_method == "none" || vLLM.spec_tokens > 0
+
+  # Source: 1-goodput-realistic-load, incident 3 of the 5 that made that study drop
+  # speculative decoding entirely. `ValueError: No compilation mode is set` at engine
+  # core init — NgramProposerGPU's kernel is built on vLLM's @support_torch_compile
+  # machinery and needs an active compilation backend, but optimization_level 0 sets
+  # CompilationMode.NONE. An interaction between two parameters, so constrainable.
+  - name: ngram_gpu needs an active compilation backend
+    formula: vLLM.spec_method != "ngram_gpu" || vLLM.optimization_level != 0
+
+  # Source: 1-goodput-realistic-load, incident 5. Pydantic rejects the combination at
+  # config-construction time: "Currently, async scheduling is only supported with
+  # EAGLE/MTP/Draft Model/NGram GPU kind of speculative decoding". Note the asymmetry —
+  # the GPU n-gram variant IS on vLLM's supported list, plain CPU ngram is not, so this
+  # constraint names "ngram" only and must not be widened to ngram_gpu.
+  - name: async scheduling is not supported with CPU ngram speculation
+    formula: vLLM.spec_method != "ngram" || vLLM.async_scheduling == "false"
+
+# The goal rewards throughput at saturation and is blind to what speculative decoding
+# actually changes, so the effect has to be visible somewhere else. These KPIs are that
+# somewhere: the latency trio (TTFT / ITL / TPOT) separates "same throughput, better
+# latency" from "no effect", and the GPU trio shows whether the drafter is consuming
+# the idle compute it is supposed to consume.
+kpis:
+  - name: TTFT P95
+    formula: vLLM.time_to_first_token_p95
+    direction: minimize
+  - name: ITL P95
+    formula: vLLM.inter_token_latency_p95
+    direction: minimize
+  # TPOT is the per-token cost amortised over a request's decode phase, which is the
+  # quantity speculative decoding actually targets — ITL alone can stay flat while TPOT
+  # falls, because several tokens leave the server in one verify step.
+  - name: TPOT P95
+    formula: vLLM.time_per_output_token_p95
+    direction: minimize
+  - name: Batch raggiunto
+    formula: vLLM.num_requests_running
+    direction: maximize
+  - name: Tempo in coda P95
+    formula: vLLM.request_queue_time_p95
+    direction: minimize
+  - name: Utilizzo KV cache
+    formula: vLLM.kv_cache_usage_avg
+    direction: maximize
+  - name: Preemption (picco)
+    formula: vLLM.preemption_rate
+    direction: minimize
+    aggregation: max
+  # Study 16 found its best configurations pinned against the GPU's power cap with the
+  # memory bus only ~48% active and tensor cores ~11% — i.e. spare compute. If
+  # speculative decoding works here, it should show up as the drafter turning that
+  # spare compute into accepted tokens: SM/DRAM activity up at equal throughput.
+  - name: GPU SM active
+    formula: gpu0.gpu_sm_active
+    direction: maximize
+  - name: GPU banda memoria
+    formula: gpu0.gpu_dram_active
+    direction: maximize
+  - name: GPU potenza
+    formula: gpu0.gpu_power_usage
+    direction: minimize
+
+steps:
+  # Same baseline design as the study this duplicates: pin only
+  # gpu_memory_utilization and let vLLM choose everything else, so the reference point
+  # is vLLM's own stock, most-tested startup path rather than an Akamas-picked corner
+  # of the search space. Every other parameter is listed in doNotRenderParameters, so
+  # its token renders empty and k8s/apply_config.sh's Step 2 strips the whole flag.
+  # spec_method/spec_tokens are in that list too — which is exactly how speculative
+  # decoding ends up off at baseline: vLLM treats the ABSENCE of --spec-method /
+  # --spec-tokens as "off", and any sentinel value passed instead would crash it.
+  - name: baseline
+    type: baseline
+    numberOfTrials: 1
+    values:
+      vLLM.gpu_memory_utilization: 0.90
+    doNotRenderParameters:
+      - vLLM.max_num_seqs
+      - vLLM.max_num_batched_tokens
+      - vLLM.kv_cache_dtype
+      - vLLM.performance_mode
+      - vLLM.optimization_level
+      - vLLM.block_size
+      - vLLM.attention_backend
+      - vLLM.enforce_eager
+      - vLLM.scheduling_policy
+      - vLLM.disable_cascade_attn
+      - vLLM.tokenizer_mode
+      - vLLM.async_scheduling
+      - vLLM.max_cudagraph_capture_size
+      - vLLM.spec_method
+      - vLLM.spec_tokens
+      - vLLM.tensor_parallel_size
+      - vLLM.pipeline_parallel_size
+      - vLLM.data_parallel_size
+      - vLLM.enable_expert_parallel
+      - vLLM.disable_custom_all_reduce
+      - vLLM.dtype
+      - vLLM.decode_context_parallel_size
+      - vLLM.prefill_context_parallel_size
+      - vLLM.max_num_partial_prefills
+      - vLLM.max_long_partial_prefills
+      - vLLM.long_prefill_token_threshold
+      - vLLM.max_model_len
+
+  # --- The speculative-decoding grid: 7 presets, identical except for the two
+  #     speculative parameters, so the comparison between them is clean. S1 is the
+  #     reference cell (speculation off at exactly these settings) — without it the
+  #     other six would only be comparable against the baseline, which runs a
+  #     different configuration entirely.
+  #
+  #     Shared fixed values, and why each is what it is:
+  #       optimization_level 2   — must not be 0, or ngram_gpu cannot start (see the
+  #                                constraint above); 2 is also the pack default.
+  #       async_scheduling false — must be false, or plain ngram cannot start (same).
+  #                                Held false in ALL seven cells, including the
+  #                                ngram_gpu ones, so async scheduling is not a hidden
+  #                                second variable between the two method families.
+  #       attention_backend TRITON_ATTN — the backend studies 13-16 ran on 0.29.0.
+  #                                FLASH_ATTN is vLLM's own default but this GPU's
+  #                                SM120 kernel maturity is an open question in this
+  #                                repo (see the study README), so the grid holds the
+  #                                backend fixed and leaves it to the optimize step.
+  #       kv_cache_dtype auto    — keeps the grid on the one dtype every backend
+  #                                supports, so no cell is lost to constraint 1-3.
+  #       max_num_seqs 256       — a mid-range batch. Speculation is expected to help
+  #                                below it and lose above it; the 8->1024 sweep is
+  #                                what actually varies the load, not this cap.
+  - name: S1 spec off reference
+    type: preset
+    values:
+      vLLM.spec_method: "none"
+      vLLM.spec_tokens: 0
+      vLLM.gpu_memory_utilization: 0.90
+      vLLM.max_num_seqs: 256
+      vLLM.max_num_batched_tokens: 8192
+      vLLM.kv_cache_dtype: "auto"
+      vLLM.performance_mode: "balanced"
+      vLLM.optimization_level: 2
+      vLLM.block_size: "16"
+      vLLM.attention_backend: "TRITON_ATTN"
+      vLLM.enforce_eager: "false"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.disable_cascade_attn: "false"
+      vLLM.tokenizer_mode: "auto"
+      vLLM.async_scheduling: "false"
+      vLLM.max_cudagraph_capture_size: 512
+
+  - name: S2 ngram 3 tokens
+    type: preset
+    values:
+      vLLM.spec_method: "ngram"
+      vLLM.spec_tokens: 3
+      vLLM.gpu_memory_utilization: 0.90
+      vLLM.max_num_seqs: 256
+      vLLM.max_num_batched_tokens: 8192
+      vLLM.kv_cache_dtype: "auto"
+      vLLM.performance_mode: "balanced"
+      vLLM.optimization_level: 2
+      vLLM.block_size: "16"
+      vLLM.attention_backend: "TRITON_ATTN"
+      vLLM.enforce_eager: "false"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.disable_cascade_attn: "false"
+      vLLM.tokenizer_mode: "auto"
+      vLLM.async_scheduling: "false"
+      vLLM.max_cudagraph_capture_size: 512
+
+  - name: S3 ngram 5 tokens
+    type: preset
+    values:
+      vLLM.spec_method: "ngram"
+      vLLM.spec_tokens: 5
+      vLLM.gpu_memory_utilization: 0.90
+      vLLM.max_num_seqs: 256
+      vLLM.max_num_batched_tokens: 8192
+      vLLM.kv_cache_dtype: "auto"
+      vLLM.performance_mode: "balanced"
+      vLLM.optimization_level: 2
+      vLLM.block_size: "16"
+      vLLM.attention_backend: "TRITON_ATTN"
+      vLLM.enforce_eager: "false"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.disable_cascade_attn: "false"
+      vLLM.tokenizer_mode: "auto"
+      vLLM.async_scheduling: "false"
+      vLLM.max_cudagraph_capture_size: 512
+
+  - name: S4 ngram 8 tokens
+    type: preset
+    values:
+      vLLM.spec_method: "ngram"
+      vLLM.spec_tokens: 8
+      vLLM.gpu_memory_utilization: 0.90
+      vLLM.max_num_seqs: 256
+      vLLM.max_num_batched_tokens: 8192
+      vLLM.kv_cache_dtype: "auto"
+      vLLM.performance_mode: "balanced"
+      vLLM.optimization_level: 2
+      vLLM.block_size: "16"
+      vLLM.attention_backend: "TRITON_ATTN"
+      vLLM.enforce_eager: "false"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.disable_cascade_attn: "false"
+      vLLM.tokenizer_mode: "auto"
+      vLLM.async_scheduling: "false"
+      vLLM.max_cudagraph_capture_size: 512
+
+  - name: S5 ngram_gpu 3 tokens
+    type: preset
+    values:
+      vLLM.spec_method: "ngram_gpu"
+      vLLM.spec_tokens: 3
+      vLLM.gpu_memory_utilization: 0.90
+      vLLM.max_num_seqs: 256
+      vLLM.max_num_batched_tokens: 8192
+      vLLM.kv_cache_dtype: "auto"
+      vLLM.performance_mode: "balanced"
+      vLLM.optimization_level: 2
+      vLLM.block_size: "16"
+      vLLM.attention_backend: "TRITON_ATTN"
+      vLLM.enforce_eager: "false"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.disable_cascade_attn: "false"
+      vLLM.tokenizer_mode: "auto"
+      vLLM.async_scheduling: "false"
+      vLLM.max_cudagraph_capture_size: 512
+
+  - name: S6 ngram_gpu 5 tokens
+    type: preset
+    values:
+      vLLM.spec_method: "ngram_gpu"
+      vLLM.spec_tokens: 5
+      vLLM.gpu_memory_utilization: 0.90
+      vLLM.max_num_seqs: 256
+      vLLM.max_num_batched_tokens: 8192
+      vLLM.kv_cache_dtype: "auto"
+      vLLM.performance_mode: "balanced"
+      vLLM.optimization_level: 2
+      vLLM.block_size: "16"
+      vLLM.attention_backend: "TRITON_ATTN"
+      vLLM.enforce_eager: "false"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.disable_cascade_attn: "false"
+      vLLM.tokenizer_mode: "auto"
+      vLLM.async_scheduling: "false"
+      vLLM.max_cudagraph_capture_size: 512
+
+  - name: S7 ngram_gpu 8 tokens
+    type: preset
+    values:
+      vLLM.spec_method: "ngram_gpu"
+      vLLM.spec_tokens: 8
+      vLLM.gpu_memory_utilization: 0.90
+      vLLM.max_num_seqs: 256
+      vLLM.max_num_batched_tokens: 8192
+      vLLM.kv_cache_dtype: "auto"
+      vLLM.performance_mode: "balanced"
+      vLLM.optimization_level: 2
+      vLLM.block_size: "16"
+      vLLM.attention_backend: "TRITON_ATTN"
+      vLLM.enforce_eager: "false"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.disable_cascade_attn: "false"
+      vLLM.tokenizer_mode: "auto"
+      vLLM.async_scheduling: "false"
+      vLLM.max_cudagraph_capture_size: 512
+
+  # numberOfInitExperiments MUST stay 0. Any value above 0 makes the campaign service
+  # run its own Sobol bootstrap ON TOP of the presets above, landing back on the same
+  # deterministic head of the Sobol sequence that aliased two categorical parameters
+  # perfectly in study 13 (see ROADMAP section C) — the presets exist precisely to
+  # replace that bootstrap with a designed one.
+  #
+  # 60 experiments at roughly 55-65 minutes each is about 60 hours of node time, on top
+  # of the 8 baseline+preset experiments. Study 16 was stopped early on cost at 27
+  # optimizer experiments; budget this one before starting it, and remember the step
+  # can be stopped at any point without losing what already ran.
+  - name: optimize
+    type: optimize
+    optimizer: AKAMAS
+    numberOfInitExperiments: 0
+    numberOfExperiments: 60
+    maxFailedExperiments: 15

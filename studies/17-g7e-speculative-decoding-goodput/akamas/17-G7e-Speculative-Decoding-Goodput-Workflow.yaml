@@ -1,0 +1,65 @@
+kind: workflow
+name: 17-G7e-Speculative-Decoding-Goodput-Workflow
+
+# Same three-task shape every study in this repo uses: render the Deployment from the
+# template, apply it and wait for the rollout, then run the AIPerf sweep. All three run
+# on the `toolbox` host over SSH; the key path below must EXIST ON THE TOOLBOX (not just
+# in this git checkout) before `akamas create workflow` will accept this file.
+#
+# Timeouts, recomputed for this study rather than copied:
+#   Apply config  45m — the Deployment's own progressDeadlineSeconds is 1200s (20m) and
+#                       apply_config.sh's rollout wait is 1500s (25m), plus the log dump.
+#   RunTest       80m — the sweep is 8 levels x 300s = 40m, plus up to 15m of one-time
+#                       ShareGPT dataset prep on a cold cache, plus pip install and
+#                       per-level dataset generation. run_test_goodput.sh's own
+#                       `kubectl wait` must stay BELOW this number, or Akamas kills the
+#                       task before the script can dump the job's logs.
+tasks:
+  - name: Write config
+    operator: FileConfigurator
+    arguments:
+      # Required: the baseline step deliberately leaves most parameters unrendered
+      # (see the study manifest's doNotRenderParameters), which would otherwise make
+      # FileConfigurator fail outright instead of emitting empty tokens for
+      # apply_config.sh to strip.
+      ignoreUnsubstitutedTokens: true
+      source:
+        hostname: toolbox
+        username: akamas
+        key: /work/vllm-benchmark/studies/17-g7e-speculative-decoding-goodput/akamas/id_rsa
+        path: /work/vllm-benchmark/studies/17-g7e-speculative-decoding-goodput/k8s/01-deployment_template.yaml
+      target:
+        hostname: toolbox
+        username: akamas
+        key: /work/vllm-benchmark/studies/17-g7e-speculative-decoding-goodput/akamas/id_rsa
+        path: /work/vllm-benchmark/studies/17-g7e-speculative-decoding-goodput/k8s/01-deployment.yaml
+
+  - name: Apply config
+    operator: Executor
+    arguments:
+      retries: 0
+      timeout: 45m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /work/vllm-benchmark/studies/17-g7e-speculative-decoding-goodput/akamas/id_rsa
+      # apply_config.sh rewrites vLLM's BooleanOptionalAction flags, REMOVES
+      # --spec-method/--spec-tokens entirely when speculative decoding is off (vLLM
+      # treats their absence, not a sentinel value, as "off"), applies the Deployment,
+      # waits for the rollout, and dumps the vLLM container's own logs to stdout on both
+      # the success and the failure path.
+      command: bash /work/vllm-benchmark/studies/17-g7e-speculative-decoding-goodput/k8s/apply_config.sh
+
+  - name: RunTest
+    operator: Executor
+    arguments:
+      retries: 0
+      timeout: 80m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /work/vllm-benchmark/studies/17-g7e-speculative-decoding-goodput/akamas/id_rsa
+      # run_test_goodput.sh re-applies the AIPerf Job, waits for completion, and dumps
+      # both the init container's and the aiperf container's logs to stdout regardless
+      # of whether the wait succeeded.
+      command: bash /work/vllm-benchmark/studies/17-g7e-speculative-decoding-goodput/k8s/run_test_goodput.sh

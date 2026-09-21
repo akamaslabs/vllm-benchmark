@@ -1,0 +1,12 @@
+kind: system
+
+name: vLLM_Benchmark_17_G7e_Speculative_Decoding
+description: >-
+  Speculative-decoding goodput study on a single NVIDIA RTX PRO 6000 Blackwell
+  (g7e.4xlarge, 96 GB GDDR7, SM120) serving Qwen/Qwen2.5-7B-Instruct with
+  vllm/vllm-openai:v0.29.0. Duplicates 2-larger-model-g7e's "2-Larger-goodput"
+  study (same GPU, same model, same goal, same SLA, same windowing, same 14
+  tuned parameters) and adds vLLM.spec_method / vLLM.spec_tokens as the new
+  tuned dimension. Telemetry carries study 16's full 110-metric catalog plus 7
+  vLLM-pack metrics no study had ever wired. Optimization packs referenced:
+  vLLM 1.9.1, GPU 1.2.0, Kubernetes (component types only). Created 2026-09-21.

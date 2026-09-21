@@ -1,0 +1,210 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm
+  namespace: llm-serving
+spec:
+  replicas: 1
+  # CONFIRMED 2026-08-21 (real manual deploy): Kubernetes' default
+  # progressDeadlineSeconds (600s/10min) is shorter than this Deployment's own
+  # startupProbe budget (up to 20min for a ~56GB weight load) — the real rollout hit
+  # "ProgressDeadlineExceeded" at ~10min while the pod was still legitimately loading
+  # (not crashed; Running throughout). This status flag doesn't kill the pod, but
+  # `kubectl rollout status` (used by k8s/apply_config.sh) treats it as a failure —
+  # in a real Akamas experiment this would fail the "Apply config" task on an
+  # otherwise-healthy, just-slow-to-start trial. Set above the startupProbe's own
+  # ~20min ceiling (120 x 10s) so the two stay consistent. Not yet checked on the
+  # other studies in this repo (none set this field either) — worth revisiting there
+  # too if their own startup time is ever close to 10min.
+  progressDeadlineSeconds: 1200
+  # Recreate terminates the old pod before creating the new one.
+  # RollingUpdate (default) would deadlock here: the new pod waits for the GPU
+  # held by the old pod, which won't be killed until the new pod is ready.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: vllm
+  template:
+    metadata:
+      labels:
+        app: vllm
+    spec:
+      # Prevent Kubernetes from injecting service discovery env vars (e.g. VLLM_PORT=tcp://...)
+      # which conflict with vLLM's own VLLM_PORT variable and cause a crash on startup.
+      # See: https://docs.vllm.ai/en/stable/serving/env_vars.html
+      enableServiceLinks: false
+
+      # Pin to this study's OWN node group (llm-serving-g7e, g7e.4xlarge/RTX PRO 6000
+      # Blackwell 96GB — swapped 2026-08-21 from p5.4xlarge/H100, no capacity in this
+      # region; see infra/README.md) — NOT llm-serving, the A10G group
+      # 0-explorative/1-goodput-realistic-load use. Same cluster (vllm-bench), same
+      # namespace (llm-serving), reused as-is (2026-08-20 decision: the A10G node
+      # group is currently scaled to 0, so there's no scheduling conflict either way,
+      # but this selector is what actually determines placement — don't rely on the
+      # other node group being off).
+      nodeSelector:
+        node-role: llm-serving-g7e
+
+      # Required to schedule on the tainted GPU node (same taint key/value as the
+      # A10G node group — see infra/eks/cluster.yaml).
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+
+      containers:
+        - name: vllm
+          # Model carried over unchanged from 2-larger-model-g7e (Qwen2.5-7B-Instruct
+          # on this same g7e.4xlarge / RTX PRO 6000 Blackwell), so this study's only
+          # deliberate new variable is speculative decoding.
+          #
+          # CHANGED for study 17: image moved from that study's v0.22.0 to v0.29.0 —
+          # NOT a cosmetic bump, it is a precondition for this study's question:
+          #   1. vLLM pack 1.9.1's reference version is 0.29.0, and spec_method's
+          #      categories/semantics were read off 0.29.0's own arg_utils.py.
+          #   2. The four speculative-decoding Prometheus counters this study wires
+          #      (vllm:spec_decode_num_drafts_total, ..._num_draft_tokens_total,
+          #      ..._num_accepted_tokens_total, ..._num_accepted_tokens_per_pos_total)
+          #      are V1-engine metrics. 0.22.0 predates them; the five V0 metrics named
+          #      in vLLM's own docs (spec_decode_draft_acceptance_rate,
+          #      spec_decode_efficiency, spec_decode_num_accepted_tokens,
+          #      ..._num_draft_tokens, ..._num_emitted_tokens) are gone in V1 —
+          #      verified 2026-09-21 against vllm/v1/spec_decode/metrics.py at the
+          #      v0.29.0 tag. Wiring a 0.22.0 server would give silently empty series.
+          #   3. Studies 13-16 all ran 0.29.0 on this repo's other node group, so the
+          #      image is exercised here, just not yet on SM120.
+          # Cost: results are no longer directly comparable with 2-larger-model-g7e's
+          # own numbers (different server version, not just a different config) — this
+          # study re-establishes its own baseline rather than importing that study's.
+          # Still NOT smoke-tested on this GPU's SM120 compute capability — do that
+          # before trusting an Akamas run (see README "Prerequisites still open").
+          image: vllm/vllm-openai:v0.29.0
+          command: ["vllm", "serve"]
+          args:
+            - "Qwen/Qwen2.5-7B-Instruct"
+            - "--served-model-name=qwen2.5-7b"
+            - "--port=8000"
+            - "--host=0.0.0.0"
+            - "--enable-mfu-metrics"
+            # Carried forward from 1-goodput-realistic-load: prefix caching disabled
+            # entirely for this study's traffic pattern (see that study's README,
+            # "Load generator" — same ShareGPT-replay goodput methodology here).
+            - "--no-enable-prefix-caching"
+
+            # --- Tuned (parametersSelection) — same 14 as 1-goodput-realistic-load ---
+            - "--gpu-memory-utilization=${vLLM.gpu_memory_utilization}"
+            - "--max-num-seqs=${vLLM.max_num_seqs}"
+            - "--max-num-batched-tokens=${vLLM.max_num_batched_tokens}"
+            - "--kv-cache-dtype=${vLLM.kv_cache_dtype}"
+            - "--performance-mode=${vLLM.performance_mode}"
+            - "--optimization-level=${vLLM.optimization_level}"
+            - "--block-size=${vLLM.block_size}"
+            - "--attention-backend=${vLLM.attention_backend}"
+            - "--enforce-eager=${vLLM.enforce_eager}"
+            - "--scheduling-policy=${vLLM.scheduling_policy}"
+            - "--disable-cascade-attn=${vLLM.disable_cascade_attn}"
+            - "--tokenizer-mode=${vLLM.tokenizer_mode}"
+            - "--async-scheduling=${vLLM.async_scheduling}"
+            - "--max-cudagraph-capture-size=${vLLM.max_cudagraph_capture_size}"
+
+            # --- Pinned (single GPU, dense non-MoE model — same reasoning as
+            #     1-goodput-realistic-load's Pinned table) ---
+            - "--tensor-parallel-size=${vLLM.tensor_parallel_size}"
+            - "--pipeline-parallel-size=${vLLM.pipeline_parallel_size}"
+            - "--data-parallel-size=${vLLM.data_parallel_size}"
+            - "--enable-expert-parallel=${vLLM.enable_expert_parallel}"
+            - "--disable-custom-all-reduce=${vLLM.disable_custom_all_reduce}"
+            - "--dtype=${vLLM.dtype}"
+            - "--decode-context-parallel-size=${vLLM.decode_context_parallel_size}"
+            - "--prefill-context-parallel-size=${vLLM.prefill_context_parallel_size}"
+
+            # --- Pinned (carried forward incident-avoidance pins — re-verify these
+            #     still apply on Hopper/this model before trusting them, see README) ---
+            - "--max-num-partial-prefills=${vLLM.max_num_partial_prefills}"
+            - "--max-long-partial-prefills=${vLLM.max_long_partial_prefills}"
+            - "--long-prefill-token-threshold=${vLLM.long_prefill_token_threshold}"
+            - "--max-model-len=${vLLM.max_model_len}"
+
+            # --- Tuned, NEW in this study: speculative decoding ---
+            # These two are rendered here but are REMOVED AGAIN by apply_config.sh
+            # whenever spec_method renders as "none". That is not a style choice: per
+            # vLLM 0.29.0's arg_utils.py (create_speculative_config), speculative
+            # decoding is off only when NONE of --speculative-config/--spec-method/
+            # --spec-model/--spec-tokens is passed at all. Passing a placeholder makes
+            # speculative_config a non-None dict, which then fails validation —
+            # argparse rejects "none" as a choice for --spec-method, and Pydantic
+            # rejects num_speculative_tokens=0 (the field --spec-tokens maps to, which
+            # carries gt=0). So "off" has to be expressed by absence, and the Akamas
+            # side expresses it with the pack's documented sentinel pair
+            # (spec_method="none" + spec_tokens=0) plus the two parameterConstraints
+            # that keep the sentinel and a real value from ever mixing.
+            - "--spec-method=${vLLM.spec_method}"
+            - "--spec-tokens=${vLLM.spec_tokens}"
+          # ADDED 2026-08-28 (explicit user decision, first constraint-discovery run):
+          # DEBUG logging so the engine's actual resolved config (incl. computed
+          # defaults for unrendered parameters, e.g. max_num_seqs when left to vLLM's
+          # own choice at baseline) shows up in the pod's own logs instead of staying
+          # opaque — see the earlier back-and-forth in this study's history about not
+          # being able to confirm the live baseline's resolved max_num_seqs value any
+          # other way. Comment out / remove to go back to default (INFO) verbosity.
+          env:
+            - name: VLLM_LOGGING_LEVEL
+              value: DEBUG
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          # NOTE: memory request/limit sized for g7e.4xlarge's 128GiB total RAM (was
+          # 256GiB on p5.4xlarge before the 2026-08-21 hardware swap) — limit lowered
+          # from 200Gi accordingly, leaving headroom for the DCGM exporter/node-exporter
+          # DaemonSets and kubelet overhead on this node. Generous relative to
+          # Qwen2.5-7B-Instruct's ~15GB of weights (reverted 2026-08-27) — left as-is,
+          # sized for the node rather than the model, no downside to the extra headroom.
+          resources:
+            requests:
+              nvidia.com/gpu: "1"
+              cpu: "8"
+              memory: "32Gi"
+            limits:
+              nvidia.com/gpu: "1"
+              cpu: "14"
+              memory: "100Gi"
+
+          # startupProbe allows up to 20 minutes (120 x 10s) — generous relative to
+          # 1-goodput-realistic-load's 10-minute budget for the same model, left as-is
+          # (no downside to the longer ceiling now that the model is smaller again).
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            failureThreshold: 120
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 30
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 60
+            failureThreshold: 3
+
+          volumeMounts:
+            - name: shm
+              mountPath: /dev/shm
+            - name: model-cache
+              mountPath: /root/.cache/huggingface
+
+      volumes:
+        # vLLM uses shared memory for CUDA IPC handles between workers.
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 12Gi
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: vllm-model-cache

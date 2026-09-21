@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_17_G7e_Speculative_Decoding
+
+name: container
+description: >-
+  The vLLM server's own Kubernetes container — cgroup CPU/memory/PSI counters
+  for the pod under test, scoped by pod-name prefix so the load generator's own
+  pod (see container_loadtest) is never mixed in.
+componentType: Kubernetes Container
+properties:
+  prometheus:
+    pod: ^vllm-.*

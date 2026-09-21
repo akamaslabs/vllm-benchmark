@@ -1,0 +1,16 @@
+# Sized for Qwen/Qwen3.8-27B's ~56GB of bf16 weights (27.8B params) — up from
+# 1-goodput-realistic-load's 25Gi. Left at this size after the 2026-08-27 model swap
+# back to Qwen2.5-7B-Instruct (~15GB) — generous but harmless, no downside to the
+# extra headroom.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vllm-model-cache
+  namespace: llm-serving
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3-ephemeral
+  resources:
+    requests:
+      storage: 80Gi

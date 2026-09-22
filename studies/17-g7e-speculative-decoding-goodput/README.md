@@ -485,6 +485,45 @@ moment the rollout replaced the pod, consistent with the engine being terminated
 mid-request rather than with a serving fault. The pod's logs were gone by the time it was
 investigated, so it is recorded rather than explained.
 
+### The baseline's own numbers, read off the live run (2026-09-22, 14:34 UTC)
+
+The first real experiment gave the comparison the smoke test could not: the same card and
+model **without** the drafter.
+
+| | with drafter (S8, util 0.88) | baseline (no drafter, util 0.85) |
+|---|---|---|
+| Weights + non-torch | 11.36 GiB | 10.18 GiB |
+| Peak activation | 1.91 GiB | 1.73 GiB |
+| Available KV | 6.57 GiB | 6.82 GiB |
+| **KV cache** | **26,928 tokens** | **49,616 tokens** |
+
+**The drafter costs 46% of the resident sequence capacity.** That is the confound between
+the two preset families stated in numbers rather than in theory: at an identical
+`max_num_seqs`, the three `draft_model` cells hold roughly half the concurrent requests
+the `ngram` cells do, because vLLM 0.29.0 gives the drafter its own KV cache at
+112 KiB/token on top of the target's 144. Any comparison between the families has to be
+read with that in mind — it is not a fair fight on concurrency, and it was never going to
+be on this card.
+
+**vLLM chose `max_num_seqs=256` for the baseline** ("Defaulting max_num_seqs to 256 for
+OPENAI_API_SERVER usage context"), above this study's tuned ceiling of 128. That is
+inherent to the baseline being the stock startup path, and it means the baseline is a
+genuinely favourable configuration: more KV *and* a higher batch cap than anything the
+optimizer can propose. S1 exists precisely so the speculative cells have a like-for-like
+reference; do not read improvement-over-baseline as the headline number.
+
+It also retroactively justifies pinning the baseline at 0.85 rather than 0.88. Against
+study 16's guard, `0.85 x 22.03 + 256 x 0.0006 = 18.88`, comfortably under the 19.7
+ceiling. At 0.88 it would have been 19.54 — still legal, but the margin would have been
+0.16 GiB against a default the study does not control.
+
+**Headroom, for a successor study.** At util 0.85 the engine requested 18.73 GiB of the
+21.84 GiB free, so 3.11 GiB sat unused. The binding limit on this card is therefore the
+sampler-warmup guard (19.7 GiB, i.e. util 0.894), not the hardware. The optimize step will
+propose values right up against that edge; if those experiments start cleanly, that is the
+evidence needed to relax the ceiling — which study 16 calibrated on a four-GPU node whose
+NCCL buffers this configuration never allocates.
+
 ## Prerequisites still open
 
 1. **Recreate the Akamas resources.** Not a blocker, just an ordering requirement: the

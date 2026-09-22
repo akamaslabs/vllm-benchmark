@@ -625,6 +625,62 @@ saturated end, where SM occupancy is 86%. At the bottom of the ramp the same met
 the latency metrics precisely because the goal ignores it; a per-concurrency-level read of
 TPOT and ITL from the export is the follow-up this grid earns.
 
+## Why it loses: a measured cost model, replacing two wrong hypotheses
+
+The aggregate scores say speculation loses. They do not say why, and two plausible
+explanations were tested against the data and **both are wrong**:
+
+- *"It is compute-saturation at the scored window."* Partly true but not the cause:
+  speculation is slower even at **concurrency 1**, where the GPU is nearly idle. At the
+  bottom of the ramp, S1 (spec off) runs at 35.0 ms/token; S8 (draft_model, 2 tokens) runs
+  at 48.3 ms/token. Whatever is wrong is wrong before saturation matters.
+- *"The halved KV pool causes preemption."* `vllm:num_preemptions_total` reads **0.00/s**
+  across every experiment's window. KV was never binding.
+
+**The drafter is not free, and it is not cheap in proportion to its size.** Two
+measurements at matched low-concurrency ramp positions give a step-cost model directly:
+
+| | tokens per step | ms per token | ms per step |
+|---|---|---|---|
+| S1, no speculation | 1.00 | 35.0 | 35.0 |
+| S8, draft_model K=2 | 2.17 | 48.3 | 104.8 |
+| S9, draft_model K=3 | 2.55 | 55.4 | 141.3 |
+
+Solving the two speculative rows for the per-pass costs:
+
+- one **drafter** forward pass (Qwen3-0.6B, 1.11 GiB): **36.5 ms**
+- the **verify** pass (Qwen3-8B-FP8, 8.79 GiB, K+1 tokens): **31.9 ms**
+
+**A forward pass of the 0.6B drafter costs MORE than a forward pass of the 8B target.**
+Weight traffic predicts the opposite by a factor of eight: 1.11 GiB against 8.79 GiB at
+~300 GB/s is ~4 ms against ~31 ms. The drafter costs 36.5 ms, nine times its bandwidth
+budget, because at batch 1-2 a 0.6B model is **latency-bound, not bandwidth-bound** — 28
+layers of kernels too small to amortise their own launch and synchronisation overhead,
+invoked K times sequentially per verify because drafting is autoregressive. The target,
+with 36 layers doing eight times the work each, is bandwidth-bound and lands near its
+theoretical floor.
+
+So the arithmetic that makes speculative decoding work — "the verify pass costs the same
+whether it checks 1 token or K+1, so extra accepted tokens are nearly free" — holds
+perfectly here. The verify is 31.9 ms against a 35.0 ms unspeculated step. What breaks it
+is the *drafting*, which costs more per pass than the thing it is trying to amortise.
+
+**This is why acceptance quality was never the problem.** 58% acceptance and 2.17 tokens
+per step is a healthy drafter doing its job. It cannot pay for itself at 36.5 ms a pass.
+
+**Falsifiable prediction for S10 (K=4)**, from the model: step = 31.9 + 4 x 36.5 = 178 ms.
+At the ~1.8 accepted-per-draft the trend implies, that is ~63 ms/token, roughly **+81%**
+against no speculation, making S10 the worst cell of the study. If S10 lands near that,
+the model is confirmed and the conclusion generalises beyond the three points it was fitted
+to.
+
+**What would have to change for speculation to pay on this hardware.** Not a better
+drafter: a *cheaper* one. The cost is per-invocation overhead, not model quality, so a
+smaller model does not help much (Qwen3-0.6B is already the smallest in the family) and a
+better one helps not at all. The methods that avoid a second model entirely — the n-gram
+family — avoid this cost and fail for the opposite reason, drafting too rarely to matter.
+Between the two failure modes there is no configuration left on this stack.
+
 ## Prerequisites still open
 
 1. **Recreate the Akamas resources.** Not a blocker, just an ordering requirement: the

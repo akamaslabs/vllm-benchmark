@@ -90,6 +90,49 @@ parameter: like the target model, it is a study constant rendered by
 `k8s/01-deployment_template.yaml`, and `apply_config.sh` keeps or drops the
 `--spec-model` flag depending on the method.
 
+### OPEN DECISION: the target model is probably still wrong
+
+Recorded 2026-09-22 after an adversarial review, and **not yet acted on** — the choice is
+the team's.
+
+The 7B was swapped out partly on an argument that is simply backwards. Weight bytes read
+per batch-1 decode step, computed from each `config.json` and cross-checked against
+HuggingFace's own reported tensor totals:
+
+| Model | Weights on card | Read per decode step |
+|---|---|---|
+| Qwen2.5-7B-Instruct bf16 *(replaced)* | ~15 GB | **~15.2 GB** |
+| **Qwen3-30B-A3B-Instruct-2507-FP8** *(current)* | 29.03 GiB | **~3.35 GB** |
+| Qwen3-32B-FP8 *(dense candidate)* | 34.32 GB | **~32.8 GB** |
+| Qwen3-14B-FP8 *(dense candidate)* | 16.33 GB | **~14.8 GB** |
+
+Only 8 of 128 experts are active per token, so the current MoE reads about a **quarter**
+of what the 7B read. The swap made the verifier step ~4.5× **cheaper**, leaving *less* for
+speculation to amortise, not more.
+
+It is worse than neutral. When the target verifies K+1 drafted tokens in one pass, each
+token routes independently, so the pass reads the **union** of the experts they touch — up
+to `min(128, 8·(K+1))` per layer. At `spec_tokens` 8 that is up to 72 of 128 experts,
+roughly 9× the expert traffic of a single-token step, a cost a dense target does not pay
+at all. **A sparse MoE is close to the worst possible target for showing speculative
+decoding work.**
+
+**`Qwen3-32B-FP8` is the better vehicle** and costs little to switch to: dense, 34.32 GB of
+weights on a 96 GB card leaving ~55 GB of KV, ~32.8 GB read per decode step (about 10× this
+model), `vocab_size` 151936 identical to `Qwen3-0.6B` so the **same drafter works
+unchanged**. Switching means editing the model name, the served-model-name, the AIPerf
+model/tokenizer and generating a new ShareGPT cache file; the Akamas study itself does not
+change, since the model is not a tuned parameter.
+
+**The counter-argument for keeping the MoE**, which is why this is a decision and not a
+fix: if the model the team actually intends to serve in production is a sparse MoE, then
+"speculative decoding does not pay on our model" is the true and useful answer, and
+measuring it on a dense model would be measuring someone else's question. Study 15/16
+comparability is a second, weaker reason to keep it.
+
+What is NOT in doubt either way: the two reasons that survive are that the 7B used 15 of
+96 GB, and that this model needed four L4s in studies 15/16 and fits one card here.
+
 ### Why this study exists now
 
 Study 16's analysis (2026-09-21) found its best configurations pinned against the GPU's

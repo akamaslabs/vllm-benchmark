@@ -64,10 +64,27 @@ spec:
           #   1. The 7B was inherited from the study being duplicated, not chosen for
           #      this question. It takes ~15 GB of a 96 GB card and leaves ~78 GB of KV
           #      cache that no configuration will ever use.
-          #   2. Speculative decoding's payoff scales with how expensive the verifier's
-          #      forward pass is: the more a single target step costs, the more there is
-          #      to save by emitting several accepted tokens per step. A 7B decode is
-          #      cheap, which is the worst case for showing the technique working.
+          #   2. *** THIS REASON WAS WRONG — corrected 2026-09-22, kept visible on
+          #      purpose so the error is not silently rewritten out of history. ***
+          #      It said: "speculative decoding's payoff scales with how expensive the
+          #      verifier's forward pass is, and a 7B decode is cheap". The premise is
+          #      right; the conclusion for THIS swap is backwards. Weight bytes read per
+          #      batch-1 decode step, computed from each config.json and cross-checked
+          #      against HuggingFace's reported tensor totals:
+          #        Qwen2.5-7B-Instruct bf16 (the model replaced) .... ~15.2 GB
+          #        Qwen3-30B-A3B-Instruct-2507-FP8 (this model) ..... ~3.35 GB
+          #      Only 8 of 128 experts are active per token, so this 30B MoE reads about
+          #      3.0 GB of routed experts + attention + lm_head, roughly a QUARTER of
+          #      what the 7B read. The swap made the verifier step ~4.5x CHEAPER, so
+          #      there is LESS for speculation to amortise, not more.
+          #      It is worse than neutral: when the target verifies K+1 drafted tokens in
+          #      one pass, each token routes independently, so the pass must read the
+          #      UNION of the experts they touch — up to min(128, 8*(K+1)) per layer. At
+          #      spec_tokens 8 that is up to 72 of 128 experts, about 9x the expert
+          #      traffic of a single-token step, while a DENSE target's cost stays flat.
+          #      A sparse MoE is close to the worst possible target for showing
+          #      speculative decoding work.
+          #      Reasons 1 and 3 below still stand on their own.
           #   3. This is the exact model of studies 15 and 16, where it did NOT fit one
           #      24 GB L4 and forced a whole topology study (TP/DP/PP over 4 GPUs). At
           #      29.03 GiB of FP8 weights it fits this single card with ~60 GB to spare,

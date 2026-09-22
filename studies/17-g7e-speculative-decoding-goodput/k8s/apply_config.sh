@@ -1,3 +1,20 @@
+#!/bin/bash
+# Apply-config step for 17-g7e-speculative-decoding-goodput (runs on the toolbox host
+# via the Akamas workflow's Executor task).
+#
+# `set -e` ADDED 2026-09-22 and it is not cosmetic. Without it, a failed `kubectl apply`
+# on line ~63 did not stop the script: execution fell through to `kubectl rollout status`,
+# which then reported on the deployment ALREADY RUNNING — the previous trial's
+# configuration — and exited 0 if that one was healthy. Akamas would have benchmarked the
+# previous experiment's config while attributing the result to the current one. A silent,
+# results-corrupting failure, not a loud one. Study 16's version has had `set -e` since it
+# was written; this study inherited study 2's copy, which never did.
+#
+# Safe against the rest of the script: every `grep -q` sits in an `if`/`elif` condition
+# (exempt from set -e), the rollout wait is explicitly bracketed by `set +e`/`set -e`, and
+# both `kubectl logs` calls end in `|| true`.
+set -e
+
 DEPLOY_FILE=/work/vllm-benchmark/studies/17-g7e-speculative-decoding-goodput/k8s/01-deployment.yaml
 
 # --- Step 1: boolean CLI flags (same fix as prior studies) ---
@@ -60,7 +77,10 @@ fi
 # using (not yet built — see README "Prerequisites still open" #4).
 sed -i -E '/\$\{vLLM\./d; /^[[:space:]]*-[[:space:]]*"--[A-Za-z0-9_-]+="[[:space:]]*$/d' "$DEPLOY_FILE"
 
-kubectl apply -f "$DEPLOY_FILE" -n llm-serving
+if ! kubectl apply -f "$DEPLOY_FILE" -n llm-serving; then
+  echo "error: kubectl apply failed — the cluster still runs the PREVIOUS trial's configuration. Failing the task rather than benchmarking the wrong config." >&2
+  exit 3
+fi
 
 # Don't let a failed rollout exit immediately — print vLLM's own container logs first,
 # so they land in this task's stdout and show up in the Akamas UI (experiment/trial

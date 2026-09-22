@@ -423,16 +423,26 @@ metrics:
   - metric: inter_token_latency_p90
     datasourceMetric: '(histogram_quantile(0.90, sum by(le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000'
     scale: 1
-  # time_per_output_token (TPOT) is NOT the same thing as inter_token_latency:
-  # vLLM measures ITL between consecutive emitted tokens, while TPOT is the
-  # per-token cost amortised over a request's whole decode phase. Speculative
-  # decoding is expected to separate the two — several tokens can leave the
-  # server in one verify step — which is exactly why both are wired here.
+  # TPOT is NOT the same thing as inter_token_latency, and for this study it is the
+  # more important of the two. Verified against vLLM v0.29.0's own source:
+  #   ITL  (vllm/v1/metrics/stats.py) appends ONE observation per ENGINE STEP per
+  #        request, itl = now - last_token_ts. Under speculation a step emits several
+  #        accepted tokens, so ITL measures the heavier verify step and stays flat or
+  #        RISES even when speculation is working.
+  #   TPOT (loggers.py, series vllm:request_time_per_output_token_seconds) is computed
+  #        per FINISHED REQUEST as decode_time / (num_generation_tokens - 1), so it falls
+  #        exactly when speculation emits more tokens for the same wall-clock.
+  # SERIES NAME CORRECTED 2026-09-22: this was written as
+  # `vllm:time_per_output_token_seconds`, which does NOT exist in vLLM 0.29 — the
+  # exported series is `vllm:request_time_per_output_token_seconds`. The wrong name
+  # returns an empty series rather than an error, so the TPOT p95 KPI would have been
+  # silently blank for the whole study. The pack's own metric description
+  # (metrics/metrics.yaml:129) and this study's Grafana dashboard both had it right.
   - metric: time_per_output_token_p95
-    datasourceMetric: '(histogram_quantile(0.95, sum by(le)(rate(vllm:time_per_output_token_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000'
+    datasourceMetric: '(histogram_quantile(0.95, sum by(le)(rate(vllm:request_time_per_output_token_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000'
     scale: 1
   - metric: time_per_output_token_avg
-    datasourceMetric: '(sum(rate(vllm:time_per_output_token_seconds_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:time_per_output_token_seconds_count{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1e-9))*1000'
+    datasourceMetric: '(sum(rate(vllm:request_time_per_output_token_seconds_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:request_time_per_output_token_seconds_count{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1e-9))*1000'
     scale: 1
   # Prefill/decode split: with speculation on, the decode phase does more work
   # per step and the prefill phase is untouched, so a change confined to
@@ -498,12 +508,17 @@ metrics:
     datasourceMetric: 'sum(sum by(node)(container_memory_working_set_bytes{container!=""}) * on(node) group_left() kube_node_labels{label_node_role=~"$NODE_ROLE$"}) / clamp_min(sum(kube_node_status_capacity{resource="memory"} * on(node) group_left() kube_node_labels{label_node_role=~"$NODE_ROLE$"}), 1e-9)'
 
   # ==========================================================================
-  # BLOCKED ON A PACK RELEASE — speculative-decoding metrics
+  # Speculative-decoding acceptance metrics — REQUIRE vLLM pack >= 1.10.0
   # ==========================================================================
-  # Uncomment the five entries below AS-IS once vLLM optimization pack >= 1.10.0
-  # is installed on the instance. Until then they would make `akamas create`
-  # fail: an Akamas telemetry instance may only map metrics the component type
-  # declares, and pack 1.9.1 declares none for speculative decoding.
+  # ENABLED 2026-09-22. They were commented out "until the pack ships", which on
+  # review protected nothing: the study manifest already selects spec_method's
+  # "draft_model" category, which 1.9.1 does not declare either, so there is no
+  # state in which this study is creatable and these metrics are not. Keeping
+  # them commented only risked someone creating the telemetry instance first and
+  # running the whole study blind to the one number that explains its result.
+  # An Akamas telemetry instance may only map metrics the component type
+  # declares, so `akamas create telemetry-instance` fails against 1.9.1 — which
+  # is the correct, loud failure.
   #
   # STATUS 2026-09-21: the pack change is WRITTEN AND COMMITTED, not yet shipped.
   # It is commit "Add speculative-decoding acceptance metrics (v1.10.0)" on the
@@ -539,26 +554,26 @@ metrics:
   # them — verified 2026-09-21 against vllm/v1/spec_decode/metrics.py at the
   # v0.29.0 tag. They would give permanently empty series, not an error.
   #
-  # - metric: spec_decode_drafts_rate
-  #   datasourceMetric: 'sum(rate(vllm:spec_decode_num_drafts_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))'
-  #   scale: 1
-  #   defaultValue: 0
-  # - metric: spec_decode_draft_tokens_rate
-  #   datasourceMetric: 'sum(rate(vllm:spec_decode_num_draft_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))'
-  #   scale: 1
-  #   defaultValue: 0
-  # - metric: spec_decode_accepted_tokens_rate
-  #   datasourceMetric: 'sum(rate(vllm:spec_decode_num_accepted_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))'
-  #   scale: 1
-  #   defaultValue: 0
-  # - metric: spec_decode_acceptance_rate
-  #   datasourceMetric: 'sum(rate(vllm:spec_decode_num_accepted_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:spec_decode_num_draft_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1e-9)'
-  #   scale: 1
-  #   defaultValue: 0
-  # - metric: spec_decode_accepted_tokens_per_draft
-  #   datasourceMetric: 'sum(rate(vllm:spec_decode_num_accepted_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:spec_decode_num_drafts_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1e-9)'
-  #   scale: 1
-  #   defaultValue: 0
+  - metric: spec_decode_drafts_rate
+    datasourceMetric: 'sum(rate(vllm:spec_decode_num_drafts_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))'
+    scale: 1
+    defaultValue: 0
+  - metric: spec_decode_draft_tokens_rate
+    datasourceMetric: 'sum(rate(vllm:spec_decode_num_draft_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))'
+    scale: 1
+    defaultValue: 0
+  - metric: spec_decode_accepted_tokens_rate
+    datasourceMetric: 'sum(rate(vllm:spec_decode_num_accepted_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))'
+    scale: 1
+    defaultValue: 0
+  - metric: spec_decode_acceptance_rate
+    datasourceMetric: 'sum(rate(vllm:spec_decode_num_accepted_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:spec_decode_num_draft_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1e-9)'
+    scale: 1
+    defaultValue: 0
+  - metric: spec_decode_accepted_tokens_per_draft
+    datasourceMetric: 'sum(rate(vllm:spec_decode_num_accepted_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:spec_decode_num_drafts_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1e-9)'
+    scale: 1
+    defaultValue: 0
   #
   # Once these are live, add them to the study's kpis as well — acceptance rate
   # (maximize) is the number that separates "wrong drafter for this traffic" from

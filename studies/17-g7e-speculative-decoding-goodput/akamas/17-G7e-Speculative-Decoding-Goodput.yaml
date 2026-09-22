@@ -14,11 +14,19 @@ name: 17-G7e-Speculative-Decoding-Goodput
 # FOUR DELIBERATE DIVERGENCES from the study it started as. Together they mean this
 # study's numbers are NOT comparable with 2-Larger-goodput's; it runs its own baseline
 # and imports nothing:
-#   1. MODEL: Qwen2.5-7B-Instruct -> Qwen/Qwen3-30B-A3B-Instruct-2507-FP8. The 7B was
-#      inherited, not chosen: it uses 15 of 96 GB and its decode is cheap, which is the
-#      worst case for showing speculation work. The 30B MoE is also the exact model of
-#      studies 15/16, where it did not fit one 24 GB L4 and forced a topology study —
-#      here it fits one card with room to spare, so topology is constant at 1.
+#   1. MODEL: Qwen2.5-7B-Instruct -> Qwen/Qwen3-30B-A3B-Instruct-2507-FP8. Two of the
+#      three reasons stand: the 7B used 15 of 96 GB, and the 30B is studies 15/16's model
+#      which needed four L4s there and fits one card here, holding topology at 1.
+#      THE THIRD REASON WAS BACKWARDS AND IS RETRACTED (2026-09-22). It claimed the 7B's
+#      decode was "cheap" and so a poor vehicle. Measured per batch-1 decode step:
+#      Qwen2.5-7B bf16 reads ~15.2 GB of weights; this 30B MoE reads ~3.35 GB, because
+#      only 8 of 128 experts are active. The swap made the verify step ~4.5x CHEAPER.
+#      And verifying K+1 drafted tokens reads the UNION of the experts they route to —
+#      up to min(128, 8*(K+1)) per layer, ~9x single-token traffic at spec_tokens 8 —
+#      a cost a DENSE target does not pay. See the study README for the open decision
+#      this leaves: a dense target of comparable footprint (Qwen3-32B-FP8, 34.3 GB, same
+#      151936 vocabulary so the same Qwen3-0.6B drafter works) reads ~32.8 GB per step,
+#      roughly 10x this model, and is the better vehicle for the question actually asked.
 #   2. IMAGE: v0.22.0 -> v0.29.0. The pack's reference version, and the only engine
 #      emitting the V1 speculative counters (0.22.0 predates them, and the five metrics
 #      in vLLM's own docs are V0 legacy V1 does not emit).
@@ -162,6 +170,17 @@ parametersSelection:
     domain: [0, 16]
 
 parameterConstraints:
+  # ADDED 2026-09-22 after review. vLLM v0.29.0's vllm/config/scheduler.py raises an
+  # unconditional ValueError when max_num_batched_tokens < max_num_seqs — no chunked-prefill
+  # or speculative-decoding exemption. Both flags reach vLLM from this study
+  # (k8s/01-deployment_template.yaml), and the two domains [256, 8192] and [16, 1024]
+  # overlap, so the optimizer can and eventually would propose the illegal corner: a Monte
+  # Carlo over the declared box puts it at roughly 3.65% of the space. Every such draw is a
+  # crashed experiment against a maxFailedExperiments budget of 15. Studies 13-16 all carry
+  # this constraint; study 17 inherited study 2's parameter set, which predates it.
+  - name: max_num_batched_tokens must be at least max_num_seqs
+    formula: vLLM.max_num_batched_tokens >= vLLM.max_num_seqs
+
   # --- The 3 carried over unchanged from 2-Larger-goodput ---
   - name: FLASH_ATTN only supports auto kv_cache_dtype
     formula: vLLM.attention_backend != "FLASH_ATTN" || vLLM.kv_cache_dtype == "auto"

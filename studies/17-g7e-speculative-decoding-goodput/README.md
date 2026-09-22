@@ -1,6 +1,7 @@
 # 17-g7e-speculative-decoding-goodput
 
-**Status:** TODO — configuration complete, not yet started.
+**Status:** READY — configuration complete, smoke-tested on the live GPU, Akamas
+resources recreated. Not started; starting it is a deliberate, paid decision.
 **Dates:** Scaffolded 2026-09-21, model swapped 2026-09-21, **hardware and model changed
 again 2026-09-22** (see the box below).
 

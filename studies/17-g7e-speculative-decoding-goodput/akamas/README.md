@@ -5,9 +5,13 @@ against the pack checkouts under `~/akamas/offline/optimization-packs/`, and rew
 the same plugin on 2026-09-22 when the hardware changed. Nothing here was hand-written from
 memory.
 
-**These resources EXIST on the live instance**, created 2026-09-21 against the RTX PRO 6000.
-The 2026-09-22 rewrite has not been applied to them yet — see "Re-applying the 2026-09-22
-hardware change" below, which is the first thing to run.
+**These resources exist on the live instance and are CURRENT.** They were created
+2026-09-21 against the RTX PRO 6000, and the 2026-09-22 rewrite was applied the same day:
+the study and the telemetry instance were deleted and recreated, and the `cluster`
+component was deleted and recreated with its new `node_role`. Verified afterwards — the
+study is `CREATED` with 12 steps and S8/S9/S10 read "draft_model 2/3/4 tokens", so the
+re-cut grid is what the instance actually holds. The delete/recreate sequence below is
+kept as the record of what was run and as the recipe if any of it changes again.
 
 ## What this study optimizes
 

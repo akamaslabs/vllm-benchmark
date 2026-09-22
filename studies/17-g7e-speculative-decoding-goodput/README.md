@@ -392,7 +392,12 @@ hours on top. Study 16 was stopped early on cost at 27 optimizer experiments —
 budget before starting, and note the optimize step can be stopped at any point without
 losing what already ran.
 
-## Known gap: acceptance rate is not measurable until the pack ships
+## ~~Known gap: acceptance rate is not measurable until the pack ships~~ — CLOSED 2026-09-22
+
+> Resolved. Pack 1.10.1 is installed and the four V1 counters were read live off the
+> server during the smoke test below, with a 58% acceptance rate on the S8 cell. The
+> section is kept because its analysis of which metric names are real and which are V0
+> legacy is still the reason the right ones were wired.
 
 The study tunes `spec_method` and `spec_tokens` and will see their effect on throughput
 and latency, but **not the acceptance rate** — the one number that explains the effect,
@@ -422,60 +427,79 @@ engine in 0.29.0** — verified 2026-09-21 against `vllm/v1/spec_decode/metrics.
 `v0.29.0` tag. Wiring those names produces permanently empty series rather than an error.
 Do not copy them from the docs page.
 
+## Smoke test, 2026-09-22 — run, and what it settled
+
+Run on the live L4 with the **S8 cell** (`draft_model`, 2 speculative tokens) — chosen
+because it is the riskiest of the twelve steps: it is the only one that loads a second
+model, and the one whose memory budget the arithmetic said was tightest. `apply_config.sh`
+exited 0 and vLLM reached `Application startup complete`.
+
+**Four things that were reasoned before and are now observed.**
+
+1. **Every flag rendered correctly.** vLLM's own `non-default args` line reports
+   `model='Qwen/Qwen3-8B-FP8'`, `served_model_name=['qwen3-8b']`, `max_model_len=4096`,
+   `attention_backend='FLASH_ATTN'`, `gpu_memory_utilization=0.88`, `max_num_seqs=128`,
+   `spec_method='draft_model'`, `spec_model='Qwen/Qwen3-0.6B'`, `spec_tokens=2`, and
+   `default_chat_template_kwargs={'enable_thinking': False}`. The boolean-flag rewriting
+   and the speculative-flag branching in `apply_config.sh` both work on this config.
+2. **The thinking-mode trap is closed.** A real chat request ("what is the capital of
+   France, answer in one sentence") returned 11 completion tokens, no `<think>` in the
+   content and an empty `reasoning_content`. Without the flag this benchmark would have
+   measured chain-of-thought length.
+3. **The drafter pairing holds, and the acceptance metrics work.** After five generation
+   requests, `/metrics` reports `vllm:spec_decode_num_drafts_total` 584,
+   `..._num_draft_tokens_total` 1168 (exactly 2 per draft, as configured),
+   `..._num_accepted_tokens_total` 682 and the per-position counter at positions 0 and 1.
+   That is a **58% acceptance rate**, and it is the whole chain the pack change existed
+   for, working end to end.
+4. **The drafter inherits the context limit.** `Overriding draft model max model len from
+   40960 to 4096` — so pinning `--max-model-len` as a literal fixes it for both models.
+
+**The memory numbers, measured rather than estimated.**
+
+| | |
+|---|---|
+| Card total, as vLLM sees it | **22.03 GiB** |
+| Requested at `gpu_memory_utilization` 0.88 | 19.39 GiB |
+| Weights + non-torch | 11.36 GiB |
+| Peak activation | 1.91 GiB |
+| CUDA graph | 0.77 GiB |
+| **KV cache** | **6.12 GiB = 25,072 tokens** |
+
+Two consequences. First, **study 16's constant of 22.03 is exactly right for this card** —
+vLLM reports the same figure — so the re-added sampler-warmup guard is calibrated on a
+measurement, not a guess. Second, the KV pool is 6.12 GiB against the ~8 GiB the
+arithmetic predicted; the reserve was underestimated. The 1→128 ramp still stands but the
+saturation knee will be lower than expected.
+
+**One thing left on the table.** vLLM reports that up to 7.67 GiB of KV would "fully
+utilize gpu memory", i.e. roughly a quarter more of the resource that binds this study,
+and separately that CUDA-graph profiling alone costs the equivalent of 0.033 of
+`gpu_memory_utilization`. The preset grid captures CUDA graphs for batch sizes up to 512
+while `max_num_seqs` is 128, so about half the captures can never be used. Whether
+lowering `max_cudagraph_capture_size` recovers that is being measured.
+
+**Not reproduced, and worth knowing:** an `async_llm.py` traceback appeared at the exact
+moment the rollout replaced the pod, consistent with the engine being terminated
+mid-request rather than with a serving fault. The pod's logs were gone by the time it was
+investigated, so it is recorded rather than explained.
+
 ## Prerequisites still open
 
-1. **BLOCKED — install vLLM optimization pack 1.10.0.** `spec_method`'s `draft_model`
-   category does not exist in the installed 1.9.1, so `akamas create study` fails against
-   it. The change is committed on branch `feature/speculative-decoding-metrics` in
-   `~/akamas/offline/optimization-packs/vllm` (two commits: the five acceptance metrics,
-   then `draft_model`), the pack's own test suite passes, and **nothing has been pushed**.
-   It needs a push, a merge request, a build, and an install — and **the install requires
-   the Administrator role, which the account used here does not have**
-   (`akamas list optimization-pack` → "Access forbidden"). This is the one hard blocker.
-2. **Then delete and recreate the study.** A study named
-   `17-G7e-Speculative-Decoding-Goodput` was created on 2026-09-21 in its earlier 7B,
-   seven-preset form (id `29fa60c3-8a96-4a00-9f66-ea05875c9f68`, 0 experiments run).
-   `parametersSelection` and `steps` cannot be edited on an existing study on Akamas 3.7,
-   so it must go:
-   `akamas delete study "17-G7e-Speculative-Decoding-Goodput"` then
-   `akamas create study .../17-G7e-Speculative-Decoding-Goodput.yaml`.
-   The system, the six components and the workflow are already created and unaffected.
-3. **Recreate the telemetry instance** if the five speculative metrics should be
-   collected — they are commented out at the end of `akamas/telemetry/prometheus.yaml`
-   and become valid only once 1.10.0 is installed. There is no update verb for a
-   telemetry instance on 3.7, so it is a delete and recreate, and it must happen **before**
-   the study starts, not halfway through.
-4. **Smoke-test the drafter pairing by hand, once.** vLLM checks drafter/target vocabulary
-   compatibility at engine init. `Qwen/Qwen3-0.6B` and
-   `Qwen/Qwen3-30B-A3B-Instruct-2507-FP8` are both Qwen3 with a 151936-token vocabulary,
-   but that is reasoned, not observed. Start the pair manually before spending three
-   experiments on S8-S10. While there, also confirm `TRITON_ATTN` and `FLASHINFER` start
-   on this GPU's SM120 compute capability — study 2 flagged SM120 kernel maturity as an
-   open question and never resolved it.
-5. **Bring the GPU node back up.** The node group `llm-serving-g7e` exists and is Active;
-   it ran a node on 2026-09-21 (`ip-192-168-9-238`, us-east-2b) which was then scaled back
-   to 0 to stop the spend. Scale it to 1 the morning the study runs:
-   `eksctl scale nodegroup --cluster vllm-bench --name llm-serving-g7e --nodes 1`, or the
-   EKS console. Note AWS had **no g7e.4xlarge capacity in either us-east-2 AZ** for a
-   while that day, with 42 failed launches; if it recurs, the sibling sizes
-   `g7e.2xlarge`/`g7e.8xlarge` carry the identical single RTX PRO 6000 and may have
-   capacity when `4xlarge` does not (they need a new node group, and `2xlarge`'s 8 vCPUs
-   need the Deployment's CPU request lowered).
-6. **The DCGM exporter follows the node.** It is Helm release `dcgm-exporter` in
-   `monitoring`, re-pointed at whichever GPU node group is in use — revision 19 targets
-   `llm-serving-g7e` and was verified reporting `gpu="0"`, model name
-   "NVIDIA RTX PRO 6000 Blackwell Server Edition", 97 887 MiB. Do **not** try to install a
-   second release beside it; the chart hardcodes a ConfigMap name and refuses. Nothing to
-   redo when the node returns — the DaemonSet schedules itself.
-7. **`akamas/id_rsa` is in place on the toolbox** (copied 2026-09-21, mode 600, the same
-   key every study shares). Not committed, per `.gitignore`.
-8. **The ShareGPT cache is ready**: `inputs-qwen3-30b-a3b.json` has been on the
-   `aiperf-results` volume since 2026-09-18, generated by study 16 for this exact
-   served-model-name. No regeneration, and no risk of the stale-cache 404 storm that cost
-   studies 2 and 13 a run each.
-9. **Re-calibrate the ramp after the baseline.** 1 → 128 is a reasoned estimate for this
-   card, not a measurement. If the last level is still SLA-compliant with headroom, raise
-   the ceiling again rather than repeating study 16's mistake.
+1. **Recreate the Akamas resources.** Not a blocker, just an ordering requirement: the
+   system, six components, telemetry instance, workflow and study were all created on
+   2026-09-21 against the RTX PRO 6000, and Akamas 3.7 has no update verb for a component,
+   a telemetry instance, or anything in a study but its `goal`. The exact delete/recreate
+   sequence is in [`akamas/README.md`](akamas/README.md). The study is status `CREATED`
+   with zero experiments, so nothing is at risk.
+2. **~~Install vLLM pack 1.10.0~~ — DONE.** 1.10.1 is installed; confirmed because the
+   telemetry instance exists on the instance and maps the five `spec_decode_*` metrics that
+   only >= 1.10.0 declares. The pack's source branch
+   `feature/speculative-decoding-metrics` is still committed-locally and unpushed, which is
+   a debt against the pack's own repo rather than against this study.
+3. **~~Smoke-test the drafter pairing~~ — DONE**, see the section above.
+4. **Scale the node group back to 0 when not running.** `llm-serving-l4-single` costs
+   1.32 USD/h and the study does not need it between runs.
 
 ## Results
 

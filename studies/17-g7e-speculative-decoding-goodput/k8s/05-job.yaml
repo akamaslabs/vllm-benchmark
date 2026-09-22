@@ -47,14 +47,31 @@ spec:
               # shared, unsuffixed file is a landmine: study 13's first baseline reused
               # studies 1-9's file verbatim and got 14 339 HTTP 404 "The model
               # `qwen2.5-7b` does not exist" against 32 successful requests. The file
-              # this study needs, inputs-qwen3-30b-a3b.json, ALREADY EXISTS on the
-              # aiperf-results volume: study 16 generated it on 2026-09-18 for this same
-              # served-model-name, so there is nothing to regenerate.
-              MODEL_NAME=qwen3-30b-a3b
-              TOKENIZER=Qwen/Qwen3-30B-A3B-Instruct-2507-FP8
+              # NOTE (2026-09-22, model swapped to dense Qwen3-32B-FP8): the file this
+              # study now needs is inputs-qwen3-32b.json, which does NOT exist yet — the
+              # volume holds inputs.json, inputs-gpt-oss-20b.json and
+              # inputs-qwen3-30b-a3b.json. It is derived below from any existing file by
+              # rewriting only the per-request model field, which keeps the ShareGPT
+              # prompts byte-identical to every other study's and takes seconds, instead
+              # of the ~15 min full regeneration. Same trick study 16 used.
+              MODEL_NAME=qwen3-32b
+              TOKENIZER=Qwen/Qwen3-32B-FP8
               CACHE_FILE=/benchmarks/sharegpt-cache/inputs-$MODEL_NAME.json
+              # Derive from any sibling cache first: identical ShareGPT prompts, only the
+              # per-request "model" field rewritten. A mismatched model field is a 100%
+              # 404 storm at every concurrency level — it cost studies 2 and 13 a run each.
               if [ ! -f "$CACHE_FILE" ]; then
-                echo "No cached ShareGPT inputs.json — generating once (one-time ~5min dataset validation pass)..."
+                for SRC in /benchmarks/sharegpt-cache/inputs-*.json /benchmarks/sharegpt-cache/inputs.json; do
+                  [ -f "$SRC" ] || continue
+                  [ "$SRC" = "$CACHE_FILE" ] && continue
+                  echo "Deriving $CACHE_FILE from $SRC (rewriting the per-request model field to $MODEL_NAME)..."
+                  sed -E 's/"model": *"[^"]*"/"model": "'"$MODEL_NAME"'"/g' "$SRC" > "$CACHE_FILE.tmp" \
+                    && mv "$CACHE_FILE.tmp" "$CACHE_FILE"
+                  break
+                done
+              fi
+              if [ ! -f "$CACHE_FILE" ]; then
+                echo "No sibling cache to derive from — generating once (one-time ~5min dataset validation pass)..."
                 set +e
                 aiperf profile \
                   --model "$MODEL_NAME" \

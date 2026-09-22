@@ -59,42 +59,35 @@ spec:
 
       containers:
         - name: vllm
-          # MODEL CHANGED 2026-09-21, from 2-larger-model-g7e's Qwen2.5-7B-Instruct to
-          # Qwen/Qwen3-30B-A3B-Instruct-2507-FP8. Three reasons, in order of weight:
-          #   1. The 7B was inherited from the study being duplicated, not chosen for
-          #      this question. It takes ~15 GB of a 96 GB card and leaves ~78 GB of KV
-          #      cache that no configuration will ever use.
-          #   2. *** THIS REASON WAS WRONG — corrected 2026-09-22, kept visible on
-          #      purpose so the error is not silently rewritten out of history. ***
-          #      It said: "speculative decoding's payoff scales with how expensive the
-          #      verifier's forward pass is, and a 7B decode is cheap". The premise is
-          #      right; the conclusion for THIS swap is backwards. Weight bytes read per
-          #      batch-1 decode step, computed from each config.json and cross-checked
-          #      against HuggingFace's reported tensor totals:
-          #        Qwen2.5-7B-Instruct bf16 (the model replaced) .... ~15.2 GB
-          #        Qwen3-30B-A3B-Instruct-2507-FP8 (this model) ..... ~3.35 GB
-          #      Only 8 of 128 experts are active per token, so this 30B MoE reads about
-          #      3.0 GB of routed experts + attention + lm_head, roughly a QUARTER of
-          #      what the 7B read. The swap made the verifier step ~4.5x CHEAPER, so
-          #      there is LESS for speculation to amortise, not more.
-          #      It is worse than neutral: when the target verifies K+1 drafted tokens in
-          #      one pass, each token routes independently, so the pass must read the
-          #      UNION of the experts they touch — up to min(128, 8*(K+1)) per layer. At
-          #      spec_tokens 8 that is up to 72 of 128 experts, about 9x the expert
-          #      traffic of a single-token step, while a DENSE target's cost stays flat.
-          #      A sparse MoE is close to the worst possible target for showing
-          #      speculative decoding work.
-          #      Reasons 1 and 3 below still stand on their own.
-          #   3. This is the exact model of studies 15 and 16, where it did NOT fit one
-          #      24 GB L4 and forced a whole topology study (TP/DP/PP over 4 GPUs). At
-          #      29.03 GiB of FP8 weights it fits this single card with ~60 GB to spare,
-          #      so the same goodput question can be asked with no parallelism
-          #      confound at all — and the two studies become comparable on the one
-          #      axis that differs.
-          # Cost: the study is now further from 2-Larger-goodput than the image bump
-          # alone made it. It was never going to import that study's experiments; it
-          # runs its own baseline.
+          # MODEL, final choice 2026-09-22: Qwen/Qwen3-32B-FP8.
+          # Third and last iteration, and the history matters because the middle step was
+          # justified by an argument that turned out to be backwards:
+          #   Qwen2.5-7B-Instruct  (inherited from study 2)  -> uses 15 of 96 GB
+          #   Qwen3-30B-A3B-Instruct-2507-FP8 (2026-09-21)   -> RETRACTED, see below
+          #   Qwen3-32B-FP8 (this)                            -> dense, 34.32 GB
           #
+          # WHY THE MoE WAS WRONG. Weight bytes read per batch-1 decode step, computed
+          # from each config.json and cross-checked against HuggingFace's own reported
+          # tensor totals:
+          #   Qwen2.5-7B-Instruct bf16 ........... ~15.2 GB
+          #   Qwen3-30B-A3B-Instruct-2507-FP8 .... ~3.35 GB   (8 of 128 experts active)
+          #   Qwen3-32B-FP8 (this model) ......... ~32.8 GB
+          # The MoE read a QUARTER of what the 7B read, so the swap to it made the
+          # verifier step ~4.5x cheaper and left LESS for speculation to amortise, the
+          # opposite of the stated intent. Worse: verifying K+1 drafted tokens routes each
+          # token independently, so the pass reads the UNION of the experts they touch —
+          # up to min(128, 8*(K+1)) per layer, ~9x single-token expert traffic at
+          # spec_tokens 8 — a cost a dense target does not pay at all. A sparse MoE is
+          # close to the worst possible target for showing speculative decoding work.
+          #
+          # WHY THIS ONE. Dense, so the verify cost is flat in draft length. 34.32 GB of
+          # weights on a 95.59 GiB card leaves ~50 GiB for KV. ~32.8 GB read per decode
+          # step, about 10x the MoE, which is the quantity speculation amortises.
+          # vocab_size 151936, IDENTICAL to Qwen/Qwen3-0.6B, so the drafter is unchanged.
+          # Cost of the choice, stated honestly: comparability with studies 15/16 is gone
+          # (different model entirely), and this is a hybrid-thinking checkpoint — see the
+          # --default-chat-template-kwargs flag below, without which the benchmark would
+          # measure chain-of-thought length instead of ShareGPT replay.
           # CHANGED for study 17: image moved from that study's v0.22.0 to v0.29.0 —
           # NOT a cosmetic bump, it is a precondition for this study's question:
           #   1. vLLM pack 1.9.1's reference version is 0.29.0, and spec_method's
@@ -118,8 +111,8 @@ spec:
           image: vllm/vllm-openai:v0.29.0
           command: ["vllm", "serve"]
           args:
-            - "Qwen/Qwen3-30B-A3B-Instruct-2507-FP8"
-            - "--served-model-name=qwen3-30b-a3b"
+            - "Qwen/Qwen3-32B-FP8"
+            - "--served-model-name=qwen3-32b"
             - "--port=8000"
             - "--host=0.0.0.0"
             - "--enable-mfu-metrics"
@@ -127,6 +120,22 @@ spec:
             # entirely for this study's traffic pattern (see that study's README,
             # "Load generator" — same ShareGPT-replay goodput methodology here).
             - "--no-enable-prefix-caching"
+            # MANDATORY for this checkpoint, added 2026-09-22. Qwen3-32B is a HYBRID
+            # THINKING model: its chat template only suppresses reasoning when the caller
+            # passes enable_thinking=false, and the guard is
+            #   {%- if enable_thinking is defined and enable_thinking is false %}
+            # so UNDEFINED is not false. AIPerf sends plain OpenAI chat-completions with no
+            # chat_template_kwargs, so every request would get a full <think>...</think>
+            # block — the card recommends a 32768-token output budget in thinking mode.
+            # The benchmark would measure chain-of-thought length, not ShareGPT replay.
+            # This is the ONE server-side flag that stops the tokens being GENERATED;
+            # --reasoning-parser and include_reasoning only move them out of `content`
+            # while the GPU still pays for them. Request-level kwargs would override this,
+            # and AIPerf sends none, so it holds for every request.
+            # The previous model (Qwen3-30B-A3B-Instruct-2507) needed no such flag: its
+            # chat template contains no thinking logic at all.
+            - "--default-chat-template-kwargs"
+            - '{"enable_thinking": false}'
 
             # --- Tuned (parametersSelection) — same 14 as 1-goodput-realistic-load ---
             - "--gpu-memory-utilization=${vLLM.gpu_memory_utilization}"

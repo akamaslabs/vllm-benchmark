@@ -90,50 +90,69 @@ parameter: like the target model, it is a study constant rendered by
 `k8s/01-deployment_template.yaml`, and `apply_config.sh` keeps or drops the
 `--spec-model` flag depending on the method.
 
-### OPEN DECISION: the target model is probably still wrong
+### The target model, and why it changed twice
 
-Recorded 2026-09-22 after an adversarial review, and **not yet acted on** — the choice is
-the team's.
-
-The 7B was swapped out partly on an argument that is simply backwards. Weight bytes read
-per batch-1 decode step, computed from each `config.json` and cross-checked against
-HuggingFace's own reported tensor totals:
+Settled 2026-09-22 on **`Qwen/Qwen3-32B-FP8`**, dense. The route there is worth recording,
+because the middle step was taken on an argument that was simply backwards.
 
 | Model | Weights on card | Read per decode step |
 |---|---|---|
-| Qwen2.5-7B-Instruct bf16 *(replaced)* | ~15 GB | **~15.2 GB** |
-| **Qwen3-30B-A3B-Instruct-2507-FP8** *(current)* | 29.03 GiB | **~3.35 GB** |
-| Qwen3-32B-FP8 *(dense candidate)* | 34.32 GB | **~32.8 GB** |
-| Qwen3-14B-FP8 *(dense candidate)* | 16.33 GB | **~14.8 GB** |
+| Qwen2.5-7B-Instruct bf16 *(inherited from study 2)* | ~15 GB | ~15.2 GB |
+| Qwen3-30B-A3B-Instruct-2507-FP8 *(2026-09-21, retracted)* | 29.03 GiB | **~3.35 GB** |
+| **Qwen3-32B-FP8 *(final)*** | **34.32 GB** | **~32.8 GB** |
 
-Only 8 of 128 experts are active per token, so the current MoE reads about a **quarter**
-of what the 7B read. The swap made the verifier step ~4.5× **cheaper**, leaving *less* for
-speculation to amortise, not more.
+The MoE was chosen partly because "a 7B decode is cheap, the worst case for showing
+speculation work". True premise, wrong conclusion: only 8 of 128 experts are active per
+token, so that model read **a quarter** of what the 7B read. The swap made the verify step
+~4.5× cheaper and left *less* for speculation to amortise.
 
-It is worse than neutral. When the target verifies K+1 drafted tokens in one pass, each
-token routes independently, so the pass reads the **union** of the experts they touch — up
-to `min(128, 8·(K+1))` per layer. At `spec_tokens` 8 that is up to 72 of 128 experts,
-roughly 9× the expert traffic of a single-token step, a cost a dense target does not pay
-at all. **A sparse MoE is close to the worst possible target for showing speculative
-decoding work.**
+It was worse than neutral. Verifying K+1 drafted tokens routes each token independently,
+so the pass reads the **union** of the experts they touch — up to `min(128, 8·(K+1))` per
+layer, roughly 9× single-token expert traffic at `spec_tokens` 8. A dense target pays none
+of that: its verify cost is flat in draft length. **A sparse MoE is close to the worst
+possible target for showing speculative decoding work.**
 
-**`Qwen3-32B-FP8` is the better vehicle** and costs little to switch to: dense, 34.32 GB of
-weights on a 96 GB card leaving ~55 GB of KV, ~32.8 GB read per decode step (about 10× this
-model), `vocab_size` 151936 identical to `Qwen3-0.6B` so the **same drafter works
-unchanged**. Switching means editing the model name, the served-model-name, the AIPerf
-model/tokenizer and generating a new ShareGPT cache file; the Akamas study itself does not
-change, since the model is not a tuned parameter.
+`Qwen3-32B-FP8` fixes both halves: dense, so verify cost is flat; ~32.8 GB read per step,
+about 10× the MoE, which is the quantity speculation amortises; 34.32 GB of weights on a
+95.59 GiB card leaving ~50 GiB of KV; and `vocab_size` 151936 identical to the drafter, so
+**`Qwen/Qwen3-0.6B` carries over unchanged**.
 
-**The counter-argument for keeping the MoE**, which is why this is a decision and not a
-fix: if the model the team actually intends to serve in production is a sparse MoE, then
-"speculative decoding does not pay on our model" is the true and useful answer, and
-measuring it on a dense model would be measuring someone else's question. Study 15/16
-comparability is a second, weaker reason to keep it.
+Two costs, stated plainly. Comparability with studies 15/16 is gone — they served the MoE.
+And this is a **hybrid-thinking** checkpoint, which the previous one was not.
 
-What is NOT in doubt either way: the two reasons that survive are that the 7B used 15 of
-96 GB, and that this model needed four L4s in studies 15/16 and fits one card here.
+### The thinking-mode trap, and the one flag that closes it
 
-### Why this study exists now
+Qwen3-32B emits chain-of-thought by default. Its chat template only suppresses reasoning
+when the caller passes `enable_thinking=false`, and the guard is
+
+```jinja
+{%- if enable_thinking is defined and enable_thinking is false %}
+```
+
+so **undefined is not false**. AIPerf sends plain OpenAI chat-completions with no
+`chat_template_kwargs`, so every request would open its own `<think>` block; the model card
+recommends a 32 768-token output budget in thinking mode. The benchmark would have measured
+reasoning length, not ShareGPT replay, and the numbers would have looked like a catastrophic
+regression against every prior study.
+
+The deployment therefore passes:
+
+```
+--default-chat-template-kwargs '{"enable_thinking": false}'
+```
+
+That is the only server-side option in vLLM 0.29 that stops the tokens being **generated**.
+`--reasoning-parser qwen3` and a request's `include_reasoning: false` merely move the text
+out of `content` while the GPU still pays for it — and if the load generator counted output
+tokens from `content` rather than from `usage`, that would under-report output length while
+throughput stayed depressed. Request-level kwargs would override the server default, and
+AIPerf sends none, so it holds for every request.
+
+**Pre-flight gate**: after the server starts, fire one request by hand and confirm both that
+`content` has no `<think>` and that `usage.completion_tokens` is plausibly short. That single
+request is what verifies the deployed build matches the documentation.
+
+### Why this study exists now### Why this study exists now
 
 Study 16's analysis (2026-09-21) found its best configurations pinned against the GPU's
 power cap with the **memory bus only ~48% active and tensor cores ~11%** — spare compute
@@ -154,8 +173,8 @@ parallelism, a model that fits with room to spare.
   'Administrator' role` for this account. Verify before creating the system. Study 16
   recorded Kubernetes 1.8.0-dev as installed, so that one in particular may differ.
 - **Workload under test:** `vllm/vllm-openai:v0.29.0` serving
-  **`Qwen/Qwen3-30B-A3B-Instruct-2507-FP8`**, served as `qwen3-30b-a3b`, namespace
-  `llm-serving`, with **`Qwen/Qwen3-0.6B`** as the drafter for the `draft_model` cells.
+  **`Qwen/Qwen3-32B-FP8`** (dense), served as `qwen3-32b`, namespace `llm-serving`, with
+  **`Qwen/Qwen3-0.6B`** as the drafter for the `draft_model` cells (same 151936 vocabulary).
   Pinned flags: `--enable-mfu-metrics`, `--no-enable-prefix-caching`.
   **Model changed from study 2's Qwen2.5-7B-Instruct** (2026-09-21). The 7B was
   inherited, not chosen: 15 GB of a 96 GB card, and a cheap decode, which is the worst

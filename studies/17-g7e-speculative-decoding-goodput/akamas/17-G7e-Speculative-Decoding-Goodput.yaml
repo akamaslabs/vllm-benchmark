@@ -14,19 +14,19 @@ name: 17-G7e-Speculative-Decoding-Goodput
 # FOUR DELIBERATE DIVERGENCES from the study it started as. Together they mean this
 # study's numbers are NOT comparable with 2-Larger-goodput's; it runs its own baseline
 # and imports nothing:
-#   1. MODEL: Qwen2.5-7B-Instruct -> Qwen/Qwen3-30B-A3B-Instruct-2507-FP8. Two of the
-#      three reasons stand: the 7B used 15 of 96 GB, and the 30B is studies 15/16's model
-#      which needed four L4s there and fits one card here, holding topology at 1.
-#      THE THIRD REASON WAS BACKWARDS AND IS RETRACTED (2026-09-22). It claimed the 7B's
-#      decode was "cheap" and so a poor vehicle. Measured per batch-1 decode step:
-#      Qwen2.5-7B bf16 reads ~15.2 GB of weights; this 30B MoE reads ~3.35 GB, because
-#      only 8 of 128 experts are active. The swap made the verify step ~4.5x CHEAPER.
-#      And verifying K+1 drafted tokens reads the UNION of the experts they route to —
-#      up to min(128, 8*(K+1)) per layer, ~9x single-token traffic at spec_tokens 8 —
-#      a cost a DENSE target does not pay. See the study README for the open decision
-#      this leaves: a dense target of comparable footprint (Qwen3-32B-FP8, 34.3 GB, same
-#      151936 vocabulary so the same Qwen3-0.6B drafter works) reads ~32.8 GB per step,
-#      roughly 10x this model, and is the better vehicle for the question actually asked.
+#   1. MODEL: Qwen2.5-7B-Instruct -> Qwen/Qwen3-32B-FP8 (dense, 34.32 GB), after a
+#      retracted intermediate step through Qwen3-30B-A3B-Instruct-2507-FP8. Weight bytes
+#      read per batch-1 decode step: 7B bf16 ~15.2 GB, the 30B MoE ~3.35 GB (only 8 of
+#      128 experts active), this model ~32.8 GB. The MoE made the verify step ~4.5x
+#      CHEAPER than the 7B, leaving less for speculation to amortise, and verifying K+1
+#      drafted tokens reads the UNION of the experts they route to (up to min(128,
+#      8*(K+1)) per layer) — a cost a dense target does not pay. Dense is the right
+#      vehicle: flat verify cost in draft length, ~10x the weight traffic to amortise,
+#      and vocab_size 151936 identical to the Qwen3-0.6B drafter.
+#      Comparability with studies 15/16 is gone; it was never worth a wrong experiment.
+#      This checkpoint is hybrid-thinking: the deployment template passes
+#      --default-chat-template-kwargs '{"enable_thinking": false}', without which every
+#      request emits a <think> block and the benchmark measures reasoning length.
 #   2. IMAGE: v0.22.0 -> v0.29.0. The pack's reference version, and the only engine
 #      emitting the V1 speculative counters (0.22.0 predates them, and the five metrics
 #      in vLLM's own docs are V0 legacy V1 does not emit).
@@ -50,14 +50,14 @@ name: 17-G7e-Speculative-Decoding-Goodput
 # the latency metrics the goal itself ignores.
 description: >-
   Speculative-decoding goodput study on one RTX PRO 6000 Blackwell (g7e.4xlarge, SM120)
-  serving Qwen/Qwen3-30B-A3B-Instruct-2507-FP8 with vLLM 0.29.0 — the model studies
-  15/16 had to shard over four L4s, here on a single card so topology is constant and
-  only speculation varies. Requires vLLM pack >= 1.10.0 for spec_method's "draft_model".
-  Ten preset steps compare the three drafter families head-to-head at identical settings
-  — none, ngram and ngram_gpu at 3/5/8 tokens, and draft_model at 3/5/8 with a
-  Qwen/Qwen3-0.6B drafter — before the optimizer runs, because a throughput-maximizing
-  goal at saturation is expected to reject speculation regardless of how well it works.
-
+  serving Qwen/Qwen3-32B-FP8 with vLLM 0.29.0 — dense on purpose: a sparse MoE makes the
+  verify pass cheap and grows it with draft length, which is the worst case for the
+  technique. Requires vLLM pack >= 1.10.0 for spec_method's "draft_model". Ten preset
+  steps compare the three drafter families head-to-head at identical settings — none,
+  ngram and ngram_gpu at 3/5/8 tokens, and draft_model at 3/5/8 with a Qwen/Qwen3-0.6B
+  drafter sharing the target's 151936 vocabulary — before the optimizer runs, because a
+  throughput-maximizing goal at saturation is expected to reject speculation regardless
+  of how well it works.
 system: vLLM_Benchmark_17_G7e_Speculative_Decoding
 workflow: 17-G7e-Speculative-Decoding-Goodput-Workflow
 
@@ -181,6 +181,16 @@ parameterConstraints:
   - name: max_num_batched_tokens must be at least max_num_seqs
     formula: vLLM.max_num_batched_tokens >= vLLM.max_num_seqs
 
+  # NO SAMPLER-WARMUP GUARD HERE, and that is deliberate rather than an omission.
+  # Studies 13-16 all carry one because they ran on 24 GB L4s, where the dummy warmup
+  # allocation of one fp32 [max_num_seqs, vocab] logits tensor genuinely did not fit:
+  # study 15 died on exactly 446 MiB = 768 x 151936 x 4 B. Same vocabulary here, so the
+  # coefficient is the same 0.0006 GiB per sequence, but the card is not: at the worst
+  # legal point of this study's own domains (gpu_memory_utilization 0.95, max_num_seqs
+  # 1024) the demand is 1024 x 0.0006 = 0.61 GiB against (1 - 0.95) x 95.59 = 4.78 GiB
+  # left outside vLLM's budget. The guard would never bind, and a constraint that can
+  # never fire is noise in the manifest. Re-add it if the card or the vocabulary changes.
+
   # --- The 3 carried over unchanged from 2-Larger-goodput ---
   - name: FLASH_ATTN only supports auto kv_cache_dtype
     formula: vLLM.attention_backend != "FLASH_ATTN" || vLLM.kv_cache_dtype == "auto"
@@ -270,9 +280,18 @@ kpis:
   - name: GPU banda memoria
     formula: gpu0.gpu_dram_active
     direction: maximize
-  - name: GPU potenza
-    formula: gpu0.gpu_power_usage
+  # SWAPPED 2026-09-22 (gpu0.gpu_power_usage was here). Two reasons. Power is
+  # low-information on this class of card: study 16 found its GPUs pinned at the power cap
+  # for 57% of every trial, so the metric is nearly constant. Preemption is the opposite:
+  # this dense 32B reads 64 layers x 8 KV heads x 128 head_dim x 2 x 2 B = 256 KiB of KV
+  # per token, 2.7x the MoE it replaced, so KV pressure is real here in a way it was not
+  # before — and study 16 found preemption to be THE discriminator between kv_cache_dtype
+  # auto and fp8. Power is still collected, it is simply not one of the 8 ranked KPIs
+  # (Akamas allows no more).
+  - name: Preemption (picco)
+    formula: vLLM.preemption_rate
     direction: minimize
+    aggregation: max
 
 steps:
   # Same baseline design as the study this duplicates: pin only

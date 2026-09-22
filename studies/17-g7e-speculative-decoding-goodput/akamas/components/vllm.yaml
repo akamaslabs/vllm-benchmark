@@ -3,8 +3,8 @@ system: vLLM_Benchmark_17_G7e_Speculative_Decoding
 
 name: vLLM
 description: >-
-  The vLLM server under test — Qwen/Qwen3-30B-A3B-Instruct-2507-FP8 served as
-  "qwen3-30b-a3b" by vllm/vllm-openai:v0.29.0 in namespace llm-serving, with a
+  The vLLM server under test — Qwen/Qwen3-32B-FP8 served as
+  "qwen3-32b" by vllm/vllm-openai:v0.29.0 in namespace llm-serving, with a
   Qwen/Qwen3-0.6B drafter for the draft_model cells. Carries every tuned
   parameter, including this study's new spec_method/spec_tokens.
 componentType: vLLM

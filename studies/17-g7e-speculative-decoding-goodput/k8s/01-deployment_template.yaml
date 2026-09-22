@@ -95,24 +95,35 @@ spec:
           # close to the worst possible target for showing speculative decoding work.
           # That reasoning is unchanged and is why this model is DENSE.
           #
-          # WHY 8B RATHER THAN 32B. Not preference — arithmetic. The L4 exposes 22.49 GiB
+          # WHY 8B RATHER THAN 32B. Not preference — arithmetic. The L4 exposes 22.03 GiB usable
           # and Qwen3-32B-FP8 is 30.5 GiB of weights alone. Figures below are from each
           # repo's own config.json and safetensors sizes, fetched 2026-09-22, not estimated:
           #
-          #   model             weights    KV/token bf16   KV/token fp8   KV left @ gmu 0.88
-          #                                                                (with the drafter)
-          #   Qwen3-4B-FP8      4.83 GiB      144 KiB          72 KiB        12.1 GiB
-          #   Qwen3-8B-FP8      8.79 GiB      144 KiB          72 KiB         8.1 GiB
-          #   Qwen3-14B-FP8    15.21 GiB      160 KiB          80 KiB         1.7 GiB
-          #   Qwen3-0.6B (drafter, bf16)  1.40 GiB   112 KiB   56 KiB
+          #   model             weights    KV/token bf16   KV/token fp8   layers / KV heads
+          #   Qwen3-4B-FP8      4.83 GiB      144 KiB          72 KiB         36 / 8
+          #   Qwen3-8B-FP8      8.79 GiB      144 KiB          72 KiB         36 / 8
+          #   Qwen3-14B-FP8    15.21 GiB      160 KiB          80 KiB         40 / 8
+          #   Qwen3-0.6B (drafter, bf16)  1.11 GiB resident    112 KiB / 56 KiB   28 / 8
+          # The drafter is 1.11 GiB resident rather than the 1.40 GiB its safetensors
+          # total suggests, because it declares tie_word_embeddings and vLLM ties the
+          # duplicate lm_head to the embedding instead of keeping both.
           #
-          # 14B is out: 1.7 GiB holds ~6.3k tokens, so the three draft_model presets fail
-          # vLLM's startup KV-fit check outright — one max_model_len sequence does not fit.
+          # 14B is out: roughly 1.7 GiB of pool once the drafter is loaded, ~6.3k tokens,
+          # so the three draft_model presets fail vLLM's startup KV-fit check outright —
+          # one max_model_len sequence does not fit.
           # 4B is out for the opposite reason: identical layer count and KV heads to the 8B
           # (36 / 8), so KV costs the same per token while the verify pass reads half as
-          # much. The drafter's 1.40 GiB per draft step would be ~87% of a 4.83 GiB verify
-          # at 3 speculative tokens — speculation would lose by construction and teach
-          # nothing. 8B keeps ~8.1 GiB of KV with the drafter loaded, ~32k tokens.
+          # much. The drafter would be ~27% of a 4.83 GiB verify step — speculation would
+          # lose by construction and a null result would be unattributable between "this
+          # does not help here" and "this drafter is too big for this target".
+          #
+          # MEASURED on the live L4, S8 cell at gpu_memory_utilization 0.88 with the
+          # drafter loaded (2026-09-22 smoke test), which came in below the arithmetic:
+          #   max_cudagraph_capture_size 512 -> 6.12 GiB of KV, 25,072 tokens
+          #   max_cudagraph_capture_size 128 -> 6.57 GiB of KV, 26,928 tokens
+          # Weights + non-torch 11.36 GiB, peak activation 1.91 GiB, CUDA graphs 0.77 GiB.
+          # The arithmetic predicted ~8 GiB of KV; the reserve was underestimated by about
+          # 1.5 GiB, which is why the load ramp's ceiling matters less than its floor.
           #
           # All four checkpoints share vocab_size 151936, so the Qwen/Qwen3-0.6B drafter
           # pairing survives the swap untouched — verified, not assumed.
@@ -281,7 +292,7 @@ spec:
             # change the L4 forces on this file's reasoning. On the 96 GB card the drafter
             # was ~1.2 GB, about 1.25% of the card, and its KV was not worth counting.
             # Here: 1.11 GiB resident (tie_word_embeddings is true, so the duplicate
-            # lm_head in the repo is not resident) out of 22.49 GiB. More importantly
+            # lm_head in the repo is not resident) out of 22.03 GiB usable. More importantly
             # vLLM 0.29.0 gives the drafter its OWN KV cache — DraftModelProposer loads it
             # with prefix="draft_model" and SpecDecodeBaseProposer.load_model() registers
             # its attention layers in the KV cache config — so its 28 layers add
@@ -314,6 +325,32 @@ spec:
           env:
             - name: VLLM_LOGGING_LEVEL
               value: DEBUG
+            # ADDED 2026-09-22, and it removes a confound that would have quietly
+            # invalidated the whole preset comparison.
+            #
+            # vLLM 0.29.0 picks between two model runners at startup. Reading
+            # VllmConfig.use_v2_model_runner and _get_v2_model_runner_unsupported_features
+            # in the running image: `ngram` and `ngram_gpu` are explicitly listed as
+            # unsupported by V2, and `draft_model` is not in V2's allow-list either
+            # (eagle, eagle3, mtp, dflash, dspark, extract_hidden_states), so ALL NINE
+            # speculative preset cells fall back to the V1 runner. Observed live in the
+            # S8 smoke test: "Model Runner V2 does not yet support speculative method
+            # 'draft_model'; using the V1 model runner instead."
+            #
+            # The problem is S1, the spec-off REFERENCE cell. With speculative_config
+            # None that whole branch is skipped, so S1 could legitimately select V2 while
+            # every cell it exists to be compared against runs V1. The reference would
+            # then differ from the treatments by the execution engine, not just by
+            # speculation — the one difference the grid must not have.
+            #
+            # VLLM_USE_V2_MODEL_RUNNER short-circuits the entire selection (it is checked
+            # first and returned directly), so "0" pins every experiment in the study to
+            # V1. Chosen over "1" because V1 is where the speculative cells have to run
+            # regardless; forcing V2 would simply be ignored for nine of the ten.
+            # Revisit when V2 gains speculative support: at that point the honest move is
+            # a new study on V2, not a mixed one.
+            - name: VLLM_USE_V2_MODEL_RUNNER
+              value: "0"
           ports:
             - name: http
               containerPort: 8000

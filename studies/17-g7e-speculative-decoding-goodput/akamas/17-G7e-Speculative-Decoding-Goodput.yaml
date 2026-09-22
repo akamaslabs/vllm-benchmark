@@ -24,8 +24,16 @@ name: 17-G7e-Speculative-Decoding-Goodput
 # direct capacity probe (infra/eks/gpu-capacity-fallback.sh probe, which creates and
 # immediately cancels a capacity reservation per type and zone) then found EVERY GPU
 # class above 24 GB per GPU empty in every us-east-2 zone — g7e, g6e/L40S and
-# g6.12xlarge alike. The study now runs on ONE NVIDIA L4: 22.49 GiB, Ada/SM89,
-# ~300 GB/s, 72 W cap, on a g6.4xlarge at 1.32 USD/h.
+# g6.12xlarge alike. The study now runs on ONE NVIDIA L4: Ada/SM89, ~300 GB/s, 72 W cap,
+# on a g6.4xlarge at 1.32 USD/h.
+#
+# TWO DIFFERENT MEMORY FIGURES, both correct, and the constraints below depend on using
+# the right one. nvidia-smi on the node reports 23034 MiB, i.e. 22.49 GiB. vLLM's own
+# startup accounting reports the card as 22.03 GiB with 21.84 GiB free, the ~0.46 GiB gap
+# being reserved/ECC overhead the runtime never sees. Study 16's measured guard uses
+# 22.03, and the 2026-09-22 smoke test confirmed vLLM prints exactly that — so every
+# constraint and budget in this file is written against 22.03, not against nvidia-smi's
+# headline number.
 #
 # FIVE DELIBERATE DIVERGENCES from the study it started as. Together they mean this
 # study's numbers are NOT comparable with 2-Larger-goodput's; it runs its own baseline
@@ -37,7 +45,7 @@ name: 17-G7e-Speculative-Decoding-Goodput
 #      verifying K+1 drafted tokens reads the UNION of the experts they route to (up to
 #      min(128, 8*(K+1)) per layer) — a cost a dense target does not pay. Dense is still
 #      the right vehicle, with flat verify cost in draft length. The 32B was right on
-#      physics and impossible on memory: 30.5 GiB of weights against 22.49 GiB of card.
+#      physics and impossible on memory: 30.5 GiB of weights against 22.03 GiB usable of card.
 #      8B was then chosen over 14B and 4B on arithmetic from each repo's own config.json
 #      and safetensors headers — 14B leaves ~1.7 GiB of KV with the drafter loaded and
 #      fails vLLM's one-request fit check; 4B has identical layers and KV heads to the 8B
@@ -66,7 +74,7 @@ name: 17-G7e-Speculative-Decoding-Goodput
 #      each failed startup still burns the full 29-minute rollout wait before Akamas is
 #      told, which is why the domains below are conservative rather than the failure
 #      budget generous.
-#   5. DOMAINS AND PRESETS RE-DERIVED for 22.49 GiB. The sampler-warmup guard is back,
+#   5. DOMAINS AND PRESETS RE-DERIVED for 22.03 GiB usable. The sampler-warmup guard is back,
 #      gpu_memory_utilization / max_num_seqs / max_num_batched_tokens / spec_tokens are
 #      all narrowed, the preset grid moved to FLASH_ATTN, and the draft_model cells were
 #      re-cut to 2/3/4 tokens. Each is argued at its own site below.
@@ -82,7 +90,7 @@ name: 17-G7e-Speculative-Decoding-Goodput
 # otherwise-identical settings BEFORE the optimize step, and why the KPI list carries
 # the latency metrics the goal itself ignores.
 description: >-
-  Speculative-decoding goodput study on one NVIDIA L4 (g6.4xlarge, 22.49 GiB, Ada/SM89)
+  Speculative-decoding goodput study on one NVIDIA L4 (g6.4xlarge, 22.03 GiB usable, Ada/SM89)
   serving Qwen/Qwen3-8B-FP8 with vLLM 0.29.0. Dense on purpose: a sparse MoE makes the
   verify pass cheap and grows it with draft length, the worst case for the technique. The
   name says G7e because the study was built for an RTX PRO 6000 that AWS had no capacity
@@ -130,7 +138,7 @@ numberOfTrials: 1
 
 parametersSelection:
   # --- The 14 carried over from 2-Larger-goodput; three domains RE-DERIVED 2026-09-22
-  #     when the study moved from a 96 GB Blackwell to one 22.49 GiB L4 ---
+  #     when the study moved from a 96 GB Blackwell to one 22.03 GiB usable L4 ---
   #
   # All three below were sized for a card with roughly four times this one's memory. The
   # pack's own declared domains are much wider still (gpu_memory_utilization [0.0, 1.0],
@@ -209,7 +217,21 @@ parametersSelection:
   - name: vLLM.async_scheduling
     categories: ["true", "false"]
   - name: vLLM.max_cudagraph_capture_size
-    domain: [1, 1024]
+    # CEILING LOWERED 2026-09-22 from 1024 to 128, and this one was MEASURED rather than
+    # reasoned. Capturing CUDA graphs for batch sizes above max_num_seqs is dead weight
+    # everywhere; on a card where VRAM is the binding resource it is dead weight taken
+    # straight out of the KV cache. Two smoke-test runs on the live L4, identical in every
+    # other respect (S8 cell, draft_model, 2 speculative tokens, gpu_memory_utilization
+    # 0.88, max_num_seqs 128):
+    #   max_cudagraph_capture_size 512 -> KV cache 6.12 GiB, 25,072 tokens
+    #   max_cudagraph_capture_size 128 -> KV cache 6.57 GiB, 26,928 tokens
+    # +0.45 GiB and +1,856 tokens, a 7.4% gain in the resource that decides this study's
+    # concurrency, for capture sizes the engine could never have used. The cost is not
+    # only the captured graphs themselves (0.77 GiB at 512) but also vLLM's CUDA-graph
+    # memory PROFILING, which reserves ahead of capture and which the engine reports as
+    # being worth 0.033 of gpu_memory_utilization on its own.
+    # Kept equal to the max_num_seqs ceiling so the two move together if either is retuned.
+    domain: [1, 128]
   - name: vLLM.block_size
     categories: ["16", "32", "48", "64", "80", "96", "112", "128"]
   - name: vLLM.attention_backend
@@ -391,7 +413,7 @@ kpis:
   # ROUND 2 (2026-09-22): preemption_rate came back in place of gpu0.gpu_power_usage,
   # because study 16 found its GPUs pinned at the power cap for 57% of every trial, so
   # power is nearly constant and therefore low-information on this class of card.
-  # ROUND 3 (2026-09-22, this one): the card is now a 22.49 GiB L4, so KV pressure is not
+  # ROUND 3 (2026-09-22, this one): the card is now a 22.03 GiB usable L4, so KV pressure is not
   # "unexpected" — it is the expected binding constraint, and the round-1 escape clause
   # fires. vLLM.kv_cache_usage_avg returns, in place of gpu0.gpu_dram_active.
   #
@@ -551,7 +573,7 @@ steps:
       vLLM.disable_cascade_attn: "false"
       vLLM.tokenizer_mode: "auto"
       vLLM.async_scheduling: "false"
-      vLLM.max_cudagraph_capture_size: 512
+      vLLM.max_cudagraph_capture_size: 128
 
   - name: S2 ngram 3 tokens
     type: preset
@@ -571,7 +593,7 @@ steps:
       vLLM.disable_cascade_attn: "false"
       vLLM.tokenizer_mode: "auto"
       vLLM.async_scheduling: "false"
-      vLLM.max_cudagraph_capture_size: 512
+      vLLM.max_cudagraph_capture_size: 128
 
   - name: S3 ngram 5 tokens
     type: preset
@@ -591,7 +613,7 @@ steps:
       vLLM.disable_cascade_attn: "false"
       vLLM.tokenizer_mode: "auto"
       vLLM.async_scheduling: "false"
-      vLLM.max_cudagraph_capture_size: 512
+      vLLM.max_cudagraph_capture_size: 128
 
   - name: S4 ngram 8 tokens
     type: preset
@@ -611,7 +633,7 @@ steps:
       vLLM.disable_cascade_attn: "false"
       vLLM.tokenizer_mode: "auto"
       vLLM.async_scheduling: "false"
-      vLLM.max_cudagraph_capture_size: 512
+      vLLM.max_cudagraph_capture_size: 128
 
   - name: S5 ngram_gpu 3 tokens
     type: preset
@@ -631,7 +653,7 @@ steps:
       vLLM.disable_cascade_attn: "false"
       vLLM.tokenizer_mode: "auto"
       vLLM.async_scheduling: "false"
-      vLLM.max_cudagraph_capture_size: 512
+      vLLM.max_cudagraph_capture_size: 128
 
   - name: S6 ngram_gpu 5 tokens
     type: preset
@@ -651,7 +673,7 @@ steps:
       vLLM.disable_cascade_attn: "false"
       vLLM.tokenizer_mode: "auto"
       vLLM.async_scheduling: "false"
-      vLLM.max_cudagraph_capture_size: 512
+      vLLM.max_cudagraph_capture_size: 128
 
   - name: S7 ngram_gpu 8 tokens
     type: preset
@@ -671,7 +693,7 @@ steps:
       vLLM.disable_cascade_attn: "false"
       vLLM.tokenizer_mode: "auto"
       vLLM.async_scheduling: "false"
-      vLLM.max_cudagraph_capture_size: 512
+      vLLM.max_cudagraph_capture_size: 128
 
   # --- draft_model cells, the other half of the comparison. Same fixed values as
   #     S1-S7, so between "ngram at 5 tokens" and "draft_model at 5 tokens" the only
@@ -697,7 +719,7 @@ steps:
       vLLM.disable_cascade_attn: "false"
       vLLM.tokenizer_mode: "auto"
       vLLM.async_scheduling: "false"
-      vLLM.max_cudagraph_capture_size: 512
+      vLLM.max_cudagraph_capture_size: 128
 
   - name: S9 draft_model 3 tokens
     type: preset
@@ -717,7 +739,7 @@ steps:
       vLLM.disable_cascade_attn: "false"
       vLLM.tokenizer_mode: "auto"
       vLLM.async_scheduling: "false"
-      vLLM.max_cudagraph_capture_size: 512
+      vLLM.max_cudagraph_capture_size: 128
 
   - name: S10 draft_model 4 tokens
     type: preset
@@ -737,7 +759,7 @@ steps:
       vLLM.disable_cascade_attn: "false"
       vLLM.tokenizer_mode: "auto"
       vLLM.async_scheduling: "false"
-      vLLM.max_cudagraph_capture_size: 512
+      vLLM.max_cudagraph_capture_size: 128
 
   # numberOfInitExperiments MUST stay 0. Any value above 0 makes the campaign service
   # run its own Sobol bootstrap ON TOP of the presets above, landing back on the same

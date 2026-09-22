@@ -27,7 +27,7 @@ again 2026-09-22** (see the box below).
 > Started as a duplicate of `2-larger-model-g7e`'s **"2-Larger-goodput"** — same goal,
 > SLA, windowing and 14 tuned parameters — with **speculative decoding** as the new
 > dimension. It has since diverged on five points (model, image, ramp, timeouts, and the
-> domains re-derived for 22.49 GiB), each recorded below, so it imports nothing from that
+> domains re-derived for 22.03 GiB usable), each recorded below, so it imports nothing from that
 > study and runs its own baseline. Telemetry carries 131 metrics: study 16's 110 plus 16
 > the installed packs declare that no study had ever collected, plus the 5
 > speculative-decoding acceptance metrics that pack 1.10.1 now ships.
@@ -213,7 +213,7 @@ parallelism, a model that fits with room to spare.
   the V1 speculative counters do not exist on 0.22.0. Both changes mean this study is
   not comparable with 2-Larger-goodput's numbers and imports nothing from it.
 - **Weights and memory (re-derived 2026-09-22 from each HF repo's own config.json and
-  safetensors headers):** 8.79 GiB of FP8 weights plus 1.11 GiB of drafter on a 22.49 GiB
+  safetensors headers):** 8.79 GiB of FP8 weights plus 1.11 GiB of drafter on a 22.03 GiB usable
   card. KV costs 144 KiB/token for the target alone and **256 KiB/token once the drafter
   is loaded**, because vLLM 0.29.0 gives the draft model its own KV cache. At
   `gpu_memory_utilization` 0.88 that leaves roughly 8 GiB of pool, on the order of 32 k
@@ -305,7 +305,7 @@ which would make `suffix` interesting in its own right.
 
 ### Constraints (9)
 
-> All four numeric domains above were **re-derived on 2026-09-22** for a 22.49 GiB card;
+> All four numeric domains above were **re-derived on 2026-09-22** for a 22.03 GiB usable card;
 > the values they replace were sized for 96 GB. The constraint count went from 7 to 9 in
 > the same change: the sampler-warmup guard came back (the manifest had removed it with an
 > explicit "re-add it if the card or the vocabulary changes"), joining the

@@ -15,7 +15,7 @@ Maximize `vLLM.prefill_token_throughput + vLLM.decode_token_throughput` on one N
 (g6.4xlarge, 23034 MiB, Ada/SM89) serving `Qwen/Qwen3-8B-FP8`, subject to TTFT p95 ≤ 1500 ms
 and ITL p95 ≤ 300 ms. Single GPU, so the goal is also the per-GPU figure. Both the card and
 the model changed on 2026-09-22: AWS had no capacity for any GPU above 24 GB in `us-east-2`,
-and the 30.5 GiB `Qwen/Qwen3-32B-FP8` this study had settled on does not fit 22.49 GiB. It
+and the 30.5 GiB `Qwen/Qwen3-32B-FP8` this study had settled on does not fit 22.03 GiB usable. It
 duplicates
 `2-larger-model-g7e`'s "2-Larger-goodput" and adds speculative decoding
 (`vLLM.spec_method` / `vLLM.spec_tokens`) as the one new tuned dimension. Full rationale,

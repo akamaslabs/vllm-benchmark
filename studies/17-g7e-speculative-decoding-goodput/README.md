@@ -565,6 +565,66 @@ reproduce study 16's mistake in mirror image — measuring queueing and calling 
 Worth noting for the recap: the baseline itself ran with `max_num_seqs` 256, vLLM's own
 default, so it is the one experiment whose batch cap was never the binding constraint.
 
+## Interim result after 9 of 11 preset experiments (2026-09-22): the premise does not hold
+
+| Step | Score | vs S1 | Speculative tokens |
+|---|---|---|---|
+| baseline | 1507.62 | — | none |
+| S1 spec off reference | 1477.21 | — | none |
+| S2 ngram 3 | 1139.20 | -22.9% | 3 |
+| S3 ngram 5 | 901.79 | -39.0% | 5 |
+| S4 ngram 8 | 1218.43 | -17.5% | 8 |
+| S5 ngram_gpu 3 | 1085.20 | -26.5% | 3 |
+| S6 ngram_gpu 5 | 1193.43 | -19.2% | 5 |
+| S7 ngram_gpu 8 | 1098.51 | -25.6% | 8 |
+| **S8 draft_model 2** | **830.49** | **-43.8%** | 2 |
+
+**Every speculative configuration loses, and the biggest loser is the one that speculates
+most.** That ordering is the finding.
+
+**The founding premise was idle compute, and it is false here.** This study exists because
+study 16 found its best configurations pinned at the power cap with the memory bus ~48%
+active and tensor cores ~11% — spare compute a drafter could spend. Measured on this
+configuration during the preset grid, `DCGM_FI_PROF_SM_ACTIVE` sits at **85-91%** for
+every experiment's scored window, with DRAM active at 63-86%. There is no idle compute.
+Every cycle the drafter takes is taken from the verifier.
+
+The difference from study 16 is the workload, not the card: study 16 sharded a *sparse*
+30B MoE across four L4s with tensor and data parallelism, which leaves per-GPU occupancy
+low. This study runs a *dense* 8B on one L4, where every weight read is a weight used.
+
+**Two distinct failure modes, and having both method families is what separates them.**
+- `ngram`/`ngram_gpu` lose because they draft *rarely*. Measured on S2: 15,350 drafts
+  contributing **~3% of emitted tokens**, at a healthy 50% acceptance. The hit rate is
+  fine; the volume is not, because ShareGPT chat has few repeated n-grams to look up. The
+  cost, however, is paid on every step.
+- `draft_model` loses *harder* because it drafts *always*. Measured on S8: 194,187 drafts,
+  58.9% acceptance, **54.1% of emitted tokens** came from speculation. The volume problem
+  is completely solved — and it still scored worst of all nine, because on a GPU at 86%
+  occupancy that volume is bought with compute that was not spare.
+
+Without both families this would have been an uninterpretable "speculation did not help".
+With them it is attributable: it is not that the drafters guess badly, it is that there is
+nothing idle to spend.
+
+**Preemption was NOT the cause, contrary to the obvious hypothesis.** `draft_model` halves
+the KV pool (26,928 tokens against 49,616) and the expectation was that the scored window,
+being the saturated end, would show preemption. `vllm:num_preemptions_total` reads
+**0.00/s across every experiment's window**. KV was never the binding constraint; compute
+was.
+
+**Caveat on the ordering within a family, which is not significant.** `ngram` scored 1139,
+902, 1218 at 3, 5 and 8 tokens; `ngram_gpu` scored 1085, 1193, 1099. Non-monotonic in both,
+and the spread within a family (35% for ngram) exceeds the difference between families.
+With `numberOfTrials: 1` these six are one sample each, so only the gap to S1 — far larger
+than the spread — is a real signal. Do not read a best draft length out of this grid.
+
+**What the goal cannot see.** Windowing scores the max-prefill-throughput window, i.e. the
+saturated end, where SM occupancy is 86%. At the bottom of the ramp the same metric reads
+~49%, and that is the regime where speculation is supposed to pay. The KPI list carries
+the latency metrics precisely because the goal ignores it; a per-concurrency-level read of
+TPOT and ITL from the export is the follow-up this grid earns.
+
 ## Prerequisites still open
 
 1. **Recreate the Akamas resources.** Not a blocker, just an ordering requirement: the

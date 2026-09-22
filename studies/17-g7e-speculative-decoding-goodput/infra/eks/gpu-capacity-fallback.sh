@@ -224,6 +224,44 @@ probe_capacity() {
     --query 'CapacityReservations[].[CapacityReservationId,InstanceType,AvailabilityZone]' --output text
 }
 
+dcgm_cover() {
+  # The dcgm-exporter DaemonSet in `monitoring` is pinned with
+  #   nodeSelector: {node-role: llm-serving-g7e}
+  # so it schedules on NOTHING but the g7e node. Confirmed 2026-09-22: with the L4 node
+  # Ready and its GPU allocatable, DESIRED/CURRENT/READY on that DaemonSet were all 0 and
+  # no dcgm pod existed. Nothing errors — the GPU metric series are simply absent, which a
+  # study only discovers after a trial has already produced empty GPU telemetry.
+  #
+  # This drops the nodeSelector in favour of a nodeAffinity matching EVERY GPU node
+  # group's label, so the exporter follows whichever GPU node actually exists and needs no
+  # further edit if g7e capacity returns. It only widens coverage: no node covered before
+  # stops being covered.
+  #
+  # dcgm-exporter is a SHARED release — other studies' GPU telemetry rides on it. Run this
+  # deliberately, never as part of routine provisioning.
+  local vals; vals=$(mktemp)
+  helm get values dcgm-exporter -n monitoring -o yaml > "$vals"
+  python3 - "$vals" <<'PYEOF'
+import sys, yaml
+f = sys.argv[1]
+v = yaml.safe_load(open(f)) or {}
+v.pop('nodeSelector', None)
+v['affinity'] = {'nodeAffinity': {'requiredDuringSchedulingIgnoredDuringExecution': {
+  'nodeSelectorTerms': [{'matchExpressions': [{
+    'key': 'node-role', 'operator': 'In',
+    'values': ['llm-serving-g7e', 'llm-serving-l4-single', 'llm-serving-l4', 'llm-serving'],
+  }]}]}}}
+yaml.safe_dump(v, open(f, 'w'), default_flow_style=False)
+PYEOF
+  echo "--- values about to be applied:"; cat "$vals"
+  helm upgrade dcgm-exporter -n monitoring \
+    --repo https://nvidia.github.io/dcgm-exporter/helm-charts dcgm-exporter \
+    --version 4.8.3 -f "$vals" --reset-values
+  rm -f "$vals"
+  echo "--- where it runs now:"
+  kubectl -n monitoring get pods -l app.kubernetes.io/name=dcgm-exporter -o wide --no-headers
+}
+
 status() {
   echo "=== GPU node groups"
   for ng in $(aws eks list-nodegroups --cluster-name "$CLUSTER" --region "$REGION" \
@@ -247,6 +285,7 @@ case "${1:-}" in
   l40s)   create_l40s   ;;
   l4-single) create_l4_single ;;
   probe)  shift; probe_capacity "$@" ;;
+  dcgm-cover) dcgm_cover ;;
   status) status        ;;
-  *) echo "usage: $0 {g7e-2a|l40s|l4-single|probe [type...]|status}" >&2; exit 1 ;;
+  *) echo "usage: $0 {g7e-2a|l40s|l4-single|probe [type...]|dcgm-cover|status}" >&2; exit 1 ;;
 esac

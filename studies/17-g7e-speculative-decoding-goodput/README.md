@@ -1,23 +1,44 @@
 # 17-g7e-speculative-decoding-goodput
 
-**Status:** TODO — **blocked on vLLM optimization pack 1.10.0 being installed.** The
-Akamas system, components, telemetry instance and workflow are created; the study itself
-was created once in its 7B form and must be **deleted and recreated** after the pack ships
-(`parametersSelection` cannot be edited on an existing study).
-**Dates:** Scaffolded 2026-09-21, reconfigured the same day (model swap + `draft_model`)
+**Status:** TODO — configuration complete, not yet started.
+**Dates:** Scaffolded 2026-09-21, model swapped 2026-09-21, **hardware and model changed
+again 2026-09-22** (see the box below).
 
-> Started as a duplicate of `2-larger-model-g7e`'s **"2-Larger-goodput"** — same single
-> RTX PRO 6000 Blackwell, same goal, SLA, windowing and 14 tuned parameters — with
-> **speculative decoding** as the new dimension. It has since diverged on four points
-> (model, image, ramp, timeouts), each recorded below, so it imports nothing from that
-> study and runs its own baseline. Telemetry carries 126 metrics: study 16's 110 plus 16
-> the installed packs declare that no study had ever collected.
+> ### The card changed on 2026-09-22, and most of this file predates that
+>
+> This study was built for a single **RTX PRO 6000 Blackwell** (96 GB, SM120) on a
+> `g7e.4xlarge`. AWS ran out of them: 56+ consecutive `InsufficientInstanceCapacity`
+> failures in one day, a second node group on `g7e.8xlarge` rolled back with the same
+> error, a third pinned to `us-east-2a` reached `CREATE_FAILED` after 34 attempts. A
+> direct capacity probe then found **every GPU class above 24 GB per GPU empty in all
+> three `us-east-2` zones** — g7e, g6e/L40S and `g6.12xlarge` alike.
+>
+> The study now runs on **one NVIDIA L4** (`g6.4xlarge`, 23034 MiB, Ada/SM89, ~300 GB/s,
+> 72 W cap, 1.32 USD/h) serving **`Qwen/Qwen3-8B-FP8`**, because `Qwen/Qwen3-32B-FP8`
+> needs 30.5 GiB of weights and does not fit. The **name is now a misnomer** and is kept
+> on purpose: renaming would mean rewriting nine hardcoded workflow paths, the toolbox
+> checkout and every already-created Akamas resource.
+>
+> **The authoritative files are `akamas/` and `k8s/`, which are current.** Sections of
+> this README below still argue from the 96 GB card; they are kept because the reasoning
+> is what justified each choice, but where they conflict with `akamas/README.md`, that
+> file wins. `study-recap` will rewrite this one when the study closes.
+
+> Started as a duplicate of `2-larger-model-g7e`'s **"2-Larger-goodput"** — same goal,
+> SLA, windowing and 14 tuned parameters — with **speculative decoding** as the new
+> dimension. It has since diverged on five points (model, image, ramp, timeouts, and the
+> domains re-derived for 22.49 GiB), each recorded below, so it imports nothing from that
+> study and runs its own baseline. Telemetry carries 131 metrics: study 16's 110 plus 16
+> the installed packs declare that no study had ever collected, plus the 5
+> speculative-decoding acceptance metrics that pack 1.10.1 now ships.
 
 ## Objective
 
-Find out whether **speculative decoding earns its place** on a single large-VRAM GPU
-serving a 7B dense model under an interactive-chat SLA, and if so, with which method and
-how many speculative tokens.
+Find out whether **speculative decoding earns its place** on a single GPU serving a dense
+model under an interactive-chat SLA, and if so, with which method and how many speculative
+tokens. The card is now an L4 rather than the 96 GB Blackwell, which sharpens the question
+rather than blunting it: at ~300 GB/s the decode step is deeper into the
+memory-bandwidth-bound regime speculation exists to exploit.
 
 ```
 maximize  vLLM.prefill_token_throughput + vLLM.decode_token_throughput
@@ -45,15 +66,17 @@ That would be a legitimate finding, but only if every method was actually measur
 than abandoned after one unlucky trial. Three design choices protect against the second
 outcome:
 
-1. **Seven preset steps run the whole grid head-to-head** (`none`, `ngram` × 3/5/8,
-   `ngram_gpu` × 3/5/8) at otherwise-identical settings, before the optimizer gets to
+1. **Ten preset steps run the whole grid head-to-head** (`none`, `ngram` × 3/5/8,
+   `ngram_gpu` × 3/5/8, `draft_model` × 2/3/4 — the last family uses lower draft lengths
+   because its drafter is 1.11 GiB against an 8.79 GiB target and carries its own KV
+   cache) at otherwise-identical settings, before the optimizer gets to
    choose anything. S1 is speculation off *at those same settings*, so the six
    speculative cells have a proper reference rather than being compared against a
    baseline that differs in a dozen other ways.
 2. **The concurrency sweep was re-floored from 150 → 8.** Study 2's ramp started at 150
    concurrent requests, which observes only the regime where speculation is expected to
    lose; a study using it would answer its own question by construction of the load
-   pattern. The sweep is now 9 levels, 8 → 2048, doubling — the ceiling raised too,
+   pattern. The sweep is now 8 levels, 1 → 128, doubling — the ceiling raised too,
    because study 16 served this same model and ran out of ramp before its best
    configurations ran out of SLA.
 3. **Ten KPIs carry the latency metrics the goal ignores** — TTFT, ITL and especially
@@ -164,18 +187,23 @@ parallelism, a model that fits with room to spare.
 ## Stack & versions
 
 - **Akamas version:** 3.7.x
-- **Optimization packs:** vLLM **1.10.0 REQUIRED** (1.9.1 lacks `spec_method`'s
-  `draft_model` category; the change is on branch `feature/speculative-decoding-metrics`
-  in the pack's own repo, committed and not pushed), GPU **1.2.0**, Kubernetes
-  **1.9.0-dev** —
-  **read from the local pack checkouts, NOT confirmed on the instance.**
-  `akamas list optimization-pack` returns `Access forbidden … requires the
-  'Administrator' role` for this account. Verify before creating the system. Study 16
+- **Optimization packs:** vLLM **1.10.1, INSTALLED** — confirmed indirectly on 2026-09-22,
+  since the telemetry instance exists on the instance and maps the five `spec_decode_*`
+  metrics only >= 1.10.0 declares, which it could not otherwise have been created with.
+  GPU **1.2.0**, Kubernetes **1.9.0-dev**, both still **read from the local pack
+  checkouts and NOT confirmed on the instance**: `akamas list optimization-pack` returns
+  `Access forbidden … requires the 'Administrator' role` for this account. Study 16
   recorded Kubernetes 1.8.0-dev as installed, so that one in particular may differ.
+  The vLLM pack's source branch `feature/speculative-decoding-metrics` is still committed
+  locally and unpushed — a debt, since the instance runs a version its repo has no record
+  of.
 - **Workload under test:** `vllm/vllm-openai:v0.29.0` serving
-  **`Qwen/Qwen3-32B-FP8`** (dense), served as `qwen3-32b`, namespace `llm-serving`, with
+  **`Qwen/Qwen3-8B-FP8`** (dense), served as `qwen3-8b`, namespace `llm-serving`, with
   **`Qwen/Qwen3-0.6B`** as the drafter for the `draft_model` cells (same 151936 vocabulary).
-  Pinned flags: `--enable-mfu-metrics`, `--no-enable-prefix-caching`.
+  Pinned flags: `--enable-mfu-metrics`, `--no-enable-prefix-caching`,
+  `--max-model-len=4096` (a literal, not a rendered token — see `k8s/` for why that
+  distinction cost a startup failure), and the mandatory
+  `--default-chat-template-kwargs '{"enable_thinking": false}'`.
   **Model changed from study 2's Qwen2.5-7B-Instruct** (2026-09-21). The 7B was
   inherited, not chosen: 15 GB of a 96 GB card, and a cheap decode, which is the worst
   case for showing speculation work. The 30B MoE is also the exact model of studies
@@ -184,21 +212,33 @@ parallelism, a model that fits with room to spare.
   varies. **Image changed from v0.22.0** for the pack's reference version and because
   the V1 speculative counters do not exist on 0.22.0. Both changes mean this study is
   not comparable with 2-Larger-goodput's numbers and imports nothing from it.
-- **Weights and memory:** 29.03 GiB of FP8 weights (measured in study 15) on a 97 887 MiB
-  card, leaving roughly 50-60 GiB of KV cache depending on `gpu_memory_utilization`. At
-  96 KiB/token (study 15's measured figure for this architecture) that is over 500 k
-  tokens of cache, so unlike studies 15/16 this study is **not** KV-bound — which is why
-  KV usage and preemption were dropped from the KPIs.
+- **Weights and memory (re-derived 2026-09-22 from each HF repo's own config.json and
+  safetensors headers):** 8.79 GiB of FP8 weights plus 1.11 GiB of drafter on a 22.49 GiB
+  card. KV costs 144 KiB/token for the target alone and **256 KiB/token once the drafter
+  is loaded**, because vLLM 0.29.0 gives the draft model its own KV cache. At
+  `gpu_memory_utilization` 0.88 that leaves roughly 8 GiB of pool, on the order of 32 k
+  tokens, i.e. around 80 concurrent ShareGPT requests before the scheduler starts
+  preempting. So this study **is** KV-bound after all, the opposite of what the 96 GB
+  version assumed — which is why `vLLM.kv_cache_usage_avg` came back into the KPIs in
+  place of GPU memory bandwidth.
+  Rejected alternatives, for the record: **Qwen3-14B-FP8** leaves ~1.7 GiB with the
+  drafter and fails vLLM's one-request KV-fit check outright; **Qwen3-4B-FP8** has
+  identical layers and KV heads to the 8B so KV costs the same while the verify pass reads
+  half as much, making the drafter ~27% of a target step and any null result
+  unattributable between "speculation does not help" and "this drafter is too big".
 - **Cluster / hardware:** AWS `us-east-2`, EKS cluster `vllm-bench`, node group
-  `llm-serving-g7e` = 1× `g7e.4xlarge` (1× NVIDIA RTX PRO 6000 Blackwell Server Edition,
-  96 GB GDDR7, SM120, no MIG). Provisioning in `infra/`, duplicated from study 2 per this
-  repo's atomic-per-study convention. **The node group already exists in the live cluster
-  and is Active, with 0 nodes** (confirmed 2026-09-21) — so this is a scale-up, not a
-  provisioning run. The CPU node the load generator runs on is `system-m8a` in the live
+  **`llm-serving-l4-single` = 1× `g6.4xlarge`** (1× NVIDIA L4, 23034 MiB, Ada/SM89,
+  ~300 GB/s, 72 W power cap, no MIG), created 2026-09-22 and up first try in
+  `us-east-2a`. Provisioning in `infra/`; the capacity workarounds and the full
+  alternatives comparison are in `infra/README.md` and
+  `infra/eks/gpu-capacity-fallback.sh`. The `llm-serving-g7e` group still exists at
+  desiredSize 1 and still fails; if its capacity ever returns, note that **only one GPU
+  node may be scraped at a time** — every DCGM query filters on `pod` and `gpu`, never on
+  a node label, so two exporters would be averaged together. The CPU node the load generator runs on is `system-m8a` in the live
   cluster, not the `system` group study 2's `infra/eks/cluster.yaml` declares; the Job and
   the `cluster_loadtest` component follow the live cluster.
 - **Load generator:** NVIDIA AIPerf 0.11.0, ShareGPT replay, closed-loop concurrency ramp
-  of **9 levels, 8 → 2048** (doubling), 300 s each,
+  of **8 levels, 1 → 128** (doubling), 300 s each,
   `--goodput time_to_first_token:1500 inter_token_latency:300`. 45 min of load per trial.
   The **floor** moved down from study 2's 150 because a sweep starting there observes only
   the saturated regime where speculation is expected to lose — it would answer this
@@ -226,9 +266,9 @@ parallelism, a model that fits with room to spare.
 
 | Parameter | Domain / categories | Baseline |
 |---|---|---|
-| `vLLM.gpu_memory_utilization` | [0.85, 0.95] | **0.90** (the only explicitly rendered one) |
-| `vLLM.max_num_seqs` | [16, 1024] | *(vLLM default)* |
-| `vLLM.max_num_batched_tokens` | [256, 8192] | *(vLLM default)* |
+| `vLLM.gpu_memory_utilization` | **[0.80, 0.90]** | **0.85** (the only explicitly rendered one) |
+| `vLLM.max_num_seqs` | **[16, 128]** | *(vLLM default)* |
+| `vLLM.max_num_batched_tokens` | **[256, 4096]** | *(vLLM default)* |
 | `vLLM.kv_cache_dtype` | auto / fp8 / fp8_e4m3 / fp8_e5m2 | *(vLLM default)* |
 | `vLLM.performance_mode` | balanced / interactivity / throughput | *(vLLM default)* |
 | `vLLM.optimization_level` | [0, 3] | *(vLLM default)* |
@@ -241,7 +281,7 @@ parallelism, a model that fits with room to spare.
 | `vLLM.block_size` | 16 … 128 (8 ordinals) | *(vLLM default)* |
 | `vLLM.attention_backend` | FLASH_ATTN / FLASHINFER / TRITON_ATTN | *(vLLM default)* |
 | **`vLLM.spec_method`** | **none / ngram / ngram_gpu / draft_model** | **none (by absence)** |
-| **`vLLM.spec_tokens`** | **[0, 16]**, 0 = off sentinel | **0** |
+| **`vLLM.spec_tokens`** | **[0, 8]**, 0 = off sentinel | **0** |
 
 The baseline pins only `gpu_memory_utilization` and lists every other parameter in
 `doNotRenderParameters`, so the reference point is vLLM's own stock startup path. The
@@ -263,7 +303,13 @@ A categorical value that fails for every combination cannot be fenced with a
 v0.29.0** before a future study re-adds them — the image may now ship `arctic-inference`,
 which would make `suffix` interesting in its own right.
 
-### Constraints (7)
+### Constraints (9)
+
+> All four numeric domains above were **re-derived on 2026-09-22** for a 22.49 GiB card;
+> the values they replace were sized for 96 GB. The constraint count went from 7 to 9 in
+> the same change: the sampler-warmup guard came back (the manifest had removed it with an
+> explicit "re-add it if the card or the vocabulary changes"), joining the
+> `max_num_batched_tokens >= max_num_seqs` rule added just before it.
 
 Three carried over from study 2, four new, every one of them traceable to a real crash or
 to vLLM's own source.
@@ -324,7 +370,7 @@ was declared ready.
 
 Everything outside the two speculative parameters is held fixed across S1-S10
 (`gmu` 0.90, `max_num_seqs` 256, `max_num_batched_tokens` 8192, `kv_cache_dtype` auto,
-`balanced`, `optimization_level` 2, `block_size` 16, `TRITON_ATTN`, `enforce_eager` false,
+`balanced`, `optimization_level` 2, `block_size` 16, `FLASH_ATTN`, `enforce_eager` false,
 `fcfs`, `disable_cascade_attn` false, `tokenizer_mode` auto, `async_scheduling` false,
 `max_cudagraph_capture_size` 512), so the only difference between "ngram at 5 tokens" and
 "draft_model at 5 tokens" is which drafter produced the proposal.
@@ -427,7 +473,7 @@ Do not copy them from the docs page.
    `aiperf-results` volume since 2026-09-18, generated by study 16 for this exact
    served-model-name. No regeneration, and no risk of the stale-cache 404 storm that cost
    studies 2 and 13 a run each.
-9. **Re-calibrate the ramp after the baseline.** 8 → 2048 is a reasoned guess for this
+9. **Re-calibrate the ramp after the baseline.** 1 → 128 is a reasoned estimate for this
    card, not a measurement. If the last level is still SLA-compliant with headroom, raise
    the ceiling again rather than repeating study 16's mistake.
 

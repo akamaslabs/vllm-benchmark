@@ -54,6 +54,10 @@ REGION=us-east-2
 : "${AWS_PROFILE:=lab}"
 export AWS_PROFILE
 
+# This file lives at <study>/infra/eks/, so the study root is two levels up. Resolved
+# rather than hardcoded so the script works from any working directory.
+STUDY_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+
 # Everything below is resolved from the live cluster rather than hardcoded, so this
 # script keeps working if the node instance role or launch template is ever recreated.
 resolve_from_g7e() {
@@ -177,9 +181,21 @@ create_l4_single() {
   # is far below the RTX PRO 6000's, which puts decode deeper into the
   # memory-bandwidth-bound regime where speculation has the most to give.
   #
-  # Distinct label on purpose: node-role=llm-serving-l4-single never collides with the
-  # llm-serving-g7e label the two g7e node groups share, so no avg()-based GPU metric can
-  # silently average across a g7e node and this one if g7e capacity ever returns.
+  # Distinct label on purpose, but NOT for the reason first written here. An earlier
+  # version of this comment claimed the distinct label stops an avg()-based GPU metric
+  # from averaging across a g7e node and this one. That was WRONG and is corrected here:
+  # an audit of all 42 DCGM queries in akamas/telemetry/prometheus.yaml found that every
+  # one of them filters on `pod=~"$POD$"` and `gpu=~"$GPU$"` only. No node label appears
+  # in any of them, and the gpu0 component sets `pod: .*`. Two GPU nodes both running a
+  # DCGM exporter would therefore average or sum across both regardless of their
+  # node-role labels.
+  #
+  # What actually prevents that is there being ONE dcgm-exporter release with ONE
+  # nodeSelector, so only one GPU node is ever scraped — see `dcgm-cover` below and
+  # k8s/monitoring/dcgm-exporter-values.yaml. The distinct label still earns its keep for
+  # the study's 14 node-level queries, which DO filter on `label_node_role=~"$NODE_ROLE$"`
+  # via the cluster component, and for keeping the two node groups independently
+  # scalable.
   aws eks create-nodegroup \
     --cluster-name "$CLUSTER" --region "$REGION" \
     --nodegroup-name llm-serving-l4-single \
@@ -232,32 +248,45 @@ dcgm_cover() {
   # no dcgm pod existed. Nothing errors — the GPU metric series are simply absent, which a
   # study only discovers after a trial has already produced empty GPU telemetry.
   #
-  # This drops the nodeSelector in favour of a nodeAffinity matching EVERY GPU node
-  # group's label, so the exporter follows whichever GPU node actually exists and needs no
-  # further edit if g7e capacity returns. It only widens coverage: no node covered before
-  # stops being covered.
+  # This deliberately does NOT invent a new mechanism. The repo's established practice,
+  # documented at length in k8s/monitoring/dcgm-exporter-values.yaml, is ONE release
+  # re-pointed at whichever GPU node group the current study uses; the 19 revisions are
+  # the record of it. A first draft of this function widened the selector into a
+  # nodeAffinity covering every GPU node-role at once. That was a mistake and is recorded
+  # here so it is not retried: all 42 DCGM queries in akamas/telemetry/prometheus.yaml
+  # filter on `pod` and `gpu` only, never on a node label, so scraping two GPU nodes at
+  # once makes avg() average across both and sum() add them. One node scraped at a time
+  # IS the correctness mechanism, not merely a cost discipline.
+  #
+  # A second release alongside is not an option either: the chart hardcodes a ConfigMap
+  # named `exporter-metrics-config-map` with no release prefix, so it fails on ownership.
   #
   # dcgm-exporter is a SHARED release — other studies' GPU telemetry rides on it. Run this
   # deliberately, never as part of routine provisioning.
-  local vals; vals=$(mktemp)
-  helm get values dcgm-exporter -n monitoring -o yaml > "$vals"
-  python3 - "$vals" <<'PYEOF'
-import sys, yaml
-f = sys.argv[1]
-v = yaml.safe_load(open(f)) or {}
-v.pop('nodeSelector', None)
-v['affinity'] = {'nodeAffinity': {'requiredDuringSchedulingIgnoredDuringExecution': {
-  'nodeSelectorTerms': [{'matchExpressions': [{
-    'key': 'node-role', 'operator': 'In',
-    'values': ['llm-serving-g7e', 'llm-serving-l4-single', 'llm-serving-l4', 'llm-serving'],
-  }]}]}}}
-yaml.safe_dump(v, open(f, 'w'), default_flow_style=False)
-PYEOF
-  echo "--- values about to be applied:"; cat "$vals"
-  helm upgrade dcgm-exporter -n monitoring \
-    --repo https://nvidia.github.io/dcgm-exporter/helm-charts dcgm-exporter \
-    --version 4.8.3 -f "$vals" --reset-values
-  rm -f "$vals"
+  local vals="${STUDY_DIR}/k8s/monitoring/dcgm-exporter-values.yaml"
+  local want="${1:-}"
+  local have; have=$(awk '/^nodeSelector:/{f=1;next} f&&/node-role:/{print $2;exit}' "$vals")
+  [ -z "$want" ] && want="$have"
+
+  if [ "$have" != "$want" ]; then
+    echo "error: $vals pins nodeSelector.node-role: $have, but you asked for $want." >&2
+    echo "Edit that one line and re-run. It is a study-configuration change, so it is" >&2
+    echo "made in the file under version control, not patched onto the live release." >&2
+    return 2
+  fi
+  if ! kubectl get nodes -l "node-role=$want" --no-headers 2>/dev/null | grep -q .; then
+    echo "error: no node carries node-role=$want — the exporter would schedule nowhere." >&2
+    return 3
+  fi
+  echo "re-pointing dcgm-exporter at node-role=$want"
+
+  helm repo add gpu-helm-charts https://nvidia.github.io/dcgm-exporter/helm-charts >/dev/null 2>&1 || true
+  helm repo update gpu-helm-charts >/dev/null 2>&1 || true
+  # --version pins the chart the release already runs; without it the upgrade also jumps
+  # to whatever the repo now serves, a second unintended change mid-setup.
+  helm upgrade dcgm-exporter gpu-helm-charts/dcgm-exporter \
+    --namespace monitoring --version 4.8.3 --reuse-values=false -f "$vals"
+
   echo "--- where it runs now:"
   kubectl -n monitoring get pods -l app.kubernetes.io/name=dcgm-exporter -o wide --no-headers
 }
@@ -285,7 +314,7 @@ case "${1:-}" in
   l40s)   create_l40s   ;;
   l4-single) create_l4_single ;;
   probe)  shift; probe_capacity "$@" ;;
-  dcgm-cover) dcgm_cover ;;
+  dcgm-cover) shift; dcgm_cover "$@" ;;
   status) status        ;;
   *) echo "usage: $0 {g7e-2a|l40s|l4-single|probe [type...]|dcgm-cover|status}" >&2; exit 1 ;;
 esac

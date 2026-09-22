@@ -524,6 +524,47 @@ propose values right up against that edge; if those experiments start cleanly, t
 evidence needed to relax the ceiling — which study 16 calibrated on a four-GPU node whose
 NCCL buffers this configuration never allocates.
 
+## The baseline's full curve, and the ramp ceiling question answered (2026-09-22)
+
+The baseline finished with a goal value of **1507.62 tokens/sec** (prefill plus decode).
+Its eight ramp levels, read off AIPerf's own per-level CSV exports:
+
+| Concurrency | Throughput (tok/s) | ITL p95 (ms) | TTFT p95 (ms) | Goodput (req/s) |
+|---|---|---|---|---|
+| 1 | 29.5 | 33.9 | 41 | 0.12 |
+| 2 | 56.8 | 34.5 | 106 | 0.26 |
+| 4 | 110.5 | 34.7 | 108 | 0.53 |
+| 8 | 219.6 | 35.8 | 112 | 1.00 |
+| 16 | 397.8 | 39.5 | 144 | 1.82 |
+| 32 | 665.1 | 46.8 | 172 | 2.84 |
+| 64 | 929.9 | 66.0 | 256 | 3.65 |
+| 128 | 1022.8 | 120.3 | 440 | 4.04 |
+
+**The card is memory-bandwidth-bound, and that is the single most important thing this
+run confirms.** At concurrency 1 the inter-token latency is 33.8 ms. Reading 8.79 GiB of
+weights at the L4's ~300 GB/s takes 31.5 ms, so decode is running at 93% of the card's
+theoretical bandwidth ceiling. That is precisely the regime speculative decoding exists
+to exploit, and it is *more* pronounced here than it would have been on the 96 GB
+Blackwell, whose bandwidth is several times higher. The hardware this study was forced
+onto is a sharper instrument for its own question than the one it was designed for.
+
+**The knee sits between 32 and 64.** Throughput gain per doubling: 1.81x at 8→16,
+1.67x at 16→32, 1.40x at 32→64, and only 1.10x at 64→128. So the interesting comparison
+region for speculation — where the GPU still has idle capacity — is the bottom half of
+the ramp, which is exactly what re-flooring it to 1 was meant to sample.
+
+**The ceiling of 128 is right, and the reason is not the SLA.** Both SLAs still have
+room at 128: ITL p95 is 120 ms against a 300 ms limit and TTFT p95 is 440 ms against
+1500 ms, so a naive reading says "raise the ceiling, study 16 under-measured its
+capacity". That reading does not apply here. The tuned `max_num_seqs` domain tops out at
+128, so in every preset and every optimize experiment the engine can hold at most 128
+requests running; anything above that is admission delay, not served load. Ramp ceiling
+and batch ceiling are deliberately the same number. Raising one without the other would
+reproduce study 16's mistake in mirror image — measuring queueing and calling it capacity.
+
+Worth noting for the recap: the baseline itself ran with `max_num_seqs` 256, vLLM's own
+default, so it is the one experiment whose batch cap was never the binding constraint.
+
 ## Prerequisites still open
 
 1. **Recreate the Akamas resources.** Not a blocker, just an ordering requirement: the

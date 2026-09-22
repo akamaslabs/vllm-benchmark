@@ -172,6 +172,22 @@ parametersSelection:
     # engine step of roughly a second during which no concurrent request receives a token,
     # which eats directly into the 300 ms inter-token-latency SLA this study's goal
     # constrains on.
+    #
+    # THIS PARAMETER IS NOT INDEPENDENT OF spec_tokens, observed in the 2026-09-22 smoke
+    # test rather than derived. Starting the S8 cell (draft_model, 2 tokens) at 4096, vLLM
+    # 0.29.0 emits:
+    #   "max_num_scheduled_tokens is set to 4096 based on the speculative decoding
+    #    settings. This may lead to suboptimal performance. Consider increasing
+    #    max_num_batched_tokens to accommodate the additional draft token slots, or
+    #    decrease num_speculative_tokens."
+    # Speculation reserves scheduler slots for drafted-but-unverified tokens out of the
+    # same budget, so the speculative cells run with a tighter effective batch than the
+    # spec-off cell at an identical setting. It is a warning, not an error — the engine
+    # starts and runs — but it means the top of this domain is where speculation is most
+    # penalised, which is worth knowing when reading the optimize step's choices.
+    # Deliberately NOT fenced with a parameterConstraint: the interaction is a performance
+    # gradient, not an invalid region, and constraining it would hide the effect the study
+    # is trying to observe.
     domain: [256, 4096]
   - name: vLLM.kv_cache_dtype
     categories: [auto, fp8, fp8_e4m3, fp8_e5m2]

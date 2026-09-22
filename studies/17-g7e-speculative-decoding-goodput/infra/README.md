@@ -32,6 +32,10 @@ k8s manifests — it no longer describes the actual GPU.
   here so a from-scratch run of this script on an empty account still produces a
   complete cluster) plus this study's own `llm-serving-g7e` node group
   (`g7e.4xlarge`, RTX PRO 6000 Blackwell — see the hardware-swap note above).
+- **`eks/gpu-capacity-fallback.sh`** — capacity workarounds against the *live* cluster,
+  added 2026-09-22 after a full day of `InsufficientInstanceCapacity` on `g7e.4xlarge`
+  (see "GPU capacity" below). Deliberately kept out of `cluster.yaml`, which stays the
+  from-scratch description of the cluster the study *wants*.
 - **`eks/storageclass.yaml`** — the default `gp3` StorageClass (Retain reclaim policy).
 - **`eks/provision.sh`** — creates the cluster if it doesn't exist yet (all node
   groups), or, if it already exists, creates only the missing `llm-serving-g7e` node
@@ -43,6 +47,55 @@ k8s manifests — it no longer describes the actual GPU.
   idempotently (`kubectl apply` no-ops if they already exist from an earlier study).
 - **`k8s-bootstrap/01-storage-classes.yaml`** — the second StorageClass,
   `gp3-ephemeral` (Delete reclaim policy, for the re-downloadable model cache).
+
+## GPU capacity — the alternatives, and why L4 is not one (2026-09-22)
+
+`g7e.4xlarge` hit `InsufficientInstanceCapacity` 56+ consecutive times in `us-east-2`
+across a single day, and a second attempt on `g7e.8xlarge` rolled back with the same
+error. Every GPU instance type the region offers was then evaluated against the one
+requirement that matters here: **the study serves a dense `Qwen/Qwen3-32B-FP8`
+(~31 GiB of weights) plus a `Qwen/Qwen3-0.6B` drafter on a SINGLE GPU**, because the
+whole point of the dense-model swap was to remove parallelism as a confound.
+
+| Instance | GPU | VRAM/GPU | USD/h | 32B-FP8 on 1 GPU | Study changes |
+|---|---|---|---|---|---|
+| `g7e.4xlarge` | 1x RTX PRO 6000 Blackwell | 96 GB | 4.00 | yes, wide margin | none — the intended target |
+| `g7e.8xlarge` | 1x RTX PRO 6000 Blackwell | 96 GB | 5.27 | yes, wide margin | none |
+| `g7e.2xlarge` | 1x RTX PRO 6000 Blackwell | 96 GB | 3.36 | GPU yes, node no | pod requests `cpu: 8`/`memory: 32Gi`, above an 8-vCPU node's allocatable |
+| `g6e.4xlarge` | 1x L40S (Ada) | 48 GB | 3.00 | yes, but tight | material, see `gpu-capacity-fallback.sh` |
+| `g6.12xlarge` | 4x L4 (Ada) | 24 GB | 4.60 | no — needs TP4 | reintroduces the parallelism confound |
+| `g6.4xlarge` | 1x L4 (Ada) | 24 GB | 1.32 | no — 31 GiB > 22.35 GiB | would need a much smaller model |
+| `g5.12xlarge` | 4x A10G (Ampere) | 24 GB | 5.67 | no | Ampere has no FP8 tensor cores at all |
+
+Three conclusions worth keeping:
+
+1. **An L4 cannot host this model.** A single L4 exposes 22.35 GiB of VRAM against ~31 GiB
+   of weights. The pre-existing `llm-serving-l4` node group (4x L4) fits the model only
+   across tensor parallelism 4, and at 4.60 USD/h it is *more expensive* than the g7e node
+   it would replace. It is not a cheaper fallback; it is a different, costlier study.
+2. **`g7e.2xlarge` was never tried and still should not be**, even though it carries the
+   same 96 GB GPU: 8 vCPU cannot schedule the vLLM pod as written, and a CPU-starved
+   frontend at concurrency 2048 would cap goodput — contaminating the metric being tuned.
+3. **The only true single-GPU fallback is the L40S**, and it costs KV cache: ~4-8 GiB of
+   headroom versus ~54 GiB on the 96 GB node, which moves the saturation knee down to
+   roughly 64-128 concurrent requests and turns the sweep's upper levels into preemption
+   tests rather than speculative-decoding tests.
+
+`eks/gpu-capacity-fallback.sh` implements the two live-cluster actions this produced:
+
+```bash
+./gpu-capacity-fallback.sh status    # node groups + GPU instances actually running
+./gpu-capacity-fallback.sh g7e-2a    # g7e node group pinned to us-east-2a, desiredSize 1
+./gpu-capacity-fallback.sh l40s      # L40S node group, desiredSize 0 (opt-in, not free)
+```
+
+`g7e-2a` exists because AWS's own health message on the stuck node group says capacity is
+available in `us-east-2a` while every recorded failure is in `us-east-2b`. The original
+node group spans both zones, so its ASG *may* retry in 2a but keeps landing in 2b; the new
+one has only the 2a subnet, so every retry is forced into the zone AWS points at. It
+reuses the existing launch template verbatim, whose `nodeadm` userdata already writes
+`node-role=llm-serving-g7e` and the `nvidia.com/gpu` taint — which is what makes it a
+drop-in with zero changes to the study's manifests.
 
 ## Prerequisites (local tooling, not provisioned by this folder)
 

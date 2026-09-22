@@ -39,16 +39,28 @@ spec:
       # See: https://docs.vllm.ai/en/stable/serving/env_vars.html
       enableServiceLinks: false
 
-      # Pin to this study's OWN node group (llm-serving-g7e, g7e.4xlarge/RTX PRO 6000
-      # Blackwell 96GB — swapped 2026-08-21 from p5.4xlarge/H100, no capacity in this
-      # region; see infra/README.md) — NOT llm-serving, the A10G group
+      # Pin to this study's OWN node group — NOT llm-serving, the A10G group
       # 0-explorative/1-goodput-realistic-load use. Same cluster (vllm-bench), same
-      # namespace (llm-serving), reused as-is (2026-08-20 decision: the A10G node
-      # group is currently scaled to 0, so there's no scheduling conflict either way,
-      # but this selector is what actually determines placement — don't rely on the
-      # other node group being off).
+      # namespace (llm-serving). This selector is what actually determines placement;
+      # don't rely on the other node groups being scaled to 0.
+      #
+      # HARDWARE, third and final swap (2026-09-22): llm-serving-l4-single, one g6.4xlarge
+      # carrying a single NVIDIA L4 (23034 MiB, Ada/SM89, ~300 GB/s, 72 W cap). The
+      # history, because every step was forced rather than chosen:
+      #   p5.4xlarge / 1x H100 80GB      -> no capacity in us-east-2 at provisioning
+      #   g7e.4xlarge / RTX PRO 6000 96GB -> ran, then went dry for a full day
+      #   g6.4xlarge / 1x L4 24GB (this) -> the only GPU class us-east-2 would hand over
+      # A direct capacity probe on 2026-09-22 (infra/eks/gpu-capacity-fallback.sh probe)
+      # found EVERY type above 24 GB per GPU empty in every zone — g7e, g6e/L40S and
+      # g6.12xlarge alike — while g6.4xlarge was available in all three. See
+      # infra/README.md for the full table.
+      #
+      # The study name, system name and this folder all still say "G7e". That is now a
+      # misnomer and is deliberately not renamed, exactly as infra/eks/cluster.yaml
+      # already admits about the node-group name: nine hardcoded paths in the workflow,
+      # the toolbox checkout and the created Akamas resources all key off it.
       nodeSelector:
-        node-role: llm-serving-g7e
+        node-role: llm-serving-l4-single
 
       # Required to schedule on the tainted GPU node (same taint key/value as the
       # A10G node group — see infra/eks/cluster.yaml).
@@ -59,19 +71,21 @@ spec:
 
       containers:
         - name: vllm
-          # MODEL, final choice 2026-09-22: Qwen/Qwen3-32B-FP8.
-          # Third and last iteration, and the history matters because the middle step was
-          # justified by an argument that turned out to be backwards:
+          # MODEL, final choice 2026-09-22: Qwen/Qwen3-8B-FP8.
+          # Fourth and last iteration. The history matters because one step was justified
+          # by an argument that turned out backwards, and the last one was forced by
+          # hardware rather than chosen:
           #   Qwen2.5-7B-Instruct  (inherited from study 2)  -> uses 15 of 96 GB
           #   Qwen3-30B-A3B-Instruct-2507-FP8 (2026-09-21)   -> RETRACTED, see below
-          #   Qwen3-32B-FP8 (this)                            -> dense, 34.32 GB
+          #   Qwen3-32B-FP8 (2026-09-22)                     -> dense, correct, DOES NOT FIT
+          #   Qwen3-8B-FP8 (this)                             -> dense, 8.79 GiB, fits an L4
           #
           # WHY THE MoE WAS WRONG. Weight bytes read per batch-1 decode step, computed
           # from each config.json and cross-checked against HuggingFace's own reported
           # tensor totals:
           #   Qwen2.5-7B-Instruct bf16 ........... ~15.2 GB
           #   Qwen3-30B-A3B-Instruct-2507-FP8 .... ~3.35 GB   (8 of 128 experts active)
-          #   Qwen3-32B-FP8 (this model) ......... ~32.8 GB
+          #   Qwen3-32B-FP8 .......................~32.8 GB
           # The MoE read a QUARTER of what the 7B read, so the swap to it made the
           # verifier step ~4.5x cheaper and left LESS for speculation to amortise, the
           # opposite of the stated intent. Worse: verifying K+1 drafted tokens routes each
@@ -79,15 +93,42 @@ spec:
           # up to min(128, 8*(K+1)) per layer, ~9x single-token expert traffic at
           # spec_tokens 8 — a cost a dense target does not pay at all. A sparse MoE is
           # close to the worst possible target for showing speculative decoding work.
+          # That reasoning is unchanged and is why this model is DENSE.
           #
-          # WHY THIS ONE. Dense, so the verify cost is flat in draft length. 34.32 GB of
-          # weights on a 95.59 GiB card leaves ~50 GiB for KV. ~32.8 GB read per decode
-          # step, about 10x the MoE, which is the quantity speculation amortises.
-          # vocab_size 151936, IDENTICAL to Qwen/Qwen3-0.6B, so the drafter is unchanged.
-          # Cost of the choice, stated honestly: comparability with studies 15/16 is gone
-          # (different model entirely), and this is a hybrid-thinking checkpoint — see the
-          # --default-chat-template-kwargs flag below, without which the benchmark would
-          # measure chain-of-thought length instead of ShareGPT replay.
+          # WHY 8B RATHER THAN 32B. Not preference — arithmetic. The L4 exposes 22.49 GiB
+          # and Qwen3-32B-FP8 is 30.5 GiB of weights alone. Figures below are from each
+          # repo's own config.json and safetensors sizes, fetched 2026-09-22, not estimated:
+          #
+          #   model             weights    KV/token bf16   KV/token fp8   KV left @ gmu 0.88
+          #                                                                (with the drafter)
+          #   Qwen3-4B-FP8      4.83 GiB      144 KiB          72 KiB        12.1 GiB
+          #   Qwen3-8B-FP8      8.79 GiB      144 KiB          72 KiB         8.1 GiB
+          #   Qwen3-14B-FP8    15.21 GiB      160 KiB          80 KiB         1.7 GiB
+          #   Qwen3-0.6B (drafter, bf16)  1.40 GiB   112 KiB   56 KiB
+          #
+          # 14B is out: 1.7 GiB holds ~6.3k tokens, so the three draft_model presets fail
+          # vLLM's startup KV-fit check outright — one max_model_len sequence does not fit.
+          # 4B is out for the opposite reason: identical layer count and KV heads to the 8B
+          # (36 / 8), so KV costs the same per token while the verify pass reads half as
+          # much. The drafter's 1.40 GiB per draft step would be ~87% of a 4.83 GiB verify
+          # at 3 speculative tokens — speculation would lose by construction and teach
+          # nothing. 8B keeps ~8.1 GiB of KV with the drafter loaded, ~32k tokens.
+          #
+          # All four checkpoints share vocab_size 151936, so the Qwen/Qwen3-0.6B drafter
+          # pairing survives the swap untouched — verified, not assumed.
+          #
+          # Cost of the choice, stated honestly: the verify pass is now 8.79 GiB rather
+          # than 32.8, so the drafter costs ~48% extra weight traffic at 3 speculative
+          # tokens and ~127% at 8. The draft_model arm is therefore expected to struggle,
+          # and its grid is re-cut to lower draft lengths accordingly. The ngram and
+          # ngram_gpu arms carry no drafter weights at all and are unaffected — if
+          # anything sharper here, because the L4's ~300 GB/s pushes decode deeper into
+          # the memory-bandwidth-bound regime speculation exists to exploit.
+          # Comparability with studies 15/16 is gone either way (different model).
+          # This is a hybrid-thinking checkpoint — see the --default-chat-template-kwargs
+          # flag below, without which the benchmark measures chain-of-thought length
+          # instead of ShareGPT replay. The 8B's chat template carries the same
+          # enable_thinking guard as the 32B's; the flag is MANDATORY, not inherited cruft.
           # CHANGED for study 17: image moved from that study's v0.22.0 to v0.29.0 —
           # NOT a cosmetic bump, it is a precondition for this study's question:
           #   1. vLLM pack 1.9.1's reference version is 0.29.0, and spec_method's
@@ -101,18 +142,20 @@ spec:
           #      ..._num_draft_tokens, ..._num_emitted_tokens) are gone in V1 —
           #      verified 2026-09-21 against vllm/v1/spec_decode/metrics.py at the
           #      v0.29.0 tag. Wiring a 0.22.0 server would give silently empty series.
-          #   3. Studies 13-16 all ran 0.29.0 on this repo's other node group, so the
-          #      image is exercised here, just not yet on SM120.
+          #   3. Studies 13-16 all ran 0.29.0 on L4s — this study's own card as of
+          #      2026-09-22 — so the image, FP8 block-quantized Qwen3 weights, every
+          #      attention backend and every kv_cache_dtype are already exercised on
+          #      exactly this hardware. The SM120 kernel-maturity worry that shaped the
+          #      preset grid belonged to the Blackwell and no longer applies: SM89 is
+          #      the better-trodden path of the two, not the riskier one.
           # Cost: results are no longer directly comparable with 2-larger-model-g7e's
           # own numbers (different server version, not just a different config) — this
           # study re-establishes its own baseline rather than importing that study's.
-          # Still NOT smoke-tested on this GPU's SM120 compute capability — do that
-          # before trusting an Akamas run (see README "Prerequisites still open").
           image: vllm/vllm-openai:v0.29.0
           command: ["vllm", "serve"]
           args:
-            - "Qwen/Qwen3-32B-FP8"
-            - "--served-model-name=qwen3-32b"
+            - "Qwen/Qwen3-8B-FP8"
+            - "--served-model-name=qwen3-8b"
             - "--port=8000"
             - "--host=0.0.0.0"
             - "--enable-mfu-metrics"
@@ -177,7 +220,37 @@ spec:
             - "--max-num-partial-prefills=${vLLM.max_num_partial_prefills}"
             - "--max-long-partial-prefills=${vLLM.max_long_partial_prefills}"
             - "--long-prefill-token-threshold=${vLLM.long_prefill_token_threshold}"
-            - "--max-model-len=${vLLM.max_model_len}"
+
+            # --max-model-len is a LITERAL, not a ${vLLM.*} token, and that is the whole
+            # point. Added 2026-09-22 with the move to the L4.
+            #
+            # vLLM.max_model_len is not in the study's parametersSelection and is not in
+            # any step's values, so FileConfigurator leaves the token unsubstituted
+            # (the workflow sets ignoreUnsubstitutedTokens: true) and apply_config.sh's
+            # `sed -i -E '/\$\{vLLM\./d'` deletes the whole line. vLLM then falls back to
+            # the checkpoint's max_position_embeddings, which for every Qwen3 variant is
+            # 40960. On the 96 GB card that was invisible: 40960 tokens of KV cost ~10 GiB
+            # against ~50 GiB available. On an L4 it is fatal — vLLM V1 refuses to start
+            # when the KV cache cannot hold one full max_model_len sequence.
+            #
+            # 4096 chosen. The drafter is NOT free here: vLLM 0.29.0 loads it with
+            # prefix="draft_model" and its attention layers join the KV cache config, so
+            # Qwen3-0.6B's 28 layers add 112 KiB/token on top of the target's 144 —
+            # 256 KiB/token combined, +78%. At gpu_memory_utilization 0.95 the pool is
+            # ~9.1 GiB, i.e. ~37k bf16 tokens. 4096 costs 1.0 GiB for vLLM's
+            # one-request fit check (check_enough_kv_cache_memory only ever tests that a
+            # SINGLE max_model_len request fits) and leaves ~9 worst-case concurrent
+            # sequences; 8192 costs 2.0 GiB and leaves ~4. ShareGPT replay does not need
+            # the extra ceiling. 2048 is the fallback if the measured reserve comes in
+            # worse than expected.
+            #
+            # Watch the interaction with max_num_batched_tokens: vLLM requires
+            # max_num_batched_tokens >= max_model_len unless chunked prefill is enabled
+            # (SchedulerConfig.verify_max_model_len). Chunked prefill is on by default in
+            # V1, which is what makes the study's [256, 8192] domain legal below 4096 —
+            # if that default ever changes, the lower half of that domain becomes a hard
+            # ValueError at engine init.
+            - "--max-model-len=4096"
 
             # --- Tuned, NEW in this study: speculative decoding ---
             # These two are rendered here but are REMOVED AGAIN by apply_config.sh
@@ -199,9 +272,34 @@ spec:
             # values are paired to whichever target this study serves, so it is a study
             # constant, and the vLLM pack's README says so explicitly.
             # Qwen3-0.6B shares the Qwen3 tokenizer and its 151936-token vocabulary with
-            # the target, which is what vLLM requires of a drafter, and costs ~1.2 GB of
-            # the 96 GB card. VERIFY THAT PAIRING with a manual start before spending
-            # experiment budget: vLLM checks vocabulary compatibility at engine init.
+            # the target, which is what vLLM requires of a drafter
+            # (SpeculativeConfig.verify_equal_vocab_size_if_draft_model). Verified against
+            # both repos' config.json on 2026-09-22: 151936 on each, so the pairing
+            # survived the target swap from 32B to 8B untouched.
+            #
+            # ITS COST IS NO LONGER NEGLIGIBLE, and this is the single most important
+            # change the L4 forces on this file's reasoning. On the 96 GB card the drafter
+            # was ~1.2 GB, about 1.25% of the card, and its KV was not worth counting.
+            # Here: 1.11 GiB resident (tie_word_embeddings is true, so the duplicate
+            # lm_head in the repo is not resident) out of 22.49 GiB. More importantly
+            # vLLM 0.29.0 gives the drafter its OWN KV cache — DraftModelProposer loads it
+            # with prefix="draft_model" and SpecDecodeBaseProposer.load_model() registers
+            # its attention layers in the KV cache config — so its 28 layers add
+            # 112 KiB/token on top of the target's 144. Enabling draft_model raises
+            # per-token KV cost by 78% and roughly halves resident sequence capacity.
+            # The three draft_model presets therefore run with materially less
+            # concurrency headroom than the ngram ones at identical max_num_seqs. That is
+            # a confound on this card that did not exist on the 96 GB one; it is called
+            # out in the study manifest rather than hidden.
+            #
+            # Kept in BF16 rather than the existing Qwen/Qwen3-0.6B-FP8: that saves only
+            # 0.41 GiB, and on SM89 cutlass_scaled_mm_supports_block_fp8() is false
+            # (block-FP8 CUTLASS is gated at SM90+), so a block-quantized drafter falls
+            # back to a Triton/Marlin kernel. A ~1 GiB model at small batch is
+            # latency-bound, not bandwidth-bound, so the fallback plausibly makes the
+            # drafter slower — the opposite of what this arm needs.
+            #
+            # VERIFY THAT PAIRING with a manual start before spending experiment budget.
             # apply_config.sh REMOVES this line for every method except draft_model —
             # ngram, ngram_gpu, suffix and mtp each self-assign an internal placeholder
             # that an explicit --spec-model would fight.
@@ -220,12 +318,24 @@ spec:
             - name: http
               containerPort: 8000
               protocol: TCP
-          # NOTE: memory request/limit sized for g7e.4xlarge's 128GiB total RAM (was
-          # 256GiB on p5.4xlarge before the 2026-08-21 hardware swap) — limit lowered
-          # from 200Gi accordingly, leaving headroom for the DCGM exporter/node-exporter
-          # DaemonSets and kubelet overhead on this node. Generous relative to
-          # Qwen2.5-7B-Instruct's ~15GB of weights (reverted 2026-08-27) — left as-is,
-          # sized for the node rather than the model, no downside to the extra headroom.
+          # Sized for the NODE, not the model — the right instinct, but the node changed.
+          # History: 200Gi on p5.4xlarge (256 GiB RAM), lowered to 100Gi for g7e.4xlarge
+          # (128 GiB). On g6.4xlarge there are 64 GiB total and ~57 GiB allocatable, so a
+          # 100Gi limit exceeded the machine itself. That is not merely untidy: a cgroup
+          # limit above physical RAM never binds, so a runaway vLLM triggers node-level
+          # OOM or kubelet eviction — which can take the DCGM exporter or the device
+          # plugin down with it — instead of a clean, attributable OOMKilled on this
+          # container. Lowered to 48Gi on 2026-09-22.
+          #
+          # CPU is unchanged and deliberately so: g7e.4xlarge and g6.4xlarge are both
+          # 16 vCPU, ~15.9 allocatable, so the 8-core request and 14-core limit carry over
+          # exactly. The request of 32Gi also carries over — generous for an 8.79 GiB
+          # checkpoint, but it is what reserves host RAM for weight loading and the
+          # tokenizer pool, and it fits.
+          #
+          # Only `requests` are scheduled against, which is why the old 100Gi limit would
+          # have scheduled fine and failed later. Verified 2026-09-22 against the live
+          # node: 15890m CPU and 60397384Ki memory allocatable.
           resources:
             requests:
               nvidia.com/gpu: "1"
@@ -234,7 +344,7 @@ spec:
             limits:
               nvidia.com/gpu: "1"
               cpu: "14"
-              memory: "100Gi"
+              memory: "48Gi"
 
           # startupProbe allows up to 20 minutes (120 x 10s) — generous relative to
           # 1-goodput-realistic-load's 10-minute budget for the same model, left as-is
@@ -265,11 +375,17 @@ spec:
               mountPath: /root/.cache/huggingface
 
       volumes:
-        # vLLM uses shared memory for CUDA IPC handles between workers.
+        # vLLM uses shared memory for CUDA IPC handles between workers. With
+        # tensor-parallel-size pinned at 1 there is exactly one worker and therefore no
+        # cross-worker IPC to carry, so 12Gi was reserving a quarter of the container's
+        # whole memory limit for something unused. A `medium: Memory` emptyDir is tmpfs:
+        # it counts against both the container limit and node RAM, which matters far more
+        # on a 64 GiB node than it did on a 128 GiB one. Lowered to 2Gi on 2026-09-22.
+        # Raise it again if this study ever un-pins the parallelism knobs.
         - name: shm
           emptyDir:
             medium: Memory
-            sizeLimit: 12Gi
+            sizeLimit: 2Gi
         - name: model-cache
           persistentVolumeClaim:
             claimName: vllm-model-cache

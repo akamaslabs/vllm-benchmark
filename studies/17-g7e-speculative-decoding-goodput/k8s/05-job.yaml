@@ -47,15 +47,22 @@ spec:
               # shared, unsuffixed file is a landmine: study 13's first baseline reused
               # studies 1-9's file verbatim and got 14 339 HTTP 404 "The model
               # `qwen2.5-7b` does not exist" against 32 successful requests. The file
-              # NOTE (2026-09-22, model swapped to dense Qwen3-32B-FP8): the file this
-              # study now needs is inputs-qwen3-32b.json, which does NOT exist yet — the
-              # volume holds inputs.json, inputs-gpt-oss-20b.json and
-              # inputs-qwen3-30b-a3b.json. It is derived below from any existing file by
-              # rewriting only the per-request model field, which keeps the ShareGPT
-              # prompts byte-identical to every other study's and takes seconds, instead
-              # of the ~15 min full regeneration. Same trick study 16 used.
-              MODEL_NAME=qwen3-32b
-              TOKENIZER=Qwen/Qwen3-32B-FP8
+              # NOTE (2026-09-22, model settled on dense Qwen/Qwen3-8B-FP8 after the g7e
+              # card became unobtainable and the study moved to one L4): the file this
+              # study needs is inputs-qwen3-8b.json, which does NOT exist yet — the volume
+              # holds inputs.json, inputs-gpt-oss-20b.json and inputs-qwen3-30b-a3b.json.
+              # It is derived below from any existing file by rewriting only the
+              # per-request model field, which keeps the ShareGPT prompts byte-identical
+              # to every other study's and takes seconds, instead of the ~15 min full
+              # regeneration. Same trick study 16 used. Nothing needs deleting by hand.
+              #
+              # MODEL_NAME must equal the deployment's --served-model-name byte for byte
+              # (01-deployment_template.yaml). TOKENIZER is the repo AIPerf downloads to
+              # count tokens; every Qwen3 checkpoint ships the same 151936-token
+              # tokenizer, so a stale value here would not break the run, but it would
+              # pull a model this study does not serve and mislead the next reader.
+              MODEL_NAME=qwen3-8b
+              TOKENIZER=Qwen/Qwen3-8B-FP8
               CACHE_FILE=/benchmarks/sharegpt-cache/inputs-$MODEL_NAME.json
               # Derive from any sibling cache first: identical ShareGPT prompts, only the
               # per-request "model" field rewritten. A mismatched model field is a 100%
@@ -152,16 +159,36 @@ spec:
               # is still SLA-compliant with headroom, the ceiling needs raising (the
               # exact failure mode study 16 hit: 10 of its experiments were scored at
               # its ramp's last level, so their real capacity was never measured).
-              # CEILING RAISED 2026-09-21 together with the model swap: 9 levels,
-              # 8 -> 2048. The floor stays at 8 for the reason below; the ceiling moved
-              # from 1024 because study 16 served THIS SAME MODEL and ended with 10 of
-              # its experiments scored at its ramp's last level, ITL p95 at 284-291 ms
-              # against a 300 ms SLA — i.e. their real SLA-compliant capacity was never
-              # measured, the ramp simply ran out. This card has ~4x the memory of the
-              # four L4s study 16 sharded across and no inter-GPU traffic at all, so
-              # repeating a 1024 ceiling would very likely repeat that mistake.
-              # 9 x 300 s = 45 min of load per trial.
-              CONCURRENCY_LIST="8,16,32,64,128,256,512,1024,2048"
+              # CEILING RAISED 2026-09-21 to 8 -> 2048, then RE-FLOORED 2026-09-22 when
+              # the study moved to one L4. Both moves are recorded because the 2026-09-21
+              # reasoning was sound for the card it was written for and is exactly
+              # inverted on this one. It said: "this card has ~4x the memory of the four
+              # L4s study 16 sharded across", so a 1024 ceiling would under-measure. The
+              # card is now ONE of those L4s, with a quarter of that memory.
+              #
+              # What actually binds here. With Qwen3-8B-FP8 and the 0.6B drafter loaded
+              # the KV pool is ~9 GiB at 256 KiB/token combined, i.e. ~37k tokens. An
+              # in-flight ShareGPT request holds its prompt plus a partial output, so
+              # mean resident KV is ~400-500 tokens rather than the ~700-token final
+              # length: roughly 80 concurrent requests before the scheduler starts
+              # preempting and recomputing. Above that the ramp measures admission delay
+              # and preemption, not serving capacity — and every preset pins
+              # max_num_seqs well below 512 anyway, so those levels could never put more
+              # than max_num_seqs requests in the running batch even in principle.
+              #
+              # New list: 8 levels, 1 -> 128. The FLOOR matters far more than the ceiling
+              # for this study's question. Speculative decoding wins in the small-batch,
+              # memory-bandwidth-bound regime, and an L4's ~300 GB/s puts the target's
+              # 31.5 ms-per-step weight read squarely there — so the interesting cells are
+              # at the bottom of the ramp, which the old list barely sampled. 8 x 300 s =
+              # 40 min of load per trial, slightly under the previous 45.
+              #
+              # RE-CHECK AFTER THE BASELINE, as before: if level 128 is still
+              # SLA-compliant with real headroom, raise the ceiling. The failure mode to
+              # avoid is study 16's, where 10 experiments scored at the ramp's last level
+              # with ITL p95 at 284-291 ms against a 300 ms SLA, so their true capacity
+              # was never measured.
+              CONCURRENCY_LIST="1,2,4,8,16,32,64,128"
 
               aiperf profile \
                 --model "$MODEL_NAME" \

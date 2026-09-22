@@ -35,10 +35,26 @@
 # to whatever the repo now serves (4.8.4 at the time of writing), which is a second,
 # unintended change in the middle of setting a study up.
 
-# Run only on this study's GPU node (node-role: llm-serving-g7e) — NOT llm-serving,
-# the A10G group other studies use.
+# Run only on this study's GPU node — NOT llm-serving, the A10G group other studies use.
+#
+# RE-POINTED 2026-09-22 from llm-serving-g7e to llm-serving-l4-single, with the move to a
+# single L4. This is the single easiest thing to forget in the whole swap, because it
+# fails silently: with the selector stale the DaemonSet reports DESIRED/CURRENT/READY all
+# zero and no pod anywhere, nothing errors, and ~30 of the study's 131 metrics simply have
+# no series — including two of the eight declared KPIs, GPU SM active and GPU memory
+# bandwidth. Akamas does not fail on an empty series; the study runs to completion with
+# blank GPU columns and the "is the drafter using idle compute" question becomes
+# unanswerable. Observed exactly this on 2026-09-22 with the L4 node already Ready.
+#
+# Note this contradicts the study README's prerequisite #6, which says there is nothing to
+# redo when the node returns because the DaemonSet schedules itself. That is only true for
+# a node carrying the SAME label.
+#
+# ONE node group at a time is a correctness requirement, not just cost discipline: all 42
+# DCGM queries in akamas/telemetry/prometheus.yaml filter on `pod` and `gpu` only, never
+# on a node label, so two GPU nodes scraped at once would be averaged and summed together.
 nodeSelector:
-  node-role: llm-serving-g7e
+  node-role: llm-serving-l4-single
 
 # Required to schedule on the tainted GPU node.
 tolerations:

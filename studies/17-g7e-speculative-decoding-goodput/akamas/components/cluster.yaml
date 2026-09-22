@@ -3,11 +3,17 @@ system: vLLM_Benchmark_17_G7e_Speculative_Decoding
 
 name: cluster
 description: >-
-  The GPU node itself (node group llm-serving-g7e, one g7e.4xlarge), for
-  node-level pressure/saturation counters that carry no pod label. $NODE_ROLE$
-  in the telemetry instance's k8s_cluster_* queries resolves from the
-  node_role property below.
+  The GPU node itself (node group llm-serving-l4-single, one g6.4xlarge carrying a single
+  NVIDIA L4), for node-level pressure/saturation counters that carry no pod label.
+  $NODE_ROLE$ in the telemetry instance's k8s_cluster_* queries resolves from the
+  node_role property below. Re-pointed 2026-09-22 from llm-serving-g7e after the RTX PRO
+  6000 became unobtainable in us-east-2.
 componentType: Kubernetes Cluster
 properties:
   prometheus:
-    node_role: llm-serving-g7e
+    # LIVE BINDING, not documentation: this value is substituted as $NODE_ROLE$ into 14
+    # PromQL queries in the telemetry instance (5 node-pressure, 9 k8s_cluster_*), all of
+    # which filter kube_node_labels{label_node_role=~"$NODE_ROLE$"}. Left stale it does
+    # not error — it matches no node, so the joins yield nothing and k8s_cluster_nodes,
+    # being a count(), returns a plausible-looking 0 rather than an empty series.
+    node_role: llm-serving-l4-single

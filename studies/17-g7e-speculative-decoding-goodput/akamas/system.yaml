@@ -2,11 +2,12 @@ kind: system
 
 name: vLLM_Benchmark_17_G7e_Speculative_Decoding
 description: >-
-  Speculative-decoding goodput study on a single NVIDIA RTX PRO 6000 Blackwell
-  (g7e.4xlarge, 96 GB GDDR7, SM120) serving Qwen/Qwen3-32B-FP8
-  with vllm/vllm-openai:v0.29.0, with Qwen/Qwen3-0.6B as the drafter for the
-  draft_model cells. Started from 2-larger-model-g7e's "2-Larger-goodput" (same
-  GPU, goal, SLA, windowing and 14 tuned parameters) and adds vLLM.spec_method /
-  vLLM.spec_tokens. Telemetry carries 131 metrics. Requires vLLM pack 1.10.0
-  (draft_model plus the five acceptance metrics), GPU 1.2.0, Kubernetes.
-  Created 2026-09-21, reconfigured 2026-09-22.
+  Speculative-decoding goodput study on a single NVIDIA L4 (g6.4xlarge, 22.49 GiB,
+  Ada/SM89) serving Qwen/Qwen3-8B-FP8 with vllm/vllm-openai:v0.29.0, with
+  Qwen/Qwen3-0.6B as the drafter for the draft_model cells. The "G7e" in this name
+  refers to an RTX PRO 6000 Blackwell the study was built for and AWS had no capacity
+  for; the card changed on 2026-09-22, the names did not. Started from
+  2-larger-model-g7e's "2-Larger-goodput" (same goal, SLA, windowing and 14 tuned
+  parameters) and adds vLLM.spec_method / vLLM.spec_tokens. Telemetry carries 131
+  metrics. Requires vLLM pack 1.10.1 (draft_model plus the five acceptance metrics),
+  GPU 1.2.0, Kubernetes. Created 2026-09-21, hardware and model changed 2026-09-22.

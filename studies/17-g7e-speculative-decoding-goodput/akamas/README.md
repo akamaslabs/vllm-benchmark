@@ -1,15 +1,22 @@
 # akamas/ — study 17's Akamas resources
 
 Generated 2026-09-21 with the `akamas-study-manager` plugin (`/akamas-study-manager:build`),
-against the pack checkouts under `~/akamas/offline/optimization-packs/`. Nothing here was
-hand-written from memory, and nothing here has been created on a live Akamas instance yet.
+against the pack checkouts under `~/akamas/offline/optimization-packs/`, and rewritten with
+the same plugin on 2026-09-22 when the hardware changed. Nothing here was hand-written from
+memory.
+
+**These resources EXIST on the live instance**, created 2026-09-21 against the RTX PRO 6000.
+The 2026-09-22 rewrite has not been applied to them yet — see "Re-applying the 2026-09-22
+hardware change" below, which is the first thing to run.
 
 ## What this study optimizes
 
-Maximize `vLLM.prefill_token_throughput + vLLM.decode_token_throughput` on one NVIDIA
-RTX PRO 6000 Blackwell (g7e.4xlarge, 96 GB GDDR7, SM120) serving
-`Qwen/Qwen3-30B-A3B-Instruct-2507-FP8`, subject to TTFT p95 ≤ 1500 ms and ITL p95 ≤ 300 ms. Single
-GPU, so the goal is also the per-GPU figure. It duplicates
+Maximize `vLLM.prefill_token_throughput + vLLM.decode_token_throughput` on one NVIDIA L4
+(g6.4xlarge, 23034 MiB, Ada/SM89) serving `Qwen/Qwen3-8B-FP8`, subject to TTFT p95 ≤ 1500 ms
+and ITL p95 ≤ 300 ms. Single GPU, so the goal is also the per-GPU figure. Both the card and
+the model changed on 2026-09-22: AWS had no capacity for any GPU above 24 GB in `us-east-2`,
+and the 30.5 GiB `Qwen/Qwen3-32B-FP8` this study had settled on does not fit 22.49 GiB. It
+duplicates
 `2-larger-model-g7e`'s "2-Larger-goodput" and adds speculative decoding
 (`vLLM.spec_method` / `vLLM.spec_tokens`) as the one new tuned dimension. Full rationale,
 including why the goal and the new parameter pull in opposite directions, is in
@@ -20,20 +27,23 @@ including why the goal and the new parameter pull in opposite directions, is in
 | Thing | Version | How it was established |
 |---|---|---|
 | Akamas | 3.7.x | repo-wide target (`CLAUDE.md`) |
-| vLLM optimization pack | **1.10.0 REQUIRED** | branch `feature/speculative-decoding-metrics`, committed not pushed — 1.9.1 lacks `spec_method`'s `draft_model` |
+| vLLM optimization pack | **1.10.1 INSTALLED** | confirmed 2026-09-22: the telemetry instance exists on the instance, and it maps the five `spec_decode_*` metrics that only >= 1.10.0 declares, so it could not have been created otherwise. Source branch `feature/speculative-decoding-metrics`, still committed-not-pushed |
 | GPU optimization pack | **1.2.0** | same, `~/akamas/offline/optimization-packs/nvidia-gpu` |
 | Kubernetes optimization pack | **1.9.0-dev** | same, `~/akamas/offline/optimization-packs/kubernetes` — study 16's README recorded 1.8.0-dev as installed, so **re-verify which is actually on the instance** |
 | vLLM server | `vllm/vllm-openai:v0.29.0` | `../k8s/01-deployment_template.yaml` |
-| Model | `Qwen/Qwen3-30B-A3B-Instruct-2507-FP8` as `qwen3-30b-a3b`, drafter `Qwen/Qwen3-0.6B` | same |
+| GPU | **1x NVIDIA L4**, 23034 MiB, Ada/SM89, ~300 GB/s, 72 W cap, on `g6.4xlarge`, node label `llm-serving-l4-single` | `nvidia-smi` on the live node, 2026-09-22. CHANGED from the RTX PRO 6000 Blackwell this study was built for: AWS had no capacity for any GPU class above 24 GB in any `us-east-2` zone |
+| Model | `Qwen/Qwen3-8B-FP8` as `qwen3-8b` (8.79 GiB), drafter `Qwen/Qwen3-0.6B` (1.11 GiB, BF16) | `../k8s/01-deployment_template.yaml`; sizes read from each repo's safetensors headers 2026-09-22 |
 | Load generator | NVIDIA AIPerf 0.11.0, ShareGPT replay | `../k8s/05-job.yaml` |
 | Telemetry provider | Prometheus (`kube-prometheus-stack`) | `telemetry/prometheus.yaml` |
 
-**The installed pack versions were NOT confirmed with `akamas list optimization-pack`**
-(the repo's normal precondition). That command returns `Access forbidden … requires the
-'Administrator' role` for this account, and the toolbox CLI session was logged out at
-build time. The versions above come from the local pack checkouts, which are the pack's
-own source repos at their released tags — authoritative for *what the pack declares*, but
-not proof of *what is installed*. Confirm before creating anything.
+**`akamas list optimization-pack` still cannot be used to confirm these** — it returns
+`Access forbidden … requires the 'Administrator' role` for this account. The GPU and
+Kubernetes rows above therefore come from the local pack checkouts, which are the pack's
+own source repos at their released tags: authoritative for *what the pack declares*, not
+proof of *what is installed*. The vLLM row is different and is now settled by indirect
+evidence rather than by the checkout: a telemetry instance that maps a metric the
+component type does not declare cannot be created at all, and
+`Prometheus_17_G7e_Speculative_Decoding` exists.
 
 ## Files
 
@@ -44,11 +54,11 @@ not proof of *what is installed*. Confirm before creating anything.
 | `components/gpu0.yaml` | `component` | componentType `GPU`; the single physical GPU, one component per GPU per repo convention |
 | `components/container.yaml` | `component` | componentType `Kubernetes Container`; the vLLM pod |
 | `components/container_loadtest.yaml` | `component` | componentType `Kubernetes Container`; the AIPerf pod |
-| `components/cluster.yaml` | `component` | componentType `Kubernetes Cluster`; the GPU node (`node_role: llm-serving-g7e`) |
+| `components/cluster.yaml` | `component` | componentType `Kubernetes Cluster`; the GPU node (`node_role: llm-serving-l4-single`). The only component whose edit is a LIVE binding rather than a description |
 | `components/cluster_loadtest.yaml` | `component` | componentType `Kubernetes Cluster`; the CPU node (`node_role: system-m8a`) |
-| `telemetry/prometheus.yaml` | `telemetry-instance` | **126 metrics** — study 16's 110-metric catalog verbatim, plus 7 vLLM-pack and 9 Kubernetes-pack metrics no study had ever wired, plus a commented-out speculative-decoding block blocked on a pack release |
+| `telemetry/prometheus.yaml` | `telemetry-instance` | **131 metrics** — study 16's 110-metric catalog verbatim, plus 7 vLLM-pack and 9 Kubernetes-pack metrics no study had ever wired, plus the 5 speculative-decoding metrics (no longer commented out: pack 1.10.1 ships them). The catalog is byte-identical to study 16's for its first 393 lines, and study 16 ran on L4s — so the measurement layer is already proven on this card |
 | `17-G7e-Speculative-Decoding-Goodput-Workflow.yaml` | `workflow` | 3 tasks: FileConfigurator → Apply config → RunTest, all on `toolbox` over SSH |
-| `17-G7e-Speculative-Decoding-Goodput.yaml` | `study` | goal, 16 parameters, 7 `parameterConstraints`, 8 KPIs (an Akamas hard limit), baseline + **10 presets** + optimize |
+| `17-G7e-Speculative-Decoding-Goodput.yaml` | `study` | goal, 16 parameters, **9** `parameterConstraints`, 8 KPIs (an Akamas hard limit), baseline + **10 presets** + optimize |
 
 ## The metrics question, answered
 
@@ -74,22 +84,26 @@ metrics belong to component types this study does not model (`Kubernetes Node`, 
 `Namespace`, `Workload`, the HPA types) and would need their own components first. The GPU
 pack's 42 metrics were already fully wired.
 
-**Written, not yet shipped — the speculative-decoding metrics.** An Akamas telemetry
-instance may only map metrics the component type already declares, and pack 1.9.1 declares
-none for speculative decoding. That change was made, on the pack's own repo rather than
-here: branch **`feature/speculative-decoding-metrics`** in
-`~/akamas/offline/optimization-packs/vllm`, off `origin/develop`, commit *"Add
-speculative-decoding acceptance metrics (v1.10.0)"*, adding `spec_decode_drafts_rate`,
-`spec_decode_draft_tokens_rate`, `spec_decode_accepted_tokens_rate`,
-`spec_decode_acceptance_rate` and `spec_decode_accepted_tokens_per_draft`, with the pack's
-own offline test suite passing (14 tests). **Committed locally, nothing pushed.** It still
-needs a push, a merge request, a build and an install; only then does the commented block
-at the end of `telemetry/prometheus.yaml` become uncommentable — its five entries already
-use that branch's exact metric names, so enabling them is mechanical.
+**Shipped, and the block is now live — the speculative-decoding metrics.** An Akamas
+telemetry instance may only map metrics the component type already declares, and pack 1.9.1
+declared none for speculative decoding. That change was made on the pack's own repo rather
+than here: branch **`feature/speculative-decoding-metrics`** in
+`~/akamas/offline/optimization-packs/vllm`, off `origin/develop`, adding
+`spec_decode_drafts_rate`, `spec_decode_draft_tokens_rate`,
+`spec_decode_accepted_tokens_rate`, `spec_decode_acceptance_rate` and
+`spec_decode_accepted_tokens_per_draft`, with the pack's own offline test suite passing.
+Version **1.10.1** was built and installed on the instance on 2026-09-22, and the five
+entries at the end of `telemetry/prometheus.yaml` are uncommented accordingly.
 
-Until the pack ships, **this study can tune speculative decoding but cannot measure its
-acceptance rate** — it will see the effect on latency and throughput, not the reason for
-it, and those two readings lead to different follow-up studies.
+**The branch is still committed-locally and unpushed.** Nothing in this study depends on
+that any more, but the pack's own repo has no record of a version its instance is running,
+which is a debt worth clearing: `git push -u origin feature/speculative-decoding-metrics`
+and a merge request against `develop`.
+
+So this study **can** now measure acceptance rate, not merely tune speculative decoding —
+which matters more on this card than it did on the previous one, because the draft_model
+arm's economics are marginal here and "it did not help" and "the drafter was rarely
+accepted" are different findings leading to different follow-ups.
 
 The four real series are `vllm:spec_decode_num_drafts_total`,
 `vllm:spec_decode_num_draft_tokens_total`, `vllm:spec_decode_num_accepted_tokens_total`
@@ -145,21 +159,79 @@ read from pack metric descriptions, not scraped — ROADMAP Q7 applies).
 2. **The toolbox needs this study's folder** pulled at
    `/work/vllm-benchmark/studies/17-g7e-speculative-decoding-goodput/`, since all three
    workflow tasks read scripts from it.
-3. **Scale the GPU node group to 1.** Confirmed 2026-09-21 from the EKS console: the node
-   group **`llm-serving-g7e` exists in cluster `vllm-bench` and is Active**, instance type
-   `g7e.4xlarge` — with **0 nodes**. No provisioning needed, only a scale-up:
-   `eksctl scale nodegroup --cluster vllm-bench --name llm-serving-g7e --nodes 1`.
-   `kubectl get nodes` confirmed only the `system-m8a` and `akamas` nodes were running.
+3. **The GPU node.** SUPERSEDED 2026-09-22 and worth reading as a caution rather than as
+   an instruction. This step used to read: scale `llm-serving-g7e` to 1, no provisioning
+   needed. That node group then failed to launch 56+ times in one day, a second on
+   `g7e.8xlarge` rolled back, and a third pinned to `us-east-2a` reached `CREATE_FAILED`
+   after 34 attempts — `InsufficientInstanceCapacity` every time. A direct probe found
+   every GPU class above 24 GB empty in all three zones. The study now uses
+   **`llm-serving-l4-single`** (`g6.4xlarge`, one NVIDIA L4, 1.32 USD/h), created and
+   brought up first try in `us-east-2a`:
+   `aws eks update-nodegroup-config --cluster-name vllm-bench --region us-east-2 --nodegroup-name llm-serving-l4-single --scaling-config minSize=0,maxSize=1,desiredSize=1`
+   Before assuming any node group can simply be scaled up, run
+   `infra/eks/gpu-capacity-fallback.sh probe` — it answers in seconds instead of after an
+   Auto Scaling Group's four-minute retry cycle. Remember to scale it back to 0 when the
+   study is not running.
    Note the live cluster does **not** match this study's inherited
    `infra/eks/cluster.yaml` in every detail — that file came from study 2 and declares a
    `system` node group, while the live cluster runs `system-m8a`; the load-generator Job
    and the `cluster_loadtest` component were set to `system-m8a` to match reality.
 4. **Re-verify the installed pack versions** (see the table above).
 
+## Re-applying the 2026-09-22 hardware change (do this first)
+
+The system, its six components, the telemetry instance, the workflow and the study were
+**already created** on the instance on 2026-09-21, against the RTX PRO 6000. The
+2026-09-22 rewrite for one L4 touched three of them, and Akamas 3.7.x has **no update
+verb** for any of the three — only a study's `goal` is editable in place. So they must be
+deleted and recreated, in this order:
+
+```bash
+S="vLLM_Benchmark_17_G7e_Speculative_Decoding"
+D=studies/17-g7e-speculative-decoding-goodput/akamas
+
+# 1. The study first: it references the system, so it has to go before the component does.
+#    Safe — it is status CREATED with ZERO experiments, so no history is lost.
+akamas delete study "17-G7e-Speculative-Decoding-Goodput" -f
+
+# 2. The telemetry instance: it maps metrics onto the component being replaced.
+akamas delete telemetry-instance "Prometheus_17_G7e_Speculative_Decoding" "$S" -f
+
+# 3. The cluster component: node_role changed from llm-serving-g7e to
+#    llm-serving-l4-single. This is the one edit that is a LIVE binding rather than a
+#    description — it is substituted as $NODE_ROLE$ into 14 PromQL queries.
+akamas delete component cluster "$S" -f
+akamas create component "$D/components/cluster.yaml" "$S"
+
+# 4. Recreate, in dependency order.
+akamas create telemetry-instance "$D/telemetry/prometheus.yaml" "$S"
+akamas create study "$D/17-G7e-Speculative-Decoding-Goodput.yaml"
+```
+
+The other five components and the workflow are **unchanged** and must NOT be deleted.
+`system.yaml`, `gpu0.yaml` and `vllm.yaml` had only their `description` edited; those are
+cosmetic, carry no live binding, and are not worth a delete/recreate cycle on their own —
+the files are correct for the next time the system is built from scratch.
+
+Outside Akamas, two cluster-side steps belong to the same change and are easy to forget
+because both fail silently:
+
+```bash
+# The DCGM exporter is pinned by nodeSelector and will not follow the node. Stale, ~30
+# metrics including two of the eight KPIs simply have no series and nothing errors.
+helm upgrade dcgm-exporter gpu-helm-charts/dcgm-exporter \
+  --namespace monitoring --version 4.8.3 --reuse-values=false \
+  -f studies/17-g7e-speculative-decoding-goodput/k8s/monitoring/dcgm-exporter-values.yaml
+# equivalently: studies/17-.../infra/eks/gpu-capacity-fallback.sh dcgm-cover
+
+# Push the edited k8s/ files to the toolbox checkout the workflow actually reads.
+```
+
 ## Setup & run
 
 Dependency order matters: Akamas resolves `system:` / `workflow:` references by name at
-creation time.
+creation time. Use this section for a from-scratch build; for the 2026-09-22 change on an
+instance that already has these resources, use the delete/recreate block above instead.
 
 ```bash
 # Typed, one resource at a time — the component form takes exactly ONE file, never a folder
@@ -198,7 +270,9 @@ Monitoring and teardown:
 ```bash
 akamas describe study "17-G7e-Speculative-Decoding-Goodput"
 akamas list experiment "17-G7e-Speculative-Decoding-Goodput"
-akamas stop study "17-G7e-Speculative-Decoding-Goodput"       # the presets already run are kept
+akamas finish study "17-G7e-Speculative-Decoding-Goodput"     # the presets already run are kept
+# NOTE: there is no `akamas stop`. `finish` is overloaded to mean both "end for good" and
+# "pause, resumable later" via `akamas resume study`.
 akamas export study "17-G7e-Speculative-Decoding-Goodput" studies/17-g7e-speculative-decoding-goodput/results/export.tar.gz
 ```
 

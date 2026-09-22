@@ -376,8 +376,10 @@ metrics:
   #     (kube-state-metrics, `label_node_role` newly enabled in that chart's
   #     metricLabelsAllowlist 2026-09-07 specifically for this) maps `node` back to
   #     the same name and carries the node-role label this study filters on
-  #     ($NODE_ROLE$ = "llm-serving-g7e", from this component's own
-  #     properties.prometheus.node_role — see akamas/components/cluster.yaml).
+  #     ($NODE_ROLE$ = "llm-serving-l4-single" since 2026-09-22, previously
+  #     "llm-serving-g7e" — it comes from the cluster component's own
+  #     properties.prometheus.node_role, see akamas/components/cluster.yaml, so this
+  #     file never hardcodes it and only this comment had to be corrected).
   #     Verified live against this cluster's Prometheus before writing these queries;
   #     without this join, an unfiltered node_pressure_* query would mix in the
   #     "system"/"akamas" nodes' pressure alongside the GPU node's.

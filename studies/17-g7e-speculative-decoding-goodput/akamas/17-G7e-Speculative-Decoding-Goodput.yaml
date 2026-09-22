@@ -1,42 +1,75 @@
 kind: study
 name: 17-G7e-Speculative-Decoding-Goodput
 
-# Started life as a duplicate of 2-larger-model-g7e's "2-Larger-goodput" — same single
-# RTX PRO 6000 Blackwell on a g7e.4xlarge, same goal, SLA, windowing and 14 tuned
-# parameters — and adds speculative decoding as the new dimension
-# (vLLM.spec_method / vLLM.spec_tokens).
+# Started life as a duplicate of 2-larger-model-g7e's "2-Larger-goodput" — same goal,
+# SLA, windowing and 14 tuned parameters — and adds speculative decoding as the new
+# dimension (vLLM.spec_method / vLLM.spec_tokens).
 #
-# REQUIRES vLLM OPTIMIZATION PACK >= 1.10.0. spec_method's "draft_model" category does
-# not exist in 1.9.1, so `akamas create study` fails against it. The pack change lives
-# on branch feature/speculative-decoding-metrics in the pack's own repo and also brings
-# the five acceptance metrics this study's telemetry has commented out.
+# THE NAME IS A MISNOMER AND IS KEPT ON PURPOSE. "G7e" here, in the system name, in the
+# workflow name and in the folder name all refer to a g7e.4xlarge / RTX PRO 6000
+# Blackwell that this study no longer runs on. Renaming would mean rewriting nine
+# hardcoded paths in the workflow file, the toolbox checkout and every already-created
+# Akamas resource, for no gain. infra/eks/cluster.yaml already makes the same admission
+# about the node-group name.
 #
-# FOUR DELIBERATE DIVERGENCES from the study it started as. Together they mean this
+# REQUIRES vLLM OPTIMIZATION PACK >= 1.10.0 for spec_method's "draft_model" category.
+# Satisfied: 1.10.1 is installed on the instance, confirmed by the telemetry instance
+# existing at all — it maps the five spec_decode acceptance metrics, which 1.9.1 does not
+# declare, so it could not have been created otherwise.
+#
+# HARDWARE CHANGED 2026-09-22, AND IT IS THE REASON FOR MOST OF WHAT FOLLOWS.
+# The g7e.4xlarge went unobtainable: 56+ consecutive InsufficientInstanceCapacity
+# failures in one day, a second node group on g7e.8xlarge rolled back with the same
+# error, and a third pinned to us-east-2a reached CREATE_FAILED after 34 attempts. A
+# direct capacity probe (infra/eks/gpu-capacity-fallback.sh probe, which creates and
+# immediately cancels a capacity reservation per type and zone) then found EVERY GPU
+# class above 24 GB per GPU empty in every us-east-2 zone — g7e, g6e/L40S and
+# g6.12xlarge alike. The study now runs on ONE NVIDIA L4: 22.49 GiB, Ada/SM89,
+# ~300 GB/s, 72 W cap, on a g6.4xlarge at 1.32 USD/h.
+#
+# FIVE DELIBERATE DIVERGENCES from the study it started as. Together they mean this
 # study's numbers are NOT comparable with 2-Larger-goodput's; it runs its own baseline
 # and imports nothing:
-#   1. MODEL: Qwen2.5-7B-Instruct -> Qwen/Qwen3-32B-FP8 (dense, 34.32 GB), after a
-#      retracted intermediate step through Qwen3-30B-A3B-Instruct-2507-FP8. Weight bytes
-#      read per batch-1 decode step: 7B bf16 ~15.2 GB, the 30B MoE ~3.35 GB (only 8 of
-#      128 experts active), this model ~32.8 GB. The MoE made the verify step ~4.5x
-#      CHEAPER than the 7B, leaving less for speculation to amortise, and verifying K+1
-#      drafted tokens reads the UNION of the experts they route to (up to min(128,
-#      8*(K+1)) per layer) — a cost a dense target does not pay. Dense is the right
-#      vehicle: flat verify cost in draft length, ~10x the weight traffic to amortise,
-#      and vocab_size 151936 identical to the Qwen3-0.6B drafter.
+#   1. MODEL: Qwen2.5-7B-Instruct -> Qwen/Qwen3-8B-FP8 (dense, 8.79 GiB), after a
+#      retracted step through Qwen3-30B-A3B-Instruct-2507-FP8 and a correct-but-too-large
+#      step through Qwen3-32B-FP8. The MoE was retracted because it made the verify step
+#      ~4.5x CHEAPER than the 7B, leaving LESS for speculation to amortise, and because
+#      verifying K+1 drafted tokens reads the UNION of the experts they route to (up to
+#      min(128, 8*(K+1)) per layer) — a cost a dense target does not pay. Dense is still
+#      the right vehicle, with flat verify cost in draft length. The 32B was right on
+#      physics and impossible on memory: 30.5 GiB of weights against 22.49 GiB of card.
+#      8B was then chosen over 14B and 4B on arithmetic from each repo's own config.json
+#      and safetensors headers — 14B leaves ~1.7 GiB of KV with the drafter loaded and
+#      fails vLLM's one-request fit check; 4B has identical layers and KV heads to the 8B
+#      so KV costs the same while the verify pass reads half as much, making the drafter
+#      ~27% of a target step and the result unattributable. vocab_size 151936 on all of
+#      them, so the Qwen3-0.6B drafter pairing is unaffected.
 #      Comparability with studies 15/16 is gone; it was never worth a wrong experiment.
 #      This checkpoint is hybrid-thinking: the deployment template passes
 #      --default-chat-template-kwargs '{"enable_thinking": false}', without which every
-#      request emits a <think> block and the benchmark measures reasoning length.
+#      request emits a <think> block and the benchmark measures reasoning length. Verified
+#      2026-09-22 that all four candidates ship the identical chat template and that an
+#      UNDEFINED enable_thinking is not false — thinking is on unless explicitly disabled.
 #   2. IMAGE: v0.22.0 -> v0.29.0. The pack's reference version, and the only engine
 #      emitting the V1 speculative counters (0.22.0 predates them, and the five metrics
-#      in vLLM's own docs are V0 legacy V1 does not emit).
-#   3. RAMP: 150->1024 in 12 levels -> 8->2048 in 9. The floor moved because a sweep
-#      starting at 150 observes only the saturated regime where speculation is expected
-#      to lose, answering the question by construction. The ceiling moved because study
-#      16 served THIS model and ended with 10 experiments scored at its ramp's last
-#      level — their real capacity was never measured.
-#   4. TIMEOUTS: raised to study 16's proven values for this checkpoint (30 min rollout
-#      deadline, not 20) — 29.03 GiB of FP8 weights do not load in a 7B's budget.
+#      in vLLM's own docs are V0 legacy V1 does not emit). On SM89 this image, FP8 Qwen3
+#      weights and every attention backend are already exercised by studies 13-16, which
+#      ran on L4s — so the hardware change LOWERS engine risk rather than raising it.
+#   3. RAMP: 150->1024 in 12 levels -> 1->128 in 8. The floor moved, twice and for the
+#      same reason: a sweep starting high observes only the saturated regime where
+#      speculation is expected to lose, answering the question by construction. On a
+#      300 GB/s card the interesting cells are at the very bottom. The ceiling came back
+#      down from 2048 because the KV pool now holds on the order of 80 concurrent
+#      ShareGPT requests before preemption, so anything above that measures queueing.
+#   4. TIMEOUTS: left at study 16's generous values. An 8.79 GiB checkpoint loads far
+#      faster than the 29 GiB one they were sized for, so nothing is too short — but note
+#      each failed startup still burns the full 29-minute rollout wait before Akamas is
+#      told, which is why the domains below are conservative rather than the failure
+#      budget generous.
+#   5. DOMAINS AND PRESETS RE-DERIVED for 22.49 GiB. The sampler-warmup guard is back,
+#      gpu_memory_utilization / max_num_seqs / max_num_batched_tokens / spec_tokens are
+#      all narrowed, the preset grid moved to FLASH_ATTN, and the draft_model cells were
+#      re-cut to 2/3/4 tokens. Each is argued at its own site below.
 #
 # READ THIS BEFORE INTERPRETING THE RESULT — the goal and the new parameter pull in
 # opposite directions, on purpose. Speculative decoding buys latency when the decode
@@ -49,15 +82,18 @@ name: 17-G7e-Speculative-Decoding-Goodput
 # otherwise-identical settings BEFORE the optimize step, and why the KPI list carries
 # the latency metrics the goal itself ignores.
 description: >-
-  Speculative-decoding goodput study on one RTX PRO 6000 Blackwell (g7e.4xlarge, SM120)
-  serving Qwen/Qwen3-32B-FP8 with vLLM 0.29.0 — dense on purpose: a sparse MoE makes the
-  verify pass cheap and grows it with draft length, which is the worst case for the
-  technique. Requires vLLM pack >= 1.10.0 for spec_method's "draft_model". Ten preset
-  steps compare the three drafter families head-to-head at identical settings — none,
-  ngram and ngram_gpu at 3/5/8 tokens, and draft_model at 3/5/8 with a Qwen/Qwen3-0.6B
-  drafter sharing the target's 151936 vocabulary — before the optimizer runs, because a
-  throughput-maximizing goal at saturation is expected to reject speculation regardless
-  of how well it works.
+  Speculative-decoding goodput study on one NVIDIA L4 (g6.4xlarge, 22.49 GiB, Ada/SM89)
+  serving Qwen/Qwen3-8B-FP8 with vLLM 0.29.0. Dense on purpose: a sparse MoE makes the
+  verify pass cheap and grows it with draft length, the worst case for the technique. The
+  name says G7e because the study was built for an RTX PRO 6000 that AWS had no capacity
+  for; the card changed, the names did not. Requires vLLM pack >= 1.10.0 for spec_method's
+  "draft_model". Ten preset steps compare the three drafter families head-to-head at
+  identical settings — none, ngram and ngram_gpu at 3/5/8 tokens, draft_model at 2/3/4
+  with a Qwen/Qwen3-0.6B drafter sharing the target's 151936 vocabulary — before the
+  optimizer runs, because a throughput-maximizing goal at saturation is expected to reject
+  speculation regardless of how well it works. The draft_model cells use lower draft
+  lengths because the drafter is 1.11 GiB against an 8.79 GiB target and carries its own
+  KV cache.
 system: vLLM_Benchmark_17_G7e_Speculative_Decoding
 workflow: 17-G7e-Speculative-Decoding-Goodput-Workflow
 
@@ -93,13 +129,50 @@ windowing:
 numberOfTrials: 1
 
 parametersSelection:
-  # --- The 14 carried over unchanged from 2-Larger-goodput ---
+  # --- The 14 carried over from 2-Larger-goodput; three domains RE-DERIVED 2026-09-22
+  #     when the study moved from a 96 GB Blackwell to one 22.49 GiB L4 ---
+  #
+  # All three below were sized for a card with roughly four times this one's memory. The
+  # pack's own declared domains are much wider still (gpu_memory_utilization [0.0, 1.0],
+  # max_num_seqs [1, 4096], max_num_batched_tokens [1, 65536]) — these narrow them for
+  # this study only, which is what parametersSelection is for.
   - name: vLLM.gpu_memory_utilization
-    domain: [0.85, 0.95]
+    # WAS [0.85, 0.95]. On the 96 GB card the top of that range still left 4.78 GiB
+    # outside vLLM's own budget, which is where the CUDA context and the fp32 sampler
+    # logits buffer live. On an L4 the same 5% is 1.12 GiB — less than the CUDA context
+    # alone — so the upper half of the old domain was an OOM generator rather than a
+    # useful search direction.
+    #
+    # OPEN CONFLICT, recorded rather than silently resolved, and settleable by one manual
+    # start. Study 16's empirically measured guard (re-added below in
+    # parameterConstraints) implies a ceiling near 0.89 on this card. A source-read model
+    # of vLLM 0.29.0's memory accounting instead suggests 0.95 is safe on a SINGLE GPU
+    # and that a 0.85 floor wastes about a quarter of the KV cache, because study 16's
+    # constant was calibrated on a 4-GPU node and therefore includes NCCL buffers this
+    # configuration never allocates. The conservative side is taken here on purpose: a
+    # startup OOM costs a full 29-minute rollout wait against a 15-failure budget, so
+    # being wrong upward is far more expensive than being wrong downward. vLLM prints the
+    # true split at startup ("Actual usage is X GiB for consumed memory ... Y GiB for peak
+    # activation ... Z GiB for CUDAGraph memory") — read it during the smoke test and
+    # raise this ceiling if it clears the guard.
+    domain: [0.80, 0.90]
   - name: vLLM.max_num_seqs
-    domain: [16, 1024]
+    # WAS [16, 1024]. Two independent reasons the old ceiling was unreachable here.
+    # First, the fp32 sampler warmup allocates max_num_seqs x 151936 x 4 B, i.e. 0.61 GiB
+    # at 1024 — the exact shape that killed study 15 experiment 3 on this same card.
+    # Second, and binding earlier: with Qwen3-8B-FP8 plus the drafter the KV pool holds
+    # roughly 32k tokens, and an in-flight ShareGPT request occupies ~400-500 tokens of it
+    # (its prompt plus a partial output, not the ~700-token final length), so the
+    # scheduler starts preempting and recomputing somewhere near 80 concurrent requests.
+    # Anything above that measures queueing, not serving.
+    domain: [16, 128]
   - name: vLLM.max_num_batched_tokens
-    domain: [256, 8192]
+    # WAS [256, 8192]. Lowered to match max_model_len, which k8s/01-deployment_template.yaml
+    # now pins to a literal 4096. An 8192-token prefill chunk on an L4 is also a single
+    # engine step of roughly a second during which no concurrent request receives a token,
+    # which eats directly into the 300 ms inter-token-latency SLA this study's goal
+    # constrains on.
+    domain: [256, 4096]
   - name: vLLM.kv_cache_dtype
     categories: [auto, fp8, fp8_e4m3, fp8_e5m2]
   - name: vLLM.performance_mode
@@ -167,7 +240,15 @@ parametersSelection:
     # num_speculative_tokens field declares gt=0, so a literal 0 on the command line is
     # a startup failure. The two sentinel constraints below keep 0 paired with
     # spec_method="none", and k8s/apply_config.sh deletes both flags in that case.
-    domain: [0, 16]
+    #
+    # CEILING LOWERED 2026-09-22 from the pack's full [0, 16] to [0, 8], with the move to
+    # an 8.79 GiB target. The drafter is 1.11 GiB and runs K sequential forward passes per
+    # verify, so drafting costs roughly K x 1.11 GiB of weight traffic against a single
+    # 8.79 GiB verify: ~48% overhead at K=3, ~127% at K=8. On the 32B target the same K=8
+    # was ~30%. Beyond 8 the arm is a guaranteed loss on this hardware and would only buy
+    # confirmation at 40 minutes of load per experiment. Each speculative slot also
+    # reserves KV for drafted-but-unaccepted tokens, in the resource that now binds.
+    domain: [0, 8]
 
 parameterConstraints:
   # ADDED 2026-09-22 after review. vLLM v0.29.0's vllm/config/scheduler.py raises an
@@ -181,15 +262,40 @@ parameterConstraints:
   - name: max_num_batched_tokens must be at least max_num_seqs
     formula: vLLM.max_num_batched_tokens >= vLLM.max_num_seqs
 
-  # NO SAMPLER-WARMUP GUARD HERE, and that is deliberate rather than an omission.
-  # Studies 13-16 all carry one because they ran on 24 GB L4s, where the dummy warmup
-  # allocation of one fp32 [max_num_seqs, vocab] logits tensor genuinely did not fit:
-  # study 15 died on exactly 446 MiB = 768 x 151936 x 4 B. Same vocabulary here, so the
-  # coefficient is the same 0.0006 GiB per sequence, but the card is not: at the worst
-  # legal point of this study's own domains (gpu_memory_utilization 0.95, max_num_seqs
-  # 1024) the demand is 1024 x 0.0006 = 0.61 GiB against (1 - 0.95) x 95.59 = 4.78 GiB
-  # left outside vLLM's budget. The guard would never bind, and a constraint that can
-  # never fire is noise in the manifest. Re-add it if the card or the vocabulary changes.
+  # SAMPLER-WARMUP GUARD, RE-ADDED 2026-09-22. This manifest previously argued, at
+  # length, for leaving it out — and closed that argument with "Re-add it if the card or
+  # the vocabulary changes." The card changed, so here it is again. The retired reasoning
+  # is worth keeping because it shows exactly which term flipped: on the 96 GB Blackwell,
+  # the worst legal point of the old domains (gpu_memory_utilization 0.95, max_num_seqs
+  # 1024) demanded 0.61 GiB against (1 - 0.95) x 95.59 = 4.78 GiB left outside vLLM's
+  # budget, so the guard could never fire. On this L4 the same 5% is 1.12 GiB, and the
+  # CUDA context alone is larger than the margin.
+  #
+  # Mechanism, unchanged and vocabulary-driven rather than model-driven: vLLM allocates
+  # fp32 logits copies sized max_num_seqs x vocab_size AFTER weights and KV cache are
+  # already reserved. Qwen3's vocabulary is 151936 for every checkpoint in this family,
+  # target and drafter alike, so the 0.0006 GiB-per-sequence coefficient carries over
+  # from studies 13-16 untouched. Study 15 experiment 3 died on precisely 446 MiB =
+  # 768 x 151936 x 4 B.
+  #
+  # CONSTANTS ARE STUDY 16'S, AND THEY ARE CONSERVATIVE HERE ON PURPOSE. 19.7 = 22.03
+  # minus the ~2.3 GiB of CUDA context AND NCCL buffers measured on study 16's FOUR-GPU
+  # node. This study has one GPU and allocates no NCCL buffers at all, so the true
+  # single-L4 ceiling is higher — somewhere between 19.7 and ~21. Taking the lower bound
+  # costs some KV cache; getting it wrong the other way costs a 29-minute rollout wait
+  # per OOM against a 15-failure budget, which is the asymmetry that decided it. One
+  # manual start at (0.90, 128) recalibrates this upward: vLLM prints the real split at
+  # startup as "Actual usage is X GiB for consumed memory (weights + non-torch), Y GiB
+  # for peak activation, and Z GiB for CUDAGraph memory". See the note on
+  # gpu_memory_utilization's domain above for the full conflict.
+  #
+  # Checks against this study's own domains: (0.90, 128) = 19.90 REJECT ·
+  # (0.88, 128) = 19.46 OK · (0.88, 16) = 19.40 OK · (0.80, 128) = 17.70 OK.
+  # Note this rejects the top of the gpu_memory_utilization domain at every max_num_seqs,
+  # which is intended: the domain's ceiling is where the optimizer may look, the guard is
+  # what stops it wasting a trial there.
+  - name: sampler warmup logits must fit the memory left outside the vLLM budget
+    formula: vLLM.gpu_memory_utilization * 22.03 + vLLM.max_num_seqs * 0.0006 <= 19.7
 
   # --- The 3 carried over unchanged from 2-Larger-goodput ---
   - name: FLASH_ATTN only supports auto kv_cache_dtype
@@ -258,36 +364,47 @@ kpis:
   #
   # AKAMAS LIMIT: a study may declare AT MOST 8 KPIs. Exceeding it fails at creation
   # with "An error occurred: No more than 8 KPIs are allowed" (hit on 2026-09-21 with
-  # 10). Two of study 16's KPIs were therefore dropped HERE, and the choice is specific
-  # to this stack rather than a judgement that they do not matter:
-  #   vLLM.kv_cache_usage_avg  — studies 15/16 were KV-bound (a 29 GiB MoE model on
-  #     24 GB cards), so KV usage was their headline diagnostic. This study serves a 7B
-  #     model on a 96 GB card, where KV is abundant and the metric should sit low and
-  #     flat across every configuration.
-  #   vLLM.preemption_rate     — same reason: preemption is what happens when the KV
-  #     cache fills, which is not this stack's binding constraint.
-  # BOTH ARE STILL COLLECTED. The telemetry instance wires all 126 metrics regardless;
-  # dropping a KPI only removes it from the study's own per-experiment ranking, so both
-  # remain available in the export and in any analysis. Re-add them in place of a GPU
-  # KPI if a run unexpectedly shows KV pressure.
-  # Study 16 found its best configurations pinned against the GPU's power cap with the
-  # memory bus only ~48% active and tensor cores ~11% — i.e. spare compute. If
-  # speculative decoding works here, it should show up as the drafter turning that
-  # spare compute into accepted tokens: SM/DRAM activity up at equal throughput.
+  # 10). So every addition below costs a removal, and the history of which went in and
+  # out is kept because each swap was justified by the hardware of the day.
+  #
+  # ROUND 1 (2026-09-21, 96 GB card): dropped vLLM.kv_cache_usage_avg and
+  # vLLM.preemption_rate, on the reasoning that "studies 15/16 were KV-bound (a 29 GiB
+  # MoE model on 24 GB cards) ... this study serves a small model on a 96 GB card, where
+  # KV is abundant and the metric should sit low and flat" — with an explicit escape
+  # clause: "Re-add them in place of a GPU KPI if a run unexpectedly shows KV pressure."
+  # ROUND 2 (2026-09-22): preemption_rate came back in place of gpu0.gpu_power_usage,
+  # because study 16 found its GPUs pinned at the power cap for 57% of every trial, so
+  # power is nearly constant and therefore low-information on this class of card.
+  # ROUND 3 (2026-09-22, this one): the card is now a 22.49 GiB L4, so KV pressure is not
+  # "unexpected" — it is the expected binding constraint, and the round-1 escape clause
+  # fires. vLLM.kv_cache_usage_avg returns, in place of gpu0.gpu_dram_active.
+  #
+  # Why gpu_dram_active is the right one to give up. It was added to show the drafter
+  # turning spare compute into accepted tokens, alongside gpu_sm_active. But on a
+  # bandwidth-bound L4 serving a small dense model, DRAM-active will sit near saturation
+  # in every configuration — which is precisely the low-information argument round 2 used
+  # to drop power. gpu_sm_active stays, and it is the one that actually carries this
+  # study's hypothesis: the drafter consuming otherwise-idle compute shows up as SM
+  # activity rising at equal throughput. Study 16 measured exactly that headroom on this
+  # same card: memory bus ~48% active, tensor cores ~11%.
+  #
+  # EVERYTHING DROPPED IS STILL COLLECTED. The telemetry instance wires all 131 metrics
+  # regardless; dropping a KPI only removes it from the study's own per-experiment
+  # ranking, so gpu_dram_active and gpu_power_usage remain in the export and in any
+  # analysis.
   - name: GPU SM active
     formula: gpu0.gpu_sm_active
     direction: maximize
-  - name: GPU banda memoria
-    formula: gpu0.gpu_dram_active
-    direction: maximize
-  # SWAPPED 2026-09-22 (gpu0.gpu_power_usage was here). Two reasons. Power is
-  # low-information on this class of card: study 16 found its GPUs pinned at the power cap
-  # for 57% of every trial, so the metric is nearly constant. Preemption is the opposite:
-  # this dense 32B reads 64 layers x 8 KV heads x 128 head_dim x 2 x 2 B = 256 KiB of KV
-  # per token, 2.7x the MoE it replaced, so KV pressure is real here in a way it was not
-  # before — and study 16 found preemption to be THE discriminator between kv_cache_dtype
-  # auto and fp8. Power is still collected, it is simply not one of the 8 ranked KPIs
-  # (Akamas allows no more).
+  # ADDED 2026-09-22 with the move to the L4, replacing gpu0.gpu_dram_active. With
+  # Qwen3-8B-FP8 the KV pool is roughly 9 GiB, and the three draft_model presets halve
+  # their resident sequence capacity because vLLM 0.29.0 gives the drafter its own KV
+  # cache. This is the metric that makes that visible rather than leaving it as a silent
+  # confound between the two preset families.
+  - name: KV cache usata
+    formula: vLLM.kv_cache_usage_avg
+    direction: minimize
+  # Preemption is what happens when the KV cache fills, and study 16 found it to be THE
+  # discriminator between kv_cache_dtype auto and fp8 on this same card.
   - name: Preemption (picco)
     formula: vLLM.preemption_rate
     direction: minimize
@@ -306,7 +423,7 @@ steps:
     type: baseline
     numberOfTrials: 1
     values:
-      vLLM.gpu_memory_utilization: 0.90
+      vLLM.gpu_memory_utilization: 0.85
     doNotRenderParameters:
       - vLLM.max_num_seqs
       - vLLM.max_num_batched_tokens
@@ -334,7 +451,14 @@ steps:
       - vLLM.max_num_partial_prefills
       - vLLM.max_long_partial_prefills
       - vLLM.long_prefill_token_threshold
-      - vLLM.max_model_len
+      # vLLM.max_model_len WAS listed here and was REMOVED 2026-09-22. Every other entry
+      # in this list still has a ${vLLM.*} token in k8s/01-deployment_template.yaml, and
+      # listing it is what keeps that token empty so apply_config.sh strips the flag.
+      # max_model_len no longer has a token at all: the template pins it to a literal
+      # 4096, because leaving it unrendered made vLLM fall back to the checkpoint's
+      # max_position_embeddings of 40960 — harmless on a 96 GB card, a hard startup
+      # failure on an L4 whose KV pool cannot hold one such sequence. The entry had
+      # therefore become a no-op that implied the opposite of what now happens.
 
   # --- The speculative-decoding grid: 7 presets, identical except for the two
   #     speculative parameters, so the comparison between them is clean. S1 is the
@@ -349,29 +473,63 @@ steps:
   #                                Held false in ALL seven cells, including the
   #                                ngram_gpu ones, so async scheduling is not a hidden
   #                                second variable between the two method families.
-  #       attention_backend TRITON_ATTN — the backend studies 13-16 ran on 0.29.0.
-  #                                FLASH_ATTN is vLLM's own default but this GPU's
-  #                                SM120 kernel maturity is an open question in this
-  #                                repo (see the study README), so the grid holds the
-  #                                backend fixed and leaves it to the optimize step.
+  #       attention_backend FLASH_ATTN — CHANGED 2026-09-22 from TRITON_ATTN. The pin
+  #                                existed because "this GPU's SM120 kernel maturity is
+  #                                an open question in this repo". The GPU is now an L4,
+  #                                i.e. Ada/SM89, where FlashAttention-2 is mature and is
+  #                                vLLM's own default; TRITON_ATTN is the fallback path
+  #                                and generally the slower one, so holding the grid there
+  #                                would have depressed every cell's throughput and with
+  #                                it the whole speculative comparison's absolute level.
+  #                                Constraint 1 (FLASH_ATTN requires kv_cache_dtype auto)
+  #                                is satisfied: every cell pins auto, verified below.
   #       kv_cache_dtype auto    — keeps the grid on the one dtype every backend
-  #                                supports, so no cell is lost to constraint 1-3.
-  #       max_num_seqs 256       — a mid-range batch. Speculation is expected to help
-  #                                below it and lose above it; the 8->1024 sweep is
-  #                                what actually varies the load, not this cap.
+  #                                supports, so no cell is lost to constraint 1-3. Note
+  #                                fp8 KV would double the pool on this card and is
+  #                                tempting, but none of these checkpoints ships
+  #                                k_scale/v_scale, so the scales default to 1.0 — an
+  #                                accuracy risk that would perturb the very acceptance
+  #                                rate this grid measures. It belongs in the optimize
+  #                                step, not in the controlled comparison.
+  #       max_num_seqs 128       — LOWERED 2026-09-22 from 256, to the top of the tuned
+  #                                domain and to the ceiling of the new 1->128 load ramp,
+  #                                so the cap does not bind and the sweep is still what
+  #                                varies the load. 256 also sat outside the re-derived
+  #                                domain, which would have made the grid test a batch the
+  #                                optimize step can never reach.
+  #       max_num_batched_tokens 4096 — LOWERED from 8192 to match max_model_len, which
+  #                                k8s/01-deployment_template.yaml now pins literally.
+  #       gpu_memory_utilization 0.88 — LOWERED from 0.90, which the re-added
+  #                                sampler-warmup guard rejects: 0.90 x 22.03 = 19.83 is
+  #                                already above the 19.7 ceiling before the per-sequence
+  #                                term. 0.88 at 128 sequences gives 19.46. This is also
+  #                                the exact point study 16 ran on this same card without
+  #                                an OOM.
+  #
+  #     THE THREE draft_model CELLS ARE RE-CUT to 2/3/4 speculative tokens, from 3/5/8.
+  #     They are no longer the same experiment as the ngram cells and the manifest should
+  #     not pretend otherwise. Two reasons, both new on this card:
+  #       1. The drafter is 1.11 GiB against an 8.79 GiB target, so drafting K tokens
+  #          costs ~48% extra weight traffic at K=3 and ~127% at K=8. On the 32B target
+  #          K=8 cost ~30%. K=8 here is a known loss that would buy only confirmation.
+  #       2. vLLM 0.29.0 gives the draft model its OWN KV cache, so these three cells run
+  #          at 256 KiB/token against the others' 144 — roughly half the resident sequence
+  #          capacity at identical max_num_seqs. That is a genuine confound between the
+  #          two families on this hardware, stated here rather than hidden. The ngram
+  #          cells keep 3/5/8 precisely because they load no drafter and pay neither cost.
   - name: S1 spec off reference
     type: preset
     values:
       vLLM.spec_method: "none"
       vLLM.spec_tokens: 0
-      vLLM.gpu_memory_utilization: 0.90
-      vLLM.max_num_seqs: 256
-      vLLM.max_num_batched_tokens: 8192
+      vLLM.gpu_memory_utilization: 0.88
+      vLLM.max_num_seqs: 128
+      vLLM.max_num_batched_tokens: 4096
       vLLM.kv_cache_dtype: "auto"
       vLLM.performance_mode: "balanced"
       vLLM.optimization_level: 2
       vLLM.block_size: "16"
-      vLLM.attention_backend: "TRITON_ATTN"
+      vLLM.attention_backend: "FLASH_ATTN"
       vLLM.enforce_eager: "false"
       vLLM.scheduling_policy: "fcfs"
       vLLM.disable_cascade_attn: "false"
@@ -384,14 +542,14 @@ steps:
     values:
       vLLM.spec_method: "ngram"
       vLLM.spec_tokens: 3
-      vLLM.gpu_memory_utilization: 0.90
-      vLLM.max_num_seqs: 256
-      vLLM.max_num_batched_tokens: 8192
+      vLLM.gpu_memory_utilization: 0.88
+      vLLM.max_num_seqs: 128
+      vLLM.max_num_batched_tokens: 4096
       vLLM.kv_cache_dtype: "auto"
       vLLM.performance_mode: "balanced"
       vLLM.optimization_level: 2
       vLLM.block_size: "16"
-      vLLM.attention_backend: "TRITON_ATTN"
+      vLLM.attention_backend: "FLASH_ATTN"
       vLLM.enforce_eager: "false"
       vLLM.scheduling_policy: "fcfs"
       vLLM.disable_cascade_attn: "false"
@@ -404,14 +562,14 @@ steps:
     values:
       vLLM.spec_method: "ngram"
       vLLM.spec_tokens: 5
-      vLLM.gpu_memory_utilization: 0.90
-      vLLM.max_num_seqs: 256
-      vLLM.max_num_batched_tokens: 8192
+      vLLM.gpu_memory_utilization: 0.88
+      vLLM.max_num_seqs: 128
+      vLLM.max_num_batched_tokens: 4096
       vLLM.kv_cache_dtype: "auto"
       vLLM.performance_mode: "balanced"
       vLLM.optimization_level: 2
       vLLM.block_size: "16"
-      vLLM.attention_backend: "TRITON_ATTN"
+      vLLM.attention_backend: "FLASH_ATTN"
       vLLM.enforce_eager: "false"
       vLLM.scheduling_policy: "fcfs"
       vLLM.disable_cascade_attn: "false"
@@ -424,14 +582,14 @@ steps:
     values:
       vLLM.spec_method: "ngram"
       vLLM.spec_tokens: 8
-      vLLM.gpu_memory_utilization: 0.90
-      vLLM.max_num_seqs: 256
-      vLLM.max_num_batched_tokens: 8192
+      vLLM.gpu_memory_utilization: 0.88
+      vLLM.max_num_seqs: 128
+      vLLM.max_num_batched_tokens: 4096
       vLLM.kv_cache_dtype: "auto"
       vLLM.performance_mode: "balanced"
       vLLM.optimization_level: 2
       vLLM.block_size: "16"
-      vLLM.attention_backend: "TRITON_ATTN"
+      vLLM.attention_backend: "FLASH_ATTN"
       vLLM.enforce_eager: "false"
       vLLM.scheduling_policy: "fcfs"
       vLLM.disable_cascade_attn: "false"
@@ -444,14 +602,14 @@ steps:
     values:
       vLLM.spec_method: "ngram_gpu"
       vLLM.spec_tokens: 3
-      vLLM.gpu_memory_utilization: 0.90
-      vLLM.max_num_seqs: 256
-      vLLM.max_num_batched_tokens: 8192
+      vLLM.gpu_memory_utilization: 0.88
+      vLLM.max_num_seqs: 128
+      vLLM.max_num_batched_tokens: 4096
       vLLM.kv_cache_dtype: "auto"
       vLLM.performance_mode: "balanced"
       vLLM.optimization_level: 2
       vLLM.block_size: "16"
-      vLLM.attention_backend: "TRITON_ATTN"
+      vLLM.attention_backend: "FLASH_ATTN"
       vLLM.enforce_eager: "false"
       vLLM.scheduling_policy: "fcfs"
       vLLM.disable_cascade_attn: "false"
@@ -464,14 +622,14 @@ steps:
     values:
       vLLM.spec_method: "ngram_gpu"
       vLLM.spec_tokens: 5
-      vLLM.gpu_memory_utilization: 0.90
-      vLLM.max_num_seqs: 256
-      vLLM.max_num_batched_tokens: 8192
+      vLLM.gpu_memory_utilization: 0.88
+      vLLM.max_num_seqs: 128
+      vLLM.max_num_batched_tokens: 4096
       vLLM.kv_cache_dtype: "auto"
       vLLM.performance_mode: "balanced"
       vLLM.optimization_level: 2
       vLLM.block_size: "16"
-      vLLM.attention_backend: "TRITON_ATTN"
+      vLLM.attention_backend: "FLASH_ATTN"
       vLLM.enforce_eager: "false"
       vLLM.scheduling_policy: "fcfs"
       vLLM.disable_cascade_attn: "false"
@@ -484,14 +642,14 @@ steps:
     values:
       vLLM.spec_method: "ngram_gpu"
       vLLM.spec_tokens: 8
-      vLLM.gpu_memory_utilization: 0.90
-      vLLM.max_num_seqs: 256
-      vLLM.max_num_batched_tokens: 8192
+      vLLM.gpu_memory_utilization: 0.88
+      vLLM.max_num_seqs: 128
+      vLLM.max_num_batched_tokens: 4096
       vLLM.kv_cache_dtype: "auto"
       vLLM.performance_mode: "balanced"
       vLLM.optimization_level: 2
       vLLM.block_size: "16"
-      vLLM.attention_backend: "TRITON_ATTN"
+      vLLM.attention_backend: "FLASH_ATTN"
       vLLM.enforce_eager: "false"
       vLLM.scheduling_policy: "fcfs"
       vLLM.disable_cascade_attn: "false"
@@ -505,19 +663,39 @@ steps:
   #     async_scheduling stays "false" here too. vLLM would ALLOW it on with
   #     draft_model — only plain ngram and suffix force it off — but enabling it for
   #     these three cells alone would make it a second variable between the families.
-  - name: S8 draft_model 3 tokens
+  - name: S8 draft_model 2 tokens
+    type: preset
+    values:
+      vLLM.spec_method: "draft_model"
+      vLLM.spec_tokens: 2
+      vLLM.gpu_memory_utilization: 0.88
+      vLLM.max_num_seqs: 128
+      vLLM.max_num_batched_tokens: 4096
+      vLLM.kv_cache_dtype: "auto"
+      vLLM.performance_mode: "balanced"
+      vLLM.optimization_level: 2
+      vLLM.block_size: "16"
+      vLLM.attention_backend: "FLASH_ATTN"
+      vLLM.enforce_eager: "false"
+      vLLM.scheduling_policy: "fcfs"
+      vLLM.disable_cascade_attn: "false"
+      vLLM.tokenizer_mode: "auto"
+      vLLM.async_scheduling: "false"
+      vLLM.max_cudagraph_capture_size: 512
+
+  - name: S9 draft_model 3 tokens
     type: preset
     values:
       vLLM.spec_method: "draft_model"
       vLLM.spec_tokens: 3
-      vLLM.gpu_memory_utilization: 0.90
-      vLLM.max_num_seqs: 256
-      vLLM.max_num_batched_tokens: 8192
+      vLLM.gpu_memory_utilization: 0.88
+      vLLM.max_num_seqs: 128
+      vLLM.max_num_batched_tokens: 4096
       vLLM.kv_cache_dtype: "auto"
       vLLM.performance_mode: "balanced"
       vLLM.optimization_level: 2
       vLLM.block_size: "16"
-      vLLM.attention_backend: "TRITON_ATTN"
+      vLLM.attention_backend: "FLASH_ATTN"
       vLLM.enforce_eager: "false"
       vLLM.scheduling_policy: "fcfs"
       vLLM.disable_cascade_attn: "false"
@@ -525,39 +703,19 @@ steps:
       vLLM.async_scheduling: "false"
       vLLM.max_cudagraph_capture_size: 512
 
-  - name: S9 draft_model 5 tokens
+  - name: S10 draft_model 4 tokens
     type: preset
     values:
       vLLM.spec_method: "draft_model"
-      vLLM.spec_tokens: 5
-      vLLM.gpu_memory_utilization: 0.90
-      vLLM.max_num_seqs: 256
-      vLLM.max_num_batched_tokens: 8192
+      vLLM.spec_tokens: 4
+      vLLM.gpu_memory_utilization: 0.88
+      vLLM.max_num_seqs: 128
+      vLLM.max_num_batched_tokens: 4096
       vLLM.kv_cache_dtype: "auto"
       vLLM.performance_mode: "balanced"
       vLLM.optimization_level: 2
       vLLM.block_size: "16"
-      vLLM.attention_backend: "TRITON_ATTN"
-      vLLM.enforce_eager: "false"
-      vLLM.scheduling_policy: "fcfs"
-      vLLM.disable_cascade_attn: "false"
-      vLLM.tokenizer_mode: "auto"
-      vLLM.async_scheduling: "false"
-      vLLM.max_cudagraph_capture_size: 512
-
-  - name: S10 draft_model 8 tokens
-    type: preset
-    values:
-      vLLM.spec_method: "draft_model"
-      vLLM.spec_tokens: 8
-      vLLM.gpu_memory_utilization: 0.90
-      vLLM.max_num_seqs: 256
-      vLLM.max_num_batched_tokens: 8192
-      vLLM.kv_cache_dtype: "auto"
-      vLLM.performance_mode: "balanced"
-      vLLM.optimization_level: 2
-      vLLM.block_size: "16"
-      vLLM.attention_backend: "TRITON_ATTN"
+      vLLM.attention_backend: "FLASH_ATTN"
       vLLM.enforce_eager: "false"
       vLLM.scheduling_policy: "fcfs"
       vLLM.disable_cascade_attn: "false"

@@ -199,6 +199,11 @@ metrics:
     datasourceMetric: 'max(DCGM_FI_DEV_POWER_MGMT_LIMIT{pod=~"$POD$", gpu=~"$GPU$"})'
   - metric: gpu_temp
     datasourceMetric: 'max(DCGM_FI_DEV_GPU_TEMP{pod=~"$POD$", gpu=~"$GPU$"})'
+  # MEASURED EMPTY-ISH ON THIS CARD, 2026-09-22. Queried against the live Prometheus with
+  # the L4 idle: DCGM_FI_DEV_MEMORY_TEMP exists as a series but reads a constant 0. The L4
+  # does not report a separate memory-junction temperature. Left wired — it costs nothing,
+  # it is correct on other cards, and a constant 0 is self-explanatory — but do not spend
+  # time debugging it as a wiring fault. gpu_temp (DCGM_FI_DEV_GPU_TEMP) is the real one.
   - metric: gpu_memory_temp
     datasourceMetric: 'max(DCGM_FI_DEV_MEMORY_TEMP{pod=~"$POD$", gpu=~"$GPU$"})'
   - metric: gpu_power_violation_rate
@@ -282,6 +287,13 @@ metrics:
     datasourceMetric: 'sum(DCGM_FI_PROF_PCIE_RX_BYTES{pod=~"$POD$", gpu=~"$GPU$"})'
   - metric: gpu_count
     datasourceMetric: 'max(DCGM_FI_DEV_COUNT{pod=~"$POD$", gpu=~"$GPU$"})'
+  # MEASURED ABSENT ON THIS CARD, 2026-09-22. Queried against the live Prometheus with the
+  # DCGM exporter running on the L4 node: DCGM_FI_DEV_FAN_SPEED returns NO SERIES AT ALL,
+  # unlike MEMORY_TEMP which at least exists and reads 0. The L4 is a passively cooled
+  # 72 W card in a server chassis — it has no fan of its own to report. This metric will
+  # therefore be permanently empty for the whole study. Left wired deliberately, so that
+  # the fact is recorded here rather than rediscovered as a suspected wiring bug; an
+  # empty series is not evidence the DCGM exporter is misconfigured.
   - metric: gpu_fan_speed
     datasourceMetric: 'avg(DCGM_FI_DEV_FAN_SPEED{pod=~"$POD$", gpu=~"$GPU$"}) / 100'
   - metric: gpu_slowdown_temp

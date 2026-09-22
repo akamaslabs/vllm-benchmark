@@ -81,13 +81,55 @@ Three conclusions worth keeping:
    roughly 64-128 concurrent requests and turns the sweep's upper levels into preemption
    tests rather than speculative-decoding tests.
 
-`eks/gpu-capacity-fallback.sh` implements the two live-cluster actions this produced:
+### What a direct capacity probe actually found (2026-09-22, 15:28 CEST)
+
+The table above ranks the alternatives by *fit*. A probe then ranked them by what AWS
+would actually hand over. `gpu-capacity-fallback.sh probe` asks by creating a capacity
+reservation per type/zone and cancelling it in the same second: the API refuses outright
+with `InsufficientInstanceCapacity` when the pool is empty, so the answer is immediate
+and costs a second of billing instead of an ASG's four-minute retry cycle.
+
+| Type | GPU | VRAM/GPU | Capacity in us-east-2 |
+|---|---|---|---|
+| `g6.4xlarge` | 1x L4 | 24 GB | 2a, 2b, 2c |
+| `g5.2xlarge` | 1x A10G | 24 GB | 2a, 2b |
+| `g5.12xlarge` | 4x A10G | 24 GB | 2b only |
+| `g7e.*`, `g6e.*`, `g6.12xlarge` | >=48 GB | | none, in any zone |
+
+**Everything with more than 24 GB per GPU was empty.** The `llm-serving-g7e-2a` node group
+from the previous section reached `CREATE_FAILED` after 34 launch attempts, and AWS's
+health message then flipped to recommending `us-east-2b` — the zone it had spent all day
+rejecting. That hint names whichever zone you did not ask for; it carries no information
+and should not be acted on again.
+
+This inverts the decision. The constraint is no longer "which GPU suits a 32B dense
+model" but "which model fits the only GPU obtainable". A single L4 holds 22.35 GiB, so
+Qwen3-32B-FP8 is out and the candidates become `Qwen/Qwen3-8B-FP8` or
+`Qwen/Qwen3-14B-FP8` — both dense, both FP8-capable on Ada/SM89, and both sharing the
+151936-token Qwen3 vocabulary the `Qwen/Qwen3-0.6B` drafter requires, so the drafter is
+unchanged. Verify the KV budget against the chosen checkpoint before committing: the
+8B leaves noticeably more cache headroom than the 14B, and the study's `max_num_seqs`
+domain was sized for 96 GB.
+
+The scientific cost is smaller than it looks. The study asks when speculative decoding
+helps, which is a question about regime rather than about absolute tokens per second. An
+L4's ~300 GB/s of memory bandwidth sits far below the RTX PRO 6000's, pushing decode
+deeper into the bandwidth-bound regime where speculation has the most to give — arguably
+a sharper instrument for this particular question, at 1.32 USD/h instead of 4.00.
+
+`eks/gpu-capacity-fallback.sh` implements the live-cluster actions this produced:
 
 ```bash
-./gpu-capacity-fallback.sh status    # node groups + GPU instances actually running
-./gpu-capacity-fallback.sh g7e-2a    # g7e node group pinned to us-east-2a, desiredSize 1
-./gpu-capacity-fallback.sh l40s      # L40S node group, desiredSize 0 (opt-in, not free)
+./gpu-capacity-fallback.sh status      # node groups + GPU instances actually running
+./gpu-capacity-fallback.sh probe       # which types/zones have capacity RIGHT NOW
+./gpu-capacity-fallback.sh l4-single   # 1x L4 (g6.4xlarge), desiredSize 1 — the only
+                                       #   family with capacity; needs a model swap
+./gpu-capacity-fallback.sh g7e-2a      # g7e pinned to us-east-2a, desiredSize 1
+./gpu-capacity-fallback.sh l40s        # L40S node group, desiredSize 0 (opt-in, not free)
 ```
+
+`g7e-2a` is kept for the day g7e capacity returns, but as of this writing it fails; the
+probe is the cheapest way to find out before creating anything.
 
 `g7e-2a` exists because AWS's own health message on the stuck node group says capacity is
 available in `us-east-2a` while every recorded failure is in `us-east-2b`. The original

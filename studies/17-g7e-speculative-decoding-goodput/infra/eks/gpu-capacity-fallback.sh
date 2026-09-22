@@ -154,6 +154,76 @@ create_l40s() {
     --taints 'key=nvidia.com/gpu,value=present,effect=NO_SCHEDULE'
 }
 
+create_l4_single() {
+  local role subnets
+  role=$(resolve_from_g7e 'nodegroup.nodeRole')
+  subnets=$(aws ec2 describe-subnets --region "$REGION" \
+    --filters "Name=tag:Name,Values=eksctl-${CLUSTER}-cluster/SubnetPublic*" \
+    --query 'Subnets[].SubnetId' --output text)
+  echo "role=$role subnets=$subnets"
+
+  # ONE L4, not the four on the pre-existing llm-serving-l4 (g6.12xlarge). Added
+  # 2026-09-22 after a capacity probe (short-lived capacity reservations, created and
+  # cancelled immediately) showed the 24GB class is the ONLY GPU capacity us-east-2 had
+  # left: g6.4xlarge available in all three AZs, g5.2xlarge in 2a/2b, g5.12xlarge in 2b,
+  # and nothing at all for g7e, g6e or g6.12xlarge in any zone.
+  #
+  # This node CANNOT serve Qwen3-32B-FP8 — 22.35 GiB of VRAM against ~31 GiB of weights.
+  # Using it means swapping the study's target model for one that fits, e.g.
+  # Qwen/Qwen3-8B-FP8 or Qwen/Qwen3-14B-FP8, both of which keep the Qwen3 151936-token
+  # vocabulary the Qwen3-0.6B drafter needs. That is a study decision, not an infra one,
+  # so nothing here edits the study. What it does preserve is the study's actual shape:
+  # one dense model on one GPU with speculative decoding. An L4's ~300 GB/s of bandwidth
+  # is far below the RTX PRO 6000's, which puts decode deeper into the
+  # memory-bandwidth-bound regime where speculation has the most to give.
+  #
+  # Distinct label on purpose: node-role=llm-serving-l4-single never collides with the
+  # llm-serving-g7e label the two g7e node groups share, so no avg()-based GPU metric can
+  # silently average across a g7e node and this one if g7e capacity ever returns.
+  aws eks create-nodegroup \
+    --cluster-name "$CLUSTER" --region "$REGION" \
+    --nodegroup-name llm-serving-l4-single \
+    --node-role "$role" \
+    --subnets $subnets \
+    --scaling-config minSize=0,maxSize=1,desiredSize=1 \
+    --instance-types g6.4xlarge \
+    --capacity-type ON_DEMAND \
+    --ami-type AL2023_x86_64_NVIDIA \
+    --disk-size 200 \
+    --labels node-role=llm-serving-l4-single \
+    --taints 'key=nvidia.com/gpu,value=present,effect=NO_SCHEDULE'
+}
+
+probe_capacity() {
+  # Free-in-practice capacity probe: a capacity reservation is refused outright with
+  # InsufficientInstanceCapacity when the pool is empty, and when it succeeds it is
+  # cancelled within the same second, so billing is negligible. This is the only way to
+  # ask "is there capacity right now" without waiting out an ASG's 4-minute retry cycle.
+  local end; end=$(date -u -v+1H '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u -d '+1 hour' '+%Y-%m-%dT%H:%M:%SZ')
+  printf '%-16s %-5s %-5s %-5s\n' TYPE 2a 2b 2c
+  for it in "${@:-g7e.4xlarge g6e.4xlarge g6.4xlarge g5.2xlarge}"; do
+    printf '%-16s ' "$it"
+    for az in us-east-2a us-east-2b us-east-2c; do
+      out=$(aws ec2 create-capacity-reservation --region "$REGION" \
+        --instance-type "$it" --instance-platform Linux/UNIX --availability-zone "$az" \
+        --instance-count 1 --instance-match-criteria targeted \
+        --end-date-type limited --end-date "$end" \
+        --query 'CapacityReservation.CapacityReservationId' --output text 2>&1)
+      if [[ "$out" == cr-* ]]; then
+        printf '%-5s ' YES
+        aws ec2 cancel-capacity-reservation --region "$REGION" --capacity-reservation-id "$out" >/dev/null 2>&1 \
+          || printf '\n!! reservation %s NOT cancelled, cancel it by hand !!\n' "$out"
+      else
+        echo "$out" | grep -q InsufficientInstanceCapacity && printf '%-5s ' no || printf '%-5s ' n/a
+      fi
+    done
+    echo
+  done
+  echo "still-active reservations (must be empty):"
+  aws ec2 describe-capacity-reservations --region "$REGION" --filters Name=state,Values=active \
+    --query 'CapacityReservations[].[CapacityReservationId,InstanceType,AvailabilityZone]' --output text
+}
+
 status() {
   echo "=== GPU node groups"
   for ng in $(aws eks list-nodegroups --cluster-name "$CLUSTER" --region "$REGION" \
@@ -175,6 +245,8 @@ status() {
 case "${1:-}" in
   g7e-2a) create_g7e_2a ;;
   l40s)   create_l40s   ;;
+  l4-single) create_l4_single ;;
+  probe)  shift; probe_capacity "$@" ;;
   status) status        ;;
-  *) echo "usage: $0 {g7e-2a|l40s|status}" >&2; exit 1 ;;
+  *) echo "usage: $0 {g7e-2a|l40s|l4-single|probe [type...]|status}" >&2; exit 1 ;;
 esac

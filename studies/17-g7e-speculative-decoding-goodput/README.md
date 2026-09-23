@@ -681,7 +681,33 @@ better one helps not at all. The methods that avoid a second model entirely — 
 family — avoid this cost and fail for the opposite reason, drafting too rarely to matter.
 Between the two failure modes there is no configuration left on this stack.
 
-## Why the baseline is still best at experiment 20: it is outside the search space
+## ~~Why the baseline is still best at experiment 20: it is outside the search space~~ — RETRACTED
+
+> **This section's central claim is wrong and is retracted, not deleted, so the reasoning
+> error stays on record.** It argued the baseline wins because it ran at `max_num_seqs` 256
+> while the tuned domain stops at 128. Measured afterwards on 2026-09-23:
+> `max(vllm:num_requests_running)` is **exactly 128.0 in both the baseline and S1**, with
+> `num_requests_waiting` at **0.0** in both. The load generator's ramp tops out at 128
+> concurrent requests, so the engine never had more than 128 to run, and a batch cap of
+> 256 versus 128 could not have made any difference. The 2.02% gap between baseline and S1
+> therefore does not come from `max_num_seqs`.
+>
+> What it does come from is **not established**. The baseline leaves every other parameter
+> at vLLM's own default while S1 pins them at preset values, so the two differ in
+> `max_num_batched_tokens`, the attention backend, `max_cudagraph_capture_size` and more.
+> And with `numberOfTrials: 1`, a 2% difference between two single measurements may simply
+> be noise — the n-gram family alone showed a 35% spread across nominally ordered settings.
+> Treat "the baseline is best" as "nothing tried so far is distinguishable from vLLM's
+> defaults", not as a located effect.
+>
+> **The structural limit that IS real is the ramp ceiling, not the batch cap.** At
+> concurrency 128 both SLAs still had headroom — ITL p95 120 ms against 300, TTFT p95
+> 440 ms against 1500 — and throughput was still rising, +10% from 64 to 128. Capacity
+> above 128 has never been measured. The earlier section arguing that 128 was the right
+> ceiling "because max_num_seqs caps at 128" was circular: both limits were set by this
+> study, and neither was forced by the hardware.
+>
+> The original text follows unchanged.
 
 The optimize step has run ~9 experiments and has not beaten the baseline's 1507.62. The
 configuration it is proposing says why. A representative optimize experiment:

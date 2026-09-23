@@ -734,6 +734,65 @@ question matters on its own, start a successor study with `max_num_seqs` widened
 least [16, 512] — `parametersSelection` cannot be edited on a running study on Akamas 3.7,
 so it is a new study either way.
 
+## The prediction held, and it closes the question arithmetically
+
+The cost model was fitted on S8 (K=2) and S9 (K=3) and used to predict S10 (K=4) before
+S10 ran. Measured at the low-concurrency start of S10's ramp:
+
+| | predicted | measured |
+|---|---|---|
+| ms per engine step | 178 | **179** |
+| ms per token | 63.5 | **63** |
+| accepted per draft | ~1.8 (assumed) | 1.85 |
+
+Within 1%. The model generalises beyond the two points it was fitted to, so its two
+constants can be trusted: **one drafter forward pass costs 36.5 ms, one verify pass costs
+31.9 ms, against a 35.0 ms unspeculated step.**
+
+**From those three numbers, speculation on this stack cannot win at any draft length.**
+Break-even requires `(1 + accepted) / (31.9 + 36.5K) > 1 / 35.0`:
+
+| K | step (ms) | accepted/draft needed | measured | verdict |
+|---|---|---|---|---|
+| 1 | 68.4 | 0.95 | — | needs 95% single-token acceptance; measured per-token rate is ~58% |
+| 2 | 104.9 | 2.00 | 1.17 | needs 100% acceptance of both tokens |
+| 3 | 141.4 | 3.04 | 1.55 | **impossible** — exceeds K |
+| 4 | 177.9 | 4.08 | 1.85 | **impossible** — exceeds K |
+| 6 | 250.9 | 6.17 | — | **impossible** |
+| 8 | 323.9 | 8.25 | — | **impossible** |
+
+You cannot accept more tokens than you drafted, so for K>=3 the requirement exceeds the
+ceiling: **even a perfect drafter accepted 100% of the time would still lose.** K=2 needs
+flawless acceptance. K=1, the only length not excluded outright, needs 95% where 58% is
+measured.
+
+This is the whole finding in one line: **the 0.6B drafter costs more per forward pass
+(36.5 ms) than the 8B target it is meant to amortise (31.9 ms)**, and once that is true no
+acceptance rate can close the gap.
+
+## The optimize step, experiments 12-19
+
+| Exp | Score | vs baseline |
+|---|---|---|
+| 12 | 1251.41 | -16.99% |
+| 13 | 1389.14 | -7.86% |
+| 14 | 1404.07 | -6.87% |
+| 15 | 1157.50 | -23.22% |
+| 16 | 1154.10 | -23.45% |
+| 17 | 1339.65 | -11.14% |
+| 18 | 1370.32 | -9.11% |
+| 19 | **1465.50** | **-2.79%** |
+
+The search is converging, non-monotonically as expected, and experiment 19 sits **0.8%
+below S1** (1477.21) with speculation switched off. That is the box's best corner, reached
+in eight experiments. It is 2.8% below the baseline for the structural reason recorded in
+the previous section: the baseline runs at `max_num_seqs` 256, outside the tuned domain's
+128 ceiling.
+
+So the optimizer is performing well and has essentially finished its useful work. What
+remains is ~50 experiments refining a point that is capped below a configuration already
+measured.
+
 ## Prerequisites still open
 
 1. **Recreate the Akamas resources.** Not a blocker, just an ordering requirement: the

@@ -681,6 +681,59 @@ better one helps not at all. The methods that avoid a second model entirely — 
 family — avoid this cost and fail for the opposite reason, drafting too rarely to matter.
 Between the two failure modes there is no configuration left on this stack.
 
+## Why the baseline is still best at experiment 20: it is outside the search space
+
+The optimize step has run ~9 experiments and has not beaten the baseline's 1507.62. The
+configuration it is proposing says why. A representative optimize experiment:
+
+```
+--gpu-memory-utilization=0.88897     <- the guard allows at most 0.894
+--max-num-seqs=128                   <- the tuned domain's CEILING
+--max-num-batched-tokens=3513
+--attention-backend=FLASHINFER
+--max-cudagraph-capture-size=127
+(no --spec-method / --spec-tokens at all)
+```
+
+**Two independent confirmations in one line of output.**
+
+First, **the optimizer dropped speculation entirely**, on its own, after the preset grid
+had already shown it losing. The manifest predicted exactly this before the study ran. Two
+independent methods, the controlled grid and the search, agree.
+
+Second, and this is the problem: **the optimizer is pressed against both of its ceilings.**
+`max_num_seqs` sits at 128, the top of its domain. `gpu_memory_utilization` sits at 0.889
+against the 0.894 the sampler-warmup guard permits. A search parked in the corner of its
+box is a search that wants more than it is allowed.
+
+**The baseline is allowed what the optimizer is not.** The baseline step deliberately
+leaves `max_num_seqs` unrendered so vLLM picks its own startup default, and vLLM chose
+**256** — twice the tuned ceiling. So the baseline is not a point the optimizer can reach,
+and if its advantage comes from that parameter, it cannot be beaten by construction.
+
+The evidence that it does: baseline 1507.62 at 256 sequences and utilisation 0.85, against
+S1 at 1477.21 with the identical stack at 128 sequences and 0.88. A 2.02% gap, and
+`max_num_seqs` is the parameter that differs most.
+
+**The 128 ceiling was my error, and it was not forced by anything physical.** It was
+narrowed from the pack's [1, 4096] on the reasoning that the KV pool holds roughly 80
+concurrent ShareGPT requests. The measurements since say that was too conservative:
+the pool is 49,616 tokens without a drafter, `vllm:num_preemptions_total` read **0.00/s**
+in every experiment including the baseline's own 256-sequence run, and the sampler-warmup
+guard is satisfied at 256 anyway (0.88 x 22.03 + 256 x 0.0006 = 19.54, under the 19.7
+ceiling). Nothing but the domain I wrote stopped the optimizer from trying it.
+
+**What this costs.** The remaining ~50 optimize experiments are searching a box whose best
+corner is already known to be worse than a point just outside it. That is ~40 hours and
+~53 USD to refine a second-place answer. The speculative question — the reason this study
+exists — is already answered twice over.
+
+**Options, in the order I would consider them.** Stop the optimize step now and take the
+result; the preset grid is complete and is what the study was for. Or, if the tuning
+question matters on its own, start a successor study with `max_num_seqs` widened to at
+least [16, 512] — `parametersSelection` cannot be edited on a running study on Akamas 3.7,
+so it is a new study either way.
+
 ## Prerequisites still open
 
 1. **Recreate the Akamas resources.** Not a blocker, just an ordering requirement: the

@@ -16,12 +16,12 @@ tasks:
       source:
         hostname: toolbox
         username: akamas
-        key: /work/vllm-benchmark/studies/5-pack-changes/akamas/id_rsa
+        key: /home/akamas/.ssh/id_rsa
         path: /work/vllm-benchmark/studies/5-pack-changes/k8s/01-deployment_template.yaml
       target:
         hostname: toolbox
         username: akamas
-        key: /work/vllm-benchmark/studies/5-pack-changes/akamas/id_rsa
+        key: /home/akamas/.ssh/id_rsa
         path: /work/vllm-benchmark/studies/5-pack-changes/k8s/01-deployment.yaml
 
   - name: Apply config
@@ -34,7 +34,7 @@ tasks:
       host:
         hostname: toolbox
         username: akamas
-        key: /work/vllm-benchmark/studies/5-pack-changes/akamas/id_rsa
+        key: /home/akamas/.ssh/id_rsa
       command: bash /work/vllm-benchmark/studies/5-pack-changes/k8s/apply_config.sh
 
   - name: RunTest
@@ -49,5 +49,5 @@ tasks:
       host:
         hostname: toolbox
         username: akamas
-        key: /work/vllm-benchmark/studies/5-pack-changes/akamas/id_rsa
+        key: /home/akamas/.ssh/id_rsa
       command: bash /work/vllm-benchmark/studies/5-pack-changes/k8s/run_test_goodput.sh

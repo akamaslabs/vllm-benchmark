@@ -156,10 +156,13 @@ read from pack metric descriptions, not scraped — ROADMAP Q7 applies).
 
 ## Placeholders / preconditions before this can be created
 
-1. **`akamas/id_rsa` must exist on the toolbox** at
-   `/work/vllm-benchmark/studies/17-g7e-speculative-decoding-goodput/akamas/id_rsa`.
-   `akamas create workflow` refuses a `key:` path that does not exist there. The file is
-   never committed (`.gitignore`); copy it from another study's folder on the toolbox.
+1. **The workflow key is `/home/akamas/.ssh/id_rsa` on the toolbox** — the toolbox's
+   own key, mounted from the `toolbox-keys` Kubernetes secret. Changed 2026-09-23: the
+   per-study copies under `studies/*/akamas/id_rsa` were a compromised key tracked in git
+   and are gone; the key was rotated in the secret. `akamas create workflow` still refuses
+   a `key:` path that does not exist on the toolbox, so run it from the toolbox. The
+   workflows already stored in Akamas before that date carry the old key and are not
+   reused — create a fresh one from this file.
 2. **The toolbox needs this study's folder** pulled at
    `/work/vllm-benchmark/studies/17-g7e-speculative-decoding-goodput/`, since all three
    workflow tasks read scripts from it.

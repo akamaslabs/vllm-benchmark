@@ -31,12 +31,12 @@ tasks:
       source:
         hostname: toolbox
         username: akamas
-        key: /work/vllm-benchmark/studies/17-g7e-speculative-decoding-goodput/akamas/id_rsa
+        key: /home/akamas/.ssh/id_rsa
         path: /work/vllm-benchmark/studies/17-g7e-speculative-decoding-goodput/k8s/01-deployment_template.yaml
       target:
         hostname: toolbox
         username: akamas
-        key: /work/vllm-benchmark/studies/17-g7e-speculative-decoding-goodput/akamas/id_rsa
+        key: /home/akamas/.ssh/id_rsa
         path: /work/vllm-benchmark/studies/17-g7e-speculative-decoding-goodput/k8s/01-deployment.yaml
 
   - name: Apply config
@@ -47,7 +47,7 @@ tasks:
       host:
         hostname: toolbox
         username: akamas
-        key: /work/vllm-benchmark/studies/17-g7e-speculative-decoding-goodput/akamas/id_rsa
+        key: /home/akamas/.ssh/id_rsa
       # apply_config.sh rewrites vLLM's BooleanOptionalAction flags, REMOVES
       # --spec-method/--spec-tokens entirely when speculative decoding is off (vLLM
       # treats their absence, not a sentinel value, as "off"), applies the Deployment,
@@ -63,7 +63,7 @@ tasks:
       host:
         hostname: toolbox
         username: akamas
-        key: /work/vllm-benchmark/studies/17-g7e-speculative-decoding-goodput/akamas/id_rsa
+        key: /home/akamas/.ssh/id_rsa
       # run_test_goodput.sh re-applies the AIPerf Job, waits for completion, and dumps
       # both the init container's and the aiperf container's logs to stdout regardless
       # of whether the wait succeeded.

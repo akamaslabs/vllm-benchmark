@@ -804,6 +804,13 @@ minimum MIG slice that satisfies it — the sub-GPU-granularity complement to st
       Revoke/rotate it wherever it grants access, and treat it as compromised regardless
       of whether the file is still present on disk — removing a file from the working
       tree does not remove it from git history; that requires a history rewrite.
+      **2026-09-23 progress:** this is the toolbox's own workflow key (the one in the
+      `toolbox-keys` secret). Every workflow's `key:` now points at
+      `/home/akamas/.ssh/id_rsa` (the secret mount) instead of per-study copies; the
+      tracked `studies/*/akamas/id_rsa` copies were removed from the index. Still open:
+      replacing the key in the secret (then restarting the toolbox), and deciding whether
+      to rewrite history. Workflows already stored in Akamas embed the old key and will
+      stop working once it's rotated — new ones get created from the repo files.
 - [x] **Cluster provisioning is now atomic per study, not shared** (resolved
       2026-07-15, supersedes this item's original framing). `0-explorative` gained a
       complete `infra/` layer (`eksctl` cluster config, `provision.sh`, Kubernetes

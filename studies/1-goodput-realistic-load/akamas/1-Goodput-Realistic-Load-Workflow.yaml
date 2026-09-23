@@ -29,12 +29,12 @@ tasks:
       source:
         hostname: toolbox
         username: akamas
-        key: /work/vllm-benchmark/studies/1-goodput-realistic-load/akamas/id_rsa
+        key: /home/akamas/.ssh/id_rsa
         path: /work/vllm-benchmark/studies/1-goodput-realistic-load/k8s/01-deployment_template.yaml
       target:
         hostname: toolbox
         username: akamas
-        key:  /work/vllm-benchmark/studies/1-goodput-realistic-load/akamas/id_rsa
+        key: /home/akamas/.ssh/id_rsa
         path: /work/vllm-benchmark/studies/1-goodput-realistic-load/k8s/01-deployment.yaml
 
   - name: Apply config
@@ -45,7 +45,7 @@ tasks:
       host:
         hostname: toolbox
         username: akamas
-        key:  /work/vllm-benchmark/studies/1-goodput-realistic-load/akamas/id_rsa
+        key: /home/akamas/.ssh/id_rsa
       command: bash /work/vllm-benchmark/studies/1-goodput-realistic-load/k8s/apply_config.sh
 
   - name: RunTest
@@ -60,5 +60,5 @@ tasks:
       host:
         hostname: toolbox
         username: akamas
-        key:  /work/vllm-benchmark/studies/1-goodput-realistic-load/akamas/id_rsa
+        key: /home/akamas/.ssh/id_rsa
       command: bash /work/vllm-benchmark/studies/1-goodput-realistic-load/k8s/run_test_goodput.sh

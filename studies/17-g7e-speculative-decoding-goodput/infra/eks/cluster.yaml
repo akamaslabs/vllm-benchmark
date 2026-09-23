@@ -19,14 +19,28 @@ addons:
 
 managedNodeGroups:
 
-  - name: system
-    instanceType: m6i.xlarge
+  # REPLACED 2026-09-23 (security incident — see infra/README.md "Incident 2026-09-23"):
+  # `system` (m6i.xlarge) and `system-m8a` (m8a.xlarge) are deleted. Both were DEGRADED
+  # (AutoScalingGroupInvalidConfiguration) because their ASGs had been hand-pinned to
+  # the us-east-2b subnet while EKS still expected all three — here the single subnet
+  # is declared, so EKS and the ASG agree. It is the PRIVATE 2b subnet: us-east-2b
+  # because the monitoring/benchmark-results volumes (Retain) live there, private so
+  # the node has no public IP (egress via the 2b NAT gateway). `disablePodIMDS` sets
+  # the IMDS hop limit to 1 — pods can no longer read the node's IAM credentials
+  # (external-dns and the EBS CSI controller use IRSA, cert-manager uses HTTP-01).
+  # The label stays `node-role: system-m8a` so no nodeSelector has to change.
+  - name: system-2b
+    instanceType: m8a.xlarge
     desiredCapacity: 1
     minSize: 1
     maxSize: 1
     volumeSize: 50
+    privateNetworking: true
+    subnets:
+      - subnet-0a4cb274f99c37224   # SubnetPrivateUSEAST2B
+    disablePodIMDS: true
     labels:
-      node-role: system
+      node-role: system-m8a
 
   - name: akamas
     instanceType: r6i.xlarge

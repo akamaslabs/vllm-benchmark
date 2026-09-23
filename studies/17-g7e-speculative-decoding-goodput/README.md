@@ -819,6 +819,69 @@ So the optimizer is performing well and has essentially finished its useful work
 remains is ~50 experiments refining a point that is capped below a configuration already
 measured.
 
+## Follow-up smoke test: EAGLE-3 also loses (2026-09-23)
+
+The cost model above located the failure in the drafter's per-pass cost, so the natural
+next candidate was **EAGLE-3**, which is designed against exactly that: instead of a
+separate full model, it adds a single transformer layer that reuses the target's own
+hidden states. `RedHatAI/Qwen3-8B-speculator.eagle3` is a maintained head for this target
+(1 layer, 1.90 GiB, draft vocabulary 32,000). It was smoke-tested by hand after this study
+finished, before any change to the optimization pack, precisely so that a wrong prediction
+would cost minutes rather than a study.
+
+**Method:** vLLM 0.29.0 on the same L4, the preset settings of S1 (utilisation 0.88,
+`max_num_seqs` 128, `max_num_batched_tokens` 4096, `FLASH_ATTN`), AIPerf with the same
+ShareGPT prompts at a steady concurrency of 2, and the same two-point counter-delta method
+used for the draft model. The model-runner forcing was removed, so vLLM chose freely.
+
+| Configuration | runner | KV tokens | ms/token | tokens/step | ms/step |
+|---|---|---|---|---|---|
+| no speculation | V2 | 64,736 | **35.8** | 1.00 | 35.8 |
+| EAGLE-3, K=2 | V2 | 45,808 | 41.9 | 2.03 | 84.9 |
+| EAGLE-3, K=4 | V2 | 37,600 | 47.5 | 2.36 | 112.3 |
+
+**What EAGLE-3 fixes, measured:**
+- **The drafting cost.** One draft pass costs **13.7 ms**, against 36.5 ms for the 0.6B
+  draft model — the single-layer head does what it was designed to do.
+- **The runner confound.** EAGLE-3 selects the V2 runner on its own, as does
+  no-speculation, so the two run on the same engine without forcing.
+- **The KV halving, mostly.** 45,808 tokens at K=2 against 26,928 for the draft model.
+
+**What it does not fix — and it is fatal:** the fixed part of each step is **57.5 ms**
+against **35.8 ms** for an unspeculated step. EAGLE-3 adds **21.7 ms of overhead to every
+engine step before it drafts a single token** — the target must additionally expose hidden
+states from three auxiliary layers (vLLM logs `Using Eagle3 auxiliary layers from model:
+(2, 18, 33)`), and on a card with ~300 GB/s that extra traffic is not free.
+
+The runner is ruled out as the cause: no-speculation measures **35.8 ms on V2 against
+35.0 ms on V1**, the same within noise.
+
+Break-even against the V2 reference, `(1 + accepted) / (57.5 + 13.7K) > 1 / 35.8`:
+
+| K | accepted/draft needed | measured |
+|---|---|---|
+| 1 | 0.99 | — (would need ~99% acceptance of a single token) |
+| 2 | 1.37 | 1.03 |
+| 4 | 2.14 | 1.36 |
+| 8 | 3.67 | — |
+
+Measured acceptance grows with K far more slowly than the requirement does (51% of drafted
+tokens at K=2, 34% at K=4), so the gap widens with draft length. EAGLE-3 is a real
+improvement over the draft model — 41.9 against 48.3 ms/token at K=2 — and still loses to
+not speculating at all.
+
+**Acceptance is also lower than EAGLE-3's published figures**, and two causes are
+plausible but not isolated here: the head's reduced draft vocabulary of 32,000 tokens
+against Qwen3's 151,936 means any target token outside it can never be drafted; and AIPerf
+samples at the checkpoint's default temperature rather than greedily, which lowers
+acceptance under speculative rejection sampling. Greedy decoding would raise acceptance
+but changes the workload being benchmarked, so it is a different question.
+
+**Conclusion across all three drafter families on this stack — Qwen3-8B-FP8, one L4,
+vLLM 0.29.0, ShareGPT:** n-gram drafts too rarely, a separate draft model drafts too
+expensively, and EAGLE-3 drafts cheaply but pays a fixed per-step overhead larger than any
+achievable acceptance can recover. Speculative decoding does not improve throughput here.
+
 ## Prerequisites still open
 
 1. **Recreate the Akamas resources.** Not a blocker, just an ordering requirement: the

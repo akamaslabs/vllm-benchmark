@@ -98,46 +98,27 @@ parameterConstraints:
     formula: pd_topology.pd_prefill_instances == 0 || (vllm_prefill.kv_cache_dtype == "auto" && vllm_decode.kv_cache_dtype == "auto") || (vllm_prefill.kv_cache_dtype == "fp8" && vllm_decode.kv_cache_dtype == "fp8")
 
 kpis:
+  # Akamas 3.7 accepts at most 8 KPIs per study ("No more than 8 KPIs are allowed", seen at
+  # `akamas create` on 2026-09-24). Every metric below, and all the others in the telemetry
+  # catalog (GPU PCIe TX/RX, requests/s, failed transfers, decode queue), is still collected
+  # and visible on its component. These 8 are the ones compared across presets.
   - name: Throughput totale
     formula: pd_topology.total_token_throughput
     direction: maximize
-  - name: GPU attive
-    formula: pd_topology.active_gpus
-    direction: minimize
   - name: TTFT P95 (router)
     formula: pd_topology.time_to_first_token_p95
     direction: minimize
   - name: ITL P95 (router)
     formula: pd_topology.inter_token_latency_p95
     direction: minimize
-  - name: Richieste completate al secondo
-    formula: pd_topology.request_success_rate
-    direction: maximize
   - name: Tempo in coda P95 prefill
     formula: vllm_prefill.request_queue_time_p95
-    direction: minimize
-  - name: Tempo in coda P95 decode
-    formula: vllm_decode.request_queue_time_p95
     direction: minimize
   - name: Tempo trasferimento KV P95
     formula: vllm_decode.nixl_xfer_time_p95
     direction: minimize
   - name: Banda trasferimento KV
     formula: vllm_decode.nixl_transfer_throughput
-    direction: maximize
-  - name: Trasferimenti KV falliti
-    formula: vllm_decode.nixl_failed_transfers_rate
-    direction: minimize
-    aggregation: max
-  # PCIe per GPU (bytes/s, see the telemetry note). In every disaggregated preset GPU0 is a
-  # prefill instance and the LAST GPU of the topology is a decode instance (launcher layout),
-  # so GPU0 TX and GPU1 RX show the KV transfer for the 1P1D presets. Compare with the
-  # diag's measured maximum.
-  - name: Banda PCIe TX GPU0
-    formula: gpu0.gpu_pcie_tx_bytes
-    direction: maximize
-  - name: Banda PCIe RX GPU1
-    formula: gpu1.gpu_pcie_rx_bytes
     direction: maximize
   - name: Utilizzo KV cache decode
     formula: vllm_decode.kv_cache_usage_avg

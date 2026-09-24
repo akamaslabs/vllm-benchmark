@@ -64,9 +64,10 @@ The study's value is where exactly that line falls.
   every preset.
 - **Load generator:** AIPerf 0.11.0, chat endpoint, streaming, synthetic prompts of
   **4096 tokens in / 256 out** (stddev 0, `ignore_eos`), 1000 prompts, seed 18. Concurrency
-  ramp of **6 levels x 600 s = 60 min** per experiment, levels `2,4,8,12,16,24`
-  (calibrated: the 2-GPU aggregated baseline saturates from ~12, and everything above 24 was
-  saturated). The long levels are deliberate: queue build-up, KV fill and preemption,
+  ramp of **6 levels x 600 s = 60 min** per experiment, levels `2,4,8,16,24,32`
+  (calibrated: the 2-GPU aggregated baseline saturates from ~12. The ramp goes to 32 so that
+  the 4-GPU layouts, which have ~2x the capacity, also reach their peak and their tokens/s per
+  GPU is not under-measured). The long levels are deliberate: queue build-up, KV fill and preemption,
   transfer back-pressure and L4 power throttling are steady-state effects.
   **Methodology break vs studies 1-17**, which all replayed ShareGPT (short-input chat, on
   which disaggregation loses by construction).
@@ -99,8 +100,10 @@ parameters explicitly, as subsets of the pack 1.11.0 domains.
 
 Pinned for every instance: `--max-model-len 8192`, `--attention-backend FLASHINFER`
 (prefill and decode must match. It is FLASHINFER, not FLASH_ATTN, because FlashAttention runs
-as v2 on SM 8.9 and rejects fp8 KV, which would stop preset S5. Decided 2026-09-24), `--no-enable-prefix-caching`, `--enable-mfu-metrics`, and
-chunked prefill at vLLM's default (on).
+as v2 on SM 8.9 and rejects fp8 KV, which would stop preset S5. Decided 2026-09-24), `--no-enable-prefix-caching`, `--enable-mfu-metrics`,
+`--default-chat-template-kwargs '{"enable_thinking": false}'` (reasoning off, as in earlier
+studies; no effect on the load, since output is fixed at 256 tokens), and chunked prefill at
+vLLM's default (on).
 
 `parameterConstraints`:
 - P + D <= 4;

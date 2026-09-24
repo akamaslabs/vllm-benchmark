@@ -38,6 +38,15 @@
 #   --no-enable-prefix-caching     same methodology as studies 1-17: every prompt is
 #                                  prefilled for real.
 #   --enable-mfu-metrics           feeds the pack's MFU/bandwidth metrics.
+#   --default-chat-template-kwargs {"enable_thinking": false}
+#                                  Qwen3-8B thinks by default. It is off here for consistency
+#                                  with earlier studies, which kept reasoning off, and for
+#                                  plain answers in the logs. It does not change the load:
+#                                  output is fixed at 256 tokens (ignore_eos), and the
+#                                  template adds only 4 prompt tokens (<think></think>).
+#                                  Server-side default, vllm/entrypoints/launchers/cli_args.py
+#                                  (v0.29.0); a request's own chat_template_kwargs would
+#                                  override it.
 #   chunked prefill stays at vLLM's default (on). The prefill chunk size is controlled
 #   with max_num_batched_tokens, which is exactly the knob the aggregated control presets
 #   turn.
@@ -57,6 +66,7 @@ data:
     --attention-backend=FLASHINFER
     --no-enable-prefix-caching
     --enable-mfu-metrics
+    --default-chat-template-kwargs={"enable_thinking": false}
   prefill.args: |
     --gpu-memory-utilization=${vllm_prefill.gpu_memory_utilization}
     --max-num-seqs=${vllm_prefill.max_num_seqs}

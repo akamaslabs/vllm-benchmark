@@ -12,10 +12,11 @@
 #             purpose: prefill-queue build-up, decode KV fill -> preemption, and KV-transfer
 #             back-pressure are steady-state effects that 90-300 s levels (studies 10-16)
 #             can hide. L4 power throttling (72 W cap) also shows up only over time.
-#   levels    2,4,8,12,16,24, calibrated at the 2026-09-24 smoke test. The 2-GPU aggregated
+#   levels    2,4,8,16,24,32, calibrated at the 2026-09-24 smoke test. The 2-GPU aggregated
 #             baseline saturates at ~0.45 req/s from concurrency ~12 (prefill-bound: one
-#             4096-token prefill is ~1.5 s on an L4), and everything above 24 was saturated.
-#             24 still brackets the 4-GPU knee.
+#             4096-token prefill is ~1.5 s on an L4). 4-GPU layouts have ~2x the capacity
+#             and saturate near 24, so the ramp goes to 32. Otherwise their tokens/s per GPU
+#             at the throughput peak would be under-measured against the 2-GPU presets.
 #   goodput   TTFT 5000 ms / ITL 75 ms, the same values as the study's SLA (see the study
 #             manifest for why).
 #
@@ -56,7 +57,7 @@ spec:
               pip install --quiet aiperf==0.11.0
               # Keep only the latest run's artifacts on the 10 Gi results volume.
               find /benchmarks -mindepth 1 -maxdepth 1 -name 'aiperf-*' -exec rm -rf {} +
-              CONCURRENCY_LIST="2,4,8,12,16,24"
+              CONCURRENCY_LIST="2,4,8,16,24,32"
               aiperf profile \
                 --model qwen3-8b \
                 --tokenizer Qwen/Qwen3-8B-FP8 \

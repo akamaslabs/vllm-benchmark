@@ -1,0 +1,56 @@
+kind: workflow
+name: 19-L4-PD-Disaggregation-Workflow
+
+# Same three-task shape as studies 1-17: render the serving template, apply it and wait for
+# the whole topology, then run the AIPerf ramp. All three run on the `toolbox` host over
+# SSH with the toolbox's own key (/home/akamas/.ssh/id_rsa, mounted from the toolbox-keys
+# secret). The key path must exist on the toolbox when `akamas create workflow` runs, so
+# run it from the toolbox.
+#
+# Timeouts, computed for this study:
+#   Apply config  40 m — the Deployment's progressDeadlineSeconds is 1200 s and
+#                       apply_config.sh polls for up to 1500 s, plus the log dump.
+#   RunTest       95 m — 6 levels x 600 s = 60 min of load, plus pip install and synthetic
+#                       dataset generation. run_test_tps.sh's own `kubectl wait` (4800 s =
+#                       80 min) stays BELOW this, or Akamas kills the task before the script
+#                       dumps the job's logs.
+tasks:
+  - name: Write config
+    operator: FileConfigurator
+    arguments:
+      # Every preset renders all 12 tokens, so nothing should stay unsubstituted. This is kept
+      # true anyway, as in studies 9-17: a missing token then becomes a deleted flag line
+      # (apply_config.sh) instead of a failed trial.
+      ignoreUnsubstitutedTokens: true
+      source:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/vllm-benchmark/studies/19-l4-pd-disaggregation-tps-per-gpu-rerun/k8s/01-deployment_template.yaml
+      target:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/vllm-benchmark/studies/19-l4-pd-disaggregation-tps-per-gpu-rerun/k8s/01-deployment.yaml
+
+  - name: Apply config
+    operator: Executor
+    arguments:
+      retries: 0
+      timeout: 40m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/vllm-benchmark/studies/19-l4-pd-disaggregation-tps-per-gpu-rerun/k8s/apply_config.sh
+
+  - name: RunTest
+    operator: Executor
+    arguments:
+      retries: 0
+      timeout: 95m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/vllm-benchmark/studies/19-l4-pd-disaggregation-tps-per-gpu-rerun/k8s/run_test_tps.sh

@@ -1,0 +1,8 @@
+kind: component
+system: vLLM_Benchmark_19_L4_PD_Disaggregation
+name: cluster_loadtest
+description: "The node running the AIPerf load test (node-role system-m8a, node group system-2b; see k8s/05-job.yaml)"
+componentType: Kubernetes Cluster
+properties:
+  prometheus:
+    node_role: system-m8a

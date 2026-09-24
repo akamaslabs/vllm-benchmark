@@ -1,0 +1,44 @@
+# One-shot interconnect diagnosis on the llm-serving-l4 node (see p2p_nccl_diag.py). Run it
+# through `bash smoke_test.sh diag`, which creates the ConfigMap `p2p-nccl-diag` from the
+# script, starts this pod, streams its log and deletes it. It needs all 4 GPUs, so run it
+# while the serving Deployment is down (before `up`, or after `down`).
+apiVersion: v1
+kind: Pod
+metadata:
+  name: p2p-nccl-diag
+  namespace: llm-serving
+spec:
+  restartPolicy: Never
+  nodeSelector:
+    node-role: llm-serving-l4
+  tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule
+  containers:
+    - name: diag
+      image: vllm/vllm-openai:v0.29.0
+      command: ["bash", "-c"]
+      args:
+        - |
+          echo "== nvidia-smi topo -m (PIX/PXB = behind a PCIe switch; PHB/NODE/SYS = through the CPU root complex)"
+          nvidia-smi topo -m
+          echo "== nvidia-smi topo -p2p r (read) / w (write): OK = peer-to-peer allowed"
+          nvidia-smi topo -p2p r
+          nvidia-smi topo -p2p w
+          echo "== PCIe link per GPU (current / max generation and width)"
+          nvidia-smi --query-gpu=index,pcie.link.gen.current,pcie.link.gen.max,pcie.link.width.current,pcie.link.width.max --format=csv
+          python3 -u /diag/p2p_nccl_diag.py 2>&1 | tee /tmp/diag.log
+          echo "== NCCL transport lines (' via '), deduplicated"
+          grep ' via ' /tmp/diag.log | sed -E 's/^[^ ]+ //' | sort | uniq -c | head -40
+      resources:
+        requests: {nvidia.com/gpu: "4", cpu: "8", memory: "32Gi"}
+        limits: {nvidia.com/gpu: "4", cpu: "16", memory: "64Gi"}
+      volumeMounts:
+        - {name: shm, mountPath: /dev/shm}
+        - {name: diag, mountPath: /diag, readOnly: true}
+  volumes:
+    - name: shm
+      emptyDir: {medium: Memory, sizeLimit: 16Gi}
+    - name: diag
+      configMap: {name: p2p-nccl-diag}

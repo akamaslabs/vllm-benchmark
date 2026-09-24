@@ -1,0 +1,30 @@
+# Scrapes the study-18 pod: the router on `http` and every vLLM instance on its own port.
+# Each series keeps the `pod` label, and the role is told apart by `model_name`:
+#   qwen3-8b-router   router (client-side TTFT/ITL/E2E, delivered tokens)
+#   qwen3-8b-prefill  prefill instances
+#   qwen3-8b-decode   decode instances (the plain replicas in aggregated presets)
+# The launcher sets these as the first --served-model-name of each process.
+#
+#   kubectl apply -f studies/19-l4-pd-disaggregation-tps-per-gpu-rerun/k8s/monitoring/servicemonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vllm-pd
+  namespace: monitoring
+  labels:
+    app: vllm-pd
+spec:
+  namespaceSelector:
+    matchNames: [llm-serving]
+  selector:
+    matchLabels:
+      app: vllm-pd
+  endpoints:
+    - {port: http, path: /metrics, interval: 5s, scrapeTimeout: 4s}
+    - {port: prefill-0, path: /metrics, interval: 5s, scrapeTimeout: 4s}
+    - {port: prefill-1, path: /metrics, interval: 5s, scrapeTimeout: 4s}
+    - {port: prefill-2, path: /metrics, interval: 5s, scrapeTimeout: 4s}
+    - {port: decode-0, path: /metrics, interval: 5s, scrapeTimeout: 4s}
+    - {port: decode-1, path: /metrics, interval: 5s, scrapeTimeout: 4s}
+    - {port: decode-2, path: /metrics, interval: 5s, scrapeTimeout: 4s}
+    - {port: decode-3, path: /metrics, interval: 5s, scrapeTimeout: 4s}

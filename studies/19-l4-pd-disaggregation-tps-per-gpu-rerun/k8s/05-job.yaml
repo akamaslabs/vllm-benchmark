@@ -1,0 +1,107 @@
+# AIPerf load test for study 18. Unlike every study before it (ShareGPT replay), the load is
+# SYNTHETIC AND PREFILL-HEAVY, because prefill/decode disaggregation only has a case on
+# long inputs. llm-d's +70% is at 20:1 input:output, and vLLM's own docs say "Disaggregated
+# prefill DOES NOT improve throughput" — what it can improve is tail ITL, by keeping
+# prefill chunks out of the decode batch. ShareGPT is short-input chat, so on it the
+# study would be answered by construction.
+#
+#   prompts   4096 tokens, stddev 0     (fixed length: every request costs the same
+#                                        prefill and moves the same ~0.56 GiB of bf16 KV)
+#   outputs   256 tokens, stddev 0, ignore_eos=true (exactly 256, 16:1 ratio)
+#   ramp      6 concurrency levels x 600 s = 60 min of load per experiment. Long levels on
+#             purpose: prefill-queue build-up, decode KV fill -> preemption, and KV-transfer
+#             back-pressure are steady-state effects that 90-300 s levels (studies 10-16)
+#             can hide. L4 power throttling (72 W cap) also shows up only over time.
+#   levels    2,4,8,16,24,32, calibrated at the 2026-09-24 smoke test. The 2-GPU aggregated
+#             baseline saturates at ~0.45 req/s from concurrency ~12 (prefill-bound: one
+#             4096-token prefill is ~1.5 s on an L4). 4-GPU layouts have ~2x the capacity
+#             and saturate near 24, so the ramp goes to 32. Otherwise their tokens/s per GPU
+#             at the throughput peak would be under-measured against the 2-GPU presets.
+#   goodput   TTFT 5000 ms / ITL 75 ms, the same values as the study's SLA (see the study
+#             manifest for why).
+#
+# Target: the router (Service vllm-pd:8000). TTFT therefore includes the remote prefill and
+# the KV transfer, and every preset pays the same routing hop. Model name `qwen3-8b` is the
+# alias every instance accepts. The tokenizer is the served checkpoint's own (not gated).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aiperf-benchmark
+  namespace: llm-benchmark
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node-role: system-m8a
+      initContainers:
+        - name: wait-for-router
+          image: alpine:3
+          command:
+            - sh
+            - -c
+            - |
+              until wget -qO- http://vllm-pd.llm-serving.svc.cluster.local:8000/health >/dev/null 2>&1; do
+                echo "$(date -u +%T) waiting for the router (all vLLM instances healthy)..."
+                sleep 10
+              done
+              echo "router ready: $(wget -qO- http://vllm-pd.llm-serving.svc.cluster.local:8000/health)"
+      containers:
+        - name: aiperf
+          image: python:3.12-slim
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              pip install --quiet aiperf==0.11.0
+              # Keep only the latest run's artifacts on the 10 Gi results volume.
+              find /benchmarks -mindepth 1 -maxdepth 1 -name 'aiperf-*' -exec rm -rf {} +
+              CONCURRENCY_LIST="2,4,8,16,24,32"
+              aiperf profile \
+                --model qwen3-8b \
+                --tokenizer Qwen/Qwen3-8B-FP8 \
+                --url http://vllm-pd.llm-serving.svc.cluster.local:8000 \
+                --endpoint-type chat \
+                --streaming \
+                --synthetic-input-tokens-mean 4096 \
+                --synthetic-input-tokens-stddev 0 \
+                --output-tokens-mean 256 \
+                --output-tokens-stddev 0 \
+                --extra-inputs ignore_eos:true \
+                --num-dataset-entries 1000 \
+                --random-seed 18 \
+                --concurrency "$CONCURRENCY_LIST" \
+                --benchmark-duration 600 \
+                --goodput "time_to_first_token:5000 inter_token_latency:75" \
+                --ui simple \
+                --output-artifact-dir "/benchmarks/aiperf-$(date +%s)"
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+                  optional: true   # Qwen/Qwen3-8B-FP8 is not gated (HF API, 2026-09-23)
+            - name: AIPERF_DATASET_CONFIGURATION_TIMEOUT
+              value: "900"
+            - name: AIPERF_SERVICE_PROFILE_CONFIGURE_TIMEOUT
+              value: "1200"
+          resources:
+            requests:
+              cpu: "2"
+              memory: "6Gi"
+            limits:
+              memory: "12Gi"
+          volumeMounts:
+            - name: results
+              mountPath: /benchmarks
+            - name: hf-cache
+              mountPath: /root/.cache/huggingface
+      volumes:
+        - name: results
+          persistentVolumeClaim:
+            claimName: aiperf-results
+        - name: hf-cache
+          persistentVolumeClaim:
+            claimName: hf-cache

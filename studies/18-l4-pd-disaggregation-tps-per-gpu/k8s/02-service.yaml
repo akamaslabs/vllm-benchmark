@@ -1,0 +1,29 @@
+# Service in front of the study-18 pod (Deployment vllm-pd). Port 8000 is the router, the
+# only thing clients talk to. The other ports exist only so Prometheus can scrape each
+# vLLM instance's own /metrics (see monitoring/servicemonitor.yaml). Ports of instances a
+# preset does not start simply fail to scrape (up == 0), which is expected.
+#
+# Label `app: vllm-pd`, NOT `app: vllm`, on purpose: the ServiceMonitor `vllm` left over from
+# studies 1-17 selects `app: vllm` and scrapes port `http`. If it matched this Service it
+# would scrape the router a second time, and every sum(rate(...)) over the router's series
+# would double.
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm-pd
+  namespace: llm-serving
+  labels:
+    app: vllm-pd
+spec:
+  selector:
+    app: vllm-pd
+  type: ClusterIP
+  ports:
+    - {name: http, port: 8000, targetPort: 8000, protocol: TCP}
+    - {name: prefill-0, port: 8100, targetPort: 8100, protocol: TCP}
+    - {name: prefill-1, port: 8101, targetPort: 8101, protocol: TCP}
+    - {name: prefill-2, port: 8102, targetPort: 8102, protocol: TCP}
+    - {name: decode-0, port: 8200, targetPort: 8200, protocol: TCP}
+    - {name: decode-1, port: 8201, targetPort: 8201, protocol: TCP}
+    - {name: decode-2, port: 8202, targetPort: 8202, protocol: TCP}
+    - {name: decode-3, port: 8203, targetPort: 8203, protocol: TCP}

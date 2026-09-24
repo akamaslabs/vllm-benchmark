@@ -1,0 +1,9 @@
+kind: component
+system: vLLM_Benchmark_18_L4_PD_Disaggregation
+name: gpu3
+description: "NVIDIA L4 index 3 of 4 on the llm-serving-l4 node (g6.12xlarge). Launcher layout: prefill instances take GPUs 0..P-1, decode instances the next D"
+componentType: GPU
+properties:
+  prometheus:
+    pod: .*
+    gpu: "3"

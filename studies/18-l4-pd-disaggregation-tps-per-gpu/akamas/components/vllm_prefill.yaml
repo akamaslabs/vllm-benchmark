@@ -1,0 +1,9 @@
+kind: component
+system: vLLM_Benchmark_18_L4_PD_Disaggregation
+name: vllm_prefill
+description: "The prefill vLLM instances (kv_producer; served name qwen3-8b-prefill). No series in aggregated presets."
+componentType: vLLM
+properties:
+  prometheus:
+    pod: ^vllm-pd-.*
+    model: qwen3-8b-prefill

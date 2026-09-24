@@ -23,3 +23,6 @@ studies/*/id_rsa
 studies/*/akamas/id_rsa
 id_rsa
 id_rsa.pub
+
+# Rendered per trial on the toolbox by the Akamas FileConfigurator (study 18 onwards)
+studies/18-l4-pd-disaggregation-tps-per-gpu/k8s/01-deployment.yaml

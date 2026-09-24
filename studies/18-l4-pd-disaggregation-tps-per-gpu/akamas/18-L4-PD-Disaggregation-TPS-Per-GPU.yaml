@@ -1,0 +1,311 @@
+kind: study
+name: 18-L4-PD-Disaggregation-TPS-Per-GPU
+description: >-
+  Prefill/decode disaggregation (vLLM 0.29.0, NixlConnector) against aggregated serving
+  of Qwen/Qwen3-8B-FP8 on one g6.12xlarge (4x L4, PCIe only), under a synthetic
+  prefill-heavy load (4096 in / 256 out, 6 concurrency levels x 10 min). Presets only:
+  2-GPU aggregated controls, 1P1D variants (same settings, specialized roles, host-staged
+  KV, fp8 KV), and 4-GPU aggregated vs 1P3D/2P2D/3P1D. Goal: deployment-wide token
+  throughput per active GPU, TTFT and ITL measured at the router.
+system: vLLM_Benchmark_18_L4_PD_Disaggregation
+workflow: 18-L4-PD-Disaggregation-Workflow
+
+# Same goal shape as studies 9-16 (tokens/s per GPU actually holding weights), so 2-GPU and
+# 4-GPU presets compare fairly. Every term reads from pd_topology, i.e. the router: tokens
+# delivered to clients (counted once from vLLM's usage block) and client-side TTFT/ITL. The
+# per-instance numbers are not used here, because engine-side TTFT under-reports and
+# engine-side prompt tokens double-count once prefill runs elsewhere.
+# SLA values are PLACEHOLDERS to calibrate at the smoke test. The intent: TTFT 3000 ms
+# leaves room for queueing on 4096-token prompts (~0.5 s idle on L4); ITL 100 ms is where
+# whole-prefill-chunk stalls in the decode batch start to show. Tail ITL is the one thing
+# vLLM's docs say disaggregation improves.
+goal:
+  objective: maximize
+  function:
+    formula: (pd_topology.prefill_token_throughput + pd_topology.decode_token_throughput) / pd_topology.active_gpus
+    unit: tokens per second/gpus
+  constraints:
+    absolute:
+      - name: TTFT P95 SLA at the router
+        formula: pd_topology.time_to_first_token_p95 <= 3000
+      - name: ITL P95 SLA at the router
+        formula: pd_topology.inter_token_latency_p95 <= 100
+
+# As studies 6-16: the most stable 6-sample window at the prefill-throughput peak. The
+# per-level picture (where each topology stops meeting the SLA) is read afterwards from
+# AIPerf's per-level results and Prometheus, not from this single window.
+windowing:
+  type: stability
+  stability:
+    metric: pd_topology.prefill_token_throughput
+    width: 6
+    maxStdDev: 300000000
+    when:
+      metric: pd_topology.prefill_token_throughput
+      is: max
+
+numberOfTrials: 1
+
+# Declared explicitly (the default would be "all"): the 12 parameters the presets move.
+# Domains are subsets of the vLLM pack 1.11.0 domains, sized to this node.
+parametersSelection:
+  - name: pd_topology.pd_prefill_instances
+    domain: [0, 3]
+  - name: pd_topology.pd_decode_instances
+    domain: [1, 4]
+  - name: pd_topology.pd_kv_connector
+    categories: ["NixlConnector", "NixlPushConnector"]
+  - name: pd_topology.pd_kv_buffer_device
+    categories: ["cuda", "cpu"]
+  - name: vllm_prefill.gpu_memory_utilization
+    domain: [0.8, 0.92]
+  - name: vllm_prefill.max_num_seqs
+    domain: [8, 512]
+  - name: vllm_prefill.max_num_batched_tokens
+    domain: [512, 16384]
+  - name: vllm_prefill.kv_cache_dtype
+    categories: ["auto", "fp8"]
+  - name: vllm_decode.gpu_memory_utilization
+    domain: [0.8, 0.92]
+  - name: vllm_decode.max_num_seqs
+    domain: [8, 512]
+  - name: vllm_decode.max_num_batched_tokens
+    domain: [512, 16384]
+  - name: vllm_decode.kv_cache_dtype
+    categories: ["auto", "fp8"]
+
+parameterConstraints:
+  - name: one GPU per instance, 4 L4s in the pod
+    formula: pd_topology.pd_prefill_instances + pd_topology.pd_decode_instances <= 4
+  - name: prefill batch budget covers its sequence cap
+    formula: vllm_prefill.max_num_batched_tokens >= vllm_prefill.max_num_seqs
+  - name: decode batch budget covers its sequence cap
+    formula: vllm_decode.max_num_batched_tokens >= vllm_decode.max_num_seqs
+  # NIXL's compatibility hash requires the same cache dtype on both sides.
+  - name: prefill and decode share the KV cache dtype when disaggregated
+    formula: pd_topology.pd_prefill_instances == 0 || (vllm_prefill.kv_cache_dtype == "auto" && vllm_decode.kv_cache_dtype == "auto") || (vllm_prefill.kv_cache_dtype == "fp8" && vllm_decode.kv_cache_dtype == "fp8")
+
+kpis:
+  - name: Throughput totale
+    formula: pd_topology.total_token_throughput
+    direction: maximize
+  - name: GPU attive
+    formula: pd_topology.active_gpus
+    direction: minimize
+  - name: TTFT P95 (router)
+    formula: pd_topology.time_to_first_token_p95
+    direction: minimize
+  - name: ITL P95 (router)
+    formula: pd_topology.inter_token_latency_p95
+    direction: minimize
+  - name: Richieste completate al secondo
+    formula: pd_topology.request_success_rate
+    direction: maximize
+  - name: Tempo in coda P95 prefill
+    formula: vllm_prefill.request_queue_time_p95
+    direction: minimize
+  - name: Tempo in coda P95 decode
+    formula: vllm_decode.request_queue_time_p95
+    direction: minimize
+  - name: Tempo trasferimento KV P95
+    formula: vllm_decode.nixl_xfer_time_p95
+    direction: minimize
+  - name: Banda trasferimento KV
+    formula: vllm_decode.nixl_transfer_throughput
+    direction: maximize
+  - name: Trasferimenti KV falliti
+    formula: vllm_decode.nixl_failed_transfers_rate
+    direction: minimize
+    aggregation: max
+  # PCIe per GPU (bytes/s, see the telemetry note). In every disaggregated preset GPU0 is a
+  # prefill instance and the LAST GPU of the topology is a decode instance (launcher layout),
+  # so GPU0 TX and GPU1 RX show the KV transfer for the 1P1D presets. Compare with the
+  # diag's measured maximum.
+  - name: Banda PCIe TX GPU0
+    formula: gpu0.gpu_pcie_tx_bytes
+    direction: maximize
+  - name: Banda PCIe RX GPU1
+    formula: gpu1.gpu_pcie_rx_bytes
+    direction: maximize
+  - name: Utilizzo KV cache decode
+    formula: vllm_decode.kv_cache_usage_avg
+    direction: maximize
+  - name: Preemption decode (picco)
+    formula: vllm_decode.preemption_rate
+    direction: minimize
+    aggregation: max
+
+# Baseline + 9 presets, about 65-70 min each (startup + 60 min of load), 10 experiments
+# in total. Every step sets all 12 parameters, so every template token renders. In
+# aggregated steps (pd_prefill_instances 0), the vllm_prefill values are rendered but no
+# process uses them, and the connector/buffer stay at their defaults so trials compare.
+steps:
+  # 2 GPUs, aggregated: two plain replicas behind the router, vLLM-typical settings (8192-token prefill chunks). The reference point.
+  - name: baseline
+    type: baseline
+    values:
+      pd_topology.pd_prefill_instances: 0
+      pd_topology.pd_decode_instances: 2
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cuda"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 128
+      vllm_prefill.max_num_batched_tokens: 8192
+      vllm_prefill.kv_cache_dtype: "auto"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 128
+      vllm_decode.max_num_batched_tokens: 8192
+      vllm_decode.kv_cache_dtype: "auto"
+
+  # 2 GPUs, aggregated, 1024-token chunks: a 4096-token prompt is split into 4 chunks interleaved with decode steps (Sarathi-Serve). The strong aggregated control disaggregation must beat on ITL.
+  - name: S1 agg2 small chunks
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 0
+      pd_topology.pd_decode_instances: 2
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cuda"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 128
+      vllm_prefill.max_num_batched_tokens: 1024
+      vllm_prefill.kv_cache_dtype: "auto"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 128
+      vllm_decode.max_num_batched_tokens: 1024
+      vllm_decode.kv_cache_dtype: "auto"
+
+  # 2 GPUs, disaggregated with the baseline's own per-instance settings: isolates the topology change.
+  - name: S2 1P1D same settings
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 1
+      pd_topology.pd_decode_instances: 1
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cuda"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 128
+      vllm_prefill.max_num_batched_tokens: 8192
+      vllm_prefill.kv_cache_dtype: "auto"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 128
+      vllm_decode.max_num_batched_tokens: 8192
+      vllm_decode.kv_cache_dtype: "auto"
+
+  # 2 GPUs, disaggregated, roles specialized: prefill takes 4 whole prompts per step, decode keeps a deep batch and small local steps.
+  - name: S3 1P1D specialized
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 1
+      pd_topology.pd_decode_instances: 1
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cuda"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 16
+      vllm_prefill.max_num_batched_tokens: 16384
+      vllm_prefill.kv_cache_dtype: "auto"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 256
+      vllm_decode.max_num_batched_tokens: 2048
+      vllm_decode.kv_cache_dtype: "auto"
+
+  # S3 with kv_buffer_device=cpu: KV staged through registered host memory instead of GPU to GPU. Measures what the PCIe/cuda_ipc path is worth.
+  - name: S4 1P1D host buffer
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 1
+      pd_topology.pd_decode_instances: 1
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 16
+      vllm_prefill.max_num_batched_tokens: 16384
+      vllm_prefill.kv_cache_dtype: "auto"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 256
+      vllm_decode.max_num_batched_tokens: 2048
+      vllm_decode.kv_cache_dtype: "auto"
+
+  # S3 with fp8 KV cache on both roles: half the bytes per transferred prompt and twice the KV capacity.
+  - name: S5 1P1D fp8 KV
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 1
+      pd_topology.pd_decode_instances: 1
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cuda"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 16
+      vllm_prefill.max_num_batched_tokens: 16384
+      vllm_prefill.kv_cache_dtype: "fp8"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 256
+      vllm_decode.max_num_batched_tokens: 2048
+      vllm_decode.kv_cache_dtype: "fp8"
+
+  # 4 GPUs, aggregated, S1's settings: the 4-GPU control.
+  - name: S6 agg4 small chunks
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 0
+      pd_topology.pd_decode_instances: 4
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cuda"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 128
+      vllm_prefill.max_num_batched_tokens: 1024
+      vllm_prefill.kv_cache_dtype: "auto"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 128
+      vllm_decode.max_num_batched_tokens: 1024
+      vllm_decode.kv_cache_dtype: "auto"
+
+  # 4 GPUs, ratio skewed to decode, S3's per-role settings.
+  - name: S7 1P3D
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 1
+      pd_topology.pd_decode_instances: 3
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cuda"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 16
+      vllm_prefill.max_num_batched_tokens: 16384
+      vllm_prefill.kv_cache_dtype: "auto"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 256
+      vllm_decode.max_num_batched_tokens: 2048
+      vllm_decode.kv_cache_dtype: "auto"
+
+  # 4 GPUs, balanced ratio, S3's per-role settings.
+  - name: S8 2P2D
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 2
+      pd_topology.pd_decode_instances: 2
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cuda"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 16
+      vllm_prefill.max_num_batched_tokens: 16384
+      vllm_prefill.kv_cache_dtype: "auto"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 256
+      vllm_decode.max_num_batched_tokens: 2048
+      vllm_decode.kv_cache_dtype: "auto"
+
+  # 4 GPUs, ratio skewed to prefill, S3's per-role settings.
+  - name: S9 3P1D
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 3
+      pd_topology.pd_decode_instances: 1
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cuda"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 16
+      vllm_prefill.max_num_batched_tokens: 16384
+      vllm_prefill.kv_cache_dtype: "auto"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 256
+      vllm_decode.max_num_batched_tokens: 2048
+      vllm_decode.kv_cache_dtype: "auto"

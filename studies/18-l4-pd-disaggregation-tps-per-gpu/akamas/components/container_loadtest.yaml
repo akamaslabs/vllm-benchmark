@@ -1,0 +1,8 @@
+kind: component
+system: vLLM_Benchmark_18_L4_PD_Disaggregation
+name: container_loadtest
+description: "The AIPerf load-test's own container (Job aiperf-benchmark, namespace llm-benchmark)"
+componentType: Kubernetes Container
+properties:
+  prometheus:
+    pod: ^aiperf-benchmark-.*

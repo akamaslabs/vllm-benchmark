@@ -1,0 +1,9 @@
+kind: component
+system: vLLM_Benchmark_18_L4_PD_Disaggregation
+name: vllm_decode
+description: "The decode vLLM instances (kv_consumer; served name qwen3-8b-decode), which are the plain replicas in aggregated presets"
+componentType: vLLM
+properties:
+  prometheus:
+    pod: ^vllm-pd-.*
+    model: qwen3-8b-decode

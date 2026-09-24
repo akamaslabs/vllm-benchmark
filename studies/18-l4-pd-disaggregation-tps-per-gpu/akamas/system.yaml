@@ -1,0 +1,12 @@
+kind: system
+name: vLLM_Benchmark_18_L4_PD_Disaggregation
+# Keep `description` under the API's 1024-character cap; the long form lives in README.md.
+description: >-
+  Study 18: prefill/decode disaggregated serving vs aggregated serving of
+  Qwen/Qwen3-8B-FP8 (vLLM 0.29.0, NixlConnector) on 1x g6.12xlarge, 4x NVIDIA L4 24GB,
+  PCIe only. One pod runs up to 4 vLLM processes (prefill and decode roles, one GPU each)
+  behind a router that measures client-side TTFT/ITL/E2E. Goal: deployment-wide token
+  throughput per active GPU under router-measured TTFT/ITL p95 SLAs, on a synthetic
+  prefill-heavy load (4096 in / 256 out). 11 components: the PD topology, one vLLM
+  component per role, 4 GPUs, the GPU node, the load-test node and both containers.
+  vLLM optimization pack 1.11.0, GPU pack 1.2.0, Kubernetes pack as study 16.

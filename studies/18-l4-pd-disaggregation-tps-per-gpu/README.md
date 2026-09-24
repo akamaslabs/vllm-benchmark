@@ -169,10 +169,11 @@ About 65-70 min each: ~11-12 h for the presets (~55 USD of GPU node), then the o
    operation: the toolbox CLI user got "Access forbidden" on `akamas list
    optimization-packs` (2026-09-23), so an Akamas admin (CLI or UI) has to do it. Until
    then, `akamas create` fails for every study-18 resource that references
-   `vLLM_PD_Topology` or the `pd_*` parameters. **Nothing under `akamas/` has been
-   validated against a live instance yet.** The checks so far are offline: YAML loads,
-   every reference resolves against the pack 1.11.0 source and the telemetry catalog, and
-   the template tokens match `parametersSelection`.
+   `vLLM_PD_Topology` or the `pd_*` parameters. Pack 1.11.0 was installed by
+   2026-09-24. **All study-18 resources were created on the instance that day**: the
+   system, 11 components, the telemetry instance, the workflow, and the study with 10
+   presets + optimize, now in status CREATED. The one rejection was a KPI limit (Akamas
+   3.7 allows at most 8 per study), fixed in commit 9d955c1.
 2. **Ramp levels and SLA:** calibrated on 2026-09-24 (below). They are set in
    `k8s/05-job.yaml` (`CONCURRENCY_LIST`, `--goodput`) and in the study's
    `goal.constraints`.

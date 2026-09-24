@@ -1,0 +1,783 @@
+configmap/p2p-nccl-diag created
+pod/p2p-nccl-diag created
+pod/p2p-nccl-diag condition met
+== nvidia-smi topo -m (PIX/PXB = behind a PCIe switch; PHB/NODE/SYS = through the CPU root complex)
+	[4mGPU0	GPU1	GPU2	GPU3	CPU Affinity	NUMA Affinity	GPU NUMA ID[0m
+GPU0	 X 	NODE	NODE	NODE	0-47	0		N/A
+GPU1	NODE	 X 	NODE	NODE	0-47	0		N/A
+GPU2	NODE	NODE	 X 	NODE	0-47	0		N/A
+GPU3	NODE	NODE	NODE	 X 	0-47	0		N/A
+
+Legend:
+
+  X    = Self
+  SYS  = Connection traversing PCIe as well as the SMP interconnect between NUMA nodes (e.g., QPI/UPI)
+  NODE = Connection traversing PCIe as well as the interconnect between PCIe Host Bridges within a NUMA node
+  PHB  = Connection traversing PCIe as well as a PCIe Host Bridge (typically the CPU)
+  PXB  = Connection traversing multiple PCIe bridges (without traversing the PCIe Host Bridge)
+  PIX  = Connection traversing at most a single PCIe bridge
+  NV#  = Connection traversing a bonded set of # NVLinks
+== nvidia-smi topo -p2p r (read) / w (write): OK = peer-to-peer allowed
+ 	[4mGPU0	GPU1	GPU2	GPU3	[0m
+ GPU0	X	NS	NS	NS	
+ GPU1	NS	X	NS	NS	
+ GPU2	NS	NS	X	NS	
+ GPU3	NS	NS	NS	X	
+
+Legend:
+
+  X    = Self
+  OK   = Status Ok
+  CNS  = Chipset not supported
+  GNS  = GPU not supported
+  TNS  = Topology not supported
+  NS   = Not supported
+  U    = Unknown
+ 	[4mGPU0	GPU1	GPU2	GPU3	[0m
+ GPU0	X	NS	NS	NS	
+ GPU1	NS	X	NS	NS	
+ GPU2	NS	NS	X	NS	
+ GPU3	NS	NS	NS	X	
+
+Legend:
+
+  X    = Self
+  OK   = Status Ok
+  CNS  = Chipset not supported
+  GNS  = GPU not supported
+  TNS  = Topology not supported
+  NS   = Not supported
+  U    = Unknown
+== PCIe link per GPU (current / max generation and width)
+index, pcie.link.gen.current, pcie.link.gen.max, pcie.link.width.current, pcie.link.width.max
+0, 1, 4, 8, 16
+1, 1, 4, 8, 16
+2, 1, 4, 8, 16
+3, 1, 4, 8, 16
+torch 2.13.0+cu130, CUDA 13.0, NCCL (2, 29, 7), GPUs 4
+  cuda:0 NVIDIA L4
+  cuda:1 NVIDIA L4
+  cuda:2 NVIDIA L4
+  cuda:3 NVIDIA L4
+
+== 1. CUDA peer access (can_device_access_peer)
+        0    1    2    3
+   0    -   NO   NO   NO
+   1   NO    -   NO   NO
+   2   NO   NO    -   NO
+   3   NO   NO   NO    -
+
+== 2. copy bandwidth, 256 MiB x 20 (GB/s)
+    pair   direct  via host    D2H    H2D
+0->    1     12.0       6.7   13.2   13.5
+0->    2     12.0       6.7   13.2   13.5
+0->    3     12.0       6.7   13.2   13.5
+1->    0     12.0       6.7   13.2   13.5
+1->    2     12.5       6.7   13.2   13.5
+1->    3     12.5       6.7   13.2   13.5
+2->    0     12.5       6.7   13.2   13.5
+2->    1     12.0       6.7   13.2   13.5
+2->    3     12.5       6.7   13.2   13.5
+3->    0     12.5       6.7   13.2   13.5
+3->    1     12.5       6.7   13.2   13.5
+3->    2     12.0       6.7   13.2   13.5
+
+== 3. NCCL all-reduce, 64 MiB x 20 (bus bandwidth GB/s). Transport lines: grep ' via ' in this log
+p2p-nccl-diag:140:140 [1] NCCL INFO ncclOsDlopen(libnccl-env.so) failed: libnccl-env.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:140:140 [1] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so
+p2p-nccl-diag:140:140 [1] NCCL INFO cudaDriverVersion 13000
+p2p-nccl-diag:140:140 [1] NCCL INFO Bootstrap: Using eth0:192.168.59.9<0>
+p2p-nccl-diag:140:140 [1] NCCL INFO NCCL version 2.30.7+cuda13.3
+p2p-nccl-diag:140:140 [1] NCCL INFO NCCL git version HEAD a5187fa2e
+p2p-nccl-diag:140:140 [1] NCCL INFO Comm config Blocking set to 1
+p2p-nccl-diag:140:140 [1] NCCL INFO ncclOsDlopen(libnccl-net.so) failed: libnccl-net.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:140:140 [1] NCCL INFO NET/Plugin: Could not find: libnccl-net.so
+p2p-nccl-diag:140:140 [1] NCCL INFO NET/IB : No device found.
+p2p-nccl-diag:140:140 [1] NCCL INFO NET/IB : Using [RO]; OOB eth0:192.168.59.9<0>
+p2p-nccl-diag:140:140 [1] NCCL INFO Failed to initialize NET plugin IB
+p2p-nccl-diag:140:140 [1] NCCL INFO NET/Socket : Using [0]eth0:192.168.59.9<0>
+p2p-nccl-diag:140:140 [1] NCCL INFO Initialized NET plugin Socket
+p2p-nccl-diag:140:140 [1] NCCL INFO Assigned NET plugin Socket to comm
+p2p-nccl-diag:140:140 [1] NCCL INFO ncclOsDlopen(libnccl-rma.so) failed: libnccl-rma.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:140:140 [1] NCCL INFO RMA/Plugin: Could not find: libnccl-rma.so
+p2p-nccl-diag:140:140 [1] NCCL INFO RMA/Plugin: Failed to load external plugin libnccl-rma.so, dlHandle: (nil), ncclRma: (nil)
+p2p-nccl-diag:140:140 [1] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+p2p-nccl-diag:140:140 [1] NCCL INFO ncclOsDlopen(libnccl-gin.so) failed: libnccl-gin.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:140:140 [1] NCCL INFO GIN/Plugin: Could not find: libnccl-gin.so
+p2p-nccl-diag:140:140 [1] NCCL INFO GIN/Plugin: Failed to load external plugin libnccl-gin.so, dlHandle: (nil), ncclGin: (nil)
+p2p-nccl-diag:140:140 [1] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+p2p-nccl-diag:140:140 [1] NCCL INFO Using network Socket
+p2p-nccl-diag:140:140 [1] NCCL INFO Loaded NVML from libnvidia-ml.so.1
+p2p-nccl-diag:140:140 [1] NCCL INFO [Rank 1] ncclCommInitRankConfig comm 0x373d86d0 rank 1 nranks 2 cudaDev 1 nvmlDev 1 busId 3a000 commId 0xd3c106e48b284f18 - Init START
+p2p-nccl-diag:140:140 [1] NCCL INFO Socket handshake magic 0x564ab9f2fc4b9d6c (built-in default)
+p2p-nccl-diag:140:140 [1] NCCL INFO RAS client listening socket at ::1<28028>
+p2p-nccl-diag:140:140 [1] NCCL INFO Bootstrap timings total 0.000986 (create 0.000034, send 0.000097, recv 0.000210, ring 0.000023, delay 0.000000)
+p2p-nccl-diag:140:140 [1] NCCL INFO P2P is disabled between connected GPUs 1 and 0. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:140:140 [1] NCCL INFO P2P is disabled between connected GPUs 1 and 0. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:140:140 [1] NCCL INFO P2P is disabled between connected GPUs 0 and 1. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:140:140 [1] NCCL INFO P2P is disabled between connected GPUs 0 and 1. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:140:140 [1] NCCL INFO P2P is disabled between connected GPUs 1 and 0. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:140:140 [1] NCCL INFO P2P is disabled between connected GPUs 1 and 0. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:140:140 [1] NCCL INFO P2P is disabled between connected GPUs 0 and 1. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:140:140 [1] NCCL INFO P2P is disabled between connected GPUs 0 and 1. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:140:140 [1] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 1 is 0-47. (GPU affinity = 0-47 ; CPU affinity = 0-47).
+p2p-nccl-diag:140:140 [1] NCCL INFO NVLS multicast support is not available on dev 1
+p2p2p-nccl-diag:139:139 [0] NCCL INFO ncclOsDlopen(libnccl-env.so) failed: libnccl-env.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:139:139 [0] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so
+p2p-nccl-diag:139:139 [0] NCCL INFO Bootstrap: Using eth0:192.168.59.9<0>
+p2p-nccl-diag:139:139 [0] NCCL INFO cudaDriverVersion 13000
+p2p-nccl-diag:139:246 [0] NCCL INFO Socket handshake magic 0x564ab9f2fc4b9d6c (built-in default)
+p2p-nccl-diag:139:139 [0] NCCL INFO NCCL version 2.30.7+cuda13.3
+p2p-nccl-diag:139:139 [0] NCCL INFO NCCL git version HEAD a5187fa2e
+p2p-nccl-diag:139:139 [0] NCCL INFO Comm config Blocking set to 1
+p2p-nccl-diag:139:139 [0] NCCL INFO ncclOsDlopen(libnccl-net.so) failed: libnccl-net.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:139:139 [0] NCCL INFO NET/Plugin: Could not find: libnccl-net.so
+p2p-nccl-diag:139:139 [0] NCCL INFO NET/IB : No device found.
+p2p-nccl-diag:139:139 [0] NCCL INFO NET/IB : Using [RO]; OOB eth0:192.168.59.9<0>
+p2p-nccl-diag:139:139 [0] NCCL INFO Failed to initialize NET plugin IB
+p2p-nccl-diag:139:139 [0] NCCL INFO NET/Socket : Using [0]eth0:192.168.59.9<0>
+p2p-nccl-diag:139:139 [0] NCCL INFO Initialized NET plugin Socket
+p2p-nccl-diag:139:139 [0] NCCL INFO Assigned NET plugin Socket to comm
+p2p-nccl-diag:139:139 [0] NCCL INFO ncclOsDlopen(libnccl-rma.so) failed: libnccl-rma.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:139:139 [0] NCCL INFO RMA/Plugin: Could not find: libnccl-rma.so
+p2p-nccl-diag:139:139 [0] NCCL INFO RMA/Plugin: Failed to load external plugin libnccl-rma.so, dlHandle: (nil), ncclRma: (nil)
+p2p-nccl-diag:139:139 [0] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+p2p-nccl-diag:139:139 [0] NCCL INFO ncclOsDlopen(libnccl-gin.so) failed: libnccl-gin.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:139:139 [0] NCCL INFO GIN/Plugin: Could not find: libnccl-gin.so
+p2p-nccl-diag:139:139 [0] NCCL INFO GIN/Plugin: Failed to load external plugin libnccl-gin.so, dlHandle: (nil), ncclGin: (nil)
+p2p-nccl-diag:139:139 [0] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+p2p-nccl-diag:139:139 [0] NCCL INFO Using network Socket
+p2p-nccl-diag:139:139 [0] NCCL INFO Loaded NVML from libnvidia-ml.so.1
+p2p-nccl-diag:139:139 [0] NCCL INFO [Rank 0] ncclCommInitRankConfig comm 0x117e6d00 rank 0 nranks 2 cudaDev 0 nvmlDev 0 busId 38000 commId 0xd3c106e48b284f18 - Init START
+p2p-nccl-diag:139:139 [0] NCCL INFO RAS client listening socket at ::1<28028>
+p2p-nccl-diag:139:139 [0] NCCL INFO Bootstrap timings total 0.001542 (create 0.000042, send 0.000168, recv 0.000591, ring 0.000024, delay 0.000001)
+p2p-nccl-diag:139:139 [0] NCCL INFO P2P is disabled between connected GPUs 1 and 0. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:139:139 [0] NCCL INFO P2P is disabled between connected GPUs 1 and 0. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:139:139 [0] NCCL INFO P2P is disabled between connected GPUs 0 and 1. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:139:139 [0] NCCL INFO P2P is disabled between connected GPUs 0 and 1. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:139:139 [0] NCCL INFO P2P is disabled between connected GPUs 1 and 0. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:139:139 [0] NCCL INFO P2P is disabled between connected GPUs 1 and 0. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:139:139 [0] NCCL INFO P2P is disabled between connected GPUs 0 and 1. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:139:139 [0] NCCL INFO P2P is disabled between connected GPUs 0 and 1. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:139:139 [0] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 0 is 0-47. (GPU affinity = 0-47 ; CPU affinity = 0-47).
+p2p-nccl-diag:139:139 [0] NCCL INFO NVLS multicast support is not available on dev 0
+p2p-nccl-diag:139:139 [0] NCCL INFO Rank 0: 1 Net devices
+p2p-nccl-diag:139:139 [0] NCCL INFO Rank 0: 0 CollNet devices
+p2p-nccl-diag:139:139 [0] NCCL INFO Local Net device counts across ranks: min 1 max 1
+p2p-nccl-diag:139:139 [0] NCCL INFO Local CollNet device counts across ranks: min 0 max 0
+p2p-nccl-diag:139:139 [0] NCCL INFO comm 0x117e6d00 rank 0 nRanks 2 nNodes 1 localRanks 2 localRank 0 MNNVL 0
+p2p-nccl-diag:139:139 [0] NCCL INFO Channel 00/02 : 0 1
+p2p-nccl-diag:139:139 [0] NCCL INFO Channel 01/02 : 0 1
+p2p-nccl-diag:139:139 [0] NCCL INFO Trees [0] 1/-1/-1->0->-1 [1] 1/-1/-1->0->-1
+p2p-nccl-diag:139:139 [0] NCCL INFO P2P Chunksize set to 131072
+p2p-nccl-diag:139:139 [0] NCCL INFO ncclOsDlopen(libnccl-profiler.so) failed: libnccl-profiler.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:139:139 [0] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so
+p2p-nccl-diag:139:139 [0] NCCL INFO P2P is disabled between connected GPUs 0 and 1. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:139:139 [0] NCCL INFO Check P2P Type isAllDirectP2p 0 directMode 0 isAllCudaP2p 0
+p2p-nccl-diag:139:249 [0] NCCL INFO [Proxy Service] Device 0 CPU core 29
+p2p-nccl-diag:139:251 [0] NCCL INFO [Proxy Service UDS] Device 0 CPU core 8
+p2p-nccl-diag:139:249 [0] NCCL INFO proxy listening socket at 192.168.59.9<39773>
+p2p-nccl-diag:139:139 [0] NCCL INFO ncclOsDlopen(libnccl-tuner.so) failed: libnccl-tuner.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:139:139 [0] NCCL INFO TUNER/Plugin: Could not find: libnccl-tuner.so
+p2p-nccl-diag:139:139 [0] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+p2p-nccl-diag:139:139 [0] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 2 p2p channels per peer
+p2p-nccl-diag:139:139 [0] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+p2p-nccl-diag:139:139 [0] NCCL INFO CC Off, workFifoBytes 1048576
+p2p-nccl-diag:139:139 [0] NCCL INFO ncclCommInitRankConfig comm 0x117e6d00 rank 0 nranks 2 cudaDev 0 nvmlDev 0 busId 38000 commId 0xd3c106e48b284f18 - Init COMPLETE
+p2p-nccl-diag:139:139 [0] NCCL INFO Init timings - ncclCommInitRankConfig: rank 0 nranks 2 total 0.50 (kernels 0.45, alloc 0.04, bootstrap 0.00, allgathers 0.00, topo 0.01, graphs 0.00, connections 0.00, rest 0.00)
+p2p-nccl-diag:139:139 [0] NCCL INFO P2P is disabled between connected GPUs 0 and 1. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:139:139 [0] NCCL INFO P2P is disabled between connected GPUs 0 and 1. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:139:139 [0] NCCL INFO P2P is disabled between connected GPUs 0 and 1. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:139:139 [0] NCCL INFO Channel 00 : 0[0] -> 1[1] via SHM/direct
+p2p-nccl-diag:139:139 [0] NCCL INFO P2P is disabled between connected GPUs 0 and 1. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:139:139 [0] NCCL INFO Channel 01 : 0[0] -> 1[1] via SHM/direct
+p2p-nccl-diag:139:139 [0] NCCL INFO Connected all rings, use ring PXN 0 GDR 1
+p-nccl-diag:140:140 [1] NCCL INFO Rank 1: 1 Net devices
+p2p-nccl-diag:140:140 [1] NCCL INFO Rank 1: 0 CollNet devices
+p2p-nccl-diag:140:140 [1] NCCL INFO comm 0x373d86d0 rank 1 nRanks 2 nNodes 1 localRanks 2 localRank 1 MNNVL 0
+p2p-nccl-diag:140:140 [1] NCCL INFO Trees [0] -1/-1/-1->1->0 [1] -1/-1/-1->1->0
+p2p-nccl-diag:140:140 [1] NCCL INFO P2P Chunksize set to 131072
+p2p-nccl-diag:140:140 [1] NCCL INFO ncclOsDlopen(libnccl-profiler.so) failed: libnccl-profiler.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:140:140 [1] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so
+p2p-nccl-diag:140:140 [1] NCCL INFO P2P is disabled between connected GPUs 0 and 1. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:140:140 [1] NCCL INFO Check P2P Type isAllDirectP2p 0 directMode 0 isAllCudaP2p 0
+p2p-nccl-diag:140:250 [0] NCCL INFO [Proxy Service] Device 1 CPU core 4
+p2p-nccl-diag:140:252 [0] NCCL INFO [Proxy Service UDS] Device 1 CPU core 0
+p2p-nccl-diag:140:250 [1] NCCL INFO proxy listening socket at 192.168.59.9<46429>
+p2p-nccl-diag:140:140 [1] NCCL INFO ncclOsDlopen(libnccl-tuner.so) failed: libnccl-tuner.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:140:140 [1] NCCL INFO TUNER/Plugin: Could not find: libnccl-tuner.so
+p2p-nccl-diag:140:140 [1] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+p2p-nccl-diag:140:140 [1] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 2 p2p channels per peer
+p2p-nccl-diag:140:140 [1] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+p2p-nccl-diag:140:140 [1] NCCL INFO ncclCommInitRankConfig comm 0x373d86d0 rank 1 nranks 2 cudaDev 1 nvmlDev 1 busId 3a000 commId 0xd3c106e48b284f18 - Init COMPLETE
+p2p-nccl-diag:140:140 [1] NCCL INFO Init timings - ncclCommInitRankConfig: rank 1 nranks 2 total 0.50 (kernels 0.45, alloc 0.04, bootstrap 0.00, allgathers 0.00, topo 0.01, graphs 0.00, connections 0.00, rest 0.00)
+p2p-nccl-diag:140:140 [1] NCCL INFO P2P is disabled between connected GPUs 1 and 0. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:140:140 [1] NCCL INFO P2P is disabled between connected GPUs 1 and 0. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:140:140 [1] NCCL INFO P2P is disabled between connected GPUs 1 and 0. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:140:140 [1] NCCL INFO Channel 00 : 1[1] -> 0[0] via SHM/direct
+p2p-nccl-diag:140:140 [1] NCCL INFO P2P is disabled between connected GPUs 1 and 0. You can repress this message with NCCL_IGNORE_DISABLED_P2P=1.
+p2p-nccl-diag:140:140 [1] NCCL INFO Channel 01 : 1[1] -> 0[0] via SHM/direct
+p2p-nccl-diag:140:140 [1] NCCL INFO Connected all rings, use ring PXN 0 GDR 1
+>>> NCCL all-reduce world=2 NCCL_P2P_DISABLE=unset: 3.99 GB/s
+p2p-nccl-diag:254:254 [0] NCCL INFO ncclOsDlopen(libnccl-env.so) failed: libnccl-env.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:254:254 [0] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so
+p2p-nccl-diag:254:254 [0] NCCL INFO Bootstrap: Using eth0:192.168.59.9<0>
+p2p-nccl-diag:254:254 [0] NCCL INFO cudaDriverVersion 13000
+p2p-nccl-diag:254:361 [0] NCCL INFO Socket handshake magic 0x564ab9f2fc4b9d6c (built-in default)
+p2p-nccl-diag:254:254 [0] NCCL INFO NCCL version 2.30.7+cuda13.3
+p2p-nccl-diag:254:254 [0] NCCL INFO NCCL git version HEAD a5187fa2e
+p2p-nccl-diag:254:254 [0] NCCL INFO Comm config Blocking set to 1
+p2p-nccl-diag:254:254 [0] NCCL INFO ncclOsDlopen(libnccl-net.so) failed: libnccl-net.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:254:254 [0] NCCL INFO NET/Plugin: Could not find: libnccl-net.so
+p2p-nccl-diag:254:254 [0] NCCL INFO NET/IB : No device found.
+p2p-nccl-diag:254:254 [0] NCCL INFO NET/IB : Using [RO]; OOB eth0:192.168.59.9<0>
+p2p-nccl-diag:254:254 [0] NCCL INFO Failed to initialize NET plugin IB
+p2p-nccl-diag:254:254 [0] NCCL INFO NET/Socket : Using [0]eth0:192.168.59.9<0>
+p2p-nccl-diag:254:254 [0] NCCL INFO Initialized NET plugin Socket
+p2p-nccl-diag:254:254 [0] NCCL INFO Assigned NET plugin Socket to comm
+p2p-nccl-diag:254:254 [0] NCCL INFO ncclOsDlopen(libnccl-rma.so) failed: libnccl-rma.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:254:254 [0] NCCL INFO RMA/Plugin: Could not find: libnccl-rma.so
+p2p-nccl-diag:254:254 [0] NCCL INFO RMA/Plugin: Failed to load external plugin libnccl-rma.so, dlHandle: (nil), ncclRma: (nil)
+p2p-nccl-diag:254:254 [0] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+p2p-nccl-diag:254:254 [0] NCCL INFO ncclOsDlopen(libnccl-gin.so) failed: libnccl-gin.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:254:254 [0] NCCL INFO GIN/Plugin: Could not find: libnccl-gin.so
+p2p-nccl-diag:254:254 [0] NCCL INFO GIN/Plugin: Failed to load external plugin libnccl-gin.so, dlHandle: (nil), ncclGin: (nil)
+p2p-nccl-diag:254:254 [0] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+p2p-nccl-diag:254:254 [0] NCCL INFO Using network Socket
+p2p-nccl-diag:254:254 [0] NCCL INFO Loaded NVML from libnvidia-ml.so.1
+p2p-nccl-diag:254:254 [0] NCCL INFO [Rank 0] ncclCommInitRankConfig comm 0x13cf7bc0 rank 0 nranks 2 cudaDev 0 nvmlDev 0 busId 38000 commId 0x5df3528df432e87d - Init START
+p2p-nccl-diag:254:254 [0] NCCL INFO RAS client listening socket at ::1<28028>
+p2p-nccl-diag:254:254 [0] NCCL INFO Bootstrap timings total 0.000858 (create 0.000042, send 0.000116, recv 0.000279, ring 0.000035, delay 0.000001)
+p2p-nccl-diag:254:254 [0] NCCL INFO NCCL_P2P_DISABLE set by environment to 1
+p2p-nccl-diag:254:254 [0] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 0 is 0-47. (GPU affinity = 0-47 ; CPU affinity = 0-47).
+p2p-nccl-diag:254:254 [0] NCCL INFO NVLS multicast support is not available on dev 0
+p2p-nccl-diag:254:254 [0] NCCL INFO Rank 0: 1 Net devices
+p2p-nccl-diag:254:254 [0] NCCL INFO Rank 0: 0 CollNet devices
+p2p-nccl-diag:254:254 [0] NCCL INFO Local Net device counts across ranks: min 1 max 1
+p2p-nccl-diag:254:254 [0] NCCL INFO Local CollNet device counts across ranks: min 0 max 0
+p2p-nccl-diag:254:254 [0] NCCL INFO comm 0x13cf7bc0 rank 0 nRanks 2 nNodes 1 localRanks 2 localRank 0 MNNVL 0
+p2p-nccl-diag:254:254 [0] NCCL INFO Channel 00/02 : 0 1
+p2p-nccl-diag:254:254 [0] NCCL INFO Channel 01/02 : 0 1
+p2p-nccl-diag:254:254 [0] NCCL INFO Trees [0] 1/-1/-1->0->-1 [1] 1/-1/-1->0->-1
+p2p-nccl-diag:254:254 [0] NCCL INFO P2P Chunksize set to 131072
+p2p-nccl-diag:254:254 [0] NCCL INFO ncclOsDlopen(libnccl-profiler.so) failed: libnccl-profiler.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:254:254 [0] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so
+p2p-nccl-diag:254:254 [0] NCCL INFO Check P2P Type isAllDirectP2p 0 directMode 0 isAllCudaP2p 0
+p2p-nccl-diag:254:366 [0] NCCL INFO [Proxy Service UDS] Device 0 CPU core 9
+p2p-nccl-diagp2p-nccl-diag:255:255 [1] NCCL INFO ncclOsDlopen(libnccl-env.so) failed: libnccl-env.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:255:255 [1] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so
+p2p-nccl-diag:255:255 [1] NCCL INFO cudaDriverVersion 13000
+p2p-nccl-diag:255:255 [1] NCCL INFO Bootstrap: Using eth0:192.168.59.9<0>
+p2p-nccl-diag:255:255 [1] NCCL INFO NCCL version 2.30.7+cuda13.3
+p2p-nccl-diag:255:255 [1] NCCL INFO NCCL git version HEAD a5187fa2e
+p2p-nccl-diag:255:255 [1] NCCL INFO Comm config Blocking set to 1
+p2p-nccl-diag:255:255 [1] NCCL INFO ncclOsDlopen(libnccl-net.so) failed: libnccl-net.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:255:255 [1] NCCL INFO NET/Plugin: Could not find: libnccl-net.so
+p2p-nccl-diag:255:255 [1] NCCL INFO NET/IB : No device found.
+p2p-nccl-diag:255:255 [1] NCCL INFO NET/IB : Using [RO]; OOB eth0:192.168.59.9<0>
+p2p-nccl-diag:255:255 [1] NCCL INFO Failed to initialize NET plugin IB
+p2p-nccl-diag:255:255 [1] NCCL INFO NET/Socket : Using [0]eth0:192.168.59.9<0>
+p2p-nccl-diag:255:255 [1] NCCL INFO Initialized NET plugin Socket
+p2p-nccl-diag:255:255 [1] NCCL INFO Assigned NET plugin Socket to comm
+p2p-nccl-diag:255:255 [1] NCCL INFO ncclOsDlopen(libnccl-rma.so) failed: libnccl-rma.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:255:255 [1] NCCL INFO RMA/Plugin: Could not find: libnccl-rma.so
+p2p-nccl-diag:255:255 [1] NCCL INFO RMA/Plugin: Failed to load external plugin libnccl-rma.so, dlHandle: (nil), ncclRma: (nil)
+p2p-nccl-diag:255:255 [1] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+p2p-nccl-diag:255:255 [1] NCCL INFO ncclOsDlopen(libnccl-gin.so) failed: libnccl-gin.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:255:255 [1] NCCL INFO GIN/Plugin: Could not find: libnccl-gin.so
+p2p-nccl-diag:255:255 [1] NCCL INFO GIN/Plugin: Failed to load external plugin libnccl-gin.so, dlHandle: (nil), ncclGin: (nil)
+p2p-nccl-diag:255:255 [1] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+p2p-nccl-diag:255:255 [1] NCCL INFO Using network Socket
+p2p-nccl-diag:255:255 [1] NCCL INFO Loaded NVML from libnvidia-ml.so.1
+p2p-nccl-diag:255:255 [1] NCCL INFO [Rank 1] ncclCommInitRankConfig comm 0x2d0e9ca0 rank 1 nranks 2 cudaDev 1 nvmlDev 1 busId 3a000 commId 0x5df3528df432e87d - Init START
+p2p-nccl-diag:255:255 [1] NCCL INFO Socket handshake magic 0x564ab9f2fc4b9d6c (built-in default)
+p2p-nccl-diag:255:255 [1] NCCL INFO RAS client listening socket at ::1<28028>
+p2p-nccl-diag:255:255 [1] NCCL INFO Bootstrap timings total 0.026774 (create 0.000045, send 0.000166, recv 0.026060, ring 0.000032, delay 0.000001)
+p2p-nccl-diag:255:255 [1] NCCL INFO NCCL_P2P_DISABLE set by environment to 1
+p2p-nccl-diag:255:255 [1] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 1 is 0-47. (GPU affinity = 0-47 ; CPU affinity = 0-47).
+p2p-nccl-diag:255:255 [1] NCCL INFO NVLS multicast support is not available on dev 1
+p2p-nccl-diag:255:255 [1] NCCL INFO Rank 1: 1 Net devices
+p2p-nccl-diag:255:255 [1] NCCL INFO Rank 1: 0 CollNet devices
+p2p-nccl-diag:255:255 [1] NCCL INFO comm 0x2d0e9ca0 rank 1 nRanks 2 nNodes 1 localRanks 2 localRank 1 MNNVL 0
+p2p-nccl-diag:255:255 [1] NCCL INFO Trees [0] -1/-1/-1->1->0 [1] -1/-1/-1->1->0
+p2p-nccl-diag:255:255 [1] NCCL INFO P2P Chunksize set to 131072
+p2p-nccl-diag:255:255 [1] NCCL INFO ncclOsDlopen(libnccl-profiler.so) failed: libnccl-profiler.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:255:255 [1] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so
+p2p-nccl-diag:255:255 [1] NCCL INFO Check P2P Type isAllDirectP2p 0 directMode 0 isAllCudaP2p 0
+p2p-nccl-diag:255:367 [0] NCCL INFO [Proxy Service UDS] Device 1 CPU core 7
+p2p-nccl-diag:255:365 [0] NCCL INFO [Proxy Service] Device 1 CPU core 47
+p2p-nccl-diag:255:365 [1] NCCL INFO proxy listening socket at 192.168.59.9<59925>
+p2p-nccl-diag:255:255 [1] NCCL INFO ncclOsDlopen(libnccl-tuner.so) failed: libnccl-tuner.so: cannot open shared object file: No such file or direc:254:364 [0] NCCL INFO [Proxy Service] Device 0 CPU core 47
+p2p-nccl-diag:254:364 [0] NCCL INFO proxy listening socket at 192.168.59.9<34951>
+p2p-nccl-diag:254:254 [0] NCCL INFO ncclOsDlopen(libnccl-tuner.so) failed: libnccl-tuner.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:254:254 [0] NCCL INFO TUNER/Plugin: Could not find: libnccl-tuner.so
+p2p-nccl-diag:254:254 [0] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+p2p-nccl-diag:254:254 [0] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 2 p2p channels per peer
+p2p-nccl-diag:254:254 [0] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+p2p-nccl-diag:254:254 [0] NCCL INFO CC Off, workFifoBytes 1048576
+p2p-nccl-diag:254:254 [0] NCCL INFO ncclCommInitRankConfig comm 0x13cf7bc0 rank 0 nranks 2 cudaDev 0 nvmlDev 0 busId 38000 commId 0x5df3528df432e87d - Init COMPLETE
+p2p-nccl-diag:254:254 [0] NCCL INFO Init timings - ncclCommInitRankConfig: rank 0 nranks 2 total 0.24 (kernels 0.16, alloc 0.07, bootstrap 0.00, allgathers 0.00, topo 0.01, graphs 0.00, connections 0.00, rest 0.00)
+p2p-nccl-diag:254:254 [0] NCCL INFO Channel 00 : 0[0] -> 1[1] via SHM/direct
+p2p-nccl-diag:254:254 [0] NCCL INFO Channel 01 : 0[0] -> 1[1] via SHM/direct
+p2p-nccl-diag:254:254 [0] NCCL INFO Connected all rings, use ring PXN 0 GDR 1
+tory
+p2p-nccl-diag:255:255 [1] NCCL INFO TUNER/Plugin: Could not find: libnccl-tuner.so
+p2p-nccl-diag:255:255 [1] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+p2p-nccl-diag:255:255 [1] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 2 p2p channels per peer
+p2p-nccl-diag:255:255 [1] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+p2p-nccl-diag:255:255 [1] NCCL INFO ncclCommInitRankConfig comm 0x2d0e9ca0 rank 1 nranks 2 cudaDev 1 nvmlDev 1 busId 3a000 commId 0x5df3528df432e87d - Init COMPLETE
+p2p-nccl-diag:255:255 [1] NCCL INFO Init timings - ncclCommInitRankConfig: rank 1 nranks 2 total 0.24 (kernels 0.16, alloc 0.04, bootstrap 0.03, allgathers 0.00, topo 0.01, graphs 0.00, connections 0.00, rest 0.00)
+p2p-nccl-diag:255:255 [1] NCCL INFO Channel 00 : 1[1] -> 0[0] via SHM/direct
+p2p-nccl-diag:255:255 [1] NCCL INFO Channel 01 : 1[1] -> 0[0] via SHM/direct
+p2p-nccl-diag:255:255 [1] NCCL INFO Connected all rings, use ring PXN 0 GDR 1
+>>> NCCL all-reduce world=2 NCCL_P2P_DISABLE=1: 3.76 GB/s
+p2p-nccl-diag:369:369 [0] NCCL INFO ncclOsDlopen(libnccl-env.so) failed: libnccl-env.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:369:369 [0] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so
+p2p-nccl-diag:369:369 [0] NCCL INFO Bootstrap: Using eth0:192.168.59.9<0>
+p2p-nccl-diag:369:369 [0] NCCL INFO cudaDriverVersion 13000
+p2p-nccl-diag:369:582 [0] NCCL INFO Socket handshake magic 0x564ab9f2fc4b9d6c (built-in default)
+p2p-nccl-diag:369:369 [0] NCCL INFO NCCL version 2.30.7+cuda13.3
+p2p-nccl-diag:369:369 [0] NCCL INFO NCCL git version HEAD a5187fa2e
+p2p-nccl-diag:369:369 [0] NCCL INFO Comm config Blocking set to 1
+p2p-nccl-diag:369:369 [0] NCCL INFO ncclOsDlopen(libnccl-net.so) failed: libnccl-net.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:369:369 [0] NCCL INFO NET/Plugin: Could not find: libnccl-net.so
+p2p-nccl-diag:369:369 [0] NCCL INFO NET/IB : No device found.
+p2p-nccl-diag:369:369 [0] NCCL INFO NET/IB : Using [RO]; OOB eth0:192.168.59.9<0>
+p2p-nccl-diag:369:369 [0] NCCL INFO Failed to initialize NET plugin IB
+p2p-nccl-diag:369:369 [0] NCCL INFO NET/Socket : Using [0]eth0:192.168.59.9<0>
+p2p-nccl-diag:369:369 [0] NCCL INFO Initialized NET plugin Socket
+p2p-nccl-diag:369:369 [0] NCCL INFO Assigned NET plugin Socket to comm
+p2p-nccl-diag:369:369 [0] NCCL INFO ncclOsDlopen(libnccl-rma.so) failed: libnccl-rma.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:369:369 [0] NCCL INFO RMA/Plugin: Could not find: libnccl-rma.so
+p2p-nccl-diag:369:369 [0] NCCL INFO RMA/Plugin: Failed to load external plugin libnccl-rma.so, dlHandle: (nil), ncclRma: (nil)
+p2p-nccl-diag:369:369 [0] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+p2p-nccl-diag:369:369 [0] NCCL INFO ncclOsDlopen(libnccl-gin.so) failed: libnccl-gin.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:369:369 [0] NCCL INFO GIN/Plugin: Could not find: libnccl-gin.so
+p2p-nccl-diag:369:369 [0] NCCL INFO GIN/Plugin: Failed to load external plugin libnccl-gin.so, dlHandle: (nil), ncclGin: (nil)
+p2p-nccl-diag:369:369 [0] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+p2p-nccl-diag:369:369 [0] NCCL INFO Using network Socket
+p2p-nccl-diag:369:369 [0] NCCL INFO Loaded NVML from libnvidia-ml.so.1
+p2p-nccl-diag:369:369 [0] NCCL INFO [Rank 0] ncclCommInitRankConfig comm 0x415986e0 rank 0 nranks 4 cudaDev 0 nvmlDev 0 busId 38000 commId 0xaf803889fdf67b1 - Init START
+p2p-nccl-diag:369:369 [0] NCCL INFO RAS client listening socket at ::1<28028>
+p2p-nccl-diag:369:369 [0] NCCL INFO Bootstrap timings total 0.007032 (create 0.000046, send 0.000185, recv 0.005979, ring 0.000309, delay 0.000001)
+p2p-nccl-diag:369:369 [0] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 0 is 0-47. (GPU affinity = 0-47 ; CPU affinity = 0-47).
+p2p-nccl-diag:369:369 [0] NCCL INFO NVLS multicast support is not available on dev 0
+p2p-nccl-diag:369:369 [0] NCCL INFO Rank 0: 1 Net devices
+p2p-nccl-diag:369:369 [0] NCCL INFO Rank 0: 0 CollNet devices
+p2p-nccl-diag:369:369 [0] NCCL INFO Local Net device counts across ranks: min 1 max 1
+p2p-nccl-diag:369:369 [0] NCCL INFO Local CollNet device counts across ranks: min 0 max 0
+p2p-nccl-diag:369:369 [0] NCCL INFO comm 0x415986e0 rank 0 nRanks 4 nNodes 1 localRanks 4 localRank 0 MNNVL 0
+p2p-nccl-diag:369:369 [0] NCCL INFO Channel 00/02 : 0 1 2 3
+p2p-nccl-diag:369:369 [0] NCCL INFO Channel 01/02 : 0 1 2 3
+p2p-nccl-diag:369:369 [0] NCCL INFO Trees [0] 1/-1/-1->0->-1 [1] 1/-1/-1->0->-1
+p2p-nccl-diag:369:369 [0] NCCL INFO P2P Chunksize set to 131072
+p2p-nccl-diag:369:369 [0] NCCL INFO ncclOsDlopen(libnccl-profiler.so) failed: libnccl-profiler.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:369:369 [0] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so
+p2p-nccl-diag:369:369 [0] NCCL INFO Check P2P Type isAllDirectP2p 0 directMode 0 isAllCudaP2p 0
+p2p-nccl-diag:369:587 [0] NCCL INFO [Proxy Service] Device 0 CPU core 1
+p2p-nccl-diag:369:587 [0] NCCL INFO proxy listening socket at 192.168.59.9<55695>
+p2p-np2p-nccl-diag:371:371 [2] NCCL INFO ncclOsDlopen(libnccl-env.so) failed: libnccl-env.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:371:371 [2] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so
+p2p-nccl-diag:371:371 [2] NCCL INFO cudaDriverVersion 13000
+p2p-nccl-diag:371:371 [2] NCCL INFO Bootstrap: Using eth0:192.168.59.9<0>
+p2p-nccl-diag:371:371 [2] NCCL INFO NCCL version 2.30.7+cuda13.3
+p2p-nccl-diag:371:371 [2] NCCL INFO NCCL git version HEAD a5187fa2e
+p2p-nccl-diag:371:371 [2] NCCL INFO Comm config Blocking set to 1
+p2p-nccl-diag:371:371 [2] NCCL INFO ncclOsDlopen(libnccl-net.so) failed: libnccl-net.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:371:371 [2] NCCL INFO NET/Plugin: Could not find: libnccl-net.so
+p2p-nccl-diag:371:371 [2] NCCL INFO NET/IB : No device found.
+p2p-nccl-diag:371:371 [2] NCCL INFO NET/IB : Using [RO]; OOB eth0:192.168.59.9<0>
+p2p-nccl-diag:371:371 [2] NCCL INFO Failed to initialize NET plugin IB
+p2p-nccl-diag:371:371 [2] NCCL INFO NET/Socket : Using [0]eth0:192.168.59.9<0>
+p2p-nccl-diag:371:371 [2] NCCL INFO Initialized NET plugin Socket
+p2p-nccl-diag:371:371 [2] NCCL INFO Assigned NET plugin Socket to comm
+p2p-nccl-diag:371:371 [2] NCCL INFO ncclOsDlopen(libnccl-rma.so) failed: libnccl-rma.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:371:371 [2] NCCL INFO RMA/Plugin: Could not find: libnccl-rma.so
+p2p-nccl-diag:371:371 [2] NCCL INFO RMA/Plugin: Failed to load external plugin libnccl-rma.so, dlHandle: (nil), ncclRma: (nil)
+p2p-nccl-diag:371:371 [2] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+p2p-nccl-diag:371:371 [2] NCCL INFO ncclOsDlopen(libnccl-gin.so) failed: libnccl-gin.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:371:371 [2] NCCL INFO GIN/Plugin: Could not find: libnccl-gin.so
+p2p-nccl-diag:371:371 [2] NCCL INFO GIN/Plugin: Failed to load external plugin libnccl-gin.so, dlHandle: (nil), ncclGin: (nil)
+p2p-nccl-diag:371:371 [2] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+p2p-nccl-diag:371:371 [2] NCCL INFO Using network Socket
+p2p-nccl-diag:371:371 [2] NCCL INFO Loaded NVML from libnvidia-ml.so.1
+p2p-nccl-diag:371:371 [2] NCCL INFO [Rank 2] ncclCommInitRankConfig comm 0x8fc7970 rank 2 nranks 4 cudaDev 2 nvmlDev 2 busId 3c000 commId 0xaf803889fdf67b1 - Init START
+p2p-nccl-diag:371:371 [2] NCCL INFO Socket handshake magic 0x564ab9f2fc4b9d6c (built-in default)
+p2p-nccl-diag:371:371 [2] NCCL INFO RAS client listening socket at ::1<28028>
+p2p-nccl-diag:371:371 [2] NCCL INFO Bootstrap timings total 0.000703 (create 0.000033, send 0.000090, recv 0.000183, ring 0.000052, delay 0.000000)
+p2p-nccl-diag:371:371 [2] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 2 is 0-47. (GPU affinity = 0-47 ; CPU affinity = 0-47).
+p2p-nccl-diag:371:371 [2] NCCL INFO NVLS multicast support is not available on dev 2
+p2p-nccl-diag:371:371 [2] NCCL INFO Rank 2: 1 Net devices
+p2p-nccl-diag:371:371 [2] NCCL INFO Rank 2: 0 CollNet devices
+p2p-nccl-diag:371:371 [2] NCCL INFO comm 0x8fc7970 rank 2 nRanks 4 nNodes 1 localRanks 4 localRank 2 MNNVL 0
+p2p-nccl-diag:371:371 [2] NCCL INFO Trees [0] 3/-1/-1->2->1 [1] 3/-1/-1->2->1
+p2p-nccl-diag:371:371 [2] NCCL INFO P2P Chunksize set to 131072
+p2p-nccl-diag:371:371 [2] NCCL INFO ncclOsDlopen(libnccl-profiler.so) failed: libnccl-profiler.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:371:371 [2] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so
+p2p-nccl-diag:371:371 [2] NCCL INFO Check P2P Type isAllDirectP2p 0 directMode 0 isAllCudaP2p 0
+p2p-nccl-diag:371:593 [0] NCCL INFO [Proxy Service UDS] Device 2 CPU core 1
+p2p-nccl-diag:371:589 [0] NCCL INFO [Proxy Service] Device 2 CPU core 47
+p2p-nccl-diag:371:589 [2] NCCL INFO proxy listening socket at 192.168.59.9<52639>
+p2p-nccl-diag:371:371 [2] NCCL INFO ncclOsDlopen(libnccl-tuner.so) failed: libnccl-tuner.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:371:371 [2] NCCL INFO TUNER/Plugin: Could not find: libnccl-tunp2p-nccl-diag:370:370 [1] NCCL INFO ncclOsDlopen(libnccl-env.so) failed: libnccl-env.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:370:370 [1] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so
+p2p-nccl-diag:370:370 [1] NCCL INFO cudaDriverVersion 13000
+p2p-nccl-diag:370:370 [1] NCCL INFO Bootstrap: Using eth0:192.168.59.9<0>
+p2p-nccl-diag:370:370 [1] NCCL INFO NCCL version 2.30.7+cuda13.3
+p2p-nccl-diag:370:370 [1] NCCL INFO NCCL git version HEAD a5187fa2e
+p2p-nccl-diag:370:370 [1] NCCL INFO Comm config Blocking set to 1
+p2p-nccl-diag:370:370 [1] NCCL INFO ncclOsDlopen(libnccl-net.so) failed: libnccl-net.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:370:370 [1] NCCL INFO NET/Plugin: Could not find: libnccl-net.so
+p2p-nccl-diag:370:370 [1] NCCL INFO NET/IB : No device found.
+p2p-nccl-diag:370:370 [1] NCCL INFO NET/IB : Using [RO]; OOB eth0:192.168.59.9<0>
+p2p-nccl-diag:370:370 [1] NCCL INFO Failed to initialize NET plugin IB
+p2p-nccl-diag:370:370 [1] NCCL INFO NET/Socket : Using [0]eth0:192.168.59.9<0>
+p2p-nccl-diag:370:370 [1] NCCL INFO Initialized NET plugin Socket
+p2p-nccl-diag:370:370 [1] NCCL INFO Assigned NET plugin Socket to comm
+p2p-nccl-diag:370:370 [1] NCCL INFO ncclOsDlopen(libnccl-rma.so) failed: libnccl-rma.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:370:370 [1] NCCL INFO RMA/Plugin: Could not find: libnccl-rma.so
+p2p-nccl-diag:370:370 [1] NCCL INFO RMA/Plugin: Failed to load external plugin libnccl-rma.so, dlHandle: (nil), ncclRma: (nil)
+p2p-nccl-diag:370:370 [1] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+p2p-nccl-diag:370:370 [1] NCCL INFO ncclOsDlopen(libnccl-gin.so) failed: libnccl-gin.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:370:370 [1] NCCL INFO GIN/Plugin: Could not find: libnccl-gin.so
+p2p-nccl-diag:370:370 [1] NCCL INFO GIN/Plugin: Failed to load external plugin libnccl-gin.so, dlHandle: (nil), ncclGin: (nil)
+p2p-nccl-diag:370:370 [1] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+p2p-nccl-diag:370:370 [1] NCCL INFO Using network Socket
+p2p-nccl-diag:370:370 [1] NCCL INFO Loaded NVML from libnvidia-ml.so.1
+p2p-nccl-diag:370:370 [1] NCCL INFO [Rank 1] ncclCommInitRankConfig comm 0x35e82f50 rank 1 nranks 4 cudaDev 1 nvmlDev 1 busId 3a000 commId 0xaf803889fdf67b1 - Init START
+p2p-nccl-diag:370:370 [1] NCCL INFO Socket handshake magic 0x564ab9f2fc4b9d6c (built-in default)
+p2p-nccl-diag:370:370 [1] NCCL INFO RAS client listening socket at ::1<28028>
+p2p-nccl-diag:370:370 [1] NCCL INFO Bootstrap timings total 0.001091 (create 0.000040, send 0.000102, recv 0.000459, ring 0.000134, delay 0.000000)
+p2p-nccl-diag:370:370 [1] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 1 is 0-47. (GPU affinity = 0-47 ; CPU affinity = 0-47).
+p2p-nccl-diag:370:370 [1] NCCL INFO NVLS multicast support is not available on dev 1
+p2p-nccl-diag:370:370 [1] NCCL INFO Rank 1: 1 Net devices
+p2p-nccl-diag:370:370 [1] NCCL INFO Rank 1: 0 CollNet devices
+p2p-nccl-diag:370:370 [1] NCCL INFO comm 0x35e82f50 rank 1 nRanks 4 nNodes 1 localRanks 4 localRank 1 MNNVL 0
+p2p-nccl-diag:370:370 [1] NCCL INFO Trees [0] 2/-1/-1->1->0 [1] 2/-1/-1->1->0
+p2p-nccl-diag:370:370 [1] NCCL INFO P2P Chunksize set to 131072
+p2p-nccl-diag:370:370 [1] NCCL INFO ncclOsDlopen(libnccl-profiler.so) failed: libnccl-profiler.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:370:370 [1] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so
+p2p-nccl-diag:370:370 [1] NCCL INFO Check P2P Type isAllDirectP2p 0 directMode 0 isAllCudaP2p 0
+p2p-nccl-diag:370:592 [0] NCCL INFO [Proxy Service UDS] Device 1 CPU core 8
+p2p-nccl-diag:370:588 [0] NCCL INFO [Proxy Service] Device 1 CPU core 18
+p2p-nccl-diag:370:588 [1] NCCL INFO proxy listening socket at 192.168.59.9<50665>
+p2p-nccl-diag:370:370 [1] NCCL INFO ncclOsDlopen(libnccl-tuner.so) failed: libnccl-tuner.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:370:370 [1] NCCL INFO TUNER/Plugin: Could not find: libnccl-tp2p-nccl-diag:372:372 [3] NCCL INFO ncclOsDlopen(libnccl-env.so) failed: libnccl-env.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:372:372 [3] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so
+p2p-nccl-diag:372:372 [3] NCCL INFO cudaDriverVersion 13000
+p2p-nccl-diag:372:372 [3] NCCL INFO Bootstrap: Using eth0:192.168.59.9<0>
+p2p-nccl-diag:372:372 [3] NCCL INFO NCCL version 2.30.7+cuda13.3
+p2p-nccl-diag:372:372 [3] NCCL INFO NCCL git version HEAD a5187fa2e
+p2p-nccl-diag:372:372 [3] NCCL INFO Comm config Blocking set to 1
+p2p-nccl-diag:372:372 [3] NCCL INFO ncclOsDlopen(libnccl-net.so) failed: libnccl-net.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:372:372 [3] NCCL INFO NET/Plugin: Could not find: libnccl-net.so
+p2p-nccl-diag:372:372 [3] NCCL INFO NET/IB : No device found.
+p2p-nccl-diag:372:372 [3] NCCL INFO NET/IB : Using [RO]; OOB eth0:192.168.59.9<0>
+p2p-nccl-diag:372:372 [3] NCCL INFO Failed to initialize NET plugin IB
+p2p-nccl-diag:372:372 [3] NCCL INFO NET/Socket : Using [0]eth0:192.168.59.9<0>
+p2p-nccl-diag:372:372 [3] NCCL INFO Initialized NET plugin Socket
+p2p-nccl-diag:372:372 [3] NCCL INFO Assigned NET plugin Socket to comm
+p2p-nccl-diag:372:372 [3] NCCL INFO ncclOsDlopen(libnccl-rma.so) failed: libnccl-rma.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:372:372 [3] NCCL INFO RMA/Plugin: Could not find: libnccl-rma.so
+p2p-nccl-diag:372:372 [3] NCCL INFO RMA/Plugin: Failed to load external plugin libnccl-rma.so, dlHandle: (nil), ncclRma: (nil)
+p2p-nccl-diag:372:372 [3] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+p2p-nccl-diag:372:372 [3] NCCL INFO ncclOsDlopen(libnccl-gin.so) failed: libnccl-gin.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:372:372 [3] NCCL INFO GIN/Plugin: Could not find: libnccl-gin.so
+p2p-nccl-diag:372:372 [3] NCCL INFO GIN/Plugin: Failed to load external plugin libnccl-gin.so, dlHandle: (nil), ncclGin: (nil)
+p2p-nccl-diag:372:372 [3] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+p2p-nccl-diag:372:372 [3] NCCL INFO Using network Socket
+p2p-nccl-diag:372:372 [3] NCCL INFO Loaded NVML from libnvidia-ml.so.1
+p2p-nccl-diag:372:372 [3] NCCL INFO [Rank 3] ncclCommInitRankConfig comm 0x485c9ab0 rank 3 nranks 4 cudaDev 3 nvmlDev 3 busId 3e000 commId 0xaf803889fdf67b1 - Init START
+p2p-nccl-diag:372:372 [3] NCCL INFO Socket handshake magic 0x564ab9f2fc4b9d6c (built-in default)
+p2p-nccl-diag:372:372 [3] NCCL INFO RAS client listening socket at ::1<28028>
+p2p-nccl-diag:372:372 [3] NCCL INFO Bootstrap timings total 0.001022 (create 0.000038, send 0.000091, recv 0.000207, ring 0.000072, delay 0.000001)
+p2p-nccl-diag:372:372 [3] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 3 is 0-47. (GPU affinity = 0-47 ; CPU affinity = 0-47).
+p2p-nccl-diag:372:372 [3] NCCL INFO NVLS multicast support is not available on dev 3
+p2p-nccl-diag:372:372 [3] NCCL INFO Rank 3: 1 Net devices
+p2p-nccl-diag:372:372 [3] NCCL INFO Rank 3: 0 CollNet devices
+p2p-nccl-diag:372:372 [3] NCCL INFO comm 0x485c9ab0 rank 3 nRanks 4 nNodes 1 localRanks 4 localRank 3 MNNVL 0
+p2p-nccl-diag:372:372 [3] NCCL INFO Trees [0] -1/-1/-1->3->2 [1] -1/-1/-1->3->2
+p2p-nccl-diag:372:372 [3] NCCL INFO P2P Chunksize set to 131072
+p2p-nccl-diag:372:372 [3] NCCL INFO ncclOsDlopen(libnccl-profiler.so) failed: libnccl-profiler.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:372:372 [3] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so
+p2p-nccl-diag:372:372 [3] NCCL INFO Check P2P Type isAllDirectP2p 0 directMode 0 isAllCudaP2p 0
+p2p-nccl-diag:372:594 [0] NCCL INFO [Proxy Service UDS] Device 3 CPU core 29
+p2p-nccl-diag:372:590 [0] NCCL INFO [Proxy Service] Device 3 CPU core 18
+p2p-nccl-diag:372:590 [3] NCCL INFO proxy listening socket at 192.168.59.9<49881>
+p2p-nccl-diag:372:372 [3] NCCL INFO ncclOsDlopen(libnccl-tuner.so) failed: libnccl-tuner.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:372:372 [3] NCCL INFO TUNER/Plugin: Could not find: libnccer.so
+p2p-nccl-diag:371:371 [2] NCCL INFO threadThresholds 8/8/64 | 32/8/64 | 512 | 512
+p2p-nccl-diag:371:371 [2] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 2 p2p channels per peer
+p2p-nccl-diag:371:371 [2] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+p2p-nccl-diag:371:371 [2] NCCL INFO ncclCommInitRankConfig comm 0x8fc7970 rank 2 nranks 4 cudaDev 2 nvmlDev 2 busId 3c000 commId 0xaf803889fdf67b1 - Init COMPLETE
+p2p-nccl-diag:371:371 [2] NCCL INFO Init timings - ncclCommInitRankConfig: rank 2 nranks 4 total 0.22 (kernels 0.16, alloc 0.04, bootstrap 0.00, allgathers 0.00, topo 0.02, graphs 0.00, connections 0.00, rest 0.00)
+p2p-nccl-diag:371:371 [2] NCCL INFO Channel 00 : 2[2] -> 3[3] via SHM/direct
+p2p-nccl-diag:371:371 [2] NCCL INFO Channel 01 : 2[2] -> 3[3] via SHM/direct
+p2p-nccl-diag:371:371 [2] NCCL INFO Connected all rings, use ring PXN 0 GDR 1
+ccl-diag:369:591 [0] NCCL INFO [Proxy Service UDS] Device 0 CPU core 29
+p2p-nccl-diag:369:369 [0] NCCL INFO ncclOsDlopen(libnccl-tuner.so) failed: libnccl-tuner.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:369:369 [0] NCCL INFO TUNER/Plugin: Could not find: libnccl-tuner.so
+p2p-nccl-diag:369:369 [0] NCCL INFO threadThresholds 8/8/64 | 32/8/64 | 512 | 512
+p2p-nccl-diag:369:369 [0] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 2 p2p channels per peer
+p2p-nccl-diag:369:369 [0] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+p2p-nccl-diag:369:369 [0] NCCL INFO CC Off, workFifoBytes 1048576
+p2p-nccl-diag:369:369 [0] NCCL INFO ncclCommInitRankConfig comm 0x415986e0 rank 0 nranks 4 cudaDev 0 nvmlDev 0 busId 38000 commId 0xaf803889fdf67b1 - Init COMPLETE
+p2p-nccl-diag:369:369 [0] NCCL INFO Init timings - ncclCommInitRankConfig: rank 0 nranks 4 total 0.22 (kernels 0.16, alloc 0.04, bootstrap 0.01, allgathers 0.00, topo 0.02, graphs 0.00, connections 0.00, rest 0.00)
+p2p-nccl-diag:369:369 [0] NCCL INFO Channel 00 : 0[0] -> 1[1] via SHM/direct
+p2p-nccl-diag:369:369 [0] NCCL INFO Channel 01 : 0[0] -> 1[1] via SHM/direct
+p2p-nccl-diag:369:369 [0] NCCL INFO Connected all rings, use ring PXN 0 GDR 1
+l-tuner.so
+p2p-nccl-diag:372:372 [3] NCCL INFO threadThresholds 8/8/64 | 32/8/64 | 512 | 512
+p2p-nccl-diag:372:372 [3] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 2 p2p channels per peer
+p2p-nccl-diag:372:372 [3] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+p2p-nccl-diag:372:372 [3] NCCL INFO ncclCommInitRankConfig comm 0x485c9ab0 rank 3 nranks 4 cudaDev 3 nvmlDev 3 busId 3e000 commId 0xaf803889fdf67b1 - Init COMPLETE
+p2p-nccl-diag:372:372 [3] NCCL INFO Init timings - ncclCommInitRankConfig: rank 3 nranks 4 total 0.22 (kernels 0.16, alloc 0.04, bootstrap 0.00, allgathers 0.00, topo 0.02, graphs 0.00, connections 0.00, rest 0.00)
+p2p-nccl-diag:372:372 [3] NCCL INFO Channel 00 : 3[3] -> 0[0] via SHM/direct
+p2p-nccl-diag:372:372 [3] NCCL INFO Channel 01 : 3[3] -> 0[0] via SHM/direct
+p2p-nccl-diag:372:372 [3] NCCL INFO Connected all rings, use ring PXN 0 GDR 1
+uner.so
+p2p-nccl-diag:370:370 [1] NCCL INFO threadThresholds 8/8/64 | 32/8/64 | 512 | 512
+p2p-nccl-diag:370:370 [1] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 2 p2p channels per peer
+p2p-nccl-diag:370:370 [1] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+p2p-nccl-diag:370:370 [1] NCCL INFO ncclCommInitRankConfig comm 0x35e82f50 rank 1 nranks 4 cudaDev 1 nvmlDev 1 busId 3a000 commId 0xaf803889fdf67b1 - Init COMPLETE
+p2p-nccl-diag:370:370 [1] NCCL INFO Init timings - ncclCommInitRankConfig: rank 1 nranks 4 total 0.22 (kernels 0.16, alloc 0.04, bootstrap 0.00, allgathers 0.00, topo 0.02, graphs 0.00, connections 0.00, rest 0.00)
+p2p-nccl-diag:370:370 [1] NCCL INFO Channel 00 : 1[1] -> 2[2] via SHM/direct
+p2p-nccl-diag:370:370 [1] NCCL INFO Channel 01 : 1[1] -> 2[2] via SHM/direct
+p2p-nccl-diag:370:370 [1] NCCL INFO Connected all rings, use ring PXN 0 GDR 1
+>>> NCCL all-reduce world=4 NCCL_P2P_DISABLE=unset: 5.47 GB/s
+p2p-nccl-diag:596:596 [0] NCCL INFO ncclOsDlopen(libnccl-env.so) failed: libnccl-env.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:596:596 [0] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so
+p2p-nccl-diag:596:596 [0] NCCL INFO Bootstrap: Using eth0:192.168.59.9<0>
+p2p-nccl-diag:596:596 [0] NCCL INFO cudaDriverVersion 13000
+p2p-nccl-diag:596:809 [0] NCCL INFO Socket handshake magic 0x564ab9f2fc4b9d6c (built-in default)
+p2p-nccl-diag:596:596 [0] NCCL INFO NCCL version 2.30.7+cuda13.3
+p2p-nccl-diag:596:596 [0] NCCL INFO NCCL git version HEAD a5187fa2e
+p2p-nccl-diag:596:596 [0] NCCL INFO Comm config Blocking set to 1
+p2p-nccl-diag:596:596 [0] NCCL INFO ncclOsDlopen(libnccl-net.so) failed: libnccl-net.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:596:596 [0] NCCL INFO NET/Plugin: Could not find: libnccl-net.so
+p2p-nccl-diag:596:596 [0] NCCL INFO NET/IB : No device found.
+p2p-nccl-diag:596:596 [0] NCCL INFO NET/IB : Using [RO]; OOB eth0:192.168.59.9<0>
+p2p-nccl-diag:596:596 [0] NCCL INFO Failed to initialize NET plugin IB
+p2p-nccl-diag:596:596 [0] NCCL INFO NET/Socket : Using [0]eth0:192.168.59.9<0>
+p2p-nccl-diag:596:596 [0] NCCL INFO Initialized NET plugin Socket
+p2p-nccl-diag:596:596 [0] NCCL INFO Assigned NET plugin Socket to comm
+p2p-nccl-diag:596:596 [0] NCCL INFO ncclOsDlopen(libnccl-rma.so) failed: libnccl-rma.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:596:596 [0] NCCL INFO RMA/Plugin: Could not find: libnccl-rma.so
+p2p-nccl-diag:596:596 [0] NCCL INFO RMA/Plugin: Failed to load external plugin libnccl-rma.so, dlHandle: (nil), ncclRma: (nil)
+p2p-nccl-diag:596:596 [0] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+p2p-nccl-diag:596:596 [0] NCCL INFO ncclOsDlopen(libnccl-gin.so) failed: libnccl-gin.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:596:596 [0] NCCL INFO GIN/Plugin: Could not find: libnccl-gin.so
+p2p-nccl-diag:596:596 [0] NCCL INFO GIN/Plugin: Failed to load external plugin libnccl-gin.so, dlHandle: (nil), ncclGin: (nil)
+p2p-nccl-diag:596:596 [0] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+p2p-nccl-diag:596:596 [0] NCCL INFO Using network Socket
+p2p-nccl-diag:596:596 [0] NCCL INFO Loaded NVML from libnvidia-ml.so.1
+p2p-nccl-diag:596:596 [0] NCCL INFO [Rank 0] ncclCommInitRankConfig comm 0x1674abe0 rank 0 nranks 4 cudaDev 0 nvmlDev 0 busId 38000 commId 0xc93682c2767542f2 - Init START
+p2p-nccl-diag:596:596 [0] NCCL INFO RAS client listening socket at ::1<28028>
+p2p-nccl-diag:596:596 [0] NCCL INFO Bootstrap timings total 0.001067 (create 0.000033, send 0.000089, recv 0.000457, ring 0.000161, delay 0.000001)
+p2p-nccl-diag:596:596 [0] NCCL INFO NCCL_P2P_DISABLE set by environment to 1
+p2p-nccl-diag:596:596 [0] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 0 is 0-47. (GPU affinity = 0-47 ; CPU affinity = 0-47).
+p2p-nccl-diag:596:596 [0] NCCL INFO NVLS multicast support is not available on dev 0
+p2p-nccl-diag:596:596 [0] NCCL INFO Rank 0: 1 Net devices
+p2p-nccl-diag:596:596 [0] NCCL INFO Rank 0: 0 CollNet devices
+p2p-nccl-diag:596:596 [0] NCCL INFO Local Net device counts across ranks: min 1 max 1
+p2p-nccl-diag:596:596 [0] NCCL INFO Local CollNet device counts across ranks: min 0 max 0
+p2p-nccl-diag:596:596 [0] NCCL INFO comm 0x1674abe0 rank 0 nRanks 4 nNodes 1 localRanks 4 localRank 0 MNNVL 0
+p2p-nccl-diag:596:596 [0] NCCL INFO Channel 00/02 : 0 1 2 3
+p2p-nccl-diag:596:596 [0] NCCL INFO Channel 01/02 : 0 1 2 3
+p2p-nccl-diag:596:596 [0] NCCL INFO Trees [0] 1/-1/-1->0->-1 [1] 1/-1/-1->0->-1
+p2p-nccl-diag:596:596 [0] NCCL INFO P2P Chunksize set to 131072
+p2p-nccl-diag:596:596 [0] NCCL INFO ncclOsDlopen(libnccl-profiler.so) failed: libnccl-profiler.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:596:596 [0] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so
+p2p-nccl-diag:596:596 [0] NCCL INFO Check P2P Type isAllDirectP2p 0 directMode 0 isAllCudaP2p 0
+p2p-nccl-diag:596:814 [0] NCCL INFO [Proxy Service] Device 0 CPU core 18
+p2p-ncclp2p-nccl-diag:598:598 [2] NCCL INFO ncclOsDlopen(libnccl-env.so) failed: libnccl-env.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:598:598 [2] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so
+p2p-nccl-diag:598:598 [2] NCCL INFO cudaDriverVersion 13000
+p2p-nccl-diag:598:598 [2] NCCL INFO Bootstrap: Using eth0:192.168.59.9<0>
+p2p-nccl-diag:598:598 [2] NCCL INFO NCCL version 2.30.7+cuda13.3
+p2p-nccl-diag:598:598 [2] NCCL INFO NCCL git version HEAD a5187fa2e
+p2p-nccl-diag:598:598 [2] NCCL INFO Comm config Blocking set to 1
+p2p-nccl-diag:598:598 [2] NCCL INFO ncclOsDlopen(libnccl-net.so) failed: libnccl-net.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:598:598 [2] NCCL INFO NET/Plugin: Could not find: libnccl-net.so
+p2p-nccl-diag:598:598 [2] NCCL INFO NET/IB : No device found.
+p2p-nccl-diag:598:598 [2] NCCL INFO NET/IB : Using [RO]; OOB eth0:192.168.59.9<0>
+p2p-nccl-diag:598:598 [2] NCCL INFO Failed to initialize NET plugin IB
+p2p-nccl-diag:598:598 [2] NCCL INFO NET/Socket : Using [0]eth0:192.168.59.9<0>
+p2p-nccl-diag:598:598 [2] NCCL INFO Initialized NET plugin Socket
+p2p-nccl-diag:598:598 [2] NCCL INFO Assigned NET plugin Socket to comm
+p2p-nccl-diag:598:598 [2] NCCL INFO ncclOsDlopen(libnccl-rma.so) failed: libnccl-rma.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:598:598 [2] NCCL INFO RMA/Plugin: Could not find: libnccl-rma.so
+p2p-nccl-diag:598:598 [2] NCCL INFO RMA/Plugin: Failed to load external plugin libnccl-rma.so, dlHandle: (nil), ncclRma: (nil)
+p2p-nccl-diag:598:598 [2] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+p2p-nccl-diag:598:598 [2] NCCL INFO ncclOsDlopen(libnccl-gin.so) failed: libnccl-gin.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:598:598 [2] NCCL INFO GIN/Plugin: Could not find: libnccl-gin.so
+p2p-nccl-diag:598:598 [2] NCCL INFO GIN/Plugin: Failed to load external plugin libnccl-gin.so, dlHandle: (nil), ncclGin: (nil)
+p2p-nccl-diag:598:598 [2] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+p2p-nccl-diag:598:598 [2] NCCL INFO Using network Socket
+p2p-nccl-diag:598:598 [2] NCCL INFO Loaded NVML from libnvidia-ml.so.1
+p2p-nccl-diag:598:598 [2] NCCL INFO [Rank 2] ncclCommInitRankConfig comm 0x2d1b86d0 rank 2 nranks 4 cudaDev 2 nvmlDev 2 busId 3c000 commId 0xc93682c2767542f2 - Init START
+p2p-nccl-diag:598:598 [2] NCCL INFO Socket handshake magic 0x564ab9f2fc4b9d6c (built-in default)
+p2p-nccl-diag:598:598 [2] NCCL INFO RAS client listening socket at ::1<28028>
+p2p-nccl-diag:598:598 [2] NCCL INFO Bootstrap timings total 0.001024 (create 0.000036, send 0.000077, recv 0.000205, ring 0.000062, delay 0.000000)
+p2p-nccl-diag:598:598 [2] NCCL INFO NCCL_P2P_DISABLE set by environment to 1
+p2p-nccl-diag:598:598 [2] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 2 is 0-47. (GPU affinity = 0-47 ; CPU affinity = 0-47).
+p2p-nccl-diag:598:598 [2] NCCL INFO NVLS multicast support is not available on dev 2
+p2p-nccl-diag:598:598 [2] NCCL INFO Rank 2: 1 Net devices
+p2p-nccl-diag:598:598 [2] NCCL INFO Rank 2: 0 CollNet devices
+p2p-nccl-diag:598:598 [2] NCCL INFO comm 0x2d1b86d0 rank 2 nRanks 4 nNodes 1 localRanks 4 localRank 2 MNNVL 0
+p2p-nccl-diag:598:598 [2] NCCL INFO Trees [0] 3/-1/-1->2->1 [1] 3/-1/-1->2->1
+p2p-nccl-diag:598:598 [2] NCCL INFO P2P Chunksize set to 131072
+p2p-nccl-diag:598:598 [2] NCCL INFO ncclOsDlopen(libnccl-profiler.so) failed: libnccl-profiler.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:598:598 [2] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so
+p2p-nccl-diag:598:598 [2] NCCL INFO Check P2P Type isAllDirectP2p 0 directMode 0 isAllCudaP2p 0
+p2p-nccl-diag:598:819 [0] NCCL INFO [Proxy Service UDS] Device 2 CPU core 32
+p2p-nccl-diag:598:816 [0] NCCL INFO [Proxy Service] Device 2 CPU core 18
+p2p-nccl-diag:598:816 [2] NCCL INFO proxy listening socket at 192.168.59.9<54543>
+p2p-nccl-diag:598:598 [2] NCCL INFO ncclOsDlopen(libnccl-tuner.so) failed: libnccl-tuner.so: cannot open shared object file: No such file or directp2p-nccl-diag:597:597 [1] NCCL INFO ncclOsDlopen(libnccl-env.so) failed: libnccl-env.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:597:597 [1] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so
+p2p-nccl-diag:597:597 [1] NCCL INFO cudaDriverVersion 13000
+p2p-nccl-diag:597:597 [1] NCCL INFO Bootstrap: Using eth0:192.168.59.9<0>
+p2p-nccl-diag:597:597 [1] NCCL INFO NCCL version 2.30.7+cuda13.3
+p2p-nccl-diag:597:597 [1] NCCL INFO NCCL git version HEAD a5187fa2e
+p2p-nccl-diag:597:597 [1] NCCL INFO Comm config Blocking set to 1
+p2p-nccl-diag:597:597 [1] NCCL INFO ncclOsDlopen(libnccl-net.so) failed: libnccl-net.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:597:597 [1] NCCL INFO NET/Plugin: Could not find: libnccl-net.so
+p2p-nccl-diag:597:597 [1] NCCL INFO NET/IB : No device found.
+p2p-nccl-diag:597:597 [1] NCCL INFO NET/IB : Using [RO]; OOB eth0:192.168.59.9<0>
+p2p-nccl-diag:597:597 [1] NCCL INFO Failed to initialize NET plugin IB
+p2p-nccl-diag:597:597 [1] NCCL INFO NET/Socket : Using [0]eth0:192.168.59.9<0>
+p2p-nccl-diag:597:597 [1] NCCL INFO Initialized NET plugin Socket
+p2p-nccl-diag:597:597 [1] NCCL INFO Assigned NET plugin Socket to comm
+p2p-nccl-diag:597:597 [1] NCCL INFO ncclOsDlopen(libnccl-rma.so) failed: libnccl-rma.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:597:597 [1] NCCL INFO RMA/Plugin: Could not find: libnccl-rma.so
+p2p-nccl-diag:597:597 [1] NCCL INFO RMA/Plugin: Failed to load external plugin libnccl-rma.so, dlHandle: (nil), ncclRma: (nil)
+p2p-nccl-diag:597:597 [1] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+p2p-nccl-diag:597:597 [1] NCCL INFO ncclOsDlopen(libnccl-gin.so) failed: libnccl-gin.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:597:597 [1] NCCL INFO GIN/Plugin: Could not find: libnccl-gin.so
+p2p-nccl-diag:597:597 [1] NCCL INFO GIN/Plugin: Failed to load external plugin libnccl-gin.so, dlHandle: (nil), ncclGin: (nil)
+p2p-nccl-diag:597:597 [1] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+p2p-nccl-diag:597:597 [1] NCCL INFO Using network Socket
+p2p-nccl-diag:597:597 [1] NCCL INFO Loaded NVML from libnvidia-ml.so.1
+p2p-nccl-diag:597:597 [1] NCCL INFO [Rank 1] ncclCommInitRankConfig comm 0x418ccad0 rank 1 nranks 4 cudaDev 1 nvmlDev 1 busId 3a000 commId 0xc93682c2767542f2 - Init START
+p2p-nccl-diag:597:597 [1] NCCL INFO Socket handshake magic 0x564ab9f2fc4b9d6c (built-in default)
+p2p-nccl-diag:597:597 [1] NCCL INFO RAS client listening socket at ::1<28028>
+p2p-nccl-diag:597:597 [1] NCCL INFO Bootstrap timings total 0.000697 (create 0.000033, send 0.000092, recv 0.000182, ring 0.000052, delay 0.000000)
+p2p-nccl-diag:597:597 [1] NCCL INFO NCCL_P2P_DISABLE set by environment to 1
+p2p-nccl-diag:597:597 [1] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 1 is 0-47. (GPU affinity = 0-47 ; CPU affinity = 0-47).
+p2p-nccl-diag:597:597 [1] NCCL INFO NVLS multicast support is not available on dev 1
+p2p-nccl-diag:597:597 [1] NCCL INFO Rank 1: 1 Net devices
+p2p-nccl-diag:597:597 [1] NCCL INFO Rank 1: 0 CollNet devices
+p2p-nccl-diag:597:597 [1] NCCL INFO comm 0x418ccad0 rank 1 nRanks 4 nNodes 1 localRanks 4 localRank 1 MNNVL 0
+p2p-nccl-diag:597:597 [1] NCCL INFO Trees [0] 2/-1/-1->1->0 [1] 2/-1/-1->1->0
+p2p-nccl-diag:597:597 [1] NCCL INFO P2P Chunksize set to 131072
+p2p-nccl-diag:597:597 [1] NCCL INFO ncclOsDlopen(libnccl-profiler.so) failed: libnccl-profiler.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:597:597 [1] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so
+p2p-nccl-diag:597:597 [1] NCCL INFO Check P2P Type isAllDirectP2p 0 directMode 0 isAllCudaP2p 0
+p2p-nccl-diag:597:821 [0] NCCL INFO [Proxy Service UDS] Device 1 CPU core 12
+p2p-nccl-diag:597:817 [0] NCCL INFO [Proxy Service] Device 1 CPU core 21
+p2p-nccl-diag:597:817 [1] NCCL INFO proxy listening socket at 192.168.59.9<58495>
+p2p-nccl-diag:597:597 [1] NCCL INFO ncclOsDlopen(libnccl-tuner.so) failed: libnccl-tuner.so: cannot open shared object file: No such file or directp2p-nccl-diag:599:599 [3] NCCL INFO ncclOsDlopen(libnccl-env.so) failed: libnccl-env.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:599:599 [3] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so
+p2p-nccl-diag:599:599 [3] NCCL INFO cudaDriverVersion 13000
+p2p-nccl-diag:599:599 [3] NCCL INFO Bootstrap: Using eth0:192.168.59.9<0>
+p2p-nccl-diag:599:599 [3] NCCL INFO NCCL version 2.30.7+cuda13.3
+p2p-nccl-diag:599:599 [3] NCCL INFO NCCL git version HEAD a5187fa2e
+p2p-nccl-diag:599:599 [3] NCCL INFO Comm config Blocking set to 1
+p2p-nccl-diag:599:599 [3] NCCL INFO ncclOsDlopen(libnccl-net.so) failed: libnccl-net.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:599:599 [3] NCCL INFO NET/Plugin: Could not find: libnccl-net.so
+p2p-nccl-diag:599:599 [3] NCCL INFO NET/IB : No device found.
+p2p-nccl-diag:599:599 [3] NCCL INFO NET/IB : Using [RO]; OOB eth0:192.168.59.9<0>
+p2p-nccl-diag:599:599 [3] NCCL INFO Failed to initialize NET plugin IB
+p2p-nccl-diag:599:599 [3] NCCL INFO NET/Socket : Using [0]eth0:192.168.59.9<0>
+p2p-nccl-diag:599:599 [3] NCCL INFO Initialized NET plugin Socket
+p2p-nccl-diag:599:599 [3] NCCL INFO Assigned NET plugin Socket to comm
+p2p-nccl-diag:599:599 [3] NCCL INFO ncclOsDlopen(libnccl-rma.so) failed: libnccl-rma.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:599:599 [3] NCCL INFO RMA/Plugin: Could not find: libnccl-rma.so
+p2p-nccl-diag:599:599 [3] NCCL INFO RMA/Plugin: Failed to load external plugin libnccl-rma.so, dlHandle: (nil), ncclRma: (nil)
+p2p-nccl-diag:599:599 [3] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+p2p-nccl-diag:599:599 [3] NCCL INFO ncclOsDlopen(libnccl-gin.so) failed: libnccl-gin.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:599:599 [3] NCCL INFO GIN/Plugin: Could not find: libnccl-gin.so
+p2p-nccl-diag:599:599 [3] NCCL INFO GIN/Plugin: Failed to load external plugin libnccl-gin.so, dlHandle: (nil), ncclGin: (nil)
+p2p-nccl-diag:599:599 [3] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+p2p-nccl-diag:599:599 [3] NCCL INFO Using network Socket
+p2p-nccl-diag:599:599 [3] NCCL INFO Loaded NVML from libnvidia-ml.so.1
+p2p-nccl-diag:599:599 [3] NCCL INFO [Rank 3] ncclCommInitRankConfig comm 0x2c58e8a0 rank 3 nranks 4 cudaDev 3 nvmlDev 3 busId 3e000 commId 0xc93682c2767542f2 - Init START
+p2p-nccl-diag:599:599 [3] NCCL INFO Socket handshake magic 0x564ab9f2fc4b9d6c (built-in default)
+p2p-nccl-diag:599:599 [3] NCCL INFO RAS client listening socket at ::1<28028>
+p2p-nccl-diag:599:599 [3] NCCL INFO Bootstrap timings total 0.005199 (create 0.000044, send 0.000177, recv 0.004140, ring 0.000327, delay 0.000001)
+p2p-nccl-diag:599:599 [3] NCCL INFO NCCL_P2P_DISABLE set by environment to 1
+p2p-nccl-diag:599:599 [3] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 3 is 0-47. (GPU affinity = 0-47 ; CPU affinity = 0-47).
+p2p-nccl-diag:599:599 [3] NCCL INFO NVLS multicast support is not available on dev 3
+p2p-nccl-diag:599:599 [3] NCCL INFO Rank 3: 1 Net devices
+p2p-nccl-diag:599:599 [3] NCCL INFO Rank 3: 0 CollNet devices
+p2p-nccl-diag:599:599 [3] NCCL INFO comm 0x2c58e8a0 rank 3 nRanks 4 nNodes 1 localRanks 4 localRank 3 MNNVL 0
+p2p-nccl-diag:599:599 [3] NCCL INFO Trees [0] -1/-1/-1->3->2 [1] -1/-1/-1->3->2
+p2p-nccl-diag:599:599 [3] NCCL INFO P2P Chunksize set to 131072
+p2p-nccl-diag:599:599 [3] NCCL INFO ncclOsDlopen(libnccl-profiler.so) failed: libnccl-profiler.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:599:599 [3] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so
+p2p-nccl-diag:599:599 [3] NCCL INFO Check P2P Type isAllDirectP2p 0 directMode 0 isAllCudaP2p 0
+p2p-nccl-diag:599:820 [0] NCCL INFO [Proxy Service UDS] Device 3 CPU core 12
+p2p-nccl-diag:599:815 [0] NCCL INFO [Proxy Service] Device 3 CPU core 18
+p2p-nccl-diag:599:815 [3] NCCL INFO proxy listening socket at 192.168.59.9<36881>
+p2p-nccl-diag:599:599 [3] NCCL INFO ncclOsDlopen(libnccl-tuner.so) failed: libnccl-tuner.so: cannot open shared object file: No such file or direory
+p2p-nccl-diag:598:598 [2] NCCL INFO TUNER/Plugin: Could not find: libnccl-tuner.so
+p2p-nccl-diag:598:598 [2] NCCL INFO threadThresholds 8/8/64 | 32/8/64 | 512 | 512
+p2p-nccl-diag:598:598 [2] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 2 p2p channels per peer
+p2p-nccl-diag:598:598 [2] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+p2p-nccl-diag:598:598 [2] NCCL INFO ncclCommInitRankConfig comm 0x2d1b86d0 rank 2 nranks 4 cudaDev 2 nvmlDev 2 busId 3c000 commId 0xc93682c2767542f2 - Init COMPLETE
+p2p-nccl-diag:598:598 [2] NCCL INFO Init timings - ncclCommInitRankConfig: rank 2 nranks 4 total 0.24 (kernels 0.16, alloc 0.04, bootstrap 0.00, allgathers 0.00, topo 0.02, graphs 0.00, connections 0.02, rest 0.00)
+p2p-nccl-diag:598:598 [2] NCCL INFO Channel 00 : 2[2] -> 3[3] via SHM/direct
+p2p-nccl-diag:598:598 [2] NCCL INFO Channel 01 : 2[2] -> 3[3] via SHM/direct
+p2p-nccl-diag:598:598 [2] NCCL INFO Connected all rings, use ring PXN 0 GDR 1
+-diag:596:818 [0] NCCL INFO [Proxy Service UDS] Device 0 CPU core 32
+p2p-nccl-diag:596:814 [0] NCCL INFO proxy listening socket at 192.168.59.9<56145>
+p2p-nccl-diag:596:596 [0] NCCL INFO ncclOsDlopen(libnccl-tuner.so) failed: libnccl-tuner.so: cannot open shared object file: No such file or directory
+p2p-nccl-diag:596:596 [0] NCCL INFO TUNER/Plugin: Could not find: libnccl-tuner.so
+p2p-nccl-diag:596:596 [0] NCCL INFO threadThresholds 8/8/64 | 32/8/64 | 512 | 512
+p2p-nccl-diag:596:596 [0] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 2 p2p channels per peer
+p2p-nccl-diag:596:596 [0] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+p2p-nccl-diag:596:596 [0] NCCL INFO CC Off, workFifoBytes 1048576
+p2p-nccl-diag:596:596 [0] NCCL INFO ncclCommInitRankConfig comm 0x1674abe0 rank 0 nranks 4 cudaDev 0 nvmlDev 0 busId 38000 commId 0xc93682c2767542f2 - Init COMPLETE
+p2p-nccl-diag:596:596 [0] NCCL INFO Init timings - ncclCommInitRankConfig: rank 0 nranks 4 total 0.24 (kernels 0.16, alloc 0.04, bootstrap 0.00, allgathers 0.00, topo 0.02, graphs 0.00, connections 0.02, rest 0.00)
+p2p-nccl-diag:596:596 [0] NCCL INFO Channel 00 : 0[0] -> 1[1] via SHM/direct
+p2p-nccl-diag:596:596 [0] NCCL INFO Channel 01 : 0[0] -> 1[1] via SHM/direct
+p2p-nccl-diag:596:596 [0] NCCL INFO Connected all rings, use ring PXN 0 GDR 1
+ory
+p2p-nccl-diag:597:597 [1] NCCL INFO TUNER/Plugin: Could not find: libnccl-tuner.so
+p2p-nccl-diag:597:597 [1] NCCL INFO threadThresholds 8/8/64 | 32/8/64 | 512 | 512
+p2p-nccl-diag:597:597 [1] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 2 p2p channels per peer
+p2p-nccl-diag:597:597 [1] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+p2p-nccl-diag:597:597 [1] NCCL INFO ncclCommInitRankConfig comm 0x418ccad0 rank 1 nranks 4 cudaDev 1 nvmlDev 1 busId 3a000 commId 0xc93682c2767542f2 - Init COMPLETE
+p2p-nccl-diag:597:597 [1] NCCL INFO Init timings - ncclCommInitRankConfig: rank 1 nranks 4 total 0.24 (kernels 0.16, alloc 0.04, bootstrap 0.00, allgathers 0.00, topo 0.02, graphs 0.00, connections 0.02, rest 0.00)
+p2p-nccl-diag:597:597 [1] NCCL INFO Channel 00 : 1[1] -> 2[2] via SHM/direct
+p2p-nccl-diag:597:597 [1] NCCL INFO Channel 01 : 1[1] -> 2[2] via SHM/direct
+p2p-nccl-diag:597:597 [1] NCCL INFO Connected all rings, use ring PXN 0 GDR 1
+ctory
+p2p-nccl-diag:599:599 [3] NCCL INFO TUNER/Plugin: Could not find: libnccl-tuner.so
+p2p-nccl-diag:599:599 [3] NCCL INFO threadThresholds 8/8/64 | 32/8/64 | 512 | 512
+p2p-nccl-diag:599:599 [3] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 2 p2p channels per peer
+p2p-nccl-diag:599:599 [3] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+p2p-nccl-diag:599:599 [3] NCCL INFO ncclCommInitRankConfig comm 0x2c58e8a0 rank 3 nranks 4 cudaDev 3 nvmlDev 3 busId 3e000 commId 0xc93682c2767542f2 - Init COMPLETE
+p2p-nccl-diag:599:599 [3] NCCL INFO Init timings - ncclCommInitRankConfig: rank 3 nranks 4 total 0.24 (kernels 0.16, alloc 0.04, bootstrap 0.01, allgathers 0.00, topo 0.02, graphs 0.00, connections 0.02, rest 0.00)
+p2p-nccl-diag:599:599 [3] NCCL INFO Channel 00 : 3[3] -> 0[0] via SHM/direct
+p2p-nccl-diag:599:599 [3] NCCL INFO Channel 01 : 3[3] -> 0[0] via SHM/direct
+p2p-nccl-diag:599:599 [3] NCCL INFO Connected all rings, use ring PXN 0 GDR 1
+>>> NCCL all-reduce world=4 NCCL_P2P_DISABLE=1: 5.39 GB/s
+
+Reading it: if 'direct' ~ 'via host' in section 2, and world=2 bandwidth is the same with and without NCCL_P2P_DISABLE, then GPU-to-GPU traffic already goes through host memory on this node.
+== NCCL transport lines (' via '), deduplicated
+      1     pair   direct  via host    D2H    H2D
+      1 3. NCCL all-reduce, 64 MiB x 20 (bus bandwidth GB/s). Transport lines: grep ' via ' in this log
+      4 [0] NCCL INFO Channel 00 : 0[0] -> 1[1] via SHM/direct
+      4 [0] NCCL INFO Channel 01 : 0[0] -> 1[1] via SHM/direct
+      2 [1] NCCL INFO Channel 00 : 1[1] -> 0[0] via SHM/direct
+      2 [1] NCCL INFO Channel 00 : 1[1] -> 2[2] via SHM/direct
+      2 [1] NCCL INFO Channel 01 : 1[1] -> 0[0] via SHM/direct
+      2 [1] NCCL INFO Channel 01 : 1[1] -> 2[2] via SHM/direct
+      2 [2] NCCL INFO Channel 00 : 2[2] -> 3[3] via SHM/direct
+      2 [2] NCCL INFO Channel 01 : 2[2] -> 3[3] via SHM/direct
+      2 [3] NCCL INFO Channel 00 : 3[3] -> 0[0] via SHM/direct
+      2 [3] NCCL INFO Channel 01 : 3[3] -> 0[0] via SHM/direct
+== full log saved under /tmp/p2p-nccl-diag-*.log; copy it into the study's results/ folder
+pod "p2p-nccl-diag" deleted from llm-serving namespace
+exit=0

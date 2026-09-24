@@ -12,11 +12,12 @@
 #             purpose: prefill-queue build-up, decode KV fill -> preemption, and KV-transfer
 #             back-pressure are steady-state effects that 90-300 s levels (studies 10-16)
 #             can hide. L4 power throttling (72 W cap) also shows up only over time.
-#   levels    4,8,16,32,48,64 — PLACEHOLDER, calibrate at the smoke test. Sizing: with
-#             ~9.5 GiB of KV per L4 at gpu_memory_utilization 0.90 and 144 KiB/token, one
-#             GPU holds ~69k tokens, i.e. ~15 concurrent 4352-token requests. So a 2-GPU
-#             layout saturates near 30 and a 4-GPU one near 60, and the ramp must bracket both.
-#   goodput   TTFT 3000 ms / ITL 100 ms — PLACEHOLDER, same values as the study's SLA.
+#   levels    2,4,8,12,16,24, calibrated at the 2026-09-24 smoke test. The 2-GPU aggregated
+#             baseline saturates at ~0.45 req/s from concurrency ~12 (prefill-bound: one
+#             4096-token prefill is ~1.5 s on an L4), and everything above 24 was saturated.
+#             24 still brackets the 4-GPU knee.
+#   goodput   TTFT 5000 ms / ITL 75 ms, the same values as the study's SLA (see the study
+#             manifest for why).
 #
 # Target: the router (Service vllm-pd:8000). TTFT therefore includes the remote prefill and
 # the KV transfer, and every preset pays the same routing hop. Model name `qwen3-8b` is the
@@ -55,7 +56,7 @@ spec:
               pip install --quiet aiperf==0.11.0
               # Keep only the latest run's artifacts on the 10 Gi results volume.
               find /benchmarks -mindepth 1 -maxdepth 1 -name 'aiperf-*' -exec rm -rf {} +
-              CONCURRENCY_LIST="4,8,16,32,48,64"
+              CONCURRENCY_LIST="2,4,8,12,16,24"
               aiperf profile \
                 --model qwen3-8b \
                 --tokenizer Qwen/Qwen3-8B-FP8 \
@@ -71,7 +72,7 @@ spec:
                 --random-seed 18 \
                 --concurrency "$CONCURRENCY_LIST" \
                 --benchmark-duration 600 \
-                --goodput "time_to_first_token:3000 inter_token_latency:100" \
+                --goodput "time_to_first_token:5000 inter_token_latency:75" \
                 --ui simple \
                 --output-artifact-dir "/benchmarks/aiperf-$(date +%s)"
           env:

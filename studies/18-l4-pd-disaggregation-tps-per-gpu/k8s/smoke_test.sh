@@ -1,7 +1,7 @@
 #!/bin/bash
 # Study 18 smoke test (phase B): run BY HAND on the toolbox, with the llm-serving-l4 node
 # up, BEFORE `akamas start study`. It checks the assumptions that cannot be verified
-# offline and calibrates the two placeholders (ramp levels, SLA).
+# offline and calibrates the ramp levels and the SLA (done 2026-09-24, see the README).
 #
 #   bash smoke_test.sh up <preset>     render + apply one preset through apply_config.sh
 #   bash smoke_test.sh probe           10 streamed requests via the router, then the checks
@@ -28,16 +28,18 @@ NS=llm-serving
 # name -> P D buffer | prefill seqs mnbt kv | decode seqs mnbt kv   (same values as the study manifest)
 preset() {
   case "$1" in
-    baseline) echo "0 2 cuda 128 8192 auto 128 8192 auto" ;;
-    S1) echo "0 2 cuda 128 1024 auto 128 1024 auto" ;;
-    S2) echo "1 1 cuda 128 8192 auto 128 8192 auto" ;;
-    S3) echo "1 1 cuda 16 16384 auto 256 2048 auto" ;;
-    S4) echo "1 1 cpu 16 16384 auto 256 2048 auto" ;;
-    S5) echo "1 1 cuda 16 16384 fp8 256 2048 fp8" ;;
-    S6) echo "0 4 cuda 128 1024 auto 128 1024 auto" ;;
-    S7) echo "1 3 cuda 16 16384 auto 256 2048 auto" ;;
-    S8) echo "2 2 cuda 16 16384 auto 256 2048 auto" ;;
-    S9) echo "3 1 cuda 16 16384 auto 256 2048 auto" ;;
+    baseline) echo "0 2 cpu 128 8192 auto 128 8192 auto" ;;
+    S1) echo "0 2 cpu 128 1024 auto 128 1024 auto" ;;
+    S2) echo "1 1 cpu 128 8192 auto 128 8192 auto" ;;
+    S3) echo "1 1 cpu 16 8192 auto 256 2048 auto" ;;
+    S4) echo "1 1 cpu 16 8192 fp8 256 2048 fp8" ;;
+    S5) echo "2 1 cpu 16 8192 auto 256 2048 auto" ;;
+    S6) echo "0 4 cpu 128 1024 auto 128 1024 auto" ;;
+    S7) echo "2 2 cpu 16 8192 auto 256 2048 auto" ;;
+    S8) echo "3 1 cpu 16 8192 auto 256 2048 auto" ;;
+    S9) echo "3 1 cpu 16 8192 fp8 256 2048 fp8" ;;
+    # smoke-test-only: the GPU-buffer path the 2026-09-24 test measured at ~1.4 s per transfer
+    S3cuda) echo "1 1 cuda 16 8192 auto 256 2048 auto" ;;
     *) echo "unknown preset $1" >&2; exit 1 ;;
   esac
 }

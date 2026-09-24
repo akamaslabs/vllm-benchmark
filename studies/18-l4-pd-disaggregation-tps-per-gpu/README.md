@@ -1,6 +1,6 @@
 # 18-L4-PD-Disaggregation-TPS-Per-GPU
 
-**Status:** TODO (scaffolded 2026-09-23/24; phase B smoke test not run yet, GPU node at 0)
+**Status:** TODO (scaffolded 2026-09-23/24; phase B smoke test and calibration done 2026-09-24, see below)
 **Dates:** created 2026-09-24 – not started
 
 ## Objective
@@ -26,8 +26,8 @@ The study's value is where exactly that line falls.
 - **Goal:** maximize `(pd_topology.prefill_token_throughput + pd_topology.decode_token_throughput) / pd_topology.active_gpus`.
   This is deployment-wide tokens/s per GPU holding weights, the same shape as studies
   9-16. It is measured **at the router**: tokens delivered to clients, each counted once.
-- **SLA (placeholders, calibrate at phase B):** TTFT p95 <= 3000 ms and ITL p95 <= 100 ms,
-  both measured at the router.
+- **SLA (calibrated 2026-09-24):** TTFT p95 <= 5000 ms and ITL p95 <= 75 ms, both measured at
+  the router. The study manifest has the reasoning.
 
 ## Stack & versions
 
@@ -64,8 +64,9 @@ The study's value is where exactly that line falls.
   every preset.
 - **Load generator:** AIPerf 0.11.0, chat endpoint, streaming, synthetic prompts of
   **4096 tokens in / 256 out** (stddev 0, `ignore_eos`), 1000 prompts, seed 18. Concurrency
-  ramp of **6 levels x 600 s = 60 min** per experiment, levels `4,8,16,32,48,64`
-  (placeholder). The long levels are deliberate: queue build-up, KV fill and preemption,
+  ramp of **6 levels x 600 s = 60 min** per experiment, levels `2,4,8,12,16,24`
+  (calibrated: the 2-GPU aggregated baseline saturates from ~12, and everything above 24 was
+  saturated). The long levels are deliberate: queue build-up, KV fill and preemption,
   transfer back-pressure and L4 power throttling are steady-state effects.
   **Methodology break vs studies 1-17**, which all replayed ShareGPT (short-input chat, on
   which disaggregation loses by construction).
@@ -81,15 +82,16 @@ The study's value is where exactly that line falls.
 
 ## Parameters tuned
 
-Presets only (no optimizer step), so these are the 12 parameters the presets set.
-`parametersSelection` declares them explicitly, as subsets of the pack 1.11.0 domains.
+10 presets, then the repo's usual optimize step (AKAMAS optimizer, 100 experiments, 20
+failures max; the node is stopped by hand). `parametersSelection` declares the 12
+parameters explicitly, as subsets of the pack 1.11.0 domains.
 
 | Parameter | Domain | Baseline |
 |---|---|---|
 | `pd_topology.pd_prefill_instances` | [0, 3] (0 = aggregated) | 0 |
 | `pd_topology.pd_decode_instances` | [1, 4] | 2 |
-| `pd_topology.pd_kv_connector` | NixlConnector, NixlPushConnector | NixlConnector |
-| `pd_topology.pd_kv_buffer_device` | cuda, cpu | cuda |
+| `pd_topology.pd_kv_connector` | NixlConnector, NixlPushConnector (**pinned to NixlConnector**) | NixlConnector |
+| `pd_topology.pd_kv_buffer_device` | cuda, cpu (**pinned to cpu**) | cpu |
 | `vllm_prefill.gpu_memory_utilization` / `vllm_decode.…` | [0.8, 0.92] | 0.9 / 0.9 |
 | `vllm_prefill.max_num_seqs` / `vllm_decode.…` | [8, 512] | 128 / 128 |
 | `vllm_prefill.max_num_batched_tokens` / `vllm_decode.…` | [512, 16384] | 8192 / 8192 |
@@ -102,25 +104,34 @@ chunked prefill at vLLM's default (on).
 
 `parameterConstraints`:
 - P + D <= 4;
+- `pd_kv_buffer_device == "cpu"` and `pd_kv_connector == "NixlConnector"`, so the optimizer
+  spends no hour-long experiments on a transport the smoke test measured 23x slower, or on
+  the untested push mode;
 - `max_num_batched_tokens >= max_num_seqs` for each role;
 - the same `kv_cache_dtype` on both roles when disaggregated (NIXL compatibility hash).
 
-### The 10 experiments
+### The 10 presets (revised after the smoke test)
+
+All disaggregated presets stage the KV through host memory (`kv_buffer_device=cpu`). The
+GPU path costs ~1.4 s per transfer on this node, which has no P2P. The prefill role batches
+2 prompts per step (8192 tokens) instead of 4: prefill throughput is the same and each step
+takes half the time. 1P3D was dropped (a decode-skewed ratio on a prefill-bound load).
+2P1D and 3P1D + fp8 were added.
 
 | # | Step | GPUs | P/D | Prefill (seqs / batched tok / KV) | Decode (seqs / batched tok / KV) | Isolates |
 |---|---|---|---|---|---|---|
 | 0 | `baseline` | 2 | 0/2 | — | 128 / 8192 / auto | aggregated, typical settings |
 | 1 | `S1 agg2 small chunks` | 2 | 0/2 | — | 128 / 1024 / auto | the strong aggregated control (4 chunks per prompt) |
 | 2 | `S2 1P1D same settings` | 2 | 1/1 | 128 / 8192 / auto | 128 / 8192 / auto | topology only |
-| 3 | `S3 1P1D specialized` | 2 | 1/1 | 16 / 16384 / auto | 256 / 2048 / auto | role specialization |
-| 4 | `S4 1P1D host buffer` | 2 | 1/1 | as S3, `kv_buffer_device=cpu` | as S3 | value of the GPU-to-GPU path |
-| 5 | `S5 1P1D fp8 KV` | 2 | 1/1 | 16 / 16384 / fp8 | 256 / 2048 / fp8 | half the transfer bytes |
+| 3 | `S3 1P1D specialized` | 2 | 1/1 | 16 / 8192 / auto | 256 / 2048 / auto | role specialization |
+| 4 | `S4 1P1D fp8 KV` | 2 | 1/1 | 16 / 8192 / fp8 | 256 / 2048 / fp8 | half the transfer bytes, 2x KV capacity |
+| 5 | `S5 2P1D` | 3 | 2/1 | as S3 | as S3 | prefill-skewed ratio |
 | 6 | `S6 agg4 small chunks` | 4 | 0/4 | — | 128 / 1024 / auto | 4-GPU aggregated control |
-| 7 | `S7 1P3D` | 4 | 1/3 | as S3 | as S3 | ratio skewed to decode |
-| 8 | `S8 2P2D` | 4 | 2/2 | as S3 | as S3 | balanced ratio |
-| 9 | `S9 3P1D` | 4 | 3/1 | as S3 | as S3 | ratio skewed to prefill |
+| 7 | `S7 2P2D` | 4 | 2/2 | as S3 | as S3 | balanced ratio |
+| 8 | `S8 3P1D` | 4 | 3/1 | as S3 | as S3 | ratio matching the measured ~70:30 prefill:decode work |
+| 9 | `S9 3P1D fp8 KV` | 4 | 3/1 | 16 / 8192 / fp8 | 256 / 2048 / fp8 | best-guess combination |
 
-About 65-70 min each, ~11-12 h in total, ~55 USD of GPU node.
+About 65-70 min each: ~11-12 h for the presets (~55 USD of GPU node), then the optimizer.
 
 ## Components, telemetry, workflow
 
@@ -159,10 +170,9 @@ About 65-70 min each, ~11-12 h in total, ~55 USD of GPU node.
    validated against a live instance yet.** The checks so far are offline: YAML loads,
    every reference resolves against the pack 1.11.0 source and the telemetry catalog, and
    the template tokens match `parametersSelection`.
-2. **Placeholders to calibrate in phase B:**
-   - the concurrency levels (`CONCURRENCY_LIST` in `k8s/05-job.yaml`);
-   - the SLA: 3000 ms / 100 ms in the study's `goal.constraints` **and** in
-     `05-job.yaml`'s `--goodput`.
+2. **Ramp levels and SLA:** calibrated on 2026-09-24 (below). They are set in
+   `k8s/05-job.yaml` (`CONCURRENCY_LIST`, `--goodput`) and in the study's
+   `goal.constraints`.
 3. **Pull the repo on the toolbox** (`/work/vllm-benchmark`). It must include commit
    8f5044f (workflow key path) and this study.
 4. **One-time Kubernetes setup and DCGM re-point:** `k8s/README.md`.
@@ -184,18 +194,51 @@ container CPU grows ~2 cores per extra rank, which is what host-staged copies lo
 Save the log in `results/`. NCCL tuning itself belongs to a TP >= 2 study (ROADMAP
 "PACK REQUEST — NCCL interconnect tunables"), not to this one.
 
-`k8s/smoke_test.sh`, about 1-1.5 h of node time. Each item below is unverified until then.
+### Phase B results (2026-09-24, node in us-east-2c)
 
-- PCIe P2P between the L4s (`nvidia-smi topo -p2p r`, printed by the launcher), and the
-  UCX transport NIXL actually picks (`UCX_PROTO_INFO` lines).
-- NIXL 1.3.2 present and working in the `v0.29.0` image (verified only from vLLM's build
-  config).
-- FP8 KV accepted on both roles without runtime scales (S5).
-- `kv_buffer_device=cpu` starts and transfers (S4).
-- `model_name` labels per role as expected, and NIXL series present.
-- Four processes start together within the 1200 s deadline (S9).
-- The router keeps up at the top concurrency. It is a single Python process, sized
-  for ~64 streams x ~40 tok/s.
+**diag** (`results/diag-2026-09-24.log`):
+
+| Check | Result |
+|---|---|
+| `nvidia-smi topo -p2p r/w` | **NS (not supported)** for every pair; `can_device_access_peer` NO; topology `NODE` |
+| PCIe link | **x8** of x16 max (Gen1 at idle, Gen4 under load): **~13 GB/s** per direction measured D2H/H2D |
+| GPU-to-GPU copy | 12 GB/s (driver-staged through host); explicit via-host 6.7 GB/s |
+| NCCL all-reduce | 4.0 GB/s (2 GPUs), 5.5 GB/s (4 GPUs), **the same with and without `NCCL_P2P_DISABLE=1`**: NCCL logs "P2P is disabled between connected GPUs" and uses `via SHM/direct` |
+
+So on g6.12xlarge GPU-to-GPU traffic always goes through host memory. This is a platform
+limit, not an NCCL setting. It confirms the study-16 TP hypothesis (inter-GPU traffic
+costing ~10x what PCIe bandwidth predicts).
+
+**Smoke test** (`smoke_test.sh up/probe`):
+- Every checked preset starts in 196-212 s (S3 cuda, S4 cpu, S5 fp8, S9 3P1D) with
+  FLASHINFER. FP8 weights run through Marlin weight-only, since the L4 has no FP8 compute.
+- NIXL is present in the image, the compatibility check passes, and there were 0 failed
+  transfers. The 40,080 prompt tokens show as `local_compute` on prefill and
+  `external_kv_transfer` on decode (564 MB per 4096-token request).
+- The `model_name` role labels, the router series, `active_gpus` (= P + D) and every
+  endpoint scrape work as designed.
+- **KV transfer:** `kv_buffer_device=cuda` takes **~1.4 s** per transfer (UCX `cuda_copy`,
+  no `cuda_ipc`, ~0.4 GB/s). `cpu` takes **~0.06 s**: 23x faster. Router TTFT at idle: 3.0 s
+  on the GPU path vs 2.07 s on the host path. Prefill alone is 1.5 s.
+- fp8 KV works (scale 1.0 warning, harmless for performance): the decode KV capacity doubles
+  from 63k to 126k tokens.
+
+**Calibration** (`smoke_test.sh calibrate`, 60 s levels, so high levels undercount completions):
+
+| Concurrency | baseline agg-2: TTFT p90 / ITL p99 / req/s | 1P1D cpu (old S4): TTFT p90 / ITL p99 / req/s |
+|---|---|---|
+| 2 | 1.6 s / 36 ms / 0.18 | 4.3 s / 39 ms / 0.14 |
+| 4 | 3.2 s / 50 ms / 0.30 | 8.4 s / 44 ms / 0.21 |
+| 8 | 6.3 s / 74 ms / 0.41 | 16.6 s / 53 ms / 0.19 |
+| 12 | 9.5 s / 100 ms / 0.45 | 24.9 s / 67 ms / 0.28 |
+| 16 | 13.0 s / 120 ms / 0.46 | 25.2 s / 99 ms / 0.16 |
+| 24+ | ~20 s / 150-164 ms / ~0.45 (saturated) | 30-44 s / 54-65 ms / collapsing in 60 s windows |
+
+Reading it: the load is **prefill-bound**. One prefill costs ~1.5 s of GPU, and 256 batched
+decode tokens cost ~0.6 s, so the work splits ~70:30. With 1P1D the single prefill GPU is always
+full (4-5 running, up to 147 waiting) while decode idles half the time. Disaggregation does
+keep ITL low under load, as expected. But the ratio has to lean to prefill, hence the
+revised presets (2P1D, 3P1D).
 
 ## Setup & run
 

@@ -159,8 +159,17 @@ vLLM's default (on).
   the untested push mode;
 - `max_num_batched_tokens >= max_num_seqs` for each role;
 - the same `kv_cache_dtype` on both roles when disaggregated (NIXL compatibility hash);
-- (study 20) when disaggregated, decode `max_num_seqs` <= 28 with fp8 KV, <= 14 with bf16:
-  the requests that fit in one L4's decode KV, so it queues instead of preempting.
+- (study 20) when disaggregated, each role may admit at most the requests its KV holds, as
+  a function of `gpu_memory_utilization`. The calibration comes from study 19's measured
+  `kv_cache_size_tokens`: decode KV = gmu x 22.03 - 11.14 GiB at 0.299 GiB per request
+  in fp8 / 0.598 in bf16; prefill KV = gmu x 22.03 - 10.44 GiB at 0.281 / 0.562 GiB per
+  4096-token prompt. At gmu 0.9 that is 29 fp8 / 14 bf16 on the decode, and at 0.8 only
+  21 / 10. So a role queues instead of preempting. A fixed cap would have let the optimizer
+  overcommit at low gmu.
+- (checked in vLLM 0.29.0 source) a decode-queued request does not lose its remote KV. The
+  decode starts NIXL lease heartbeats to the prefill in `on_new_request`, every
+  kv_lease_duration/6 = 5 s, while the request waits. The prefill's KV staying occupied then
+  becomes back-pressure (a longer prefill queue), not failures.
 
 ### Steps: baseline, bootstrap, 9 presets, optimize
 

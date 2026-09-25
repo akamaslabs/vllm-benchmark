@@ -98,11 +98,18 @@ parameterConstraints:
   - name: prefill and decode share the KV cache dtype when disaggregated
     formula: pd_topology.pd_prefill_instances == 0 || (vllm_prefill.kv_cache_dtype == "auto" && vllm_decode.kv_cache_dtype == "auto") || (vllm_prefill.kv_cache_dtype == "fp8" && vllm_decode.kv_cache_dtype == "fp8")
   # Study 18/19 lesson: with more prefill than decode capacity, a decode admitting more
-  # requests than its KV holds (max_num_seqs 256, ~14 x 4352-token requests fit in bf16 on
-  # an L4, ~28 in fp8) preempts in a loop and throughput collapses (S5 2P1D: 577 -> 321
-  # tokens/s/GPU, ~24 preemptions/min). Cap it when disaggregated so it queues instead.
+  # requests than its KV holds (max_num_seqs 256) preempts in a loop and throughput
+  # collapses (S5 2P1D: 577 -> 321 tokens/s/GPU, ~24 preemptions/min). When disaggregated,
+  # both roles may admit at most what their KV holds, as a function of
+  # gpu_memory_utilization. Calibrated on study 19's measured kv_cache_size_tokens at gmu 0.9
+  # (decode fp8 126448 tokens, prefill bf16 68368; 22.03 GiB usable per L4):
+  #   decode  KV GiB = gmu * 22.03 - 11.14; one 4352-token request = 0.299 GiB fp8 / 0.598 bf16
+  #   prefill KV GiB = gmu * 22.03 - 10.44; one 4096-token prompt  = 0.281 GiB fp8 / 0.562 bf16
+  # e.g. at gmu 0.9 the decode holds 29 requests in fp8 / 14 in bf16, at 0.8 only 21 / 10.
   - name: disaggregated decode admits no more requests than its KV holds
-    formula: pd_topology.pd_prefill_instances == 0 || (vllm_decode.kv_cache_dtype == "fp8" && vllm_decode.max_num_seqs <= 28) || (vllm_decode.kv_cache_dtype == "auto" && vllm_decode.max_num_seqs <= 14)
+    formula: pd_topology.pd_prefill_instances == 0 || (vllm_decode.kv_cache_dtype == "fp8" && vllm_decode.max_num_seqs * 0.299 <= vllm_decode.gpu_memory_utilization * 22.03 - 11.14) || (vllm_decode.kv_cache_dtype == "auto" && vllm_decode.max_num_seqs * 0.598 <= vllm_decode.gpu_memory_utilization * 22.03 - 11.14)
+  - name: prefill admits no more prompts than its KV holds
+    formula: pd_topology.pd_prefill_instances == 0 || (vllm_prefill.kv_cache_dtype == "fp8" && vllm_prefill.max_num_seqs * 0.281 <= vllm_prefill.gpu_memory_utilization * 22.03 - 10.44) || (vllm_prefill.kv_cache_dtype == "auto" && vllm_prefill.max_num_seqs * 0.562 <= vllm_prefill.gpu_memory_utilization * 22.03 - 10.44)
 
 kpis:
   # Akamas 3.7 accepts at most 8 KPIs per study ("No more than 8 KPIs are allowed", seen at

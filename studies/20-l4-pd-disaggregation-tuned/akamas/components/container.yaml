@@ -1,0 +1,8 @@
+kind: component
+system: vLLM_Benchmark_20_L4_PD_Disaggregation
+name: container
+description: "The serving pod's containers (Deployment vllm-pd, namespace llm-serving: engine + router)"
+componentType: Kubernetes Container
+properties:
+  prometheus:
+    pod: ^vllm-pd-.*

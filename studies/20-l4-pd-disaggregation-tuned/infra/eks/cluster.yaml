@@ -1,0 +1,78 @@
+# eksctl description of the cluster study 18 runs on: `vllm-bench`, us-east-2, the same
+# cluster as studies 0-17. Only the node groups this study uses are listed. The cluster
+# carries others (llm-serving, llm-serving-g7e, llm-serving-l4-single, llm-serving-l40s,
+# m7i-2xlarge, m8a-2xlarge) that this study neither needs nor touches.
+#
+# Live state on 2026-09-24: all three node groups below exist and are ACTIVE.
+# llm-serving-l4 sits at 0 nodes until the smoke test (see ../README.md for scaling it).
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: vllm-bench
+  region: us-east-2
+  version: "1.35"
+  tags:
+    Project: vllm-bench
+    Provisioner: eksctl
+
+iam:
+  withOIDC: true
+
+addons:
+  - name: aws-ebs-csi-driver
+    wellKnownPolicies:
+      ebsCSIController: true
+
+managedNodeGroups:
+
+  # Monitoring/ingress/AIPerf node. Created 2026-09-23 to replace `system` and `system-m8a`
+  # after the open-webui incident (see studies/17-.../infra/eks/cluster.yaml for the full
+  # note). Private us-east-2b subnet (the Prometheus/Grafana and benchmark-results volumes
+  # live in 2b), no public IP, pod IMDS disabled. Label kept as node-role: system-m8a,
+  # which is what 05-job.yaml's nodeSelector targets.
+  - name: system-2b
+    instanceType: m8a.xlarge
+    desiredCapacity: 1
+    minSize: 1
+    maxSize: 1
+    volumeSize: 50
+    privateNetworking: true
+    subnets:
+      - subnet-0a4cb274f99c37224   # SubnetPrivateUSEAST2B
+    disablePodIMDS: true
+    labels:
+      node-role: system-m8a
+
+  - name: akamas
+    instanceType: r6i.xlarge
+    desiredCapacity: 1
+    minSize: 1
+    maxSize: 1
+    volumeSize: 50
+    labels:
+      node-role: akamas
+
+  # The GPU node: 1x g6.12xlarge = 4x NVIDIA L4 24 GB (compute capability 8.9, 72 W power
+  # cap), PCIe only (no NVLink). Same node group as studies 6-16, created 2026-09-07.
+  # eksctl recognises g6 and picks the NVIDIA AL2023 AMI by itself, so no `ami:` pin is
+  # needed (unlike g7e).
+  # Capacity (probe 2026-09-23): g6.12xlarge available in us-east-2a and 2b, NOT in 2c. The
+  # live node group spans all three public subnets. That is fine, because the ASG retries
+  # another zone on InsufficientInstanceCapacity. But the model-cache volume binds in the
+  # zone of the FIRST node (01-pvc-model-cache.yaml), and every later node must land
+  # there too. If that ever fails, recreate this node group pinned to that single zone
+  # (availabilityZones: [<zone>]).
+  - name: llm-serving-l4
+    instanceType: g6.12xlarge
+    desiredCapacity: 0
+    minSize: 0
+    maxSize: 1
+    volumeSize: 200
+    amiFamily: AmazonLinux2023
+    labels:
+      node-role: llm-serving-l4
+    taints:
+      - key: nvidia.com/gpu
+        value: "present"
+        effect: NoSchedule

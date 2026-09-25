@@ -1,0 +1,16 @@
+# Persists AIPerf's own HuggingFace cache (~/.cache/huggingface) across trials, mounted
+# read-write at /root/.cache/huggingface in 05-job.yaml. Same claim as studies 1-17. This
+# study uses no public dataset (synthetic prompts), so it only holds the tokenizer
+# (Qwen/Qwen3-8B-FP8, not gated), which AIPerf downloads on the first run.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hf-cache
+  namespace: llm-benchmark
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3-ephemeral
+  resources:
+    requests:
+      storage: 5Gi

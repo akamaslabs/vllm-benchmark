@@ -1,0 +1,214 @@
+# Study 18 serving template, rendered per trial by the Akamas FileConfigurator into
+# 01-deployment.yaml and applied by apply_config.sh. Two documents:
+#
+#  1. ConfigMap `pd-config`: this trial's topology and per-role vLLM flags, one flag per
+#     line. The dollar-brace tokens are the tuned parameters: pd_topology.* is the
+#     vLLM_PD_Topology component, and vllm_prefill.* / vllm_decode.* are the two vLLM
+#     components. A flag left unrendered is deleted by apply_config.sh, so vLLM's default
+#     applies. In aggregated presets (pd_prefill_instances = 0) prefill.args is rendered
+#     but unused.
+#  2. Deployment `vllm-pd`, one pod with two containers:
+#       engine: launcher.sh starts P prefill + D decode vLLM processes, one GPU each (see
+#               launcher.sh for the port/GPU layout and why one container).
+#       router: pd_router.py, the front door on :8000 for every preset, aggregated ones
+#               included, and the source of the client-side TTFT/ITL/E2E the goal uses.
+#     Both scripts come from the ConfigMap `pd-scripts`, which apply_config.sh regenerates
+#     from k8s/launcher.sh and k8s/pd_router.py on every trial. No script text lives in
+#     this rendered file.
+#     The pod template carries a checksum of document 1 (__PD_CONFIG_SHA__, replaced by
+#     apply_config.sh), because a ConfigMap change alone does not restart a Deployment.
+#
+# Model: Qwen/Qwen3-8B-FP8 — dense, 36 layers, 8 KV heads, head_dim 128, full attention
+# on every layer (no sliding window, no sinks: the plainest case for NixlConnector),
+# FP8 weights 8.79 GiB (HF API, 2026-09-23), Apache-2.0, not gated. KV cost 144 KiB/token
+# in bf16, so one 4096-token prompt moves ~0.56 GiB of KV from prefill to decode.
+#
+# Pinned flags (common.args) and why:
+#   --max-model-len 8192           4096-token prompts + 256 output, with margin. Qwen3-8B's
+#                                  native 32k would size the startup KV profile for nothing.
+#   --attention-backend FLASHINFER P and D must use the same backend (NIXL compatibility
+#                                  hash). NOT FLASH_ATTN: on SM 8.9 vLLM runs FlashAttention
+#                                  v2, which rejects an fp8 KV cache (fa_utils.py
+#                                  flash_attn_supports_kv_cache_dtype needs FA3 on SM 9.x or
+#                                  FA4 on SM 10.x, v0.29.0), so preset S5 could not start.
+#                                  FlashInfer accepts fp8 KV on Ada and is covered by vLLM's
+#                                  NIXL CI on 4x L4 (FLASHINFER=1). Decided 2026-09-24. Its
+#                                  first start JIT-compiles kernels: measure the startup time
+#                                  at the smoke test.
+#   --no-enable-prefix-caching     same methodology as studies 1-17: every prompt is
+#                                  prefilled for real.
+#   --enable-mfu-metrics           feeds the pack's MFU/bandwidth metrics.
+#   --default-chat-template-kwargs {"enable_thinking": false}
+#                                  Qwen3-8B thinks by default. It is off here for consistency
+#                                  with earlier studies, which kept reasoning off, and for
+#                                  plain answers in the logs. It does not change the load:
+#                                  output is fixed at 256 tokens (ignore_eos), and the
+#                                  template adds only 4 prompt tokens (<think></think>).
+#                                  Server-side default, vllm/entrypoints/launchers/cli_args.py
+#                                  (v0.29.0); a request's own chat_template_kwargs would
+#                                  override it.
+#   chunked prefill stays at vLLM's default (on). The prefill chunk size is controlled
+#   with max_num_batched_tokens, which is exactly the knob the aggregated control presets
+#   turn.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pd-config
+  namespace: llm-serving
+data:
+  topology.env: |
+    PD_PREFILL_INSTANCES=${pd_topology.pd_prefill_instances}
+    PD_DECODE_INSTANCES=${pd_topology.pd_decode_instances}
+    PD_KV_CONNECTOR=${pd_topology.pd_kv_connector}
+    PD_KV_BUFFER_DEVICE=${pd_topology.pd_kv_buffer_device}
+  common.args: |
+    --max-model-len=8192
+    --attention-backend=FLASHINFER
+    --no-enable-prefix-caching
+    --enable-mfu-metrics
+    --default-chat-template-kwargs={"enable_thinking": false}
+  prefill.args: |
+    --gpu-memory-utilization=${vllm_prefill.gpu_memory_utilization}
+    --max-num-seqs=${vllm_prefill.max_num_seqs}
+    --max-num-batched-tokens=${vllm_prefill.max_num_batched_tokens}
+    --kv-cache-dtype=${vllm_prefill.kv_cache_dtype}
+  decode.args: |
+    --gpu-memory-utilization=${vllm_decode.gpu_memory_utilization}
+    --max-num-seqs=${vllm_decode.max_num_seqs}
+    --max-num-batched-tokens=${vllm_decode.max_num_batched_tokens}
+    --kv-cache-dtype=${vllm_decode.kv_cache_dtype}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-pd
+  namespace: llm-serving
+spec:
+  replicas: 1
+  # 20 min: up to 4 vLLM processes start in parallel (torch.compile + CUDA graph capture
+  # each), after a one-time 8.8 GiB download on a cold cache. MEASURE at the smoke test.
+  progressDeadlineSeconds: 1200
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: vllm-pd
+  template:
+    metadata:
+      labels:
+        app: vllm-pd
+        # Readable trial identity (study 20): e.g. "2P1D", "0P3D" (aggregated, 3 replicas).
+        # The ServiceMonitor copies it onto every scraped series as `topology`, so Grafana
+        # filters by topology instead of by the generated pod name.
+        topology: "${pd_topology.pd_prefill_instances}P${pd_topology.pd_decode_instances}D"
+      annotations:
+        kubectl.kubernetes.io/default-container: engine
+        pd-config-sha: "__PD_CONFIG_SHA__"
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        node-role: llm-serving-l4
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: engine
+          image: vllm/vllm-openai:v0.29.0
+          command: ["bash", "/pd-scripts/launcher.sh"]
+          env:
+            - name: VLLM_LOGGING_LEVEL
+              value: INFO
+            - name: PD_MODEL
+              value: Qwen/Qwen3-8B-FP8
+            - name: PD_SERVED_BASE
+              value: qwen3-8b
+            - name: PD_NUM_GPUS
+              value: "4"
+            # UCX: same-host settings from vLLM's NIXL usage doc. UCX_PROTO_INFO prints the
+            # transport UCX picks per endpoint (cuda_ipc vs a staged path) once, at the
+            # first transfer — the smoke test's answer to "does PCIe P2P get used".
+            - name: UCX_NET_DEVICES
+              value: all
+            - name: UCX_PROTO_INFO
+              value: "y"
+          ports:
+            - {name: prefill-0, containerPort: 8100, protocol: TCP}
+            - {name: prefill-1, containerPort: 8101, protocol: TCP}
+            - {name: prefill-2, containerPort: 8102, protocol: TCP}
+            - {name: decode-0, containerPort: 8200, protocol: TCP}
+            - {name: decode-1, containerPort: 8201, protocol: TCP}
+            - {name: decode-2, containerPort: 8202, protocol: TCP}
+            - {name: decode-3, containerPort: 8203, protocol: TCP}
+          resources:
+            # All 4 L4s on every trial, as in studies 6-16: the pod shape never changes
+            # between presets; unused GPUs idle and active_gpus counts only the ones holding
+            # weights (DCGM framebuffer > 1 GiB).
+            requests:
+              nvidia.com/gpu: "4"
+              cpu: "16"
+              memory: "64Gi"
+            limits:
+              nvidia.com/gpu: "4"
+              cpu: "40"
+              memory: "160Gi"
+          volumeMounts:
+            - name: shm
+              mountPath: /dev/shm
+            - name: model-cache
+              mountPath: /root/.cache/huggingface
+            - name: pd-config
+              mountPath: /pd-config
+              readOnly: true
+            - name: pd-scripts
+              mountPath: /pd-scripts
+              readOnly: true
+        - name: router
+          image: vllm/vllm-openai:v0.29.0
+          command: ["python3", "-u", "/pd-scripts/pd_router.py"]
+          env:
+            - name: PD_ROUTER_MODEL_LABEL
+              value: qwen3-8b-router
+            - name: PD_ROUTER_PORT
+              value: "8000"
+          ports:
+            - {name: http, containerPort: 8000, protocol: TCP}
+          resources:
+            requests:
+              cpu: "2"
+              memory: "1Gi"
+            limits:
+              cpu: "4"
+              memory: "4Gi"
+          # /health is 200 only when every backend of the rendered topology answers
+          # /health, so these probes gate the whole pod on the whole topology.
+          startupProbe:
+            httpGet: {path: /health, port: 8000}
+            failureThreshold: 120   # 120 x 10 s = 20 min, matching progressDeadlineSeconds
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: {path: /health, port: 8000}
+            periodSeconds: 30
+            failureThreshold: 3
+          volumeMounts:
+            - name: pd-config
+              mountPath: /pd-config
+              readOnly: true
+            - name: pd-scripts
+              mountPath: /pd-scripts
+              readOnly: true
+      volumes:
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Gi
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: vllm-model-cache-qwen3-8b
+        - name: pd-config
+          configMap:
+            name: pd-config
+        - name: pd-scripts
+          configMap:
+            name: pd-scripts
+            defaultMode: 0555

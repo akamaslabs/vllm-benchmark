@@ -1,0 +1,44 @@
+# Helm values for NVIDIA DCGM Exporter — study 18 (llm-serving-l4, g6.12xlarge, 4x NVIDIA L4).
+# Exposes GPU hardware metrics (utilisation, VRAM, power, temperature) to Prometheus.
+#
+# ONE release, `dcgm-exporter`, re-pointed at whichever GPU node group the current study
+# uses — the practice documented in studies/17-g7e-speculative-decoding-goodput/infra/eks/
+# gpu-capacity-fallback.sh (dcgm_cover): the DCGM queries filter on pod/gpu only, never on a
+# node label, so scraping two GPU nodes at once would make avg()/sum() mix them. On
+# 2026-09-23 the release pointed at `llm-serving-l4-single`; re-point it before the smoke test:
+#   helm upgrade dcgm-exporter gpu-helm-charts/dcgm-exporter --namespace monitoring \
+#     --reuse-values --set nodeSelector.node-role=llm-serving-l4
+# or, from scratch:
+#   helm upgrade --install dcgm-exporter gpu-helm-charts/dcgm-exporter --namespace monitoring \
+#     -f studies/20-l4-pd-disaggregation-tuned/k8s/monitoring/dcgm-exporter-values.yaml
+
+nodeSelector:
+  node-role: llm-serving-l4
+
+# Required to schedule on the tainted GPU node.
+tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+
+# Let Prometheus (via kube-prometheus-stack) scrape DCGM metrics every 5 s.
+# serviceMonitorSelectorNilUsesHelmValues: false in prometheus values ensures
+# this ServiceMonitor is picked up without needing extra labels.
+serviceMonitor:
+  enabled: true
+  interval: 5s
+  scrapeTimeout: 4s
+  namespace: monitoring
+
+extraConfigMapVolumes:
+- name: exporter-metrics-volume
+  configMap:
+    name: dcgm-custom-metrics
+    items:
+    - key: metrics
+      path: dcgm_counters.csv
+
+extraVolumeMounts:
+- name: exporter-metrics-volume
+  mountPath: /etc/dcgm-exporter/default-counters.csv
+  subPath: dcgm_counters.csv

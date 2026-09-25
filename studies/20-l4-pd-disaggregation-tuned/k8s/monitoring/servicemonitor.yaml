@@ -1,0 +1,34 @@
+# Scrapes the study-18 pod: the router on `http` and every vLLM instance on its own port.
+# Each series keeps the `pod` label and gets `topology` (e.g. "2P1D") from the pod. The role
+# is told apart by `model_name`, and the single instance by `endpoint` (prefill-0,
+# decode-1, http = router):
+#   qwen3-8b-router   router (client-side TTFT/ITL/E2E, delivered tokens)
+#   qwen3-8b-prefill  prefill instances
+#   qwen3-8b-decode   decode instances (the plain replicas in aggregated presets)
+# The launcher sets these as the first --served-model-name of each process.
+#
+#   kubectl apply -f studies/20-l4-pd-disaggregation-tuned/k8s/monitoring/servicemonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vllm-pd
+  namespace: monitoring
+  labels:
+    app: vllm-pd
+spec:
+  namespaceSelector:
+    matchNames: [llm-serving]
+  selector:
+    matchLabels:
+      app: vllm-pd
+  # Study 20: copy the pod's readable topology label ("2P1D") onto every series.
+  podTargetLabels: [topology]
+  endpoints:
+    - {port: http, path: /metrics, interval: 5s, scrapeTimeout: 4s}
+    - {port: prefill-0, path: /metrics, interval: 5s, scrapeTimeout: 4s}
+    - {port: prefill-1, path: /metrics, interval: 5s, scrapeTimeout: 4s}
+    - {port: prefill-2, path: /metrics, interval: 5s, scrapeTimeout: 4s}
+    - {port: decode-0, path: /metrics, interval: 5s, scrapeTimeout: 4s}
+    - {port: decode-1, path: /metrics, interval: 5s, scrapeTimeout: 4s}
+    - {port: decode-2, path: /metrics, interval: 5s, scrapeTimeout: 4s}
+    - {port: decode-3, path: /metrics, interval: 5s, scrapeTimeout: 4s}

@@ -1,0 +1,329 @@
+kind: study
+name: 20-L4-PD-Disaggregation-Tuned
+description: >-
+  Study 20: prefill/decode disaggregation given the fixes studies 18/19 showed it needed
+  (decode max_num_seqs capped to its KV capacity, fp8 KV, one prompt per prefill step),
+  against study 19's best aggregated configuration and a true vLLM-default baseline
+  (only gpu_memory_utilization set, as in studies 1-17). Qwen/Qwen3-8B-FP8 on one
+  g6.12xlarge (4x L4, PCIe, no P2P), vLLM 0.29.0, NixlConnector with host-staged KV,
+  synthetic 4096/256 load in 6 levels x 10 min. 10 presets, study 19's optimizer results
+  bootstrapped, then 100 optimizer experiments. Goal: router-measured tokens/s per active GPU.
+system: vLLM_Benchmark_20_L4_PD_Disaggregation
+workflow: 20-L4-PD-Disaggregation-Workflow
+
+# Same goal shape as studies 9-16 (tokens/s per GPU actually holding weights), so 2-GPU and
+# 4-GPU presets compare fairly. Every term reads from pd_topology, i.e. the router: tokens
+# delivered to clients (counted once from vLLM's usage block) and client-side TTFT/ITL. The
+# per-instance numbers are not used here, because engine-side TTFT under-reports and
+# engine-side prompt tokens double-count once prefill runs elsewhere.
+# SLA calibrated at the 2026-09-24 smoke test (60 s levels, 2 GPUs). On L4 one 4096-token
+# prefill alone costs ~1.5 s (no native FP8 compute, so it runs as bf16). The aggregated
+# baseline has TTFT p90 3.2 s already at concurrency 4. So TTFT p95 <= 5000 ms leaves room
+# for a real queue without being violated by construction. ITL p95 <= 75 ms is where the
+# aggregated baseline starts to give way (ITL p99 74 ms at concurrency 8, 100 ms at 12)
+# while 1P1D stayed at 53-67 ms. Tail ITL is the one thing vLLM's docs say disaggregation
+# improves.
+goal:
+  objective: maximize
+  function:
+    formula: (pd_topology.prefill_token_throughput + pd_topology.decode_token_throughput) / pd_topology.active_gpus
+    unit: tokens per second/gpus
+  constraints:
+    absolute:
+      - name: TTFT P95 SLA at the router
+        formula: pd_topology.time_to_first_token_p95 <= 5000
+      - name: ITL P95 SLA at the router
+        formula: pd_topology.inter_token_latency_p95 <= 75
+
+# As studies 6-16: the most stable 6-sample window at the prefill-throughput peak. The
+# per-level picture (where each topology stops meeting the SLA) is read afterwards from
+# AIPerf's per-level results and Prometheus, not from this single window.
+windowing:
+  type: stability
+  stability:
+    metric: pd_topology.prefill_token_throughput
+    width: 6
+    maxStdDev: 300000000
+    when:
+      metric: pd_topology.prefill_token_throughput
+      is: max
+
+numberOfTrials: 1
+
+# Declared explicitly (the default would be "all"): the 12 parameters the presets set and
+# the optimizer searches.
+# Domains are subsets of the vLLM pack 1.11.0 domains, sized to this node.
+parametersSelection:
+  - name: pd_topology.pd_prefill_instances
+    domain: [0, 3]
+  - name: pd_topology.pd_decode_instances
+    domain: [1, 4]
+  - name: pd_topology.pd_kv_connector
+    categories: ["NixlConnector", "NixlPushConnector"]
+  - name: pd_topology.pd_kv_buffer_device
+    categories: ["cuda", "cpu"]
+  - name: vllm_prefill.gpu_memory_utilization
+    domain: [0.8, 0.92]
+  - name: vllm_prefill.max_num_seqs
+    domain: [8, 512]
+  - name: vllm_prefill.max_num_batched_tokens
+    domain: [512, 16384]
+  - name: vllm_prefill.kv_cache_dtype
+    categories: ["auto", "fp8"]
+  - name: vllm_decode.gpu_memory_utilization
+    domain: [0.8, 0.92]
+  - name: vllm_decode.max_num_seqs
+    domain: [8, 512]
+  - name: vllm_decode.max_num_batched_tokens
+    domain: [512, 16384]
+  - name: vllm_decode.kv_cache_dtype
+    categories: ["auto", "fp8"]
+
+parameterConstraints:
+  - name: one GPU per instance, 4 L4s in the pod
+    formula: pd_topology.pd_prefill_instances + pd_topology.pd_decode_instances <= 4
+  - name: prefill batch budget covers its sequence cap
+    formula: vllm_prefill.max_num_batched_tokens >= vllm_prefill.max_num_seqs
+  - name: decode batch budget covers its sequence cap
+    formula: vllm_decode.max_num_batched_tokens >= vllm_decode.max_num_seqs
+  # Pinned by the 2026-09-24 smoke test, so the optimizer does not spend 1-hour experiments
+  # on them. kv_buffer_device=cuda costs ~1.4 s per 564 MB transfer on this node against
+  # ~0.06 s for cpu: there is no GPU P2P here (nvidia-smi topo -p2p: NS), so UCX falls back to
+  # cuda_copy. NixlPushConnector was never exercised here.
+  - name: host-staged KV transfer (no GPU P2P on g6.12xlarge)
+    formula: pd_topology.pd_kv_buffer_device == "cpu"
+  - name: pull connector only (push not validated on this node)
+    formula: pd_topology.pd_kv_connector == "NixlConnector"
+  # NIXL's compatibility hash requires the same cache dtype on both sides.
+  - name: prefill and decode share the KV cache dtype when disaggregated
+    formula: pd_topology.pd_prefill_instances == 0 || (vllm_prefill.kv_cache_dtype == "auto" && vllm_decode.kv_cache_dtype == "auto") || (vllm_prefill.kv_cache_dtype == "fp8" && vllm_decode.kv_cache_dtype == "fp8")
+  # Study 18/19 lesson: with more prefill than decode capacity, a decode admitting more
+  # requests than its KV holds (max_num_seqs 256, ~14 x 4352-token requests fit in bf16 on
+  # an L4, ~28 in fp8) preempts in a loop and throughput collapses (S5 2P1D: 577 -> 321
+  # tokens/s/GPU, ~24 preemptions/min). Cap it when disaggregated so it queues instead.
+  - name: disaggregated decode admits no more requests than its KV holds
+    formula: pd_topology.pd_prefill_instances == 0 || (vllm_decode.kv_cache_dtype == "fp8" && vllm_decode.max_num_seqs <= 28) || (vllm_decode.kv_cache_dtype == "auto" && vllm_decode.max_num_seqs <= 14)
+
+kpis:
+  # Akamas 3.7 accepts at most 8 KPIs per study ("No more than 8 KPIs are allowed", seen at
+  # `akamas create` on 2026-09-24). Every metric below, and all the others in the telemetry
+  # catalog (GPU PCIe TX/RX, requests/s, failed transfers, decode queue), is still collected
+  # and visible on its component. These 8 are the ones compared across presets.
+  - name: Throughput totale
+    formula: pd_topology.total_token_throughput
+    direction: maximize
+  - name: TTFT P95 (router)
+    formula: pd_topology.time_to_first_token_p95
+    direction: minimize
+  - name: ITL P95 (router)
+    formula: pd_topology.inter_token_latency_p95
+    direction: minimize
+  - name: Tempo in coda P95 prefill
+    formula: vllm_prefill.request_queue_time_p95
+    direction: minimize
+  - name: Tempo trasferimento KV P95
+    formula: vllm_decode.nixl_xfer_time_p95
+    direction: minimize
+  - name: Banda trasferimento KV
+    formula: vllm_decode.nixl_transfer_throughput
+    direction: maximize
+  - name: Utilizzo KV cache decode
+    formula: vllm_decode.kv_cache_usage_avg
+    direction: maximize
+  - name: Preemption decode (picco)
+    formula: vllm_decode.preemption_rate
+    direction: minimize
+    aggregation: max
+
+# Baseline (vLLM defaults) + bootstrap of study 19's optimizer + 9 presets + optimize.
+# Every preset sets all 12 parameters. In aggregated presets the vllm_prefill values are
+# rendered but unused. The buffer is always "cpu" and the connector always NixlConnector
+# (the pin constraints).
+steps:
+  # vLLM as a customer runs it: 2 aggregated replicas, only gpu_memory_utilization set; vLLM picks the rest (on an L4 in server mode: max_num_batched_tokens 2048, max_num_seqs 256, auto KV; vllm/engine/arg_utils.py v0.29.0). Studies 18/19 wrongly pinned 8192/128 here.
+  - name: baseline
+    type: baseline
+    values:
+      pd_topology.pd_prefill_instances: 0
+      pd_topology.pd_decode_instances: 2
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_decode.gpu_memory_utilization: 0.9
+    doNotRenderParameters:
+      - vllm_prefill.max_num_seqs
+      - vllm_prefill.max_num_batched_tokens
+      - vllm_prefill.kv_cache_dtype
+      - vllm_decode.max_num_seqs
+      - vllm_decode.max_num_batched_tokens
+      - vllm_decode.kv_cache_dtype
+
+  # Study 19's optimizer experiments 11-13, measured with the same router (streaming token
+  # counting) on the same node: 1610 / 1513 / 1424 tokens/s/GPU, all aggregated. They seed
+  # the optimizer. Replace the name by study 19's UUID if `akamas create` asks for an id.
+  - name: bootstrap study 19 optimizer
+    type: bootstrap
+    from:
+      - study: 19-L4-PD-Disaggregation-TPS-Per-GPU-Rerun
+        experiments: [11, 12, 13]
+
+  # Study 19's best (exp 11, 1610 tokens/s/GPU): 3 aggregated replicas, fp8 KV, ~1 prompt per step (4142). Re-measured here as the bar to beat.
+  - name: A1 agg3 study-19 champion
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 0
+      pd_topology.pd_decode_instances: 3
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9178265055496075
+      vllm_prefill.max_num_seqs: 56
+      vllm_prefill.max_num_batched_tokens: 8214
+      vllm_prefill.kv_cache_dtype: "fp8"
+      vllm_decode.gpu_memory_utilization: 0.8085382823279744
+      vllm_decode.max_num_seqs: 460
+      vllm_decode.max_num_batched_tokens: 4142
+      vllm_decode.kv_cache_dtype: "fp8"
+
+  # The champion's per-instance settings on 2 replicas: the replica count alone.
+  - name: A2 agg2 champion settings
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 0
+      pd_topology.pd_decode_instances: 2
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9178265055496075
+      vllm_prefill.max_num_seqs: 56
+      vllm_prefill.max_num_batched_tokens: 8214
+      vllm_prefill.kv_cache_dtype: "fp8"
+      vllm_decode.gpu_memory_utilization: 0.8085382823279744
+      vllm_decode.max_num_seqs: 460
+      vllm_decode.max_num_batched_tokens: 4142
+      vllm_decode.kv_cache_dtype: "fp8"
+
+  # The champion's per-instance settings on 4 replicas.
+  - name: A3 agg4 champion settings
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 0
+      pd_topology.pd_decode_instances: 4
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9178265055496075
+      vllm_prefill.max_num_seqs: 56
+      vllm_prefill.max_num_batched_tokens: 8214
+      vllm_prefill.kv_cache_dtype: "fp8"
+      vllm_decode.gpu_memory_utilization: 0.8085382823279744
+      vllm_decode.max_num_seqs: 460
+      vllm_decode.max_num_batched_tokens: 4142
+      vllm_decode.kv_cache_dtype: "fp8"
+
+  # 1P1D with every fix: fp8 KV, prefill one prompt per step (4096), decode capped at 24 (~28 fit in fp8).
+  - name: D1 1P1D fp8 capped
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 1
+      pd_topology.pd_decode_instances: 1
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 16
+      vllm_prefill.max_num_batched_tokens: 4096
+      vllm_prefill.kv_cache_dtype: "fp8"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 24
+      vllm_decode.max_num_batched_tokens: 2048
+      vllm_decode.kv_cache_dtype: "fp8"
+
+  # Study 19's S5 (collapsed by decode preemption) with the fixes.
+  - name: D2 2P1D fp8 capped
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 2
+      pd_topology.pd_decode_instances: 1
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 16
+      vllm_prefill.max_num_batched_tokens: 4096
+      vllm_prefill.kv_cache_dtype: "fp8"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 24
+      vllm_decode.max_num_batched_tokens: 2048
+      vllm_decode.kv_cache_dtype: "fp8"
+
+  # Study 19's S9 with the fixes: prefill-heavy ratio for a ~70:30 prefill:decode load.
+  - name: D3 3P1D fp8 capped
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 3
+      pd_topology.pd_decode_instances: 1
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 16
+      vllm_prefill.max_num_batched_tokens: 4096
+      vllm_prefill.kv_cache_dtype: "fp8"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 24
+      vllm_decode.max_num_batched_tokens: 2048
+      vllm_decode.kv_cache_dtype: "fp8"
+
+  # Balanced ratio; 2 decodes double the admitted requests (2 x 24).
+  - name: D4 2P2D fp8 capped
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 2
+      pd_topology.pd_decode_instances: 2
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 16
+      vllm_prefill.max_num_batched_tokens: 4096
+      vllm_prefill.kv_cache_dtype: "fp8"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 24
+      vllm_decode.max_num_batched_tokens: 2048
+      vllm_decode.kv_cache_dtype: "fp8"
+
+  # Decode-skewed: checks whether the fixes move the bottleneck back to prefill.
+  - name: D5 1P2D fp8 capped
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 1
+      pd_topology.pd_decode_instances: 2
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 16
+      vllm_prefill.max_num_batched_tokens: 4096
+      vllm_prefill.kv_cache_dtype: "fp8"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 24
+      vllm_decode.max_num_batched_tokens: 2048
+      vllm_decode.kv_cache_dtype: "fp8"
+
+  # D3 in bf16 KV with the bf16 cap (12): what fp8 is worth when disaggregated.
+  - name: D6 3P1D bf16 capped
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 3
+      pd_topology.pd_decode_instances: 1
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 16
+      vllm_prefill.max_num_batched_tokens: 4096
+      vllm_prefill.kv_cache_dtype: "auto"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 12
+      vllm_decode.max_num_batched_tokens: 2048
+      vllm_decode.kv_cache_dtype: "auto"
+
+  # The repo's usual optimize step; the node is stopped by hand when enough has been learned.
+  - name: optimize
+    type: optimize
+    optimizer: AKAMAS
+    numberOfInitExperiments: 0
+    numberOfExperiments: 100
+    maxFailedExperiments: 20

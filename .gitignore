@@ -27,3 +27,4 @@ id_rsa.pub
 # Rendered per trial on the toolbox by the Akamas FileConfigurator (study 18 onwards)
 studies/18-l4-pd-disaggregation-tps-per-gpu/k8s/01-deployment.yaml
 studies/19-l4-pd-disaggregation-tps-per-gpu-rerun/k8s/01-deployment.yaml
+studies/20-l4-pd-disaggregation-tuned/k8s/01-deployment.yaml

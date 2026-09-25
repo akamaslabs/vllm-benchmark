@@ -301,6 +301,40 @@ full (4-5 running, up to 147 waiting) while decode idles half the time. Disaggre
 keep ITL low under load, as expected. But the ratio has to lean to prefill, hence the
 revised presets (2P1D, 3P1D).
 
+## Telemetry audit (2026-09-25, on real study-19 data)
+
+Every metric bound to each component's type was evaluated with the component's own
+properties at two real moments: study 19's S9 (3P1D, concurrency 16) and its best
+optimizer experiment (aggregated 0P3D, concurrency 24). No query returns unaggregated
+multi-series.
+
+| Check | Disaggregated 3P1D: pd_topology / vllm_prefill / vllm_decode | Aggregated 0P3D |
+|---|---|---|
+| `active_gpus` | 4 / 3 / 1 | 3 / - / 3 |
+| `prefill_token_throughput` | 3944 / 3944 / **0** (was 3944: double count) | 3779 / - / 3944 |
+| `decode_token_throughput` | 219 / 1 / 240 | 249 / - / 247 |
+| `inter_token_latency_p95` | 74.6 / NaN (1 token per request) / 74.4 ms | 61.6 / - / 53.7 ms |
+| `time_to_first_token_p95` | **19.5 s** / 19.3 s / 4.75 s (decode clock starts after prefill) | 2.0 / - / 2.4 s |
+| NIXL transfer, external KV | decode only: 725 ms p95, 0.29 GB/s, 3944 tok/s | absent (no connector) |
+
+**Fixed after the audit:**
+- the double-counted prompt throughput on decode;
+- `active_dp_engines`, which was always empty (no `model_name` label on
+  `vllm:cache_config_info`);
+- cAdvisor/PSI windows widened to 2 m;
+- 7 pack metrics that had no query are added: prefill/decode phase times, queue average,
+  p90s, time per output token.
+
+**Expected gaps:**
+- NVLink metrics (the L4 has none);
+- NIXL metrics on aggregated trials;
+- `vllm_prefill` on aggregated trials;
+- AIPerf's CPU limit/utilization (the Job sets no CPU limit);
+- `kv_cache_*`, which is new in study 20 (the router exporter was tested on mocks only).
+
+Read `request_success_rate` over the Akamas window, not per 30 s: a capped decode
+admits and finishes requests in waves.
+
 ## Before `akamas create` (checklist)
 
 1. **Export study 19 first.** It holds the substantive finding (disaggregation loses; the

@@ -22,7 +22,18 @@
 # a RATE in bytes/s, not a counter. It was checked on 2026-09-24: over 3 days the value went
 # down in 54 of 114 steps. The GPU pack labels it "bytes since boot": read it as bytes/s.
 #
-# STUDY 20 changes:
+# STUDY 20 changes (audited on real study-19 data, 2026-09-25):
+# - prefill_token_throughput / total_token_throughput count only prompt tokens computed
+#   locally (prompt_tokens_by_source minus external_kv_transfer), falling back to
+#   vllm:prompt_tokens_total with `or` for the router, which has no by_source series. A
+#   disaggregated decode counts every transferred prompt as a prompt token (3944 tok/s on
+#   BOTH roles in study 19's 3P1D), so the old query double-counted it. The goal reads
+#   pd_topology (the router), so it is unchanged.
+# - active_dp_engines was always empty: vllm:cache_config_info has no model_name label.
+#   It is now filtered by the scrape `endpoint`.
+# - cAdvisor/PSI rates use [2m]: the kubelet is scraped too sparsely for 30 s windows, and
+#   the AIPerf container lost up to 13 CPU/PSI metrics.
+# - 7 vLLM-pack metrics that had no query are added at the end (per-role phase times).
 # - active_gpus counts vLLM instances of the component's own role, one
 #   vllm:cache_config_info series per process, each process on one GPU (TP1). The role
 #   filter is the scrape `endpoint` (prefill-i / decode-j; component property `endpoint`).
@@ -81,7 +92,7 @@ metrics:
     datasourceMetric: '(sum(rate(vllm:time_to_first_token_seconds_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:time_to_first_token_seconds_count{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1e-9))*1000'
     scale: 1
   - metric: prefill_token_throughput
-    datasourceMetric: 'sum(rate(vllm:prompt_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))'
+    datasourceMetric: '(sum(rate(vllm:prompt_tokens_by_source_total{source!="external_kv_transfer", model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) or sum(rate(vllm:prompt_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])))'
   - metric: inter_token_latency_p95
     datasourceMetric: '(histogram_quantile(0.95, sum by(le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000'
     scale: 1
@@ -99,7 +110,7 @@ metrics:
   #   active_gpus, so this is what shows a 4-GPU layout producing more in total while
   #   scoring worse per GPU.
   - metric: total_token_throughput
-    datasourceMetric: 'sum(rate(vllm:prompt_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) + sum(rate(vllm:generation_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))'
+    datasourceMetric: '(sum(rate(vllm:prompt_tokens_by_source_total{source!="external_kv_transfer", model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) or sum(rate(vllm:prompt_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))) + sum(rate(vllm:generation_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))'
   #   request_queue_time_p95: TTFT = queue + prefill, so with TTFT and this one the
   #   prefill time follows by difference — it separates "slow to compute" from "merely
   #   saturated", which is the whole question when comparing topologies.
@@ -165,7 +176,7 @@ metrics:
   #     (engine="0","1",...). Counts DP only — TP=4/DP=1 reads 1 — hence not in the
   #     goal; kept for analysis (TP = active_gpus / active_dp_engines).
   - metric: active_dp_engines
-    datasourceMetric: 'count(count by (instance, engine) (vllm:cache_config_info{model_name=~"$MODEL$", pod=~"$POD$"}))'
+    datasourceMetric: 'count(count by (instance, engine) (vllm:cache_config_info{endpoint=~"$ENDPOINT$", pod=~"$POD$"}))'
   #     gpu_memory_allocated_gb: framebuffer in use on the GPUs holding weights, summed,
   #     DCGM MiB -> decimal GB (x 1048576 / 1e9; same GB unit as kv_cache_capacity_gb so
   #     the two are directly comparable). At steady state vLLM pre-allocates its whole
@@ -337,17 +348,17 @@ metrics:
   #     container). Fixed here 2026-09-07 — this filter was missing when these 6
   #     queries were first written the same day; caught before the study ran. ---
   - metric: container_cpu_pressure_some
-    datasourceMetric: 'sum(rate(container_pressure_cpu_waiting_seconds_total{pod=~"$POD$", container!=""}[$DURATION$]))'
+    datasourceMetric: 'sum(rate(container_pressure_cpu_waiting_seconds_total{pod=~"$POD$", container!=""}[2m]))'
   - metric: container_cpu_pressure_full
-    datasourceMetric: 'sum(rate(container_pressure_cpu_stalled_seconds_total{pod=~"$POD$", container!=""}[$DURATION$]))'
+    datasourceMetric: 'sum(rate(container_pressure_cpu_stalled_seconds_total{pod=~"$POD$", container!=""}[2m]))'
   - metric: container_memory_pressure_some
-    datasourceMetric: 'sum(rate(container_pressure_memory_waiting_seconds_total{pod=~"$POD$", container!=""}[$DURATION$]))'
+    datasourceMetric: 'sum(rate(container_pressure_memory_waiting_seconds_total{pod=~"$POD$", container!=""}[2m]))'
   - metric: container_memory_pressure_full
-    datasourceMetric: 'sum(rate(container_pressure_memory_stalled_seconds_total{pod=~"$POD$", container!=""}[$DURATION$]))'
+    datasourceMetric: 'sum(rate(container_pressure_memory_stalled_seconds_total{pod=~"$POD$", container!=""}[2m]))'
   - metric: container_io_pressure_some
-    datasourceMetric: 'sum(rate(container_pressure_io_waiting_seconds_total{pod=~"$POD$", container!=""}[$DURATION$]))'
+    datasourceMetric: 'sum(rate(container_pressure_io_waiting_seconds_total{pod=~"$POD$", container!=""}[2m]))'
   - metric: container_io_pressure_full
-    datasourceMetric: 'sum(rate(container_pressure_io_stalled_seconds_total{pod=~"$POD$", container!=""}[$DURATION$]))'
+    datasourceMetric: 'sum(rate(container_pressure_io_stalled_seconds_total{pod=~"$POD$", container!=""}[2m]))'
 
   # --- NEW 2026-09-07 — the rest of the Kubernetes pack's Container metrics catalog
   #     (kube-state-metrics + cAdvisor), not just PSI. Same `container!=""` filter
@@ -356,18 +367,18 @@ metrics:
   #     that exporter emits one clean series per container already, no pod-level
   #     aggregate to exclude. ---
   - metric: container_cpu_used
-    datasourceMetric: '1000 * sum(rate(container_cpu_usage_seconds_total{pod=~"$POD$", container!=""}[$DURATION$]))'
+    datasourceMetric: '1000 * sum(rate(container_cpu_usage_seconds_total{pod=~"$POD$", container!=""}[2m]))'
   - metric: container_cpu_used_max
-    datasourceMetric: '1000 * max(sum by(pod)(rate(container_cpu_usage_seconds_total{pod=~"$POD$", container!=""}[$DURATION$])))'
+    datasourceMetric: '1000 * max(sum by(pod)(rate(container_cpu_usage_seconds_total{pod=~"$POD$", container!=""}[2m])))'
   - metric: container_cpu_util
-    datasourceMetric: 'sum(rate(container_cpu_usage_seconds_total{pod=~"$POD$", container!=""}[$DURATION$])) / clamp_min(sum(kube_pod_container_resource_limits{resource="cpu", pod=~"$POD$", container!=""}), 1e-9)'
+    datasourceMetric: 'sum(rate(container_cpu_usage_seconds_total{pod=~"$POD$", container!=""}[2m])) / clamp_min(sum(kube_pod_container_resource_limits{resource="cpu", pod=~"$POD$", container!=""}), 1e-9)'
   - metric: container_cpu_util_max
-    datasourceMetric: 'max(sum by(pod)(rate(container_cpu_usage_seconds_total{pod=~"$POD$", container!=""}[$DURATION$])) / clamp_min(sum by(pod)(kube_pod_container_resource_limits{resource="cpu", pod=~"$POD$", container!=""}), 1e-9))'
+    datasourceMetric: 'max(sum by(pod)(rate(container_cpu_usage_seconds_total{pod=~"$POD$", container!=""}[2m])) / clamp_min(sum by(pod)(kube_pod_container_resource_limits{resource="cpu", pod=~"$POD$", container!=""}), 1e-9))'
   # container_cpu_cfs_throttled_seconds_total does not exist on this cluster's cAdvisor
   # (verified live: 0 series) — only the periods-based counters do. Approximated via
   # the standard Linux CFS default period (100ms = 0.1s per period).
   - metric: container_cpu_throttle_time
-    datasourceMetric: 'sum(rate(container_cpu_cfs_throttled_periods_total{pod=~"$POD$", container!=""}[$DURATION$])) / clamp_min(sum(rate(container_cpu_cfs_periods_total{pod=~"$POD$", container!=""}[$DURATION$])), 1e-9)'
+    datasourceMetric: 'sum(rate(container_cpu_cfs_throttled_periods_total{pod=~"$POD$", container!=""}[2m])) / clamp_min(sum(rate(container_cpu_cfs_periods_total{pod=~"$POD$", container!=""}[2m])), 1e-9)'
   - metric: container_cpu_throttled_millicores
     # FIXED 2026-09-10 to Akamas' reference mapping (1e3 * rate(container_cpu_cfs_throttled_seconds_total)):
     # was 100 * rate(...throttled_PERIODS_total) — wrong metric (periods, not CPU-seconds) and wrong factor.
@@ -376,7 +387,7 @@ metrics:
     # correct query rather than a wrong number; to collect it, remove that name from the drop
     # regex in k8s/monitoring/values-kube-prometheus.yaml (kubelet.serviceMonitor.cAdvisorMetricRelabelings)
     # and helm-upgrade. Moot for this study: neither vLLM nor AIPerf sets limits.cpu, so throttling is 0.
-    datasourceMetric: '1000 * sum(rate(container_cpu_cfs_throttled_seconds_total{pod=~"$POD$", container!=""}[$DURATION$]))'
+    datasourceMetric: '1000 * sum(rate(container_cpu_cfs_throttled_seconds_total{pod=~"$POD$", container!=""}[2m]))'
   - metric: container_cpu_request
     datasourceMetric: '1000 * sum(kube_pod_container_resource_requests{resource="cpu", pod=~"$POD$", container!=""})'
   - metric: container_cpu_limit
@@ -449,3 +460,28 @@ metrics:
     datasourceMetric: 'sum(rate(vllm:nixl_num_kv_expired_reqs_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))'
   - metric: external_kv_prompt_token_throughput
     datasourceMetric: 'sum(rate(vllm:prompt_tokens_by_source_total{source="external_kv_transfer", model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))'
+
+  # --- Study 20: vLLM pack metrics bound to the vLLM component type that had no query in
+  #     studies 18/19. Per-role phase times make the disaggregated pipeline readable:
+  #     prefill time on vllm_prefill, decode time and KV-wait queue on vllm_decode.
+  - metric: request_prefill_time_p95
+    datasourceMetric: '(histogram_quantile(0.95, sum by(le)(rate(vllm:request_prefill_time_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000'
+    scale: 1
+  - metric: request_decode_time_p95
+    datasourceMetric: '(histogram_quantile(0.95, sum by(le)(rate(vllm:request_decode_time_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000'
+    scale: 1
+  - metric: request_queue_time_avg
+    datasourceMetric: '(sum(rate(vllm:request_queue_time_seconds_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:request_queue_time_seconds_count{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1e-9))*1000'
+    scale: 1
+  - metric: time_to_first_token_p90
+    datasourceMetric: '(histogram_quantile(0.90, sum by(le)(rate(vllm:time_to_first_token_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000'
+    scale: 1
+  - metric: inter_token_latency_p90
+    datasourceMetric: '(histogram_quantile(0.90, sum by(le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000'
+    scale: 1
+  - metric: time_per_output_token_p95
+    datasourceMetric: '(histogram_quantile(0.95, sum by(le)(rate(vllm:request_time_per_output_token_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000'
+    scale: 1
+  - metric: time_per_output_token_avg
+    datasourceMetric: '(sum(rate(vllm:request_time_per_output_token_seconds_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:request_time_per_output_token_seconds_count{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1e-9))*1000'
+    scale: 1

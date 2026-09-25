@@ -225,7 +225,7 @@ steps:
       vllm_decode.max_num_batched_tokens: 4142
       vllm_decode.kv_cache_dtype: "fp8"
 
-  # 1P1D with every fix: fp8 KV, prefill one prompt per step (4096), decode capped at 24 (~28 fit in fp8).
+  # 1P1D with every fix: fp8 KV, prefill one whole prompt per step (4160: the templated prompt is 4108 tokens, so 4096 would split it in two), decode capped at 24 (29 fit in fp8 at gmu 0.9).
   - name: D1 1P1D fp8 capped
     type: preset
     values:
@@ -235,7 +235,7 @@ steps:
       pd_topology.pd_kv_buffer_device: "cpu"
       vllm_prefill.gpu_memory_utilization: 0.9
       vllm_prefill.max_num_seqs: 16
-      vllm_prefill.max_num_batched_tokens: 4096
+      vllm_prefill.max_num_batched_tokens: 4160
       vllm_prefill.kv_cache_dtype: "fp8"
       vllm_decode.gpu_memory_utilization: 0.9
       vllm_decode.max_num_seqs: 24
@@ -252,7 +252,7 @@ steps:
       pd_topology.pd_kv_buffer_device: "cpu"
       vllm_prefill.gpu_memory_utilization: 0.9
       vllm_prefill.max_num_seqs: 16
-      vllm_prefill.max_num_batched_tokens: 4096
+      vllm_prefill.max_num_batched_tokens: 4160
       vllm_prefill.kv_cache_dtype: "fp8"
       vllm_decode.gpu_memory_utilization: 0.9
       vllm_decode.max_num_seqs: 24
@@ -269,7 +269,7 @@ steps:
       pd_topology.pd_kv_buffer_device: "cpu"
       vllm_prefill.gpu_memory_utilization: 0.9
       vllm_prefill.max_num_seqs: 16
-      vllm_prefill.max_num_batched_tokens: 4096
+      vllm_prefill.max_num_batched_tokens: 4160
       vllm_prefill.kv_cache_dtype: "fp8"
       vllm_decode.gpu_memory_utilization: 0.9
       vllm_decode.max_num_seqs: 24
@@ -286,7 +286,7 @@ steps:
       pd_topology.pd_kv_buffer_device: "cpu"
       vllm_prefill.gpu_memory_utilization: 0.9
       vllm_prefill.max_num_seqs: 16
-      vllm_prefill.max_num_batched_tokens: 4096
+      vllm_prefill.max_num_batched_tokens: 4160
       vllm_prefill.kv_cache_dtype: "fp8"
       vllm_decode.gpu_memory_utilization: 0.9
       vllm_decode.max_num_seqs: 24
@@ -303,7 +303,7 @@ steps:
       pd_topology.pd_kv_buffer_device: "cpu"
       vllm_prefill.gpu_memory_utilization: 0.9
       vllm_prefill.max_num_seqs: 16
-      vllm_prefill.max_num_batched_tokens: 4096
+      vllm_prefill.max_num_batched_tokens: 4160
       vllm_prefill.kv_cache_dtype: "fp8"
       vllm_decode.gpu_memory_utilization: 0.9
       vllm_decode.max_num_seqs: 24
@@ -320,7 +320,7 @@ steps:
       pd_topology.pd_kv_buffer_device: "cpu"
       vllm_prefill.gpu_memory_utilization: 0.9
       vllm_prefill.max_num_seqs: 16
-      vllm_prefill.max_num_batched_tokens: 4096
+      vllm_prefill.max_num_batched_tokens: 4160
       vllm_prefill.kv_cache_dtype: "auto"
       vllm_decode.gpu_memory_utilization: 0.9
       vllm_decode.max_num_seqs: 12

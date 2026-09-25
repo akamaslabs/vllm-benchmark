@@ -34,12 +34,12 @@ preset() {
     A1) echo "0 3 cpu 56 8214 fp8 460 4142 fp8" ;;
     A2) echo "0 2 cpu 56 8214 fp8 460 4142 fp8" ;;
     A3) echo "0 4 cpu 56 8214 fp8 460 4142 fp8" ;;
-    D1) echo "1 1 cpu 16 4096 fp8 24 2048 fp8" ;;
-    D2) echo "2 1 cpu 16 4096 fp8 24 2048 fp8" ;;
-    D3) echo "3 1 cpu 16 4096 fp8 24 2048 fp8" ;;
-    D4) echo "2 2 cpu 16 4096 fp8 24 2048 fp8" ;;
-    D5) echo "1 2 cpu 16 4096 fp8 24 2048 fp8" ;;
-    D6) echo "3 1 cpu 16 4096 auto 12 2048 auto" ;;
+    D1) echo "1 1 cpu 16 4160 fp8 24 2048 fp8" ;;
+    D2) echo "2 1 cpu 16 4160 fp8 24 2048 fp8" ;;
+    D3) echo "3 1 cpu 16 4160 fp8 24 2048 fp8" ;;
+    D4) echo "2 2 cpu 16 4160 fp8 24 2048 fp8" ;;
+    D5) echo "1 2 cpu 16 4160 fp8 24 2048 fp8" ;;
+    D6) echo "3 1 cpu 16 4160 auto 12 2048 auto" ;;
     *) echo "unknown preset $1" >&2; exit 1 ;;
   esac
 }

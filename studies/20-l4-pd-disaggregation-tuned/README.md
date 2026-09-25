@@ -33,7 +33,10 @@ optimizer found the winner **aggregated**: 3 replicas, fp8 KV, `max_num_batched_
     `parameterConstraint` that keeps the optimizer inside that cap whenever
     `pd_prefill_instances > 0`;
   - fp8 KV, which halves the transfer and doubles the decode capacity;
-  - prefill `max_num_batched_tokens` 4096, one prompt per step.
+  - prefill `max_num_batched_tokens` 4160, one whole prompt per step. The templated prompt
+    is **4108** tokens (4096 from AIPerf + 12 from the chat template, measured with
+    vllm:request_prompt_tokens in study 19), so 4096 would split every prompt in two. That is
+    also why study 19's optimizer settled on 4142.
 - **Aggregated presets A1-A3:** study 19's champion re-measured on 3, 2 and 4 replicas.
 - **Bootstrap:** study 19's optimizer experiments 11-13 (same router, same node) seed the
   optimizer.
@@ -180,12 +183,12 @@ vLLM's default (on).
 | 1 | `A1 agg3 study-19 champion` | 3 | 0/3 | — | 460 / 4142 / fp8, gmu 0.81 | re-measure the bar to beat |
 | 2 | `A2 agg2 champion settings` | 2 | 0/2 | — | as A1 | replica count only |
 | 3 | `A3 agg4 champion settings` | 4 | 0/4 | — | as A1 | replica count only |
-| 4 | `D1 1P1D fp8 capped` | 2 | 1/1 | 16 / 4096 / fp8 | **24** / 2048 / fp8 | 1P1D with every fix |
+| 4 | `D1 1P1D fp8 capped` | 2 | 1/1 | 16 / 4160 / fp8 | **24** / 2048 / fp8 | 1P1D with every fix |
 | 5 | `D2 2P1D fp8 capped` | 3 | 2/1 | as D1 | as D1 | study 19 S5 without the collapse |
 | 6 | `D3 3P1D fp8 capped` | 4 | 3/1 | as D1 | as D1 | prefill-heavy ratio for a ~70:30 load |
 | 7 | `D4 2P2D fp8 capped` | 4 | 2/2 | as D1 | as D1 | balanced, 2 x 24 admitted |
 | 8 | `D5 1P2D fp8 capped` | 3 | 1/2 | as D1 | as D1 | decode-skewed |
-| 9 | `D6 3P1D bf16 capped` | 4 | 3/1 | 16 / 4096 / auto | **12** / 2048 / auto | what fp8 is worth |
+| 9 | `D6 3P1D bf16 capped` | 4 | 3/1 | 16 / 4160 / auto | **12** / 2048 / auto | what fp8 is worth |
 | 10+ | `optimize` | | | | | AKAMAS optimizer, 100 experiments, 20 failures max |
 
 About 65-70 min per experiment: ~11 h for baseline + presets (~50 USD), then the optimizer
@@ -297,6 +300,23 @@ decode tokens cost ~0.6 s, so the work splits ~70:30. With 1P1D the single prefi
 full (4-5 running, up to 147 waiting) while decode idles half the time. Disaggregation does
 keep ITL low under load, as expected. But the ratio has to lean to prefill, hence the
 revised presets (2P1D, 3P1D).
+
+## Before `akamas create` (checklist)
+
+1. **Export study 19 first.** It holds the substantive finding (disaggregation loses; the
+   aggregated optimum is +22%), and Prometheus keeps its series only until ~2026-10-04:
+   `akamas export study "19-L4-PD-Disaggregation-TPS-Per-GPU-Rerun" studies/19-l4-pd-disaggregation-tps-per-gpu-rerun/results/export.tar.gz`
+2. **Bootstrap needs study 19's UUID, most likely.** Study 16's bootstrap used a UUID. Get it
+   with `akamas list studies` (or the UI) and put it in the `bootstrap study 19 optimizer`
+   step's `from.study` instead of the name. Experiments 11-13 are all aggregated
+   (endpoints `decode-*` only; 3, 2 and 4 replicas).
+3. **How the baseline looks in the UI.** For the parameters in `doNotRenderParameters`,
+   Akamas shows the **pack defaults** (`max_num_seqs` 128, `max_num_batched_tokens` 2048,
+   `kv_cache_dtype` auto). What vLLM actually runs is its own choice on an L4 in server mode:
+   256 / 2048 / auto. The engine logs of the baseline trial ("non-default args") confirm it.
+4. **The GPU node** may come back in another AZ. The model-cache claim was recreated on
+   2026-09-25 and binds on first use, so it follows the node. If a later relaunch lands in
+   a different AZ again, delete the claim (the weights re-download in ~3 min).
 
 ## Setup & run
 

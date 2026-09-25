@@ -183,7 +183,11 @@ metrics:
   #     budget, so this ~ gpu_memory_utilization x active_gpus x 23034 MiB (L4).
   #     Verified live 2026-09-10 at TP=1/DP=3: 61,092 MiB = 64.06 GB.
   - metric: gpu_memory_allocated_gb
-    datasourceMetric: 'sum(DCGM_FI_DEV_FB_USED{exported_pod=~"$POD$"} > 1024) * 1048576 / 1e9'
+    # Study 20: per ROLE. DCGM series carry only the GPU index, and all 4 GPUs belong to the
+    #     one vllm-pd pod, so the old exported_pod filter gave the whole pod on every role
+    #     (86.4 GB on vllm_decode in study 19's 3P1D, which has 1 GPU). The join goes through
+    #     the router's pd_gpu_role_info (GPU index -> instance, launcher layout).
+    datasourceMetric: 'sum(DCGM_FI_DEV_FB_USED{exported_pod=~"$POD$"} * on(gpu) group_left() max by(gpu)(pd_gpu_role_info{model_name=~"$MODEL$", pod=~"$POD$"})) * 1048576 / 1e9'
 
   # --- Step 4 — Analyze request sequence lengths ---
   - metric: input_sequence_length_p95
@@ -209,11 +213,13 @@ metrics:
   - metric: inter_token_latency_p95_5m
     datasourceMetric: '(histogram_quantile(0.95, sum by(le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m]))))*1000'
     scale: 1
+  #     Study 20: "per pod" is per vLLM INSTANCE (scrape endpoint). Every instance runs in
+  #     the one vllm-pd pod, so by(pod) returned the role's overall p95 twice.
   - metric: inter_token_latency_p95_max_per_pod
-    datasourceMetric: '(max(histogram_quantile(0.95, sum by(pod, le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m])))))*1000'
+    datasourceMetric: '(max(histogram_quantile(0.95, sum by(endpoint, le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m])))))*1000'
     scale: 1
   - metric: inter_token_latency_p95_min_per_pod
-    datasourceMetric: '(min(histogram_quantile(0.95, sum by(pod, le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m])))))*1000'
+    datasourceMetric: '(min(histogram_quantile(0.95, sum by(endpoint, le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m])))))*1000'
     scale: 1
 
   # --- GPU utilization (DCGM-exporter) ---
@@ -268,12 +274,15 @@ metrics:
   #     estimated_write_bytes_per_gpu. Pack MR (feature/mfu-compute-bandwidth-metrics,
   #     vLLM pack 1.5.1 -> 1.6.0) built and installed on the toolbox's live Akamas
   #     instance 2026-08-28 — these metric names now resolve.
+  #     Study 20: averaged over the role's instances (each TP1 = one GPU), so the value is
+  #     per GPU as the name says. Studies 18/19 summed them: 60.6 TFLOPS on a 0P4D decode
+  #     was 4 GPUs' worth, and a 3P1D prefill read 3x a 1P1D one.
   - metric: estimated_flops_per_gpu
-    datasourceMetric: 'sum(rate(vllm:estimated_flops_per_gpu_total{model_name=~"$MODEL$", pod=~"$POD$"}[1m])) / 1e12'
+    datasourceMetric: 'avg(sum by(endpoint)(rate(vllm:estimated_flops_per_gpu_total{model_name=~"$MODEL$", pod=~"$POD$"}[1m]))) / 1e12'
   - metric: estimated_read_bytes_per_gpu
-    datasourceMetric: 'sum(rate(vllm:estimated_read_bytes_per_gpu_total{model_name=~"$MODEL$", pod=~"$POD$"}[1m])) / 1e9'
+    datasourceMetric: 'avg(sum by(endpoint)(rate(vllm:estimated_read_bytes_per_gpu_total{model_name=~"$MODEL$", pod=~"$POD$"}[1m]))) / 1e9'
   - metric: estimated_write_bytes_per_gpu
-    datasourceMetric: 'sum(rate(vllm:estimated_write_bytes_per_gpu_total{model_name=~"$MODEL$", pod=~"$POD$"}[1m])) / 1e9'
+    datasourceMetric: 'avg(sum by(endpoint)(rate(vllm:estimated_write_bytes_per_gpu_total{model_name=~"$MODEL$", pod=~"$POD$"}[1m]))) / 1e9'
 
   # --- NEW 2026-09-07 — GPU pack 1.0.1 -> 1.1.0 (feature/dcgm-counters-coverage): 23
   #     new DCGM-derived metrics, all fields already enabled in

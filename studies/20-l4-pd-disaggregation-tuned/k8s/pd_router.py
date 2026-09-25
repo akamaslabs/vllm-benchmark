@@ -116,6 +116,15 @@ KV_CAP_B = Gauge("vllm_kv_cache_capacity_bytes", "KV cache capacity in bytes, pe
 KV_USED_B = Gauge("vllm_kv_cache_used_bytes", "KV cache bytes in use.", KV_LABELS)
 BACKENDS = [(f"prefill-{i}", u, f"{SERVED_BASE}-prefill") for i, u in enumerate(PREFILL_URLS)] + \
            [(f"decode-{j}", u, f"{SERVED_BASE}-decode") for j, u in enumerate([f"http://127.0.0.1:{DECODE_BASE + k}" for k in range(D)])]
+# GPU -> role map, so per-role queries can join DCGM series (label `gpu`, no endpoint or
+# model_name) to the instance holding that GPU. Same layout as launcher.sh: prefill i on
+# GPU i, decode j on GPU P+j. Checked on study 19's 2P2D: DCGM gpu 0/1 carry the prefill
+# tensor load and the KV PCIe TX, gpu 2/3 the KV PCIe RX.
+GPU_ROLE = Gauge("pd_gpu_role_info", "1 for the GPU index each vLLM instance runs on.", KV_LABELS + ["gpu"])
+for _i in range(P):
+    GPU_ROLE.labels(f"{SERVED_BASE}-prefill", f"prefill-{_i}", str(_i)).set(1)
+for _j in range(D):
+    GPU_ROLE.labels(f"{SERVED_BASE}-decode", f"decode-{_j}", str(P + _j)).set(1)
 _SIZE_RE = re.compile(r'kv_cache_size_tokens="([0-9]+)"')
 _DTYPE_RE = re.compile(r'cache_dtype="([^"]*)"')
 

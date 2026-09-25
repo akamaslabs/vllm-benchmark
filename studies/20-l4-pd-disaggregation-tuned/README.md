@@ -335,6 +335,56 @@ multi-series.
 Read `request_success_rate` over the Akamas window, not per 30 s: a capped decode
 admits and finishes requests in waves.
 
+### Second pass: do disaggregated trials read skewed? (2026-09-25)
+
+The rendered queries were evaluated on study 19's 2P2D (2026-09-25 00:10-00:40 UTC), 3P1D
+and 0P4D trials, and the router's counters were compared with the engines' counters.
+
+**Correct, with the evidence:**
+- **The router counts every token once.** ITL observations / (generated − requests) is
+  0.998 on the router and 1.000 on decode, and ITL avg is the same on both: 55.0 / 54.9 ms
+  (2P2D), 71.6 / 71.7 ms (0P4D). So the router adds no ITL, and it does not merge chunks.
+- **The router TTFT includes the remote prefill.** 2P2D TTFT avg: router 9.7 s, decode
+  engine 0.63 s. The p95 end to end on the router (31.3 s) is about prefill e2e (14.7 s) +
+  decode e2e (17.6 s). In aggregated presets router and engine agree (2154 / 2148 ms avg).
+- **The SLA thresholds are bucket edges.** The router TTFT histogram has 5 s and both
+  ITL histograms have 0.075 s, so the constraints are not interpolated. Router and engine
+  p95 differ (2P2D ITL 60.7 vs 66.9 ms on the same observations) only because vLLM's own
+  buckets are coarser. Compare roles on the averages.
+- **Role separation:**
+  - `active_gpus` reads 2/2 (2P2D) and 3/1 (3P1D);
+  - local prompt throughput on a disaggregated decode is 0, while the KV it receives,
+    `external_kv_prompt_token_throughput` (3012 tok/s), matches the prefill's 3119;
+  - in 0P4D the decode and the router agree (3650).
+- **GPU index = launcher layout.** In 2P2D, DCGM gpu 0/1 carry the tensor load (0.39)
+  and the KV PCIe TX, and gpu 2/3 the KV PCIe RX. So `gpuN` is prefill when N < P and
+  decode after that. That makes `gpu0..gpu3` change role between experiments: compare a
+  `gpuN` only between experiments with the same `topology`.
+
+**Offset between components, by design (not a bug):**
+- The router books a prompt when the first decoded token arrives, so up to about 5 s after
+  the prefill role books it.
+- The prefill role also counts the requests AIPerf cancels at the end of each level.
+  - In 2P2D there were 52 of them, at 00:08, :18, :28 and :38. The router records them as
+    `pd_router_request_failures{stage="stream"}`. They are cancellations, not errors.
+  - Over the 30 min the prefill role completed 1971 requests and the router 1905.
+  - On 3-minute windows, `vllm_prefill` and `pd_topology` prompt throughput differ by up
+    to 12% (2P2D) or 3.5% (3P1D).
+- The goal, the windowing and the SLA read only `pd_topology`, so this offset does not
+  reach the score. Never rebuild the goal as `vllm_prefill + vllm_decode`.
+- `vllm_prefill.decode_token_throughput` is the prefill leg's max_tokens=1 (~0.8 tok/s).
+
+**Fixed in this pass (they summed wrongly per role):**
+- `gpu_memory_allocated_gb` read the whole pod on every role (86.4 GB on the 1-GPU decode of
+  a 3P1D). It now joins DCGM on the router's new `pd_gpu_role_info{gpu, model_name,
+  vllm_instance}`, which uses the launcher layout. Checked by emulating the map on the 2P2D
+  data: decode reads 42.6 GB (2 GPUs).
+- `estimated_{flops,read_bytes,write_bytes}_per_gpu` summed the role's instances. A 0P4D
+  decode read 60.6 TFLOPS, which is 4 GPUs' worth. They are now averaged over instances, so
+  they read per GPU: 2P2D prefill 25.3, decode 1.7 TFLOPS.
+- `inter_token_latency_p95_{max,min}_per_pod` grouped by `pod`. Every instance is in one
+  pod, so both returned the overall p95. They now group by `endpoint`, i.e. by instance.
+
 ## Before `akamas create` (checklist)
 
 1. **Export study 19 first.** It holds the substantive finding (disaggregation loses; the
@@ -351,6 +401,14 @@ admits and finishes requests in waves.
 4. **The GPU node** may come back in another AZ. The model-cache claim was recreated on
    2026-09-25 and binds on first use, so it follows the node. If a later relaunch lands in
    a different AZ again, delete the claim (the weights re-download in ~3 min).
+5. **Check the two new router series live.** Study 19 had neither of them, so both were
+   checked only offline. None of the goal, SLA or KPIs reads them.
+   - Run `smoke_test.sh up D1`, then
+     `curl vllm-pd:8000/metrics | grep -E 'vllm_kv_cache_capacity_tokens|pd_gpu_role_info'`.
+     Expect one KV series per instance, and GPU 0 as prefill-0 and GPU 1 as decode-0.
+   - Then run the rendered `vllm_decode` queries `kv_cache_capacity_tokens` and
+     `gpu_memory_allocated_gb` in Prometheus. Expect about 126k tokens (fp8, gmu 0.9) and
+     about 21 GB.
 
 ## Setup & run
 

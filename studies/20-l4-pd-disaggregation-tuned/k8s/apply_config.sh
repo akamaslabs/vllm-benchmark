@@ -10,6 +10,10 @@ NS=llm-serving
 # One flag per line in the pd-config ConfigMap, so an unrendered ${component.param} token
 # means "use vLLM's (or the launcher's) default": delete that line.
 sed -i -E '/\$\{(vllm_prefill|vllm_decode|pd_topology)\./d' "$DEPLOY_FILE"
+# A parameter in a step's doNotRenderParameters is NOT left as a token: Akamas renders it
+# as an empty string (seen on study 20's baseline, 2026-09-25: `--max-num-seqs=`, which
+# vLLM rejects). Drop every flag line whose value is empty too.
+sed -i -E '/^[[:space:]]+--[A-Za-z0-9-]+=[[:space:]]*$/d' "$DEPLOY_FILE"
 
 # --- Step 2: launcher + router scripts, regenerated from the repo on every trial ---
 kubectl create configmap pd-scripts -n "$NS" \

@@ -165,85 +165,41 @@ steps:
       - vllm_decode.max_num_batched_tokens
       - vllm_decode.kv_cache_dtype
 
-  # Study 19's optimizer experiments 11-13, measured with the same router (streaming token
-  # counting) on the same node: 1610 / 1513 / 1424 tokens/s/GPU, all aggregated. They seed
-  # the optimizer. Replace the name by study 19's UUID if `akamas create` asks for an id.
-  - name: bootstrap study 19 optimizer
-    type: bootstrap
-    from:
-      - study: 19-L4-PD-Disaggregation-TPS-Per-GPU-Rerun
-        experiments: [11, 12, 13]
-
-  # Study 19's best (exp 11, 1610 tokens/s/GPU): 3 aggregated replicas, fp8 KV, ~1 prompt per step (4142). Re-measured here as the bar to beat.
-  - name: A1 agg3 study-19 champion
+  - name: baseline rendered
     type: preset
     values:
       pd_topology.pd_prefill_instances: 0
-      pd_topology.pd_decode_instances: 3
+      pd_topology.pd_decode_instances: 2
       pd_topology.pd_kv_connector: "NixlConnector"
       pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9178265055496075
-      vllm_prefill.max_num_seqs: 56
-      vllm_prefill.max_num_batched_tokens: 8214
-      vllm_prefill.kv_cache_dtype: "fp8"
-      vllm_decode.gpu_memory_utilization: 0.8085382823279744
-      vllm_decode.max_num_seqs: 460
-      vllm_decode.max_num_batched_tokens: 4142
-      vllm_decode.kv_cache_dtype: "fp8"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_decode.gpu_memory_utilization: 0.9
+
 
   # The champion's per-instance settings on 2 replicas: the replica count alone.
-  - name: A2 agg2 champion settings
+  - name: P1D1 
     type: preset
     values:
-      pd_topology.pd_prefill_instances: 0
-      pd_topology.pd_decode_instances: 2
+      pd_topology.pd_prefill_instances: 1
+      pd_topology.pd_decode_instances: 1
       pd_topology.pd_kv_connector: "NixlConnector"
       pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9178265055496075
-      vllm_prefill.max_num_seqs: 56
-      vllm_prefill.max_num_batched_tokens: 8214
-      vllm_prefill.kv_cache_dtype: "fp8"
-      vllm_decode.gpu_memory_utilization: 0.8085382823279744
-      vllm_decode.max_num_seqs: 460
-      vllm_decode.max_num_batched_tokens: 4142
-      vllm_decode.kv_cache_dtype: "fp8"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_decode.gpu_memory_utilization: 0.9
 
   # The champion's per-instance settings on 4 replicas.
-  - name: A3 agg4 champion settings
+  - name: P1D2
     type: preset
     values:
-      pd_topology.pd_prefill_instances: 0
-      pd_topology.pd_decode_instances: 4
+      pd_topology.pd_prefill_instances: 1
+      pd_topology.pd_decode_instances: 2
       pd_topology.pd_kv_connector: "NixlConnector"
       pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9178265055496075
-      vllm_prefill.max_num_seqs: 56
-      vllm_prefill.max_num_batched_tokens: 8214
-      vllm_prefill.kv_cache_dtype: "fp8"
-      vllm_decode.gpu_memory_utilization: 0.8085382823279744
-      vllm_decode.max_num_seqs: 460
-      vllm_decode.max_num_batched_tokens: 4142
-      vllm_decode.kv_cache_dtype: "fp8"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_decode.gpu_memory_utilization: 0.9
 
   # 1P1D with every fix: fp8 KV, prefill one whole prompt per step (4160: the templated prompt is 4108 tokens, so 4096 would split it in two), decode capped at 24 (29 fit in fp8 at gmu 0.9).
-  - name: D1 1P1D fp8 capped
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 1
-      pd_topology.pd_decode_instances: 1
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 16
-      vllm_prefill.max_num_batched_tokens: 4160
-      vllm_prefill.kv_cache_dtype: "fp8"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 24
-      vllm_decode.max_num_batched_tokens: 2048
-      vllm_decode.kv_cache_dtype: "fp8"
-
-  # Study 19's S5 (collapsed by decode preemption) with the fixes.
-  - name: D2 2P1D fp8 capped
+  - name: P2D1
     type: preset
     values:
       pd_topology.pd_prefill_instances: 2
@@ -251,83 +207,13 @@ steps:
       pd_topology.pd_kv_connector: "NixlConnector"
       pd_topology.pd_kv_buffer_device: "cpu"
       vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 16
-      vllm_prefill.max_num_batched_tokens: 4160
-      vllm_prefill.kv_cache_dtype: "fp8"
       vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 24
-      vllm_decode.max_num_batched_tokens: 2048
-      vllm_decode.kv_cache_dtype: "fp8"
+ 
+  - name: random
+    type: optimize
+    optimizer: RANDOM
+    numberOfExperiments: 6
 
-  # Study 19's S9 with the fixes: prefill-heavy ratio for a ~70:30 prefill:decode load.
-  - name: D3 3P1D fp8 capped
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 3
-      pd_topology.pd_decode_instances: 1
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 16
-      vllm_prefill.max_num_batched_tokens: 4160
-      vllm_prefill.kv_cache_dtype: "fp8"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 24
-      vllm_decode.max_num_batched_tokens: 2048
-      vllm_decode.kv_cache_dtype: "fp8"
-
-  # Balanced ratio; 2 decodes double the admitted requests (2 x 24).
-  - name: D4 2P2D fp8 capped
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 2
-      pd_topology.pd_decode_instances: 2
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 16
-      vllm_prefill.max_num_batched_tokens: 4160
-      vllm_prefill.kv_cache_dtype: "fp8"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 24
-      vllm_decode.max_num_batched_tokens: 2048
-      vllm_decode.kv_cache_dtype: "fp8"
-
-  # Decode-skewed: checks whether the fixes move the bottleneck back to prefill.
-  - name: D5 1P2D fp8 capped
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 1
-      pd_topology.pd_decode_instances: 2
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 16
-      vllm_prefill.max_num_batched_tokens: 4160
-      vllm_prefill.kv_cache_dtype: "fp8"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 24
-      vllm_decode.max_num_batched_tokens: 2048
-      vllm_decode.kv_cache_dtype: "fp8"
-
-  # D3 in bf16 KV with the bf16 cap (12): what fp8 is worth when disaggregated.
-  - name: D6 3P1D bf16 capped
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 3
-      pd_topology.pd_decode_instances: 1
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 16
-      vllm_prefill.max_num_batched_tokens: 4160
-      vllm_prefill.kv_cache_dtype: "auto"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 12
-      vllm_decode.max_num_batched_tokens: 2048
-      vllm_decode.kv_cache_dtype: "auto"
-
-  # The repo's usual optimize step; the node is stopped by hand when enough has been learned.
   - name: optimize
     type: optimize
     optimizer: AKAMAS

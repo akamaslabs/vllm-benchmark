@@ -3,11 +3,12 @@ name: 20-L4-PD-Disaggregation-Tuned
 description: >-
   Study 20: prefill/decode disaggregation given the fixes studies 18/19 showed it needed
   (decode max_num_seqs capped to its KV capacity, fp8 KV, one prompt per prefill step),
-  against study 19's best aggregated configuration and a true vLLM-default baseline
+  against a true vLLM-default baseline
   (only gpu_memory_utilization set, as in studies 1-17). Qwen/Qwen3-8B-FP8 on one
   g6.12xlarge (4x L4, PCIe, no P2P), vLLM 0.29.0, NixlConnector with host-staged KV,
-  synthetic 4096/256 load in 6 levels x 10 min. 10 presets, study 19's optimizer results
-  bootstrapped, then 100 optimizer experiments. Goal: router-measured tokens/s per active GPU.
+  synthetic 4096/256 load in 6 levels x 10 min. Baseline, the same topology with pack
+  defaults rendered, 1P1D/1P2D/2P1D presets, 6 random, then 100 optimizer experiments. Goal:
+  router-measured tokens/s per active GPU.
 system: vLLM_Benchmark_20_L4_PD_Disaggregation
 workflow: 20-L4-PD-Disaggregation-Workflow
 
@@ -142,10 +143,9 @@ kpis:
     direction: minimize
     aggregation: max
 
-# Baseline (vLLM defaults) + bootstrap of study 19's optimizer + 9 presets + optimize.
-# Every preset sets all 12 parameters. In aggregated presets the vllm_prefill values are
-# rendered but unused. The buffer is always "cpu" and the connector always NixlConnector
-# (the pin constraints).
+# Baseline (vLLM's own defaults) + the same topology with the pack defaults rendered +
+# three disaggregated topologies + 6 random + optimize. The buffer is always "cpu" and the
+# connector always NixlConnector (the pin constraints).
 steps:
   # vLLM as a customer runs it: 2 aggregated replicas, only gpu_memory_utilization set; vLLM picks the rest (on an L4 in server mode: max_num_batched_tokens 2048, max_num_seqs 256, auto KV; vllm/engine/arg_utils.py v0.29.0). Studies 18/19 wrongly pinned 8192/128 here.
   - name: baseline
@@ -165,6 +165,9 @@ steps:
       - vllm_decode.max_num_batched_tokens
       - vllm_decode.kv_cache_dtype
 
+  # The baseline's topology with every parameter rendered: the pack defaults (max_num_seqs
+  # 128, max_num_batched_tokens 2048, kv_cache_dtype auto) instead of vLLM's own (256 / 2048 /
+  # auto). Aggregated, so the KV-capacity constraints do not apply.
   - name: baseline rendered
     type: preset
     values:
@@ -175,9 +178,14 @@ steps:
       vllm_prefill.gpu_memory_utilization: 0.9
       vllm_decode.gpu_memory_utilization: 0.9
 
-
-  # The champion's per-instance settings on 2 replicas: the replica count alone.
-  - name: P1D1 
+  # The three disaggregated topologies with the same per-role settings, which are the
+  # smallest set the constraints accept at gmu 0.9. The pack defaults (decode max_num_seqs
+  # 128, bf16 KV) would violate both KV-capacity constraints: that is study 19's
+  # preemption collapse. The settings are fp8 KV on both roles (NIXL needs the same dtype);
+  # prefill 16 seqs / 4160 tokens, i.e. one whole 4108-token prompt per step; and decode
+  # capped at 24 seqs (29 fit in fp8 at gmu 0.9).
+  # 1 prefill : 1 decode.
+  - name: P1D1
     type: preset
     values:
       pd_topology.pd_prefill_instances: 1
@@ -186,8 +194,14 @@ steps:
       pd_topology.pd_kv_buffer_device: "cpu"
       vllm_prefill.gpu_memory_utilization: 0.9
       vllm_decode.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 16
+      vllm_prefill.max_num_batched_tokens: 4160
+      vllm_prefill.kv_cache_dtype: "fp8"
+      vllm_decode.max_num_seqs: 24
+      vllm_decode.max_num_batched_tokens: 2048
+      vllm_decode.kv_cache_dtype: "fp8"
 
-  # The champion's per-instance settings on 4 replicas.
+  # 1 prefill : 2 decode.
   - name: P1D2
     type: preset
     values:
@@ -197,8 +211,14 @@ steps:
       pd_topology.pd_kv_buffer_device: "cpu"
       vllm_prefill.gpu_memory_utilization: 0.9
       vllm_decode.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 16
+      vllm_prefill.max_num_batched_tokens: 4160
+      vllm_prefill.kv_cache_dtype: "fp8"
+      vllm_decode.max_num_seqs: 24
+      vllm_decode.max_num_batched_tokens: 2048
+      vllm_decode.kv_cache_dtype: "fp8"
 
-  # 1P1D with every fix: fp8 KV, prefill one whole prompt per step (4160: the templated prompt is 4108 tokens, so 4096 would split it in two), decode capped at 24 (29 fit in fp8 at gmu 0.9).
+  # 2 prefill : 1 decode (study 19 S5 collapsed here with max_num_seqs 256).
   - name: P2D1
     type: preset
     values:
@@ -208,7 +228,13 @@ steps:
       pd_topology.pd_kv_buffer_device: "cpu"
       vllm_prefill.gpu_memory_utilization: 0.9
       vllm_decode.gpu_memory_utilization: 0.9
- 
+      vllm_prefill.max_num_seqs: 16
+      vllm_prefill.max_num_batched_tokens: 4160
+      vllm_prefill.kv_cache_dtype: "fp8"
+      vllm_decode.max_num_seqs: 24
+      vllm_decode.max_num_batched_tokens: 2048
+      vllm_decode.kv_cache_dtype: "fp8"
+
   - name: random
     type: optimize
     optimizer: RANDOM

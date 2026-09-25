@@ -28,7 +28,7 @@ optimizer found the winner **aggregated**: 3 replicas, fp8 KV, `max_num_batched_
 **What study 20 changes:**
 - **Baseline:** only `gpu_memory_utilization` 0.9 plus the aggregated 2-replica topology.
   Every other vLLM parameter is in `doNotRenderParameters`, so vLLM's own heuristics apply.
-- **Disaggregated presets D1-D6 get the fixes:**
+- **Disaggregated presets (P1D1, P1D2, P2D1) get the fixes:**
   - decode `max_num_seqs` capped to its KV capacity (24 in fp8, 12 in bf16), plus a
     `parameterConstraint` that keeps the optimizer inside that cap whenever
     `pd_prefill_instances > 0`;
@@ -37,9 +37,9 @@ optimizer found the winner **aggregated**: 3 replicas, fp8 KV, `max_num_batched_
     is **4108** tokens (4096 from AIPerf + 12 from the chat template, measured with
     vllm:request_prompt_tokens in study 19), so 4096 would split every prompt in two. That is
     also why study 19's optimizer settled on 4142.
-- **Aggregated presets A1-A3:** study 19's champion re-measured on 3, 2 and 4 replicas.
-- **Bootstrap:** study 19's optimizer experiments 11-13 (same router, same node) seed the
-  optimizer.
+- **`baseline rendered`:** the baseline's topology with the pack defaults rendered, then 6
+  RANDOM experiments before the optimizer. The study-19 bootstrap and the A1-A3 champion
+  presets were dropped on 2026-09-25 (see Steps).
 - **Readability:**
   - the pod carries `topology: "<P>P<D>D"`, copied onto every series as a Prometheus label,
     so Grafana filters by topology and not by generated pod names;
@@ -83,7 +83,7 @@ The study's value is where exactly that line falls.
 - **Akamas version:** 3.7.x (repo target, `CLAUDE.md`).
 - **Optimization packs:**
   - vLLM **1.11.0**: branch `feature/pd-disaggregation-topology`, GitLab MR
-    akamas/optimization-packs/vllm!7, **not yet merged or installed**. It adds the
+    akamas/optimization-packs/vllm!7, installed on the lab instance (studies 18/19 ran on it). It adds the
     `vLLM_PD_Topology` component type (`pd_prefill_instances`, `pd_decode_instances`,
     `pd_kv_connector`, `pd_kv_buffer_device`, plus deployment-wide throughput/latency/
     `active_gpus`) and 6 NIXL metrics on `vLLM`. It was branched from 1.10.1 (MR !6,
@@ -132,7 +132,7 @@ The study's value is where exactly that line falls.
 
 ## Parameters tuned
 
-A vLLM-default baseline, study 19's optimizer results bootstrapped, 9 presets, then the
+A vLLM-default baseline, 4 presets, 6 random experiments, then the
 repo's usual optimize step (AKAMAS optimizer, 100 experiments, 20 failures max; the node
 is stopped by hand). `parametersSelection` declares the 12
 parameters explicitly, as subsets of the pack 1.11.0 domains.
@@ -174,25 +174,28 @@ vLLM's default (on).
   kv_lease_duration/6 = 5 s, while the request waits. The prefill's KV staying occupied then
   becomes back-pressure (a longer prefill queue), not failures.
 
-### Steps: baseline, bootstrap, 9 presets, optimize
+### Steps: baseline, 4 presets, random, optimize
+
+Revised on 2026-09-25 before creation. The bootstrap of study 19 and the A1-A3 / D1-D6
+presets were dropped in favour of a smaller set. The disaggregated presets then got the
+smallest per-role settings the KV-capacity constraints accept.
 
 | # | Step | GPUs | P/D | Prefill (seqs / batched tok / KV) | Decode (seqs / batched tok / KV) | Question |
 |---|---|---|---|---|---|---|
-| 0 | `baseline` | 2 | 0/2 | — | **vLLM defaults** (2048 / 256 / auto), gmu 0.9 | the customer-like reference |
-| — | `bootstrap study 19 optimizer` | — | — | study 19 exps 11-13 | | seed: 1610 / 1513 / 1424 |
-| 1 | `A1 agg3 study-19 champion` | 3 | 0/3 | — | 460 / 4142 / fp8, gmu 0.81 | re-measure the bar to beat |
-| 2 | `A2 agg2 champion settings` | 2 | 0/2 | — | as A1 | replica count only |
-| 3 | `A3 agg4 champion settings` | 4 | 0/4 | — | as A1 | replica count only |
-| 4 | `D1 1P1D fp8 capped` | 2 | 1/1 | 16 / 4160 / fp8 | **24** / 2048 / fp8 | 1P1D with every fix |
-| 5 | `D2 2P1D fp8 capped` | 3 | 2/1 | as D1 | as D1 | study 19 S5 without the collapse |
-| 6 | `D3 3P1D fp8 capped` | 4 | 3/1 | as D1 | as D1 | prefill-heavy ratio for a ~70:30 load |
-| 7 | `D4 2P2D fp8 capped` | 4 | 2/2 | as D1 | as D1 | balanced, 2 x 24 admitted |
-| 8 | `D5 1P2D fp8 capped` | 3 | 1/2 | as D1 | as D1 | decode-skewed |
-| 9 | `D6 3P1D bf16 capped` | 4 | 3/1 | 16 / 4160 / auto | **12** / 2048 / auto | what fp8 is worth |
-| 10+ | `optimize` | | | | | AKAMAS optimizer, 100 experiments, 20 failures max |
+| 1 | `baseline` | 2 | 0/2 | — | **vLLM defaults** (256 / 2048 / auto), gmu 0.9 | the customer-like reference |
+| 2 | `baseline rendered` | 2 | 0/2 | — | **pack defaults** (128 / 2048 / auto), gmu 0.9 | same topology, every parameter rendered |
+| 3 | `P1D1` | 2 | 1/1 | 16 / 4160 / fp8 | 24 / 2048 / fp8 | 1P1D |
+| 4 | `P1D2` | 3 | 1/2 | as P1D1 | as P1D1 | decode-skewed |
+| 5 | `P2D1` | 3 | 2/1 | as P1D1 | as P1D1 | prefill-skewed (study 19 S5 without the collapse) |
+| 6-11 | `random` | | | | | RANDOM, 6 experiments |
+| 12+ | `optimize` | | | | | AKAMAS, 100 experiments, 20 failures max |
 
-About 65-70 min per experiment: ~11 h for baseline + presets (~50 USD), then the optimizer
-until the node is stopped by hand.
+The disaggregated presets pin these values because the pack defaults (decode 128 seqs,
+bf16 KV) break both KV-capacity constraints, which is study 19's preemption collapse.
+The prefill budget of 4160 holds one whole 4108-token prompt per step. At gmu 0.9 the
+decode fits 29 requests in fp8 and is capped at 24.
+
+About 65-70 min per experiment, so ~5.5 h for baseline + presets and ~7 h for random.
 
 ## Components, telemetry, workflow
 
@@ -390,10 +393,8 @@ and 0P4D trials, and the router's counters were compared with the engines' count
 1. **Export study 19 first.** It holds the substantive finding (disaggregation loses; the
    aggregated optimum is +22%), and Prometheus keeps its series only until ~2026-10-04:
    `akamas export study "19-L4-PD-Disaggregation-TPS-Per-GPU-Rerun" studies/19-l4-pd-disaggregation-tps-per-gpu-rerun/results/export.tar.gz`
-2. **Bootstrap needs study 19's UUID, most likely.** Study 16's bootstrap used a UUID. Get it
-   with `akamas list studies` (or the UI) and put it in the `bootstrap study 19 optimizer`
-   step's `from.study` instead of the name. Experiments 11-13 are all aggregated
-   (endpoints `decode-*` only; 3, 2 and 4 replicas).
+2. ~~Bootstrap needs study 19's UUID~~: the bootstrap step was dropped (2026-09-25). Study 19's
+   UUID is `732d7fb7-2b62-4625-a97f-9c0fce0d3d89`, in case it is added back.
 3. **How the baseline looks in the UI.** For the parameters in `doNotRenderParameters`,
    Akamas shows the **pack defaults** (`max_num_seqs` 128, `max_num_batched_tokens` 2048,
    `kv_cache_dtype` auto). What vLLM actually runs is its own choice on an L4 in server mode:

@@ -73,8 +73,13 @@ start_instance() {  # role idx gpu http_port nixl_port vllm_port kv_role
   if [[ -n $kvrole ]]; then
     args+=(--kv-transfer-config "{\"kv_connector\":\"$CONNECTOR\",\"kv_role\":\"$kvrole\",\"kv_buffer_device\":\"$BUFFER\",\"kv_load_failure_policy\":\"fail\"}")
   fi
-  echo "launcher: [$role-$idx] GPU $gpu port $port nixl $nixl: vllm serve ${args[*]}"
+  # Per-role environment from pd-config (<role>.env, KEY=VALUE per line). The file may be
+  # absent: older rendered configs have none.
+  local -a roleenv=()
+  mapfile -t roleenv < <(read_args "$CFG/$role.env")
+  echo "launcher: [$role-$idx] GPU $gpu port $port nixl $nixl env: ${roleenv[*]:-(none)}: vllm serve ${args[*]}"
   (
+    for kv in "${roleenv[@]}"; do export "${kv?}"; done
     export CUDA_VISIBLE_DEVICES=$gpu VLLM_NIXL_SIDE_CHANNEL_HOST=127.0.0.1 VLLM_NIXL_SIDE_CHANNEL_PORT=$nixl VLLM_PORT=$vport
     exec vllm serve "${args[@]}" 2>&1 | sed -u "s/^/[$role-$idx] /"
   ) &

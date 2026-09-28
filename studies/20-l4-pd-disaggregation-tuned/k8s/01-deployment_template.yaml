@@ -77,6 +77,24 @@ data:
     --max-num-seqs=${vllm_decode.max_num_seqs}
     --max-num-batched-tokens=${vllm_decode.max_num_batched_tokens}
     --kv-cache-dtype=${vllm_decode.kv_cache_dtype}
+  # Per-role environment (KEY=VALUE, one per line), exported by launcher.sh only into that
+  # role's vLLM processes. Added 2026-09-28, after study 21: studies 18-21 ran without it.
+  #
+  # prefill: skip the Marlin and Humming FP8 kernels. Qwen3-8B-FP8 is block-quantized
+  # ([128,128]). On SM 8.9 vLLM 0.29.0 walks _POSSIBLE_FP8_BLOCK_KERNELS in this order:
+  # FlashInfer/DeepGEMM, DeepGEMM, CUTLASS block, B12x (none of which supports SM 8.9), then
+  # MarlinFP8ScaledMMLinearKernel, which wins. Marlin is weight-only FP8 (W8A16): it
+  # dequantizes to bf16 and does not use the L4's FP8 tensor cores. That suits decode,
+  # which is memory-bound. It is poor for a compute-bound 4108-token prefill: tensor
+  # active ~52% at saturation, ~28 TFLOP/s against ~242 FP8 dense peak. With both disabled
+  # the selection falls through to TritonFp8BlockScaledMMKernel, which is W8A8 in FP8. Its
+  # Triton configs are not tuned for L4, so the gain has to be measured.
+  # decode: nothing, so Marlin stays; it is the right kernel there. Aggregated presets
+  # (P = 0) run only decode.* and are therefore unchanged.
+  prefill.env: |
+    VLLM_DISABLED_KERNELS=MarlinFP8ScaledMMLinearKernel,HummingFP8ScaledMMLinearKernel
+  decode.env: |
+    # none
 ---
 apiVersion: apps/v1
 kind: Deployment

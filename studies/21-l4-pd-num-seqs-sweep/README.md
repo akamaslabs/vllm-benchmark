@@ -106,7 +106,7 @@ akamas create study 21-L4-PD-Num-Seqs-Sweep.yaml
 # equivalently: akamas create -f 21-L4-PD-Num-Seqs-Sweep.yaml
 
 # Only after study 20 has been stopped: both drive the same Deployment vllm-pd.
-akamas stop study "20-L4-PD-Disaggregation-Tuned"
+akamas finish study "20-L4-PD-Disaggregation-Tuned"
 akamas start study "21-L4-PD-Num-Seqs-Sweep"
 ```
 

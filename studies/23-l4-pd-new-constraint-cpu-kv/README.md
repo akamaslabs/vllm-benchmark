@@ -1,6 +1,6 @@
-# 22-L4-PD-New-Constraint
+# 23-L4-PD-New-Constraint-CPU-KV
 
-**Status:** FINISHED early (created, started and stopped 2026-09-28). Superseded by `../23-l4-pd-new-constraint-cpu-kv/`
+**Status:** RUNNING (created and started 2026-09-28)
 **Dates:** created 2026-09-28
 
 > Disaggregation-only optimization with a "no queue" goal. It **reuses study 20's system,
@@ -11,6 +11,24 @@
 > toolbox, so this folder has no `k8s/`.
 
 ## Why this study exists
+
+**It is study 22 with the KV buffer pinned to host memory (`kv_buffer_device=cpu`).**
+Everything else is identical: goal, constraints, the other 11 domains, load. Study 22's
+first two random experiments drew `NixlPushConnector` + `kv_buffer_device=cuda`:
+
+| Study 22 exp | Topology, KV | KV transfer | TTFT avg | Outcome |
+|---|---|---|---|---|
+| 3 | 1P1D, fp8 (303 MB) | 9.5 s, growing to 147 s | 10 s -> 152 s | no request completes after ~70 min, AIPerf timeout (80 min) -> ERROR |
+| 4 | 2P1D, bf16 (606 MB) | ~60 s | ~71 s | same path, stopped |
+
+This node has no GPU P2P, so a `cuda` buffer has to go GPU -> host -> GPU in small pieces.
+Pull + `cuda` was already ~1.4 s per bf16 transfer in study 18. With `cpu` the same
+transfers take 20-50 ms. Push + `cpu` was smoke-tested on 2026-09-28: 10 requests, 20-43 ms
+transfers, TTFT ~1.48 s. On Akamas 3.7 the parameter space of a started study cannot be
+edited, hence a new study. Study 22's P1D1 preset (exp. 2, **1382.61, +31%** over the
+imported baseline) is inside this domain and is bootstrapped.
+
+Background carried over from study 22:
 
 Studies 20 and 21 left three findings:
 1. **Study 20 never searched the disaggregated space.** Its KV-capacity constraints left
@@ -71,7 +89,7 @@ One difference from every earlier study:
 |---|---|
 | `pd_prefill_instances` / `pd_decode_instances` | [1, 3] / [1, 3], with P + D <= 4 |
 | `pd_kv_connector` | NixlConnector, NixlPushConnector |
-| `pd_kv_buffer_device` | cuda, cpu |
+| `pd_kv_buffer_device` | cpu (pinned: see above) |
 | prefill / decode `gpu_memory_utilization` | [0.8, 0.92] |
 | prefill / decode `max_num_seqs` | [8, 512] |
 | prefill / decode `max_num_batched_tokens` | [512, 16384] |
@@ -79,15 +97,14 @@ One difference from every earlier study:
 
 - **Constraints:** P + D <= 4; batched tokens >= seqs on each role; the same KV dtype on
   both roles.
-- **Dropped on purpose:** study 20's KV-capacity caps and its pins on connector and buffer.
-- **`kv_buffer_device=cuda` is slow on this node:** ~1.4 s per bf16 transfer (study 18),
-  because there is no GPU P2P.
+- **Dropped on purpose:** study 20's KV-capacity caps and its pin on the connector.
 
 ## Steps
 
 1. `baseline from study 20`: imported from study 20's experiment 1 (0P2D, vLLM defaults,
    1056.02). Not re-run.
-2. `P1D1 nums_seqs 128`: 1P1D; 128 seqs and 8192 batched tokens on both roles; bf16 KV.
+2. `bootstrap study 22 P1D1`: study 22's experiment 2 (1P1D; 128 seqs and 8192 batched
+   tokens on both roles; bf16 KV), 1382.61. Not re-run.
 3. `random`: 9 RANDOM experiments.
 4. `optimize`: 100 AKAMAS experiments, 20 failures max.
 
@@ -96,17 +113,17 @@ About 65 min per experiment.
 ## Setup & run
 
 From the toolbox: `kubectl -n akamas exec -it deploy/toolbox -c toolbox -- bash`, then
-`cd /work/vllm-benchmark/studies/22-l4-pd-new-constraint/akamas`. The system, the
+`cd /work/vllm-benchmark/studies/23-l4-pd-new-constraint-cpu-kv/akamas`. The system, the
 components, the telemetry instance and the workflow already exist (study 20). Only the
 study is created:
 
 ```bash
-akamas create study 22-L4-PD-New-Constraint.yaml
-akamas start study "22-L4-PD-New-Constraint"
+akamas create study 23-L4-PD-New-Constraint-CPU-KV.yaml
+akamas start study "23-L4-PD-New-Constraint-CPU-KV"
 ```
 
 After the run, export straight away (Prometheus keeps 10 days):
-`akamas export study "22-L4-PD-New-Constraint" studies/22-l4-pd-new-constraint/results/export.tar.gz`.
+`akamas export study "23-L4-PD-New-Constraint-CPU-KV" studies/23-l4-pd-new-constraint-cpu-kv/results/export.tar.gz`.
 
 ## Placeholders
 
@@ -114,15 +131,4 @@ None.
 
 ## Results
 
-Stopped with `akamas finish study` after 5 experiments, on 2026-09-28:
-
-| Exp | Step | Configuration | Result |
-|---|---|---|---|
-| 1 | baseline from study 20 | 0P2D, vLLM defaults | 1056.02 (imported) |
-| 2 | P1D1 nums_seqs 128 | 1P1D, 128 seqs, 8192 batched tokens, bf16, pull, cpu | **1382.61 (+30.9%)**: the first disaggregated result above the aggregated baseline |
-| 3 | random | 1P1D, push, **cuda**, fp8 | ERROR: KV transfers 9.5 s -> 147 s, no request completing after ~70 min, AIPerf timeout |
-| 4 | random | 2P1D, push, **cuda**, bf16 | ERROR: KV transfers ~60 s, TTFT ~71 s; its AIPerf job was deleted when the study was stopped |
-| 5 | random | — | ABORTED by the stop |
-
-`kv_buffer_device=cuda` is unusable on this node, because there is no GPU P2P. Study 23
-reruns this design with the buffer pinned to `cpu` and bootstraps experiment 2.
+_Not run yet._

@@ -123,7 +123,7 @@ them) — do not re-create them. Only the study manifest is new:
 akamas list experiments "15-Qwen3-30B-A3B-Parallelism-Goodput-Per-GPU"
 
 # stop study 15 if it is still running, then create and start this one
-akamas stop study "15-Qwen3-30B-A3B-Parallelism-Goodput-Per-GPU"
+akamas finish study "15-Qwen3-30B-A3B-Parallelism-Goodput-Per-GPU"
 akamas create study /work/vllm-benchmark/studies/16-qwen3-30b-a3b-parallelism-goodput-per-gpu-rerun/akamas/16-Qwen3-30B-A3B-Parallelism-Goodput-Per-GPU.yaml
 akamas start study "16-Qwen3-30B-A3B-Parallelism-Goodput-Per-GPU"
 akamas describe study "16-Qwen3-30B-A3B-Parallelism-Goodput-Per-GPU"

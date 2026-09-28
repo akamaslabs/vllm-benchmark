@@ -75,7 +75,7 @@ numberOfTrials: 1
 
 # The 12 parameters. Disaggregated only (P >= 1). The connector is free, and
 # NixlPushConnector with a cpu buffer was smoke-tested on 2026-09-28 (20-43 ms transfers).
-# The KV buffer is pinned to cpu. This node has no GPU P2P, so a cuda buffer goes GPU to host
+# The KV buffer is pinned to cpu by a parameterConstraint. This node has no GPU P2P, so a cuda buffer goes GPU to host
 # to GPU in small pieces. Study 18 measured ~1.4 s per bf16 transfer with pull + cuda.
 # Study 22 measured 9.5 s growing to 147 s (fp8, 1P1D) and ~60 s (bf16, 2P1D) with push +
 # cuda: the transfers queued up until no request completed, and AIPerf timed out after 80 min.
@@ -87,7 +87,7 @@ parametersSelection:
   - name: pd_topology.pd_kv_connector
     categories: ["NixlConnector", "NixlPushConnector"]
   - name: pd_topology.pd_kv_buffer_device
-    categories: ["cpu"]
+    categories: ["cuda", "cpu"]   # both listed: Akamas needs >= 2 values; pinned to cpu by a constraint below
   - name: vllm_prefill.gpu_memory_utilization
     domain: [0.8, 0.92]
   - name: vllm_prefill.max_num_seqs
@@ -116,6 +116,10 @@ parameterConstraints:
     formula: vllm_decode.max_num_batched_tokens >= vllm_decode.max_num_seqs
   - name: prefill batch budget covers its sequence cap
     formula: vllm_prefill.max_num_batched_tokens >= vllm_prefill.max_num_seqs
+  # The pin, as in study 20. The parameter cannot simply leave parametersSelection: it would
+  # not be rendered, and launcher.sh defaults PD_KV_BUFFER_DEVICE to cuda.
+  - name: host-staged KV transfer (no GPU P2P on g6.12xlarge)
+    formula: pd_topology.pd_kv_buffer_device == "cpu"
   - name: prefill and decode share the KV cache dtype when disaggregated
     formula: pd_topology.pd_prefill_instances == 0 || (vllm_prefill.kv_cache_dtype == "auto" && vllm_decode.kv_cache_dtype == "auto") || (vllm_prefill.kv_cache_dtype == "fp8" && vllm_decode.kv_cache_dtype == "fp8")
 

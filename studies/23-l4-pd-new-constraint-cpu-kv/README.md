@@ -89,13 +89,13 @@ One difference from every earlier study:
 |---|---|
 | `pd_prefill_instances` / `pd_decode_instances` | [1, 3] / [1, 3], with P + D <= 4 |
 | `pd_kv_connector` | NixlConnector, NixlPushConnector |
-| `pd_kv_buffer_device` | cpu (pinned: see above) |
+| `pd_kv_buffer_device` | cuda, cpu, pinned to cpu by a constraint (Akamas needs >= 2 categories) |
 | prefill / decode `gpu_memory_utilization` | [0.8, 0.92] |
 | prefill / decode `max_num_seqs` | [8, 512] |
 | prefill / decode `max_num_batched_tokens` | [512, 16384] |
 | prefill / decode `kv_cache_dtype` | auto, fp8 (the same on both roles) |
 
-- **Constraints:** P + D <= 4; batched tokens >= seqs on each role; the same KV dtype on
+- **Constraints:** `pd_kv_buffer_device == "cpu"`; P + D <= 4; batched tokens >= seqs on each role; the same KV dtype on
   both roles.
 - **Dropped on purpose:** study 20's KV-capacity caps and its pin on the connector.
 

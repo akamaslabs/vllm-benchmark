@@ -140,7 +140,7 @@ steps:
   # at ~0.5 req/s, so a cap above ~7 should change nothing. 16 checks the cap is already above
   # the working point. 32 is just above the KV-capacity cap, and 64 / 128 / 256 (vLLM's own
   # default) are far above it: they would preempt if the decode ever filled.
-  - name: decode seqs 16
+  - name: P2D1 num seqs 16
     type: preset
     values:
       pd_topology.pd_prefill_instances: 1
@@ -156,7 +156,7 @@ steps:
       vllm_decode.max_num_batched_tokens: 2048
       vllm_decode.kv_cache_dtype: "fp8"
 
-  - name: decode seqs 24 study 20 rerun
+  - name: P2D1 decode seqs 24
     type: preset
     values:
       pd_topology.pd_prefill_instances: 1
@@ -164,7 +164,7 @@ steps:
       pd_topology.pd_kv_connector: "NixlConnector"
       pd_topology.pd_kv_buffer_device: "cpu"
       vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 16
+      vllm_prefill.max_num_seqs: 24
       vllm_prefill.max_num_batched_tokens: 4160
       vllm_prefill.kv_cache_dtype: "fp8"
       vllm_decode.gpu_memory_utilization: 0.9
@@ -172,7 +172,7 @@ steps:
       vllm_decode.max_num_batched_tokens: 2048
       vllm_decode.kv_cache_dtype: "fp8"
 
-  - name: decode seqs 32
+  - name: P2D1 decode seqs 32
     type: preset
     values:
       pd_topology.pd_prefill_instances: 1
@@ -180,7 +180,7 @@ steps:
       pd_topology.pd_kv_connector: "NixlConnector"
       pd_topology.pd_kv_buffer_device: "cpu"
       vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 16
+      vllm_prefill.max_num_seqs: 32
       vllm_prefill.max_num_batched_tokens: 4160
       vllm_prefill.kv_cache_dtype: "fp8"
       vllm_decode.gpu_memory_utilization: 0.9
@@ -188,7 +188,7 @@ steps:
       vllm_decode.max_num_batched_tokens: 2048
       vllm_decode.kv_cache_dtype: "fp8"
 
-  - name: decode seqs 64
+  - name: P2D1 decode seqs 64
     type: preset
     values:
       pd_topology.pd_prefill_instances: 1
@@ -196,7 +196,7 @@ steps:
       pd_topology.pd_kv_connector: "NixlConnector"
       pd_topology.pd_kv_buffer_device: "cpu"
       vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 16
+      vllm_prefill.max_num_seqs: 64
       vllm_prefill.max_num_batched_tokens: 4160
       vllm_prefill.kv_cache_dtype: "fp8"
       vllm_decode.gpu_memory_utilization: 0.9
@@ -204,15 +204,15 @@ steps:
       vllm_decode.max_num_batched_tokens: 2048
       vllm_decode.kv_cache_dtype: "fp8"
 
-  - name: decode seqs 128
+  - name: P2D1 decode seqs 128
     type: preset
     values:
-      pd_topology.pd_prefill_instances: 1
+      pd_topology.pd_prefill_instances: 2
       pd_topology.pd_decode_instances: 1
       pd_topology.pd_kv_connector: "NixlConnector"
       pd_topology.pd_kv_buffer_device: "cpu"
       vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 16
+      vllm_prefill.max_num_seqs: 128
       vllm_prefill.max_num_batched_tokens: 4160
       vllm_prefill.kv_cache_dtype: "fp8"
       vllm_decode.gpu_memory_utilization: 0.9
@@ -220,15 +220,15 @@ steps:
       vllm_decode.max_num_batched_tokens: 2048
       vllm_decode.kv_cache_dtype: "fp8"
 
-  - name: decode seqs 256 vLLM default
+  - name: P2D1 decode seqs 256 vLLM default
     type: preset
     values:
-      pd_topology.pd_prefill_instances: 1
+      pd_topology.pd_prefill_instances: 2
       pd_topology.pd_decode_instances: 1
       pd_topology.pd_kv_connector: "NixlConnector"
       pd_topology.pd_kv_buffer_device: "cpu"
       vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 16
+      vllm_prefill.max_num_seqs: 256
       vllm_prefill.max_num_batched_tokens: 4160
       vllm_prefill.kv_cache_dtype: "fp8"
       vllm_decode.gpu_memory_utilization: 0.9

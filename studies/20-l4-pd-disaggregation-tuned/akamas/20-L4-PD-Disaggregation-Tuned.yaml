@@ -194,12 +194,6 @@ steps:
       pd_topology.pd_kv_buffer_device: "cpu"
       vllm_prefill.gpu_memory_utilization: 0.9
       vllm_decode.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 16
-      vllm_prefill.max_num_batched_tokens: 4160
-      vllm_prefill.kv_cache_dtype: "fp8"
-      vllm_decode.max_num_seqs: 24
-      vllm_decode.max_num_batched_tokens: 2048
-      vllm_decode.kv_cache_dtype: "fp8"
 
   # 1 prefill : 2 decode.
   - name: P1D2
@@ -211,12 +205,6 @@ steps:
       pd_topology.pd_kv_buffer_device: "cpu"
       vllm_prefill.gpu_memory_utilization: 0.9
       vllm_decode.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 16
-      vllm_prefill.max_num_batched_tokens: 4160
-      vllm_prefill.kv_cache_dtype: "fp8"
-      vllm_decode.max_num_seqs: 24
-      vllm_decode.max_num_batched_tokens: 2048
-      vllm_decode.kv_cache_dtype: "fp8"
 
   # 2 prefill : 1 decode (study 19 S5 collapsed here with max_num_seqs 256).
   - name: P2D1
@@ -228,12 +216,6 @@ steps:
       pd_topology.pd_kv_buffer_device: "cpu"
       vllm_prefill.gpu_memory_utilization: 0.9
       vllm_decode.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 16
-      vllm_prefill.max_num_batched_tokens: 4160
-      vllm_prefill.kv_cache_dtype: "fp8"
-      vllm_decode.max_num_seqs: 24
-      vllm_decode.max_num_batched_tokens: 2048
-      vllm_decode.kv_cache_dtype: "fp8"
 
   - name: random
     type: optimize

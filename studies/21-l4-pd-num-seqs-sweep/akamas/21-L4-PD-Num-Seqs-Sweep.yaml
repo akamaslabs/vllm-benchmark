@@ -140,7 +140,7 @@ steps:
   # at ~0.5 req/s, so a cap above ~7 should change nothing. 16 checks the cap is already above
   # the working point. 32 is just above the KV-capacity cap, and 64 / 128 / 256 (vLLM's own
   # default) are far above it: they would preempt if the decode ever filled.
-  - name: 1P1D decode seqs 16
+  - name: decode seqs 16
     type: preset
     values:
       pd_topology.pd_prefill_instances: 1
@@ -156,7 +156,7 @@ steps:
       vllm_decode.max_num_batched_tokens: 2048
       vllm_decode.kv_cache_dtype: "fp8"
 
-  - name: 1P1D decode seqs 24 (study 20 P1D1 re-run)
+  - name: decode seqs 24 study 20 rerun
     type: preset
     values:
       pd_topology.pd_prefill_instances: 1
@@ -172,7 +172,7 @@ steps:
       vllm_decode.max_num_batched_tokens: 2048
       vllm_decode.kv_cache_dtype: "fp8"
 
-  - name: 1P1D decode seqs 32
+  - name: decode seqs 32
     type: preset
     values:
       pd_topology.pd_prefill_instances: 1
@@ -188,7 +188,7 @@ steps:
       vllm_decode.max_num_batched_tokens: 2048
       vllm_decode.kv_cache_dtype: "fp8"
 
-  - name: 1P1D decode seqs 64
+  - name: decode seqs 64
     type: preset
     values:
       pd_topology.pd_prefill_instances: 1
@@ -204,7 +204,7 @@ steps:
       vllm_decode.max_num_batched_tokens: 2048
       vllm_decode.kv_cache_dtype: "fp8"
 
-  - name: 1P1D decode seqs 128
+  - name: decode seqs 128
     type: preset
     values:
       pd_topology.pd_prefill_instances: 1
@@ -220,7 +220,7 @@ steps:
       vllm_decode.max_num_batched_tokens: 2048
       vllm_decode.kv_cache_dtype: "fp8"
 
-  - name: 1P1D decode seqs 256 (vLLM default)
+  - name: decode seqs 256 vLLM default
     type: preset
     values:
       pd_topology.pd_prefill_instances: 1

@@ -62,12 +62,12 @@ Identical to study 20 (see `../20-l4-pd-disaggregation-tuned/README.md`):
 | # | Step | Topology | Decode `max_num_seqs` | Note |
 |---|---|---|---|---|
 | 1 | `baseline from study 20` | 0P2D | vLLM default (256) | imported (study 20 exp. 1, 1056.02), not re-run |
-| 2 | `1P1D decode seqs 16` | 1P1D | 16 | already above the ~7 working point |
-| 3 | `1P1D decode seqs 24` | 1P1D | 24 | re-run of study 20's P1D1 (690.46): run-to-run noise |
-| 4 | `1P1D decode seqs 32` | 1P1D | 32 | just above the KV-capacity cap (~31 full requests in fp8) |
-| 5 | `1P1D decode seqs 64` | 1P1D | 64 | |
-| 6 | `1P1D decode seqs 128` | 1P1D | 128 | pack default |
-| 7 | `1P1D decode seqs 256` | 1P1D | 256 | vLLM default |
+| 2 | `decode seqs 16` | 1P1D | 16 | already above the ~7 working point |
+| 3 | `decode seqs 24 study 20 rerun` | 1P1D | 24 | re-run of study 20's P1D1 (690.46): run-to-run noise |
+| 4 | `decode seqs 32` | 1P1D | 32 | just above the KV-capacity cap (~31 full requests in fp8) |
+| 5 | `decode seqs 64` | 1P1D | 64 | |
+| 6 | `decode seqs 128` | 1P1D | 128 | pack default |
+| 7 | `decode seqs 256 vLLM default` | 1P1D | 256 | vLLM default |
 
 - **Fixed in every preset:** prefill 16 seqs / 4160 batched tokens (one whole prompt per
   step), fp8 KV on both roles, gmu 0.9 on both roles, decode batched tokens 2048,

@@ -29,14 +29,18 @@ workflow: 20-L4-PD-Disaggregation-Workflow
 goal:
   objective: maximize
   function:
-    formula: (pd_topology.prefill_token_throughput + pd_topology.decode_token_throughput) / pd_topology.active_gpus
+    formula: pd_topology.total_token_throughput / pd_topology.active_gpus
     unit: tokens per second/gpus
   constraints:
     absolute:
       - name: TTFT P95 SLA at the router
-        formula: pd_topology.time_to_first_token_p95 <= 5000
+        formula: pd_topology.time_to_first_token_p95 <= 10000
       - name: ITL P95 SLA at the router
         formula: pd_topology.inter_token_latency_p95 <= 75
+      - name: request waiting for prefill
+        formula: vllm_prefill.num_requests_waiting <= 1
+      - name: request waiting for decode
+        formula: vllm_decode.num_requests_waiting <= 1
 
 # As studies 6-16: the most stable 6-sample window at the prefill-throughput peak. The
 # per-level picture (where each topology stops meeting the SLA) is read afterwards from
@@ -44,11 +48,11 @@ goal:
 windowing:
   type: stability
   stability:
-    metric: pd_topology.prefill_token_throughput
+    metric: pd_topology.total_token_throughput
     width: 6
     maxStdDev: 300000000
     when:
-      metric: pd_topology.prefill_token_throughput
+      metric: pd_topology.total_token_throughput
       is: max
 
 numberOfTrials: 1
@@ -56,9 +60,9 @@ numberOfTrials: 1
 # The 12 parameters every preset sets. Same domains as study 20: nothing is searched here.
 parametersSelection:
   - name: pd_topology.pd_prefill_instances
-    domain: [0, 3]
+    domain: [1, 3]
   - name: pd_topology.pd_decode_instances
-    domain: [1, 4]
+    domain: [1, 3]
   - name: pd_topology.pd_kv_connector
     categories: ["NixlConnector", "NixlPushConnector"]
   - name: pd_topology.pd_kv_buffer_device
@@ -140,98 +144,30 @@ steps:
   # at ~0.5 req/s, so a cap above ~7 should change nothing. 16 checks the cap is already above
   # the working point. 32 is just above the KV-capacity cap, and 64 / 128 / 256 (vLLM's own
   # default) are far above it: they would preempt if the decode ever filled.
-  - name: P2D1 num seqs 16
+  - name: P1D1 nums_seqs 128
     type: preset
     values:
-      pd_topology.pd_prefill_instances: 2
-      pd_topology.pd_decode_instances: 1
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 16
-      vllm_prefill.max_num_batched_tokens: 4160
-      vllm_prefill.kv_cache_dtype: "fp8"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 16
-      vllm_decode.max_num_batched_tokens: 2048
-      vllm_decode.kv_cache_dtype: "fp8"
-
-  - name: P2D1 decode seqs 24
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 2
-      pd_topology.pd_decode_instances: 1
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 24
-      vllm_prefill.max_num_batched_tokens: 4160
-      vllm_prefill.kv_cache_dtype: "fp8"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 24
-      vllm_decode.max_num_batched_tokens: 2048
-      vllm_decode.kv_cache_dtype: "fp8"
-
-  - name: P2D1 decode seqs 32
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 2
-      pd_topology.pd_decode_instances: 1
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 32
-      vllm_prefill.max_num_batched_tokens: 4160
-      vllm_prefill.kv_cache_dtype: "fp8"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 32
-      vllm_decode.max_num_batched_tokens: 2048
-      vllm_decode.kv_cache_dtype: "fp8"
-
-  - name: P2D1 decode seqs 64
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 2
-      pd_topology.pd_decode_instances: 1
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 64
-      vllm_prefill.max_num_batched_tokens: 4160
-      vllm_prefill.kv_cache_dtype: "fp8"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 64
-      vllm_decode.max_num_batched_tokens: 2048
-      vllm_decode.kv_cache_dtype: "fp8"
-
-  - name: P2D1 decode seqs 128
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 2
+      pd_topology.pd_prefill_instances: 1
       pd_topology.pd_decode_instances: 1
       pd_topology.pd_kv_connector: "NixlConnector"
       pd_topology.pd_kv_buffer_device: "cpu"
       vllm_prefill.gpu_memory_utilization: 0.9
       vllm_prefill.max_num_seqs: 128
-      vllm_prefill.max_num_batched_tokens: 4160
-      vllm_prefill.kv_cache_dtype: "fp8"
+      vllm_prefill.max_num_batched_tokens: 8192
+      vllm_prefill.kv_cache_dtype: "auto"
       vllm_decode.gpu_memory_utilization: 0.9
       vllm_decode.max_num_seqs: 128
-      vllm_decode.max_num_batched_tokens: 2048
-      vllm_decode.kv_cache_dtype: "fp8"
+      vllm_decode.max_num_batched_tokens: 8192
+      vllm_decode.kv_cache_dtype: "auto"
 
-  - name: P2D1 decode seqs 256 vLLM default
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 2
-      pd_topology.pd_decode_instances: 1
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 256
-      vllm_prefill.max_num_batched_tokens: 4160
-      vllm_prefill.kv_cache_dtype: "fp8"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 256
-      vllm_decode.max_num_batched_tokens: 2048
-      vllm_decode.kv_cache_dtype: "fp8"
+  - name: random
+    type: optimize
+    optimizer: RANDOM
+    numberOfExperiments: 9
+
+  - name: optimize
+    type: optimize
+    optimizer: AKAMAS
+    numberOfInitExperiments: 0
+    numberOfExperiments: 100
+    maxFailedExperiments: 20

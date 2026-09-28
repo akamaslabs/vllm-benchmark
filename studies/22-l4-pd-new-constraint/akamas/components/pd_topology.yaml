@@ -1,0 +1,10 @@
+kind: component
+system: vLLM_Benchmark_20_L4_PD_Disaggregation
+name: pd_topology
+description: "The deployment as a whole, seen from its router (Deployment vllm-pd): topology parameters, client-side TTFT/ITL/E2E and delivered tokens (router series, model_name qwen3-8b-router)"
+componentType: vLLM_PD_Topology
+properties:
+  prometheus:
+    pod: ^vllm-pd-.*
+    model: qwen3-8b-router
+    endpoint: "(prefill|decode)-.*"

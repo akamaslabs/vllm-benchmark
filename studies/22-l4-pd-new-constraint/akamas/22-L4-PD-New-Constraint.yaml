@@ -1,16 +1,23 @@
 kind: study
-name: 21-L4-PD-Num-Seqs-Sweep
+name: 22-L4-PD-New-Constraint
 description: >-
-  Study 21: a controlled sweep, no optimizer. It shows that raising the decode
-  max_num_seqs does not raise the throughput of prefill/decode disaggregation on this node.
-  1P1D (Qwen/Qwen3-8B-FP8, vLLM 0.29.0, 2x L4 of a g6.12xlarge, NixlConnector with
-  host-staged fp8 KV) with decode max_num_seqs 16, 24, 32, 64, 128, 256 and everything else
-  fixed at study 20's P1D1 preset. The baseline is imported from study 20 (2 aggregated
-  replicas, vLLM defaults). Same system, telemetry, workflow, load, goal and SLA as study 20.
-# Reuses study 20's system, telemetry instance and workflow (same precedent as studies 14
-# and 16): the imported baseline and study 20's own 1P1D result (experiment 3, 690.46) stay
-# on the same scale. The files under system.yaml/components/telemetry/ and the workflow
-# here are copies kept for the record. Do NOT create them again.
+  Study 22: prefill/decode disaggregation only (1-3 prefill, 1-3 decode instances) on
+  Qwen/Qwen3-8B-FP8, vLLM 0.29.0, one g6.12xlarge (4x L4). The goal is tokens/s per active
+  GPU at the highest load where neither role queues: at most 1 waiting request on prefill
+  and on decode, TTFT p95 <= 10 s, ITL p95 <= 75 ms. The prefill runs the FP8 Triton block
+  kernel instead of Marlin (about 36% faster). The KV-capacity constraints are dropped, and
+  both connectors and both KV buffers are in the search space. The baseline is imported
+  from study 20 (2 aggregated replicas, vLLM defaults), then a P1D1 preset, 9 random and
+  100 AKAMAS experiments.
+# Reuses study 20's system, telemetry instance and workflow (the precedent of studies 14,
+# 16 and 21), so the imported baseline stays on the same scale. The files under
+# system.yaml/components/telemetry/ and the workflow are copies kept for the record. Do NOT
+# create them again.
+# The workflow runs studies/20-l4-pd-disaggregation-tuned/k8s. Since commit b29754b
+# (2026-09-28) that template gives the prefill instances
+# VLLM_DISABLED_KERNELS=Marlin...,Humming... (TritonFp8BlockScaledMMKernel, W8A8 FP8). The
+# imported baseline (aggregated, decode-only processes) ran on Marlin, as every study 18-21
+# experiment did.
 system: vLLM_Benchmark_20_L4_PD_Disaggregation
 workflow: 20-L4-PD-Disaggregation-Workflow
 
@@ -19,7 +26,13 @@ workflow: 20-L4-PD-Disaggregation-Workflow
 # delivered to clients (counted once from vLLM's usage block) and client-side TTFT/ITL. The
 # per-instance numbers are not used here, because engine-side TTFT under-reports and
 # engine-side prompt tokens double-count once prefill runs elsewhere.
-# SLA calibrated at the 2026-09-24 smoke test (60 s levels, 2 GPUs). On L4 one 4096-token
+# Study 22 changes: the goal numerator is total_token_throughput, which is the same sum at the
+# router. TTFT is relaxed to 10 s. Two queue constraints are added: at most 1 request
+# waiting, on average over the window, on the prefill instances (summed) and on the decode
+# instances. The score is therefore the throughput at the load where both roles still keep
+# up. Decode "waiting" also counts requests whose KV is still being pulled (NIXL), so slow
+# transfers weigh on it.
+# Study 20's SLA, for reference, was calibrated at the 2026-09-24 smoke test (60 s levels, 2 GPUs). On L4 one 4096-token
 # prefill alone costs ~1.5 s (no native FP8 compute, so it runs as bf16). The aggregated
 # baseline has TTFT p90 3.2 s already at concurrency 4. So TTFT p95 <= 5000 ms leaves room
 # for a real queue without being violated by construction. ITL p95 <= 75 ms is where the
@@ -42,7 +55,7 @@ goal:
       - name: request waiting for decode
         formula: vllm_decode.num_requests_waiting <= 1
 
-# As studies 6-16: the most stable 6-sample window at the prefill-throughput peak. The
+# As studies 6-16, on total instead of prefill throughput: the most stable 6-sample window at the peak. The
 # per-level picture (where each topology stops meeting the SLA) is read afterwards from
 # AIPerf's per-level results and Prometheus, not from this single window.
 windowing:
@@ -57,7 +70,9 @@ windowing:
 
 numberOfTrials: 1
 
-# The 12 parameters every preset sets. Same domains as study 20: nothing is searched here.
+# The 12 parameters. Disaggregated only (P >= 1). Study 20's pins on connector and KV buffer
+# are gone, so the optimizer also tries NixlPushConnector and kv_buffer_device=cuda. No GPU
+# P2P on this node: study 18 measured ~1.4 s per bf16 transfer with a cuda buffer.
 parametersSelection:
   - name: pd_topology.pd_prefill_instances
     domain: [1, 3]
@@ -84,10 +99,10 @@ parametersSelection:
   - name: vllm_decode.kv_cache_dtype
     categories: ["auto", "fp8"]
 
-# Study 20's KV-capacity constraints are left out ON PURPOSE: the point is to run the decode
-# above the cap they enforced (fp8 at gmu 0.9 holds ~31 full 4352-token requests;
-# study 20 measured 137,808 tokens of KV). The remaining constraints are the physical and
-# NIXL ones.
+# Study 20's KV-capacity constraints are left out on purpose. They left only 0.07% of the
+# space disaggregated, and the queue constraint on decode now catches an over-admitting
+# decode through the measurement instead (fp8 at gmu 0.9 holds ~31 full 4352-token requests,
+# bf16 ~14). The remaining constraints are the physical and NIXL ones.
 parameterConstraints:
   - name: one GPU per instance, 4 L4s in the pod
     formula: pd_topology.pd_prefill_instances + pd_topology.pd_decode_instances <= 4
@@ -98,8 +113,7 @@ parameterConstraints:
   - name: prefill and decode share the KV cache dtype when disaggregated
     formula: pd_topology.pd_prefill_instances == 0 || (vllm_prefill.kv_cache_dtype == "auto" && vllm_decode.kv_cache_dtype == "auto") || (vllm_prefill.kv_cache_dtype == "fp8" && vllm_decode.kv_cache_dtype == "fp8")
 
-# At most 8 (Akamas 3.7). Picked to show WHY the throughput does not move: the decode never
-# fills (running requests and KV usage stay flat), while the queue builds on the prefill.
+# At most 8 (Akamas 3.7): throughput and latency at the router, plus where each role saturates.
 kpis:
   - name: Throughput totale
     formula: pd_topology.total_token_throughput
@@ -129,7 +143,7 @@ kpis:
     direction: minimize
     aggregation: max
 
-# Imported baseline + 6 presets, no optimize step (~6.5 h of node time).
+# Imported baseline + 1 preset + 9 random + 100 AKAMAS (~65 min per experiment).
 steps:
   # Study 20's experiment 1: 2 aggregated replicas, vLLM defaults, 1056.02 tokens/s/GPU.
   # Imported, not re-run.
@@ -139,11 +153,8 @@ steps:
       - study: 552141b9-1e05-49ca-a298-878c95bc16ec
         experiments: [1]
 
-  # Study 20's P1D1 (experiment 3, 690.46) is the 24 step. It measured ~7 requests running
-  # on the decode (21% KV) at every concurrency level from 16 upward. The prefill is saturated
-  # at ~0.5 req/s, so a cap above ~7 should change nothing. 16 checks the cap is already above
-  # the working point. 32 is just above the KV-capacity cap, and 64 / 128 / 256 (vLLM's own
-  # default) are far above it: they would preempt if the decode ever filled.
+  # 1P1D at round, pack-default-like values: 128 seqs on both roles, 8192 batched tokens
+  # (two prompts per prefill step), bf16 KV. No KV cap: the bf16 decode holds ~14 full requests.
   - name: P1D1 nums_seqs 128
     type: preset
     values:

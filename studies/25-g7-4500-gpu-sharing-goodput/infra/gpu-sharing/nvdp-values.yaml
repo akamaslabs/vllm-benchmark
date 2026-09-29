@@ -1,0 +1,56 @@
+# Values for this study's OWN NVIDIA device plugin (chart nvidia-device-plugin 0.18.0,
+# the version the cluster-wide plugin in kube-system also runs), release nvdp-g7 in
+# namespace gpu-sharing, scheduled on llm-serving-g7-4500 only.
+#
+# The four named configs are the four values of the GPU.sharing_mode parameter.
+# apply_config.sh selects one per experiment with the node label
+# nvidia.com/device-plugin.config=<name>; the chart's config-manager sidecar restarts
+# the plugin on a label change (15-40 s in phase 0). The resource name stays
+# nvidia.com/gpu in every config, so the vLLM manifest never changes:
+#   exclusive     nvidia.com/gpu: 1   whole GPU
+#   mig           nvidia.com/gpu: 2   migStrategy single: each 1g.16gb slice is one GPU
+#   time-slicing  nvidia.com/gpu: 2   two time-sliced shares
+#   mps           nvidia.com/gpu: 2   two MPS clients, each capped by the daemon at 50 % of the
+#                                     SMs and half the memory (100/replicas); needs the daemon, which
+#                                     the chart schedules only on nodes labelled
+#                                     nvidia.com/mps.capable=true (set by apply_config.sh)
+# MIG mode itself is not the plugin's job: apply_config.sh sets it with nvidia-smi
+# through gpu-admin.yaml before switching the label.
+nodeSelector:
+  node-role: llm-serving-g7-4500
+tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+  - key: akamas.io/gpu-sharing
+    operator: Exists
+    effect: NoSchedule
+config:
+  default: exclusive
+  map:
+    exclusive: |-
+      version: v1
+      flags:
+        migStrategy: none
+    mig: |-
+      version: v1
+      flags:
+        migStrategy: single
+    time-slicing: |-
+      version: v1
+      flags:
+        migStrategy: none
+      sharing:
+        timeSlicing:
+          resources:
+          - name: nvidia.com/gpu
+            replicas: 2
+    mps: |-
+      version: v1
+      flags:
+        migStrategy: none
+      sharing:
+        mps:
+          resources:
+          - name: nvidia.com/gpu
+            replicas: 2

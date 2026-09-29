@@ -391,6 +391,8 @@ of this backlog that isn't one of these two goals has moved to **Section F
 | 18 | [18-l4-pd-disaggregation-tps-per-gpu](studies/18-l4-pd-disaggregation-tps-per-gpu/README.md) | vLLM + vLLM_PD_Topology (prefill/decode disaggregation, 4x L4 PCIe) | **First study outside aggregated serving (scaffolded 2026-09-23/24).** It tests Q6's disaggregation thresholds against the measured-imbalance criterion of the scaling-dimensions note. Qwen3-8B-FP8 on 1x g6.12xlarge, NixlConnector, one pod with up to 4 vLLM processes behind a router that measures client-side TTFT/ITL. Synthetic 4096/256 load, 6 levels x 10 min. 10 presets: 2-GPU aggregated controls, 1P1D variants (same settings / specialized / host-staged KV / fp8 KV), 4-GPU aggregated vs 1P3D/2P2D/3P1D. Goal is router-measured tokens/s per active GPU under TTFT/ITL p95 SLAs. Expected: loses on throughput, may win on tail ITL. Needs vLLM pack 1.11.0 (MR !7) and a phase-B smoke test first. | TODO |
 | 19 | [19-l4-pd-disaggregation-tps-per-gpu-rerun](studies/19-l4-pd-disaggregation-tps-per-gpu-rerun/README.md) | vLLM + vLLM_PD_Topology (same as #18) | **Rerun of #18 (2026-09-24)** with the router counting tokens as they stream (continuous usage). #18 counted a request's tokens at its end, and in 30 s windows the scored throughput became a sawtooth. Same node, presets, goal, SLA, ramp; #18's experiments are not bootstrapped. | TODO |
 | 20 | [20-l4-pd-disaggregation-tuned](studies/20-l4-pd-disaggregation-tuned/README.md) | vLLM + vLLM_PD_Topology | **Disaggregation given its fixes (2026-09-25):** decode max_num_seqs capped to its KV capacity (+ constraint), fp8 KV, one prompt per prefill step; vs study 19's aggregated champion (A1-A3) and a true vLLM-default baseline (only gpu_memory_utilization, as studies 1-17). Bootstraps study 19's optimizer. Adds readable `topology` series label, per-role active_gpus, per-instance KV capacity. | TODO |
+| 25 | [25-g7-4500-gpu-sharing-goodput](studies/25-g7-4500-gpu-sharing-goodput/README.md) | GPU (`sharing_mode`, GPU pack 1.3.0) + vLLM, one RTX PRO 4500 Blackwell (g7.4xlarge) | **Tests H4's "GPU fraction per replica" gap directly (scaffolded 2026-09-29, locally only).** `gpu0.sharing_mode` in {exclusive, mig, time_slicing, mps} chooses 1 replica on the whole GPU or 2 replicas of `Qwen/Qwen3-4B-Instruct-2507-FP8` (MIG 2x 1g.16gb, CUDA time-slicing, CUDA MPS), searched with 4 vLLM parameters; goal = aggregate goodput under TTFT p95 1500 / ITL p95 300, AIPerf ShareGPT 16->768. Switching done per experiment by the study's own device plugin (4 named configs) + host nvidia-smi. Phase 0 by hand: every mode and transition works; at vLLM defaults exclusive led (4560 tok/s vs MPS 4252, MIG 4152, time-slicing 3661), CPU was not the bottleneck and the GPU sat at its 165 W cap, so a negative result is plausible. Blocked on GPU pack 1.3.0 install and on dcgm-exporter being free (study 24 runs on it) or covering both nodes. Study 24 is a colleague's. | TODO |
+| 26 | [26-g7-4500-gpu-slice-right-sizing](studies/26-g7-4500-gpu-slice-right-sizing/README.md) | GPU (`sharing_mode`) + Kubernetes Workload (`replicas`), same node as #25 | **Right-sizing sweep, companion of #25 (scaffolded 2026-09-29, locally only).** No optimizer: baseline + 5 presets measuring goodput PER UNIT OF GPU (tokens/s divided by the GPU fraction the replicas hold) for one MIG slice / one MPS client alone, the same with the neighbour busy, and the whole GPU. Phase 0 by hand: one MIG slice alone 2378 tok/s = 4756 per GPU (+4 % over exclusive, because the idle neighbour leaves it the 165 W budget: 2400 MHz vs exclusive's throttled ~1.8 GHz), both slices busy 2076 each (-9 %). Kept separate from #25 so neither goal rewards an idle half. Never run together with #25. | TODO |
 Before activating a study: run `/new-study` (reads this roadmap and `knowledge/README.md`
 for you), pick a real name, and let it scaffold `studies/<name>/` from the template.
 Once scaffolded, replace the `<tbd>` row above with the real study name and a link.
@@ -574,6 +576,25 @@ assume). Treat study #2's own `baseline` experiment as the new hardware referenc
 point for every study after it.
 
 ### DRA prerequisites and risk — read before scoping studies #3/#4
+
+**Status update 2026-09-29** (study 25 design): EKS `vllm-bench` 1.35.7 serves the GA
+`resource.k8s.io/v1` API (DeviceClass, ResourceClaim, ResourceClaimTemplate, ResourceSlice); no
+DRA driver is installed. `dra-driver-nvidia-gpu` is at **v0.5.0** (2026-08-19): multi-user MPS,
+per-claim time-slicing, pre-created MIG devices; its README still says GPU allocation is "not
+yet officially supported" (only ComputeDomains are). Feature gates (driver docs, reference/
+feature-gates): `MPSSupport` and `TimeSlicingSettings` are alpha, off by default, driver-side
+only; `DynamicMIG` (slices created per claim) and `ConsumableShares` (fractional GPU with
+capacity accounting) are alpha AND need `DRAPartitionableDevices` / `DRAConsumableCapacity` on
+the kube-apiserver and scheduler before Kubernetes 1.36 — control-plane gates EKS does not let
+us set, so on this 1.35 cluster they are out of reach; both are default-on from 1.36, which EKS
+offers (standard support, checked 2026-09-29). `DynamicMIG` and `MPSSupport` are mutually
+exclusive. DRA is an allocation API over the same
+MIG / time-slicing / MPS mechanisms, so it is **not** a fifth `sharing_mode` value: its value is
+the mechanism (sharing requested per claim instead of relabelling the node and restarting a
+device plugin). Next: a short spike on `llm-serving-g7-4500` between studies — install the
+driver on that node only (the study device plugin must be off there) and request MIG, MPS and
+time-slicing through ResourceClaims; if it holds, it replaces study 25's device-plugin switch in
+a follow-up study.
 
 Researched directly 2026-07-15 (not carried over from the earlier, less precise
 "technical preview" note):

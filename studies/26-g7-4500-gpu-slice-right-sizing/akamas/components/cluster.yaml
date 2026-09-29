@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_26_G7_4500_GPU_Slice
+
+name: cluster
+description: >-
+  The GPU node (node group llm-serving-g7-4500, one g7.4xlarge, 16 vCPU / 64 GiB) for
+  node-level CPU/memory/pressure counters; $NODE_ROLE$ in the k8s_cluster_* queries
+  resolves from node_role.
+componentType: Kubernetes Cluster
+properties:
+  prometheus:
+    node_role: llm-serving-g7-4500

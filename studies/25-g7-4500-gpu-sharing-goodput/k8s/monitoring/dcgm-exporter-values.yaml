@@ -1,0 +1,50 @@
+# dcgm-exporter values for 25-g7-4500-gpu-sharing-goodput — NOT YET APPLIED.
+#
+# dcgm-exporter is ONE shared helm release (monitoring/dcgm-exporter, chart 4.8.3) that
+# is re-pointed at whichever GPU node group the running study uses: every study's DCGM
+# queries filter on pod/gpu only, so scraping two GPU nodes at once would average or sum
+# across them (see study 17's infra/eks/gpu-capacity-fallback.sh, dcgm_cover). On
+# 2026-09-29 it is pinned to llm-serving-l4 for study 24 (studies/24-l4-pd-kernels), which
+# is RUNNING. Switching it here takes study 24's GPU telemetry away, so it is a deliberate
+# step, done only on the user's go-ahead (README "Before starting" #2, which also gives the
+# both-nodes nodeAffinity alternative):
+#
+#   helm upgrade dcgm-exporter gpu-helm-charts/dcgm-exporter -n monitoring \
+#     --version 4.8.3 --reuse-values=false -f k8s/monitoring/dcgm-exporter-values.yaml
+#
+# Two differences from the L4 values: the node-role, and a toleration for the node's
+# akamas.io/gpu-sharing taint (infra/README.md), without which the exporter would not
+# schedule on this node at all.
+#
+# Phase 0 facts the telemetry depends on (dcgm-exporter 4.6.0-4.8.3, these counters):
+#   - mig: one series per slice (label GPU_I_ID). No DEV_GPU_UTIL, no PROF_DRAM_ACTIVE,
+#     no PCIe / FP-pipe counters. Device-level values (power, temperature, clocks) are
+#     repeated on each slice: aggregate them with max/avg, never sum.
+#   - time_slicing / mps: one series whose `pod` label names only ONE of the two pods.
+#   - mps: DEV_GPU_UTIL reads 0 under load (NVML does not see MPS client kernels).
+#   - PROF_* series appear only a few sampling cycles after the exporter starts.
+nodeSelector:
+  node-role: llm-serving-g7-4500
+tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+  - key: akamas.io/gpu-sharing
+    operator: Exists
+    effect: NoSchedule
+serviceMonitor:
+  enabled: true
+  interval: 5s
+  scrapeTimeout: 4s
+  namespace: monitoring
+extraConfigMapVolumes:
+- name: exporter-metrics-volume
+  configMap:
+    name: dcgm-custom-metrics
+    items:
+    - key: metrics
+      path: dcgm_counters.csv
+extraVolumeMounts:
+- name: exporter-metrics-volume
+  mountPath: /etc/dcgm-exporter/default-counters.csv
+  subPath: dcgm_counters.csv

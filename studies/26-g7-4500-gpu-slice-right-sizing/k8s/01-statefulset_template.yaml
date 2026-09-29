@@ -1,0 +1,129 @@
+# vLLM serving for 26-g7-4500-gpu-slice-right-sizing — rendered by apply_config.sh with
+# envsubst (NOT by the Akamas FileConfigurator: the Akamas parameters land in params.env
+# first, because the replica count and the effective memory fraction depend on the
+# sharing mode). Variables: $REPLICAS $GMU_EFFECTIVE $MAX_NUM_SEQS $MAX_NUM_BATCHED_TOKENS
+# $STREAM_INTERVAL.
+#
+# StatefulSet, not Deployment, for two reasons measured in phase 0 (2026-09-29):
+#   - stable pod names vllm-0 / vllm-1, so the per-replica Akamas components (vllm_r0,
+#     vllm_r1) can filter on an exact pod name;
+#   - podManagementPolicy OrderedReady starts vllm-1 only once vllm-0 is Ready. Under
+#     time-slicing and MPS both replicas share one framebuffer, and vLLM sizes its KV
+#     cache from the free memory it sees at startup: two engines profiling at the same
+#     moment would each see the other's half-built allocation.
+#
+# Every replica requests nvidia.com/gpu: 1 in every mode. What "1" means is decided by
+# the study's own device plugin (infra/gpu-sharing/): the whole GPU (exclusive), one
+# 1g.16gb MIG slice (mig) or one of two time-slicing / MPS shares.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vllm
+  namespace: gpu-sharing
+spec:
+  serviceName: vllm-headless
+  replicas: $REPLICAS
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app: vllm
+  template:
+    metadata:
+      labels:
+        app: vllm
+    spec:
+      # Kubernetes would otherwise inject VLLM_PORT=tcp://... from the Service, which
+      # collides with vLLM's own VLLM_PORT variable and crashes it at startup.
+      enableServiceLinks: false
+      nodeSelector:
+        node-role: llm-serving-g7-4500
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+        # The node's second taint keeps the cluster-wide device plugin off it (see
+        # infra/README.md); every pod of this study has to tolerate it.
+        - key: akamas.io/gpu-sharing
+          operator: Exists
+          effect: NoSchedule
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:v0.29.0
+          args:
+            - "--model=Qwen/Qwen3-4B-Instruct-2507-FP8"
+            # Distinct served name on purpose: other studies' telemetry filters on
+            # model_name, and none of them serves "qwen3-4b".
+            - "--served-model-name=qwen3-4b"
+            - "--port=8000"
+            - "--host=0.0.0.0"
+            # ShareGPT replay has almost no shared prefixes; off, as in studies 1-17, so
+            # a cache hit rate cannot differ between modes and confound the comparison.
+            - "--no-enable-prefix-caching"
+            # ShareGPT prompts in this replay average 75-103 tokens (phase 0); 4096 is
+            # the same literal as study 17 and leaves room for the long tail.
+            - "--max-model-len=4096"
+            # --- Tuned (parametersSelection) ---
+            # GMU_EFFECTIVE, not the raw Akamas value: halved under time_slicing / mps,
+            # where vLLM measures the fraction against the WHOLE 31.38 GiB (phase 0).
+            - "--gpu-memory-utilization=$GMU_EFFECTIVE"
+            - "--max-num-seqs=$MAX_NUM_SEQS"
+            - "--max-num-batched-tokens=$MAX_NUM_BATCHED_TOKENS"
+            - "--stream-interval=$STREAM_INTERVAL"
+          env:
+            - name: HF_HOME
+              value: /hf-cache
+            - name: VLLM_USE_V2_MODEL_RUNNER
+              value: "0"
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+                  optional: true
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          resources:
+            # No CPU limit on purpose: in exclusive mode the single replica must be able
+            # to use the whole node, or the comparison would handicap it. Two replicas at
+            # 6 CPU each fit the g7.4xlarge's 15.89 allocatable. Phase 0 measured ~10 % of
+            # one core per vLLM process at 128 users, so CPU is not the constraint here.
+            requests:
+              nvidia.com/gpu: "1"
+              cpu: "6"
+              memory: 16Gi
+            limits:
+              nvidia.com/gpu: "1"
+              memory: 24Gi
+          volumeMounts:
+            - name: hf-cache
+              mountPath: /hf-cache
+            - name: shm
+              mountPath: /dev/shm
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 120   # 20 min: cold image pull (~10 GB) + weights + graphs
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        # hostPath, not a PVC: the node group spans us-east-2a/b/c, and an EBS volume
+        # would pin the study to the AZ of the first node. The model is 4.83 GiB and
+        # re-downloads in under 30 s if the node is replaced. vllm-1 reuses what vllm-0
+        # fetched (OrderedReady).
+        - name: hf-cache
+          hostPath:
+            path: /var/lib/hf-cache-study25
+            type: DirectoryOrCreate
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 4Gi

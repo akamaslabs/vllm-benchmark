@@ -1,0 +1,15 @@
+kind: component
+system: vLLM_Benchmark_26_G7_4500_GPU_Slice
+
+name: vllm
+description: >-
+  Both vLLM replicas together (StatefulSet vllm, pods vllm-0/vllm-1, namespace
+  gpu-sharing), Qwen/Qwen3-4B-Instruct-2507-FP8 served as qwen3-4b. Carries every tuned
+  vLLM parameter (rendered per replica) and is the component the goal, the SLA
+  constraints, the windowing and the KPIs read: sums over both replicas, p95 from the
+  merged histograms. In exclusive experiments it is the single replica.
+componentType: vLLM
+properties:
+  prometheus:
+    pod: ^vllm-[0-9]+$
+    model: qwen3-4b

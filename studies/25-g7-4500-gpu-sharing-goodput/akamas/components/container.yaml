@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_25_G7_4500_GPU_Sharing
+
+name: container
+description: >-
+  The vLLM containers of both replicas (cAdvisor / kube-state-metrics, pods vllm-0 and
+  vllm-1). No CPU limit is set on purpose (exclusive must be able to use the whole node),
+  so read container_cpu_used, not container_cpu_util, which divides by the limit.
+componentType: Kubernetes Container
+properties:
+  prometheus:
+    pod: ^vllm-[0-9]+$

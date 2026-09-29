@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_25_G7_4500_GPU_Sharing
+
+name: vllm_r1
+description: >-
+  Replica vllm-1 alone. Per-replica view only. EMPTY in exclusive experiments by
+  construction (one replica), so nothing that scores an experiment may reference it.
+componentType: vLLM
+properties:
+  prometheus:
+    pod: ^vllm-1$
+    model: qwen3-4b

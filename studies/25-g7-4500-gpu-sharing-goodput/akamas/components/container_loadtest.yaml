@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_25_G7_4500_GPU_Sharing
+
+name: container_loadtest
+description: >-
+  The AIPerf Job's container (Job aiperf-gpu-sharing, namespace gpu-sharing, on the
+  system-m8a node), so a starved client shows up as such instead of as a slower server.
+  Phase 0 peaked at ~1.3 of 4 cores.
+componentType: Kubernetes Container
+properties:
+  prometheus:
+    pod: ^aiperf-gpu-sharing-.*

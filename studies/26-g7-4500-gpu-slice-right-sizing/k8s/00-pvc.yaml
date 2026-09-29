@@ -1,0 +1,15 @@
+# AIPerf results + the model-specific ShareGPT inputs cache (sharegpt-cache/). Own
+# namespace, own volume: this study shares nothing with llm-benchmark, where other
+# studies' aiperf-benchmark Job runs.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: aiperf-results
+  namespace: gpu-sharing
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3
+  resources:
+    requests:
+      storage: 10Gi

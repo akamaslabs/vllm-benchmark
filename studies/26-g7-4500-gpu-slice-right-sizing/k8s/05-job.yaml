@@ -1,0 +1,128 @@
+# AIPerf load test for 26-g7-4500-gpu-slice-right-sizing — ShareGPT replay, closed loop,
+# concurrency ramp, same tool/dataset/SLA as studies 1/9/10/17. Calibrated in phase 0
+# (2026-09-29) on this node and model, all four sharing modes:
+#
+#   ramp     16 -> 768 in 12 levels x 300 s = 60 min. Phase 0 saturated at 128-256 users
+#            and broke the SLA at 256-512 with vLLM's default max_num_seqs (256 per
+#            replica): the 150 -> 1024/2048 ramps of the older studies would spend most of
+#            the run in a queue. The top is 768 because max_num_seqs goes up to 768 in
+#            this study's domain, where a single exclusive replica could still hold the
+#            SLA past 512.
+#   warm-up  60 s at 64 users before the ramp, results discarded. Phase 0's first burst
+#            on a freshly started server had TTFT p95 33.6 s (every slow request started
+#            at t=0: first-use kernel JIT), against 116 ms 20 s later. Without the warm-up
+#            the first level of every experiment would be contaminated, and more so in
+#            the two-replica modes, which start two cold engines.
+#   shape    ShareGPT via AIPerf averages 75-103 prompt tokens and ~212 output tokens per
+#            request: "short tokens, many users" as intended.
+#
+# The client runs on system-m8a (m8a.xlarge, 4 vCPU); phase 0 peaked at ~1.3 cores, so
+# the client is not the bottleneck at these request rates (~20 req/s).
+# Job name aiperf-gpu-sharing, not aiperf-benchmark: studies 20/23 select their client
+# pod with `pod: ^aiperf-benchmark-.*` and no namespace filter.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aiperf-gpu-sharing
+  namespace: gpu-sharing
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node-role: system-m8a
+      initContainers:
+        - name: wait-for-vllm
+          image: alpine:3
+          command:
+            - sh
+            - -c
+            - |
+              until wget -qO- http://vllm.gpu-sharing.svc.cluster.local:8000/health >/dev/null 2>&1; do
+                echo "$(date -u +%T) waiting for vLLM readiness..."
+                sleep 10
+              done
+              echo "vLLM is ready."
+      containers:
+        - name: aiperf
+          image: python:3.12-slim
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              pip install --quiet aiperf==0.11.0
+              find /benchmarks -mindepth 1 -maxdepth 1 -name 'aiperf-*' -exec rm -rf {} +
+              MODEL_NAME=qwen3-4b
+              TOKENIZER=Qwen/Qwen3-4B-Instruct-2507-FP8
+              URL=http://vllm.gpu-sharing.svc.cluster.local:8000
+              # Dataset cache — MODEL-SPECIFIC (AIPerf's inputs.json embeds the served
+              # model name in every payload; see study 10's 404 incident). Generated once
+              # on this study's own volume, then reused by every experiment.
+              CACHE_DIR=/benchmarks/sharegpt-cache
+              CACHE_FILE=$CACHE_DIR/inputs-$MODEL_NAME.json
+              mkdir -p "$CACHE_DIR"
+              if [ ! -f "$CACHE_FILE" ]; then
+                echo "No cached ShareGPT inputs for $MODEL_NAME — generating once (~5 min)..."
+                set +e
+                aiperf profile --model "$MODEL_NAME" --tokenizer "$TOKENIZER" --url "$URL" \
+                  --endpoint-type chat --streaming --public-dataset sharegpt \
+                  --concurrency 1 --request-count 1 --ui simple \
+                  --output-artifact-dir /tmp/sharegpt-prep
+                set -e
+                if [ ! -f /tmp/sharegpt-prep/inputs.json ]; then
+                  echo "ERROR: prep run did not produce inputs.json — see log above" >&2
+                  exit 1
+                fi
+                cp /tmp/sharegpt-prep/inputs.json "$CACHE_FILE"
+              else
+                echo "Reusing cached ShareGPT inputs for $MODEL_NAME from $CACHE_FILE."
+              fi
+              if grep -o '"model": *"[^"]*"' "$CACHE_FILE" | grep -qv "\"$MODEL_NAME\""; then
+                echo "ERROR: $CACHE_FILE references a model other than $MODEL_NAME" >&2
+                exit 1
+              fi
+              echo "$(date -u +%T) warm-up: 60 s at 64 users (discarded)"
+              aiperf profile --model "$MODEL_NAME" --tokenizer "$TOKENIZER" --url "$URL" \
+                --endpoint-type chat --streaming \
+                --input-file "$CACHE_FILE" --custom-dataset-type inputs_json \
+                --concurrency 64 --benchmark-duration 60 --ui simple \
+                --output-artifact-dir /tmp/warmup > /tmp/warmup.log 2>&1 \
+                || { tail -50 /tmp/warmup.log; exit 1; }
+              echo "$(date -u +%T) ramp"
+              CONCURRENCY_LIST="16,32,64,96,128,192,256,320,384,512,640,768"
+              aiperf profile --model "$MODEL_NAME" --tokenizer "$TOKENIZER" --url "$URL" \
+                --endpoint-type chat --streaming \
+                --input-file "$CACHE_FILE" --custom-dataset-type inputs_json \
+                --concurrency "$CONCURRENCY_LIST" --benchmark-duration 300 \
+                --goodput "time_to_first_token:1500 inter_token_latency:300" \
+                --ui simple \
+                --output-artifact-dir "/benchmarks/aiperf-$(date +%s)"
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+                  optional: true
+            - name: HF_HOME
+              value: /hf-cache
+          resources:
+            # 1500m, not 2: system-m8a has 3.92 allocatable CPU and study 24's AIPerf Job
+            # requests 2, so with 2 here one of the two Jobs would stay Pending if the
+            # studies ever overlapped. Phase 0 measured this client at ~1.3 cores.
+            requests:
+              cpu: 1500m
+              memory: 4Gi
+          volumeMounts:
+            - name: results
+              mountPath: /benchmarks
+            - name: hf-cache
+              mountPath: /hf-cache
+      volumes:
+        - name: results
+          persistentVolumeClaim:
+            claimName: aiperf-results
+        - name: hf-cache
+          persistentVolumeClaim:
+            claimName: hf-cache

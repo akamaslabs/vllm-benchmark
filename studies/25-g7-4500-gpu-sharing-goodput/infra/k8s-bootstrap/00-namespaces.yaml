@@ -1,0 +1,13 @@
+# Namespaces for 25-g7-4500-gpu-sharing-goodput. Everything the study runs — its own
+# device plugin, the gpu-admin DaemonSet, the vLLM replicas and the AIPerf Job — lives in
+# gpu-sharing; nothing is shared with the llm-serving / llm-benchmark namespaces other
+# studies use.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gpu-sharing
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring

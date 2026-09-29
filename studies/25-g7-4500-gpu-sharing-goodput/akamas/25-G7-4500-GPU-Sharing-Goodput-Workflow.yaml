@@ -1,0 +1,43 @@
+kind: workflow
+name: 25-G7-4500-GPU-Sharing-Goodput-Workflow
+tasks:
+  # The five parameters are rendered into an env file, not into a manifest: the apply
+  # script needs them first (sharing mode -> MIG state, device-plugin config, replica
+  # count; memory fraction translated per mode) and renders the StatefulSet itself.
+  # ignoreUnsubstitutedTokens false on purpose: every token must resolve.
+  - name: Write config
+    operator: FileConfigurator
+    arguments:
+      ignoreUnsubstitutedTokens: false
+      source:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/vllm-benchmark/studies/25-g7-4500-gpu-sharing-goodput/k8s/params.env.template
+      target:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/vllm-benchmark/studies/25-g7-4500-gpu-sharing-goodput/k8s/params.env
+  - name: Apply config
+    operator: Executor
+    arguments:
+      retries: 0
+      # Mode switch (~1-2 min) + up to two sequential replica starts (rollout wait 40 min).
+      timeout: 60m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/vllm-benchmark/studies/25-g7-4500-gpu-sharing-goodput/k8s/apply_config.sh
+  - name: RunTest
+    operator: Executor
+    arguments:
+      retries: 0
+      # Above run_test_goodput.sh's own 90 min job wait, so its log dump always runs.
+      timeout: 105m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/vllm-benchmark/studies/25-g7-4500-gpu-sharing-goodput/k8s/run_test_goodput.sh

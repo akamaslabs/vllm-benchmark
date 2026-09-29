@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_26_G7_4500_GPU_Slice
+
+name: vllm_r0
+description: >-
+  Replica vllm-0 alone. Per-replica view only (load balance, which replica saturates
+  first); not used by goal, constraints or KPIs. Present in every sharing mode.
+componentType: vLLM
+properties:
+  prometheus:
+    pod: ^vllm-0$
+    model: qwen3-4b

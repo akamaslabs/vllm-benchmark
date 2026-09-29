@@ -1,0 +1,24 @@
+# Scrapes this study's vLLM replicas (namespace gpu-sharing) through the `vllm` Service:
+# one target per ready pod, so every replica keeps its own `pod` label (vllm-0, vllm-1).
+# Additive: a new ServiceMonitor next to the other studies' `vllm` one (llm-serving),
+# not a change to it. Other studies' queries filter on their own served model_name, and
+# none serves "qwen3-4b".
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vllm-gpu-sharing
+  namespace: monitoring
+  labels:
+    app: vllm
+spec:
+  namespaceSelector:
+    matchNames:
+      - gpu-sharing
+  selector:
+    matchLabels:
+      app: vllm
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 5s
+      scrapeTimeout: 4s

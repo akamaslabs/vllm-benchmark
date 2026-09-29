@@ -1,0 +1,11 @@
+kind: component
+system: vLLM_Benchmark_26_G7_4500_GPU_Slice
+
+name: cluster_loadtest
+description: >-
+  The CPU node running the load generator (node group system-2b, label
+  node-role=system-m8a, m8a.xlarge).
+componentType: Kubernetes Cluster
+properties:
+  prometheus:
+    node_role: system-m8a

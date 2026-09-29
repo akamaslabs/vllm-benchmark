@@ -1,0 +1,128 @@
+kind: study
+name: 25-G7-4500-GPU-Sharing-Goodput
+description: >-
+  Does splitting one GPU between replicas of a small model beat one replica on the whole GPU,
+  and with which technique? One NVIDIA RTX PRO 4500 Blackwell (g7.4xlarge, 32 GB) serves
+  Qwen/Qwen3-4B-Instruct-2507-FP8 with vLLM 0.29.0; gpu0.sharing_mode picks exclusive (one
+  replica), mig (two 1g.16gb slices), time_slicing or mps (two replicas each), searched
+  together with four vLLM parameters. Goal: aggregate prefill + decode tokens/s under TTFT p95
+  1500 ms / ITL p95 300 ms. The baseline and three presets run the four modes head-to-head at
+  identical vLLM settings first. Phase 0 (2026-09-29) found exclusive ahead of every split
+  mode at defaults, so a negative answer is a legitimate outcome. Requires GPU pack >= 1.3.0.
+system: vLLM_Benchmark_25_G7_4500_GPU_Sharing
+workflow: 25-G7-4500-GPU-Sharing-Goodput-Workflow
+goal:
+  objective: maximize
+  function:
+    # Sums over both replicas (the vllm component matches vllm-0 and vllm-1).
+    formula: vllm.prefill_token_throughput + vllm.decode_token_throughput
+    unit: tokens per second
+  constraints:
+    absolute:
+      # p95 over the MERGED histograms of both replicas, not an average of two p95s.
+      - name: TTFT P95 interactive-chat SLA
+        formula: vllm.time_to_first_token_p95 <= 1500
+      - name: ITL P95 interactive-chat SLA
+        formula: vllm.inter_token_latency_p95 <= 300
+# Same windowing as studies 2/17: the best 6-sample window of the ramp, ranked by prefill
+# throughput; the huge maxStdDev makes "stable" a formality so the SLA constraints decide.
+windowing:
+  type: stability
+  stability:
+    metric: vllm.prefill_token_throughput
+    width: 6
+    maxStdDev: 300000000
+    when:
+      metric: vllm.prefill_token_throughput
+      is: max
+numberOfTrials: 1
+parametersSelection:
+  - name: gpu0.sharing_mode
+    categories: [exclusive, mig, time_slicing, mps]
+  # Fraction of the memory the REPLICA owns; apply_config.sh halves it for time_slicing and
+  # mps (vLLM measures against the whole GPU there). 0.90 max keeps the halved value inside
+  # the 15.79 GiB an MPS client gets and leaves ~2 GiB on a MIG slice for the sampler warmup.
+  - name: vllm.gpu_memory_utilization
+    domain: [0.80, 0.90]
+  # Per replica. 256 is vLLM's default on this GPU and was phase 0's ceiling.
+  - name: vllm.max_num_seqs
+    domain: [64, 768]
+  # Lower bound above max_num_seqs' upper bound: vLLM's max_num_batched_tokens >=
+  # max_num_seqs holds for every combination, so no parameterConstraint is needed.
+  - name: vllm.max_num_batched_tokens
+    domain: [1024, 8192]
+  - name: vllm.stream_interval
+    domain: [1, 16]
+kpis:
+  - name: TTFT P95
+    formula: vllm.time_to_first_token_p95
+    direction: minimize
+  - name: ITL P95
+    formula: vllm.inter_token_latency_p95
+    direction: minimize
+  - name: Richieste in esecuzione
+    formula: vllm.num_requests_running
+    direction: maximize
+  # The mean, not the p95: vLLM 0.29's queue-time histogram starts at 0.3 s, so the p95
+  # floors at ~285 ms whenever requests barely queue (audit 2026-09-29).
+  - name: Tempo in coda medio
+    formula: vllm.request_queue_time_avg
+    direction: minimize
+  - name: KV cache usata
+    formula: vllm.kv_cache_usage_avg
+    direction: minimize
+  - name: Preemption (picco)
+    formula: vllm.preemption_rate
+    direction: minimize
+    aggregation: max
+  # Mode-agnostic GPU activity (gpu_util is absent under MIG and 0 under MPS).
+  - name: GPU GR engine attivo
+    formula: gpu0.gpu_gr_engine_active
+    direction: maximize
+  # Phase 0: the whole GPU sat at its 165 W limit at 128 users, SM clock throttled.
+  - name: Potenza GPU
+    formula: gpu0.gpu_power_usage
+    direction: minimize
+steps:
+  # All five parameters are rendered in every step (no doNotRenderParameters): the apply
+  # script refuses a params.env with an empty value, and these are vLLM's actual defaults
+  # on this GPU (max_num_seqs 256, max_num_batched_tokens 2048), i.e. what phase 0 ran.
+  - name: baseline
+    type: baseline
+    numberOfTrials: 1
+    values:
+      gpu0.sharing_mode: exclusive
+      vllm.gpu_memory_utilization: 0.90
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+      vllm.stream_interval: 1
+  - name: Preset MIG
+    type: preset
+    values:
+      gpu0.sharing_mode: mig
+      vllm.gpu_memory_utilization: 0.90
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+      vllm.stream_interval: 1
+  - name: Preset time slicing
+    type: preset
+    values:
+      gpu0.sharing_mode: time_slicing
+      vllm.gpu_memory_utilization: 0.90
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+      vllm.stream_interval: 1
+  - name: Preset MPS
+    type: preset
+    values:
+      gpu0.sharing_mode: mps
+      vllm.gpu_memory_utilization: 0.90
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+      vllm.stream_interval: 1
+  - name: optimize
+    type: optimize
+    optimizer: AKAMAS
+    numberOfInitExperiments: 0
+    numberOfExperiments: 30
+    maxFailedExperiments: 8

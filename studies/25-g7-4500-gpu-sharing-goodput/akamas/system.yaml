@@ -1,0 +1,9 @@
+kind: system
+
+name: vLLM_Benchmark_25_G7_4500_GPU_Sharing
+description: >-
+  GPU-sharing goodput study on one NVIDIA RTX PRO 4500 Blackwell Server Edition (g7.4xlarge,
+  32 GB, 165 W, SM 12.0, node group llm-serving-g7-4500) serving Qwen/Qwen3-4B-Instruct-2507-FP8
+  with vllm/vllm-openai:v0.29.0. GPU.sharing_mode picks exclusive (1 replica), mig (2x 1g.16gb),
+  time_slicing or mps (2 replicas each). Requires GPU pack >= 1.3.0 (sharing_mode), vLLM pack
+  1.12.0, Kubernetes pack. Created 2026-09-29.

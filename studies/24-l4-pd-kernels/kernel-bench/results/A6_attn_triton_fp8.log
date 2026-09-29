@@ -1,0 +1,428 @@
+launcher: model=Qwen/Qwen3-8B-FP8 mode=disaggregated prefill=1 decode=1 connector=NixlConnector kv_buffer_device=cpu
+launcher: common: --max-model-len=8192 --attention-backend=TRITON_ATTN --kv-cache-dtype=fp8 --no-enable-prefix-caching --enable-mfu-metrics --default-chat-template-kwargs={"enable_thinking": false}
+launcher: prefill: --gpu-memory-utilization=0.9 --max-num-seqs=128 --max-num-batched-tokens=8192 --linear-backend=triton
+launcher: decode: --gpu-memory-utilization=0.9 --max-num-seqs=128 --max-num-batched-tokens=8192 --linear-backend=auto
+launcher: weights at /root/.cache/huggingface/hub/models--Qwen--Qwen3-8B-FP8/snapshots/220b46e3b2180893580a4454f21f22d3ebb187d3
+launcher: tuned kernel configs installed in /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/utils/configs:
+launcher:   N=24576,K=4096,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json
+launcher:   N=4096,K=12288,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json
+launcher:   N=4096,K=4096,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json
+launcher:   N=6144,K=4096,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json
+launcher: [prefill-0] GPU 0 port 8100 nixl 5600 env: (none): vllm serve Qwen/Qwen3-8B-FP8 --host 0.0.0.0 --port 8100 --served-model-name qwen3-8b-prefill qwen3-8b --max-model-len=8192 --attention-backend=TRITON_ATTN --kv-cache-dtype=fp8 --no-enable-prefix-caching --enable-mfu-metrics --default-chat-template-kwargs={"enable_thinking": false} --gpu-memory-utilization=0.9 --max-num-seqs=128 --max-num-batched-tokens=8192 --linear-backend=triton --kv-transfer-config {"kv_connector":"NixlConnector","kv_role":"kv_producer","kv_buffer_device":"cpu","kv_load_failure_policy":"fail"}
+launcher: [decode-0] GPU 1 port 8200 nixl 5700 env: (none): vllm serve Qwen/Qwen3-8B-FP8 --host 0.0.0.0 --port 8200 --served-model-name qwen3-8b-decode qwen3-8b --max-model-len=8192 --attention-backend=TRITON_ATTN --kv-cache-dtype=fp8 --no-enable-prefix-caching --enable-mfu-metrics --default-chat-template-kwargs={"enable_thinking": false} --gpu-memory-utilization=0.9 --max-num-seqs=128 --max-num-batched-tokens=8192 --linear-backend=auto --kv-transfer-config {"kv_connector":"NixlConnector","kv_role":"kv_consumer","kv_buffer_device":"cpu","kv_load_failure_policy":"fail"}
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:16:09 [__init__.py:695] Selected TritonFp8BlockScaledMMKernel for Fp8LinearMethod
+[decode-0] (EngineCore pid=784) INFO 09-29 17:16:09 [__init__.py:695] Selected MarlinFP8ScaledMMLinearKernel for Fp8LinearMethod
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:16:09 [cuda.py:432] Using AttentionBackendEnum.TRITON_ATTN backend.
+[decode-0] (EngineCore pid=784) INFO 09-29 17:16:09 [cuda.py:432] Using AttentionBackendEnum.TRITON_ATTN backend.
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:16:51 [fp8_utils.py:843] Using configuration from /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/utils/configs/N=6144,K=4096,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json for W8A8 Block FP8 kernel.
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:16:51 [fp8_utils.py:843] Using configuration from /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/utils/configs/N=4096,K=4096,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json for W8A8 Block FP8 kernel.
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:16:52 [fp8_utils.py:843] Using configuration from /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/utils/configs/N=24576,K=4096,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json for W8A8 Block FP8 kernel.
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:16:52 [fp8_utils.py:843] Using configuration from /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/utils/configs/N=4096,K=12288,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json for W8A8 Block FP8 kernel.
+[decode-0] (EngineCore pid=784) INFO 09-29 17:17:04 [gpu_worker.py:640] CUDA graph memory profiling is enabled (default since v0.21.0). The current --gpu-memory-utilization=0.9000 is equivalent to --gpu-memory-utilization=0.8861 without CUDA graph memory profiling. To maintain the same effective KV cache size as before, increase --gpu-memory-utilization to 0.9139. To disable, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=0.
+[decode-0] (EngineCore pid=784) INFO 09-29 17:17:04 [kv_cache_utils.py:2032] GPU KV cache size: 132,816 tokens, Maximum concurrency for 8,192 tokens per request: 16.21x
+[decode-0] (EngineCore pid=784) INFO 09-29 17:17:05 [base_worker.py:603] Detected attention backend(s) ['TRITON_ATTN']
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:17:18 [gpu_worker.py:640] CUDA graph memory profiling is enabled (default since v0.21.0). The current --gpu-memory-utilization=0.9000 is equivalent to --gpu-memory-utilization=0.8867 without CUDA graph memory profiling. To maintain the same effective KV cache size as before, increase --gpu-memory-utilization to 0.9133. To disable, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=0.
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:17:18 [kv_cache_utils.py:2032] GPU KV cache size: 134,944 tokens, Maximum concurrency for 8,192 tokens per request: 16.47x
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:17:19 [base_worker.py:603] Detected attention backend(s) ['TRITON_ATTN']
+
+--- full tail ---
+[prefill-0] [1790702239.700684] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+-----------------------------------------------------------------+--+
+[prefill-0] [1790702239.789637] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+-------------------------------------------------------------+
+[prefill-0] [1790702239.789638] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 self cfg#0 | remote memory write by ucp_put* from host memory to host    |
+[prefill-0] [1790702239.789639] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+--------------------------------------------+----------------+
+[prefill-0] [1790702239.789639] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |            0..4294967295 | short                                      | cuda_copy/cuda |
+[prefill-0] [1790702239.789640] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+--------------------------------------------+----------------+
+[prefill-0] [1790702239.789667] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+------------------------------------------------------------------------------+
+[prefill-0] [1790702239.789667] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 self cfg#0 | remote memory write by ucp_put*(fast-completion) from host memory to host    |
+[prefill-0] [1790702239.789667] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+-------------------------------------------------------------+----------------+
+[prefill-0] [1790702239.789668] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |            0..4294967295 | short                                                       | cuda_copy/cuda |
+[prefill-0] [1790702239.789668] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+-------------------------------------------------------------+----------------+
+[prefill-0] [1790702239.789695] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+--------------------------------------------------------------------+
+[prefill-0] [1790702239.789696] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 self cfg#0 | remote memory write by ucp_put*(multi) from host memory to host    |
+[prefill-0] [1790702239.789703] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+---------------------------------------------------+----------------+
+[prefill-0] [1790702239.789704] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |            0..4294967295 | short                                             | cuda_copy/cuda |
+[prefill-0] [1790702239.789704] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+---------------------------------------------------+----------------+
+[prefill-0] [1790702239.789746] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+----------------------------------------------------+
+[prefill-0] [1790702239.789747] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 self cfg#0 | active message by ucp_am_send* from host memory    |
+[prefill-0] [1790702239.789747] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+-------------------------------------------------+--+
+[prefill-0] [1790702239.789748] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+-------------------------------------------------+--+
+[prefill-0] [1790702239.789760] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+--------------------------------------------------------------------+
+[prefill-0] [1790702239.789761] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 self cfg#0 | active message by ucp_am_send* with reply flag from host memory    |
+[prefill-0] [1790702239.789761] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+-----------------------------------------------------------------+--+
+[prefill-0] [1790702239.789761] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+-----------------------------------------------------------------+--+
+[prefill-0] [1790702239.797313] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+-------------------------------------------------------------+
+[prefill-0] [1790702239.797314] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 self cfg#0 | remote memory write by ucp_put* from host memory to host    |
+[prefill-0] [1790702239.797315] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+--------------------------------------------+----------------+
+[prefill-0] [1790702239.797315] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |            0..4294967295 | short                                      | cuda_copy/cuda |
+[prefill-0] [1790702239.797315] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+--------------------------------------------+----------------+
+[prefill-0] [1790702239.797342] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+------------------------------------------------------------------------------+
+[prefill-0] [1790702239.797342] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 self cfg#0 | remote memory write by ucp_put*(fast-completion) from host memory to host    |
+[prefill-0] [1790702239.797343] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+-------------------------------------------------------------+----------------+
+[prefill-0] [1790702239.797343] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |            0..4294967295 | short                                                       | cuda_copy/cuda |
+[prefill-0] [1790702239.797343] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+-------------------------------------------------------------+----------------+
+[prefill-0] [1790702239.797370] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+--------------------------------------------------------------------+
+[prefill-0] [1790702239.797371] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 self cfg#0 | remote memory write by ucp_put*(multi) from host memory to host    |
+[prefill-0] [1790702239.797371] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+---------------------------------------------------+----------------+
+[prefill-0] [1790702239.797371] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |            0..4294967295 | short                                             | cuda_copy/cuda |
+[prefill-0] [1790702239.797372] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+---------------------------------------------------+----------------+
+[prefill-0] [1790702239.797420] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+----------------------------------------------------+
+[prefill-0] [1790702239.797420] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 self cfg#0 | active message by ucp_am_send* from host memory    |
+[prefill-0] [1790702239.797421] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+-------------------------------------------------+--+
+[prefill-0] [1790702239.797421] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+-------------------------------------------------+--+
+[prefill-0] [1790702239.797434] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+--------------------------------------------------------------------+
+[prefill-0] [1790702239.797434] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 self cfg#0 | active message by ucp_am_send* with reply flag from host memory    |
+[prefill-0] [1790702239.797435] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+-----------------------------------------------------------------+--+
+[prefill-0] [1790702239.797435] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+-----------------------------------------------------------------+--+
+[prefill-0] [1790702239.800197] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+-------------------------------------------------------------+
+[prefill-0] [1790702239.800198] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 self cfg#1 | remote memory write by ucp_put* from host memory to host    |
+[prefill-0] [1790702239.800199] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+------------------------------------------------+------------+
+[prefill-0] [1790702239.800199] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                   0..inf | zero-copy                                      | cma/memory |
+[prefill-0] [1790702239.800199] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+------------------------------------------------+------------+
+[prefill-0] [1790702239.812328] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+--------------------------------------------------------------------+
+[prefill-0] [1790702239.812329] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 self cfg#1 | remote memory write by ucp_put* from host memory to cuda/dev[0]    |
+[prefill-0] [1790702239.812329] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+---------------------------------------------------------+----------+
+[prefill-0] [1790702239.812330] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                   0..inf | software emulation                                      | tcp/eth0 |
+[prefill-0] [1790702239.812330] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+---------------------------------------------------------+----------+
+[prefill-0] [1790702239.813642] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+----------------------------------------------------+
+[prefill-0] [1790702239.813643] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 self cfg#1 | active message by ucp_am_send* from host memory    |
+[prefill-0] [1790702239.813644] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+-----------------------------------------+----------+
+[prefill-0] [1790702239.813644] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                        0 | short                                   | tcp/eth0 |
+[prefill-0] [1790702239.813644] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                 1..65528 | zero-copy                               | tcp/eth0 |
+[prefill-0] [1790702239.813645] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |               65529..inf | multi-frag zero-copy                    | tcp/eth0 |
+[prefill-0] [1790702239.813645] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+-----------------------------------------+----------+
+[prefill-0] [1790702239.815440] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+---------------------------------------------------------------------+
+[prefill-0] [1790702239.815441] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 self cfg#1 | active message by ucp_am_send*(fast-completion) from host memory    |
+[prefill-0] [1790702239.815442] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+----------------------------------------------------------+----------+
+[decode-0] (APIServer pid=163) INFO:     Application startup complete.
+[prefill-0] [1790702239.815451] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                  0..8184 | short                                                    | tcp/eth0 |
+[prefill-0] [1790702239.815451] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |              8185..65528 | zero-copy                                                | tcp/eth0 |
+[prefill-0] [1790702239.815452] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |               65529..inf | multi-frag zero-copy                                     | tcp/eth0 |
+[prefill-0] [1790702239.815452] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+----------------------------------------------------------+----------+
+[prefill-0] [1790702239.818864] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+-----------------------------------------------------------+
+[prefill-0] [1790702239.818866] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 self cfg#1 | active message by ucp_am_send*(multi) from host memory    |
+[prefill-0] [1790702239.818866] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+------------------------------------------------+----------+
+[prefill-0] [1790702239.818867] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                  0..8184 | short                                          | tcp/eth0 |
+[prefill-0] [1790702239.818867] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |              8185..65528 | zero-copy                                      | tcp/eth0 |
+[prefill-0] [1790702239.818867] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |               65529..inf | multi-frag zero-copy                           | tcp/eth0 |
+[prefill-0] [1790702239.818868] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+------------------------------------------------+----------+
+[prefill-0] [1790702239.820586] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+--------------------------------------------------------------------+
+[prefill-0] [1790702239.820587] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 self cfg#1 | active message by ucp_am_send* with reply flag from host memory    |
+[prefill-0] [1790702239.820587] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+---------------------------------------------------------+----------+
+[prefill-0] [1790702239.820587] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                        0 | short                                                   | tcp/eth0 |
+[prefill-0] [1790702239.820588] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                 1..65520 | zero-copy                                               | tcp/eth0 |
+[prefill-0] [1790702239.820588] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |               65521..inf | multi-frag zero-copy                                    | tcp/eth0 |
+[prefill-0] [1790702239.820588] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+---------------------------------------------------------+----------+
+[prefill-0] [1790702239.822319] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+-------------------------------------------------------------------------------------+
+[prefill-0] [1790702239.822320] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 self cfg#1 | active message by ucp_am_send* with reply flag(fast-completion) from host memory    |
+[prefill-0] [1790702239.822321] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+--------------------------------------------------------------------------+----------+
+[prefill-0] [1790702239.822321] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                  0..8176 | short                                                                    | tcp/eth0 |
+[prefill-0] [1790702239.822321] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |               8177..8184 | multi-frag copy-in                                                       | tcp/eth0 |
+[prefill-0] [1790702239.822322] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |              8185..65520 | zero-copy                                                                | tcp/eth0 |
+[prefill-0] [1790702239.822322] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |               65521..inf | multi-frag zero-copy                                                     | tcp/eth0 |
+[prefill-0] [1790702239.822322] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+--------------------------------------------------------------------------+----------+
+[prefill-0] [1790702239.824077] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+---------------------------------------------------------------------------+
+[prefill-0] [1790702239.824079] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 self cfg#1 | active message by ucp_am_send* with reply flag(multi) from host memory    |
+[prefill-0] [1790702239.824079] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+----------------------------------------------------------------+----------+
+[prefill-0] [1790702239.824080] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                  0..8176 | short                                                          | tcp/eth0 |
+[prefill-0] [1790702239.824080] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |              8177..65520 | zero-copy                                                      | tcp/eth0 |
+[prefill-0] [1790702239.824080] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |               65521..inf | multi-frag zero-copy                                           | tcp/eth0 |
+[prefill-0] [1790702239.824081] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------+----------------------------------------------------------------+----------+
+[prefill-0] [1790702239.825962] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+-------------------------------------------------------------+
+[prefill-0] [1790702239.825964] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | remote memory write by ucp_put* from host memory to host    |
+[prefill-0] [1790702239.825964] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+------------------------------------------------+------------+
+[prefill-0] [1790702239.825964] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                         0..inf | zero-copy                                      | cma/memory |
+[prefill-0] [1790702239.825965] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+------------------------------------------------+------------+
+[prefill-0] [1790702239.828586] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+--------------------------------------------------------------------+
+[prefill-0] [1790702239.828587] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | remote memory write by ucp_put* from host memory to cuda/dev[0]    |
+[prefill-0] [1790702239.828587] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------+----------+
+[prefill-0] [1790702239.828588] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                         0..inf | software emulation                                      | tcp/eth0 |
+[prefill-0] [1790702239.828588] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------+----------+
+[prefill-0] [1790702239.829896] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+----------------------------------------------------+
+[prefill-0] [1790702239.829897] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* from host memory    |
+[prefill-0] [1790702239.829897] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+-----------------------------------------+----------+
+[prefill-0] [1790702239.829898] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                              0 | short                                   | tcp/eth0 |
+[prefill-0] [1790702239.829898] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                       1..65528 | zero-copy                               | tcp/eth0 |
+[prefill-0] [1790702239.829898] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     65529..inf | multi-frag zero-copy                    | tcp/eth0 |
+[prefill-0] [1790702239.829899] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+-----------------------------------------+----------+
+[prefill-0] [1790702239.831683] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------------------+
+[prefill-0] [1790702239.831684] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send*(fast-completion) from host memory    |
+[prefill-0] [1790702239.831692] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+----------------------------------------------------------+----------+
+[prefill-0] [1790702239.831693] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                        0..8184 | short                                                    | tcp/eth0 |
+[prefill-0] [1790702239.831693] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                    8185..65528 | zero-copy                                                | tcp/eth0 |
+[prefill-0] [1790702239.831694] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     65529..inf | multi-frag zero-copy                                     | tcp/eth0 |
+[prefill-0] [1790702239.831694] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+----------------------------------------------------------+----------+
+[prefill-0] [1790702239.835051] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+-----------------------------------------------------------+
+[prefill-0] [1790702239.835052] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send*(multi) from host memory    |
+[prefill-0] [1790702239.835052] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+------------------------------------------------+----------+
+[prefill-0] [1790702239.835052] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                        0..8184 | short                                          | tcp/eth0 |
+[prefill-0] [1790702239.835053] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                    8185..65528 | zero-copy                                      | tcp/eth0 |
+[prefill-0] [1790702239.835053] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     65529..inf | multi-frag zero-copy                           | tcp/eth0 |
+[prefill-0] [1790702239.835053] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+------------------------------------------------+----------+
+[prefill-0] [1790702239.836819] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+--------------------------------------------------------------------+
+[prefill-0] [1790702239.836821] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* with reply flag from host memory    |
+[prefill-0] [1790702239.836821] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------+----------+
+[prefill-0] [1790702239.836822] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                              0 | short                                                   | tcp/eth0 |
+[prefill-0] [1790702239.836822] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                       1..65520 | zero-copy                                               | tcp/eth0 |
+[prefill-0] [1790702239.836822] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     65521..inf | multi-frag zero-copy                                    | tcp/eth0 |
+[prefill-0] [1790702239.836823] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------+----------+
+[prefill-0] [1790702239.838555] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+-------------------------------------------------------------------------------------+
+[prefill-0] [1790702239.838556] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* with reply flag(fast-completion) from host memory    |
+[prefill-0] [1790702239.838557] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+--------------------------------------------------------------------------+----------+
+[prefill-0] [1790702239.838557] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                        0..8176 | short                                                                    | tcp/eth0 |
+[prefill-0] [1790702239.838557] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     8177..8184 | multi-frag copy-in                                                       | tcp/eth0 |
+[prefill-0] [1790702239.838558] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                    8185..65520 | zero-copy                                                                | tcp/eth0 |
+[prefill-0] [1790702239.838558] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     65521..inf | multi-frag zero-copy                                                     | tcp/eth0 |
+[prefill-0] [1790702239.838566] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+--------------------------------------------------------------------------+----------+
+[prefill-0] [1790702239.840346] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------------------------+
+[prefill-0] [1790702239.840347] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* with reply flag(multi) from host memory    |
+[prefill-0] [1790702239.840348] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+----------------------------------------------------------------+----------+
+[prefill-0] [1790702239.840348] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                        0..8176 | short                                                          | tcp/eth0 |
+[prefill-0] [1790702239.840349] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                    8177..65520 | zero-copy                                                      | tcp/eth0 |
+[prefill-0] [1790702239.840349] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     65521..inf | multi-frag zero-copy                                           | tcp/eth0 |
+[prefill-0] [1790702239.840349] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+----------------------------------------------------------------+----------+
+[prefill-0] [1790702239.842291] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+-------------------------------------------------------------+
+[prefill-0] [1790702239.842292] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | remote memory write by ucp_put* from host memory to host    |
+[prefill-0] [1790702239.842293] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+------------------------------------------------+------------+
+[prefill-0] [1790702239.842293] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                         0..inf | zero-copy                                      | cma/memory |
+[prefill-0] [1790702239.842293] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+------------------------------------------------+------------+
+[prefill-0] [1790702239.844938] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+--------------------------------------------------------------------+
+[prefill-0] [1790702239.844939] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | remote memory write by ucp_put* from host memory to cuda/dev[0]    |
+[prefill-0] [1790702239.844940] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------+----------+
+[prefill-0] [1790702239.844940] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                         0..inf | software emulation                                      | tcp/eth0 |
+[prefill-0] [1790702239.844941] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------+----------+
+[prefill-0] [1790702239.846273] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+----------------------------------------------------+
+[prefill-0] [1790702239.846274] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* from host memory    |
+[prefill-0] [1790702239.846274] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+-----------------------------------------+----------+
+[prefill-0] [1790702239.846275] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                              0 | short                                   | tcp/eth0 |
+[prefill-0] [1790702239.846275] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                       1..65528 | zero-copy                               | tcp/eth0 |
+[prefill-0] [1790702239.846275] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     65529..inf | multi-frag zero-copy                    | tcp/eth0 |
+[prefill-0] [1790702239.846276] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+-----------------------------------------+----------+
+[prefill-0] [1790702239.848125] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------------------+
+[prefill-0] [1790702239.848126] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send*(fast-completion) from host memory    |
+[prefill-0] [1790702239.848126] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+----------------------------------------------------------+----------+
+[prefill-0] [1790702239.848127] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                        0..8184 | short                                                    | tcp/eth0 |
+[prefill-0] [1790702239.848127] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                    8185..65528 | zero-copy                                                | tcp/eth0 |
+[prefill-0] [1790702239.848127] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     65529..inf | multi-frag zero-copy                                     | tcp/eth0 |
+[prefill-0] [1790702239.848128] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+----------------------------------------------------------+----------+
+[prefill-0] [1790702239.851626] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+-----------------------------------------------------------+
+[prefill-0] [1790702239.851627] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send*(multi) from host memory    |
+[prefill-0] [1790702239.851628] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+------------------------------------------------+----------+
+[prefill-0] [1790702239.851628] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                        0..8184 | short                                          | tcp/eth0 |
+[prefill-0] [1790702239.851628] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                    8185..65528 | zero-copy                                      | tcp/eth0 |
+[prefill-0] [1790702239.851629] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     65529..inf | multi-frag zero-copy                           | tcp/eth0 |
+[prefill-0] [1790702239.851629] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+------------------------------------------------+----------+
+[prefill-0] [1790702239.853397] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+--------------------------------------------------------------------+
+[prefill-0] [1790702239.853398] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* with reply flag from host memory    |
+[prefill-0] [1790702239.853398] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------+----------+
+[prefill-0] [1790702239.853398] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                              0 | short                                                   | tcp/eth0 |
+[prefill-0] [1790702239.853399] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                       1..65520 | zero-copy                                               | tcp/eth0 |
+[prefill-0] [1790702239.853399] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     65521..inf | multi-frag zero-copy                                    | tcp/eth0 |
+[prefill-0] [1790702239.853399] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------+----------+
+[prefill-0] [1790702239.855148] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+-------------------------------------------------------------------------------------+
+[prefill-0] [1790702239.855149] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* with reply flag(fast-completion) from host memory    |
+[prefill-0] [1790702239.855149] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+--------------------------------------------------------------------------+----------+
+[prefill-0] [1790702239.855149] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                        0..8176 | short                                                                    | tcp/eth0 |
+[prefill-0] [1790702239.855150] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     8177..8184 | multi-frag copy-in                                                       | tcp/eth0 |
+[prefill-0] [1790702239.855158] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                    8185..65520 | zero-copy                                                                | tcp/eth0 |
+[prefill-0] [1790702239.855159] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     65521..inf | multi-frag zero-copy                                                     | tcp/eth0 |
+[prefill-0] [1790702239.855159] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+--------------------------------------------------------------------------+----------+
+[prefill-0] [1790702239.856947] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------------------------+
+[prefill-0] [1790702239.856948] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* with reply flag(multi) from host memory    |
+[prefill-0] [1790702239.856948] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+----------------------------------------------------------------+----------+
+[prefill-0] [1790702239.856949] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                        0..8176 | short                                                          | tcp/eth0 |
+[prefill-0] [1790702239.856949] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                    8177..65520 | zero-copy                                                      | tcp/eth0 |
+[prefill-0] [1790702239.856949] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     65521..inf | multi-frag zero-copy                                           | tcp/eth0 |
+[prefill-0] [1790702239.856950] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+----------------------------------------------------------------+----------+
+[prefill-0] [1790702239.858724] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+-------------------------------------------------------------+
+[prefill-0] [1790702239.858725] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | remote memory write by ucp_put* from host memory to host    |
+[prefill-0] [1790702239.858726] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+------------------------------------------------+------------+
+[prefill-0] [1790702239.858726] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                         0..inf | zero-copy                                      | cma/memory |
+[prefill-0] [1790702239.858727] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+------------------------------------------------+------------+
+[prefill-0] [1790702239.861315] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+--------------------------------------------------------------------+
+[prefill-0] [1790702239.861316] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | remote memory write by ucp_put* from host memory to cuda/dev[0]    |
+[prefill-0] [1790702239.861316] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------+----------+
+[prefill-0] [1790702239.861316] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                         0..inf | software emulation                                      | tcp/eth0 |
+[prefill-0] [1790702239.861317] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------+----------+
+[prefill-0] [1790702239.862662] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+----------------------------------------------------+
+[prefill-0] [1790702239.862663] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* from host memory    |
+[prefill-0] [1790702239.862664] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+-----------------------------------------+----------+
+[prefill-0] [1790702239.862664] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                              0 | short                                   | tcp/eth0 |
+[prefill-0] [1790702239.862665] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                       1..65528 | zero-copy                               | tcp/eth0 |
+[prefill-0] [1790702239.862672] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     65529..inf | multi-frag zero-copy                    | tcp/eth0 |
+[prefill-0] [1790702239.862673] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+-----------------------------------------+----------+
+[prefill-0] [1790702239.864421] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------------------+
+[prefill-0] [1790702239.864421] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send*(fast-completion) from host memory    |
+[prefill-0] [1790702239.864422] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+----------------------------------------------------------+----------+
+[prefill-0] [1790702239.864422] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                        0..8184 | short                                                    | tcp/eth0 |
+[prefill-0] [1790702239.864422] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                    8185..65528 | zero-copy                                                | tcp/eth0 |
+[prefill-0] [1790702239.864423] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     65529..inf | multi-frag zero-copy                                     | tcp/eth0 |
+[prefill-0] [1790702239.864423] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+----------------------------------------------------------+----------+
+[prefill-0] [1790702239.867746] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+-----------------------------------------------------------+
+[prefill-0] [1790702239.867747] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send*(multi) from host memory    |
+[prefill-0] [1790702239.867747] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+------------------------------------------------+----------+
+[prefill-0] [1790702239.867748] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                        0..8184 | short                                          | tcp/eth0 |
+[prefill-0] [1790702239.867748] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                    8185..65528 | zero-copy                                      | tcp/eth0 |
+[prefill-0] [1790702239.867748] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     65529..inf | multi-frag zero-copy                           | tcp/eth0 |
+[prefill-0] [1790702239.867749] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+------------------------------------------------+----------+
+[prefill-0] [1790702239.869492] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+--------------------------------------------------------------------+
+[prefill-0] [1790702239.869492] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* with reply flag from host memory    |
+[prefill-0] [1790702239.869493] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------+----------+
+[prefill-0] [1790702239.869493] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                              0 | short                                                   | tcp/eth0 |
+[prefill-0] [1790702239.869494] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                       1..65520 | zero-copy                                               | tcp/eth0 |
+[prefill-0] [1790702239.869494] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     65521..inf | multi-frag zero-copy                                    | tcp/eth0 |
+[prefill-0] [1790702239.869494] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------+----------+
+[prefill-0] [1790702239.871214] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+-------------------------------------------------------------------------------------+
+[prefill-0] [1790702239.871215] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* with reply flag(fast-completion) from host memory    |
+[prefill-0] [1790702239.871215] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+--------------------------------------------------------------------------+----------+
+[prefill-0] [1790702239.871223] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                        0..8176 | short                                                                    | tcp/eth0 |
+[prefill-0] [1790702239.871224] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     8177..8184 | multi-frag copy-in                                                       | tcp/eth0 |
+[prefill-0] [1790702239.871224] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                    8185..65520 | zero-copy                                                                | tcp/eth0 |
+[prefill-0] [1790702239.871225] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     65521..inf | multi-frag zero-copy                                                     | tcp/eth0 |
+[prefill-0] [1790702239.871225] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+--------------------------------------------------------------------------+----------+
+[prefill-0] [1790702239.873025] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------------------------+
+[prefill-0] [1790702239.873026] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* with reply flag(multi) from host memory    |
+[prefill-0] [1790702239.873026] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+----------------------------------------------------------------+----------+
+[prefill-0] [1790702239.873027] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                        0..8176 | short                                                          | tcp/eth0 |
+[prefill-0] [1790702239.873027] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                    8177..65520 | zero-copy                                                      | tcp/eth0 |
+[prefill-0] [1790702239.873027] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     65521..inf | multi-frag zero-copy                                           | tcp/eth0 |
+[prefill-0] [1790702239.873028] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+----------------------------------------------------------------+----------+
+[prefill-0] [1790702239.874784] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+-------------------------------------------------------------+
+[prefill-0] [1790702239.874785] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | remote memory write by ucp_put* from host memory to host    |
+[prefill-0] [1790702239.874786] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+------------------------------------------------+------------+
+[prefill-0] [1790702239.874786] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                         0..inf | zero-copy                                      | cma/memory |
+[prefill-0] [1790702239.874786] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+------------------------------------------------+------------+
+[prefill-0] [1790702239.877387] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+--------------------------------------------------------------------+
+[prefill-0] [1790702239.877388] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | remote memory write by ucp_put* from host memory to cuda/dev[0]    |
+[prefill-0] [1790702239.877389] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------+----------+
+[prefill-0] [1790702239.877389] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                         0..inf | software emulation                                      | tcp/eth0 |
+[prefill-0] [1790702239.877389] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------+----------+
+[prefill-0] [1790702239.878683] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+----------------------------------------------------+
+[prefill-0] [1790702239.878684] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* from host memory    |
+[prefill-0] [1790702239.878685] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+-----------------------------------------+----------+
+[prefill-0] [1790702239.878693] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                              0 | short                                   | tcp/eth0 |
+[prefill-0] [1790702239.878694] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                       1..65528 | zero-copy                               | tcp/eth0 |
+[prefill-0] [1790702239.878694] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     65529..inf | multi-frag zero-copy                    | tcp/eth0 |
+[prefill-0] [1790702239.878694] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+-----------------------------------------+----------+
+[prefill-0] [1790702239.880466] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------------------+
+[prefill-0] [1790702239.880467] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send*(fast-completion) from host memory    |
+[prefill-0] [1790702239.880467] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+----------------------------------------------------------+----------+
+[prefill-0] [1790702239.880468] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                        0..8184 | short                                                    | tcp/eth0 |
+[prefill-0] [1790702239.880468] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                    8185..65528 | zero-copy                                                | tcp/eth0 |
+[prefill-0] [1790702239.880469] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     65529..inf | multi-frag zero-copy                                     | tcp/eth0 |
+[prefill-0] [1790702239.880469] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+----------------------------------------------------------+----------+
+[prefill-0] [1790702239.883925] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+-----------------------------------------------------------+
+[prefill-0] [1790702239.883926] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send*(multi) from host memory    |
+[prefill-0] [1790702239.883927] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+------------------------------------------------+----------+
+[prefill-0] [1790702239.883927] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                        0..8184 | short                                          | tcp/eth0 |
+[prefill-0] [1790702239.883928] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                    8185..65528 | zero-copy                                      | tcp/eth0 |
+[prefill-0] [1790702239.883928] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     65529..inf | multi-frag zero-copy                           | tcp/eth0 |
+[prefill-0] [1790702239.883928] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+------------------------------------------------+----------+
+[prefill-0] [1790702239.885673] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+--------------------------------------------------------------------+
+[prefill-0] [1790702239.885674] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* with reply flag from host memory    |
+[prefill-0] [1790702239.885674] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------+----------+
+[prefill-0] [1790702239.885675] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                              0 | short                                                   | tcp/eth0 |
+[prefill-0] [1790702239.885675] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                       1..65520 | zero-copy                                               | tcp/eth0 |
+[prefill-0] [1790702239.885675] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   |                     65521..inf | multi-frag zero-copy                                    | tcp/eth0 |
+[prefill-0] [1790702239.885676] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+---------------------------------------------------------+----------+
+[prefill-0] [1790702239.887390] [vllm-pd-5dcdd769d9-w6h5t:786  :0]   +--------------------------------+----------------(EngineCore pid=786) 2026-09-29 17:17:19 NIXL INFO    _api.py:390 Backend UCX was instantiated
+[prefill-0] (EngineCore pid=786) 2026-09-29 17:17:19 NIXL INFO    _api.py:268 Initialized NIXL agent: 21a7666a-f0e0-4d30-8f30-bd31351db247
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:17:19 [base_worker.py:603] Detected attention backend(s) ['TRITON_ATTN']
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:17:19 [base_worker.py:607] Detected kv cache layout LBHNC
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:17:19 [base_worker.py:1131] Registering KV_Caches. use_mla: False, kv_buffer_device: cpu, use_host_buffer: True
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:17:23 [kernel_warmup.py:124] JIT kernel warmup starting.
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:17:23 [kernel_warmup.py:134] JIT kernel warmup finished in 0.00s.
+[decode-0] (APIServer pid=163) INFO:     192.168.108.212:45970 - "GET /metrics HTTP/1.1" 200 OK
+[prefill-0] (EngineCore pid=786) 
+Capturing CUDA graphs (PIECEWISE):   0%|          | 0/35 [00:00<?, ?it/s]
+Capturing CUDA graphs (PIECEWISE):   6%|▌         | 2/35 [00:00<00:03, 10.73it/s]
+Capturing CUDA graphs (PIECEWISE):  11%|█▏        | 4/35 [00:00<00:02, 10.88it/s]
+Capturing CUDA graphs (PIECEWISE):  17%|█▋        | 6/35 [00:00<00:02, 10.98it/s]
+Capturing CUDA graphs (PIECEWISE):  23%|██▎       | 8/35 [00:00<00:02, 11.05it/s]
+Capturing CUDA graphs (PIECEWISE):  29%|██▊       | 10/35 [00:00<00:02, 11.08it/s]
+Capturing CUDA graphs (PIECEWISE):  34%|███▍      | 12/35 [00:01<00:02, 11.05it/s]
+Capturing CUDA graphs (PIECEWISE):  40%|████      | 14/35 [00:01<00:01, 11.05it/s]
+Capturing CUDA graphs (PIECEWISE):  46%|████▌     | 16/35 [00:01<00:01, 11.06it/s]
+Capturing CUDA graphs (PIECEWISE):  51%|█████▏    | 18/35 [00:01<00:01, 11.56it/s]
+Capturing CUDA graphs (PIECEWISE):  57%|█████▋    | 20/35 [00:01<00:01, 11.72it/s]
+Capturing CUDA graphs (PIECEWISE):  63%|██████▎   | 22/35 [00:01<00:01, 12.16it/s]
+Capturing CUDA graphs (PIECEWISE):  69%|██████▊   | 24/35 [00:02<00:00, 12.33it/s]
+Capturing CUDA graphs (PIECEWISE):  74%|███████▍  | 26/35 [00:02<00:00, 12.70it/s]
+Capturing CUDA graphs (PIECEWISE):  80%|████████  | 28/35 [00:02<00:00, 12.98it/s]
+Capturing CUDA graphs (PIECEWISE):  86%|████████▌ | 30/35 [00:02<00:00, 13.24it/s]
+Capturing CUDA graphs (PIECEWISE):  91%|█████████▏| 32/35 [00:02<00:00, 13.29it/s]
+Capturing CUDA graphs (PIECEWISE):  97%|█████████▋| 34/35 [00:02<00:00, 13.31it/s]
+Capturing CUDA graphs (PIECEWISE): 100%|██████████| 35/35 [00:02<00:00, 12.11it/s]
+[prefill-0] (EngineCore pid=786) 
+Capturing CUDA graphs (FULL):   0%|          | 0/19 [00:00<?, ?it/s]
+Capturing CUDA graphs (FULL):  11%|█         | 2/19 [00:00<00:01, 14.40it/s]
+Capturing CUDA graphs (FULL):  21%|██        | 4/19 [00:00<00:01, 13.85it/s]
+Capturing CUDA graphs (FULL):  32%|███▏      | 6/19 [00:00<00:00, 14.17it/s]
+Capturing CUDA graphs (FULL):  42%|████▏     | 8/19 [00:00<00:00, 14.21it/s]
+Capturing CUDA graphs (FULL):  53%|█████▎    | 10/19 [00:00<00:00, 14.62it/s]
+Capturing CUDA graphs (FULL):  63%|██████▎   | 12/19 [00:00<00:00, 14.92it/s]
+Capturing CUDA graphs (FULL):  74%|███████▎  | 14/19 [00:00<00:00, 15.14it/s]
+Capturing CUDA graphs (FULL):  84%|████████▍ | 16/19 [00:01<00:00, 15.11it/s]
+Capturing CUDA graphs (FULL):  95%|█████████▍| 18/19 [00:01<00:00, 15.16it/s]
+Capturing CUDA graphs (FULL): 100%|██████████| 19/19 [00:01<00:00, 14.82it/s]
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:17:28 [model_runner.py:960] Graph capturing finished in 5 secs, took 0.12 GiB
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:17:28 [gpu_worker.py:797] CUDA graph pool memory: 0.12 GiB (actual), 0.29 GiB (estimated), difference: 0.17 GiB (138.1%).
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:17:28 [gpu_worker.py:860] Free memory on device (21.84/22.03 GiB) on startup. Desired GPU memory utilization is (0.9, 19.83 GiB). Actual usage is 9.01 GiB for consumed memory (weights + non-torch), 1.55 GiB for peak activation, and 0.12 GiB for CUDAGraph memory. Replace gpu_memory_utilization config with `--kv-cache-memory=9660429312` (9.0 GiB) to fit into requested memory, or `--kv-cache-memory=11822920704` (11.01 GiB) to fully utilize gpu memory. Current kv cache memory in use is 9.27 GiB.
+[decode-0] (APIServer pid=163) INFO:     192.168.108.212:45970 - "GET /metrics HTTP/1.1" 200 OK
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:17:30 [jit_monitor.py:85] Kernel JIT monitor activated; monitored JIT compilations during inference will use mode=warn.
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:17:31 [torch_utils.py:277] Reducing Torch threads from 24 to 1 for serving. Set OMP_NUM_THREADS in the external environment to override.
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:17:31 [core.py:361] init engine (profile, create kv cache, warmup model) took 79.16 s (compilation: 38.20 s)
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:17:31 [factory.py:62] Creating v1 connector with name: NixlPullConnector and engine_id: 894f22ba-b38e-4902-8196-90a552f7a5aa
+[prefill-0] (EngineCore pid=786) WARNING 09-29 17:17:31 [base.py:203] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:17:31 [base_scheduler.py:101] Initializing NIXL Scheduler 894f22ba-b38e-4902-8196-90a552f7a5aa
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:17:31 [perf.py:1279] Instantiated ComponentMetrics [attn] with (num_hidden_layers=36 hidden_size=4096 num_attention_heads=32 activation_byte_size=2 tp_size=1 pp_size=1 num_key_value_heads=8 head_dim=128 cache_byte_size=1 weight_byte_size=1)
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:17:31 [perf.py:1279] Instantiated ComponentMetrics [ffn] with (num_hidden_layers=36 hidden_size=4096 activation_byte_size=2 pp_size=1 ffn_tp_size=1 ffn_ep_size=1 intermediate_size=12288 num_experts=0 num_experts_per_tok=0 moe_intermediate_size=12288 num_shared_experts=0 num_moe_layers=0 weight_byte_size=1)
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:17:31 [perf.py:1279] Instantiated ComponentMetrics [unembed] with (hidden_size=4096 vocab_size=151936 weight_byte_size=2 activation_byte_size=2 tp_size=1)
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:17:31 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+[prefill-0] (EngineCore pid=786) INFO 09-29 17:17:32 [compilation.py:329] Enabled custom fusions: norm_quant, act_quant
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [entry.py:135] Supported tasks: ['generate']
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [hf.py:547] Detected the chat template content format to be 'string'. You can set `--chat-template-content-format` to override this.
+[prefill-0] (APIServer pid=157) WARNING 09-29 17:17:32 [model.py:1759] Default vLLM sampling parameters have been overridden by the model's `generation_config.json`: `{'temperature': 0.6, 'top_k': 20, 'top_p': 0.95}`. If this is not intended, please relaunch vLLM instance with `--generation-config vllm`.
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [entry.py:139] Starting vLLM server on http://0.0.0.0:8100
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:61] Available routes are:
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /openapi.json, Methods: HEAD, GET
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /docs, Methods: HEAD, GET
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /docs/oauth2-redirect, Methods: HEAD, GET
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /redoc, Methods: HEAD, GET
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /load, Methods: GET
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /version, Methods: GET
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /health, Methods: GET
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /metrics, Methods: GET
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /tokenize, Methods: POST
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /detokenize, Methods: POST
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /v1/models, Methods: GET
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /ping, Methods: GET
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /ping, Methods: POST
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /invocations, Methods: POST
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /v1/chat/completions, Methods: POST
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /v1/chat/completions/batch, Methods: POST
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /v1/responses, Methods: POST
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /v1/responses/{response_id}, Methods: GET
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /v1/responses/{response_id}/cancel, Methods: POST
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /v1/completions, Methods: POST
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /v1/messages, Methods: POST
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /v1/messages/count_tokens, Methods: POST
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /generative_scoring, Methods: POST
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /scale_elastic_ep, Methods: POST
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /is_scaling_elastic_ep, Methods: POST
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /v1/chat/completions/render, Methods: POST
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /v1/messages/render, Methods: POST
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /v1/completions/render, Methods: POST
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /v1/chat/completions/derender, Methods: POST
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /v1/completions/derender, Methods: POST
+[prefill-0] (APIServer pid=157) INFO 09-29 17:17:32 [launcher.py:70] Route: /inference/v1/generate, Methods: POST
+[prefill-0] (APIServer pid=157) INFO:     Started server process [157]
+[prefill-0] (APIServer pid=157) INFO:     Waiting for application startup.
+[prefill-0] (APIServer pid=157) INFO:     Application startup complete.
+[prefill-0] (APIServer pid=157) INFO:     192.168.108.212:50354 - "GET /metrics HTTP/1.1" 200 OK
+[decode-0] (APIServer pid=163) INFO:     192.168.108.212:45970 - "GET /metrics HTTP/1.1" 200 OK
+[prefill-0] (APIServer pid=157) INFO:     127.0.0.1:39896 - "GET /metrics HTTP/1.1" 200 OK
+[decode-0] (APIServer pid=163) INFO:     127.0.0.1:58274 - "GET /metrics HTTP/1.1" 200 OK
+[prefill-0] (APIServer pid=157) INFO:     127.0.0.1:39896 - "GET /health HTTP/1.1" 200 OK
+[decode-0] (APIServer pid=163) INFO:     127.0.0.1:58274 - "GET /health HTTP/1.1" 200 OK
+[prefill-0] (APIServer pid=157) INFO:     127.0.0.1:39896 - "GET /health HTTP/1.1" 200 OK
+[decode-0] (APIServer pid=163) INFO:     127.0.0.1:58274 - "GET /health HTTP/1.1" 200 OK

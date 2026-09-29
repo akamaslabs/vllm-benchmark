@@ -226,14 +226,12 @@ Nothing below has been done — each is a deliberate step for the user to confir
    `sharing_mode` (checked on the built JSON). Installing needs an Akamas login with the
    **Administrator** role in the toolbox; the toolbox session was not logged in / not
    admin on 2026-09-29 evening.
-2. **dcgm-exporter** must scrape `llm-serving-g7-4500`. It is one shared release, pinned on
-   2026-09-29 to `llm-serving-l4` for **study 24** (`studies/24-l4-pd-kernels`, RUNNING).
-   Either wait for study 24 to end and re-point it (`k8s/monitoring/dcgm-exporter-
-   values.yaml`), or cover BOTH nodes with a nodeAffinity `node-role In
-   [llm-serving-l4, llm-serving-g7-4500]`: safe for studies 24 and 25 (24 filters DCGM on
-   `exported_pod`, 25 on `modelName`), NOT for studies 0-17 (they use `pod: .*`), and the
-   upgrade restarts the L4 exporter pod, so do it between two study-24 experiments.
-   Without it this study has no GPU metrics.
+2. **dcgm-exporter** — DONE 2026-09-29 (helm revision 22 of the shared release): it now
+   covers BOTH `llm-serving-l4` and `llm-serving-g7-4500` with a nodeAffinity
+   (`k8s/monitoring/dcgm-exporter-values.yaml`). Checked in Prometheus right after: the
+   RTX PRO 4500 series are there, the four L4s still are, and study 24's
+   `exported_pod=~"vllm-pd.*"` filter sees only the L4s. Safe for studies 24 and 25; NOT
+   for studies 0-17 (`pod: .*`) — pin the exporter back before resuming any of them.
 3. **Do not overlap** with another study whose AIPerf Job runs on `system-m8a` (4 vCPU)
    unless both fit: this Job requests 1500m (study 24's requests 2). And studies 4-17
    must not be resumed while this one runs: their vLLM components use `model: .*` /

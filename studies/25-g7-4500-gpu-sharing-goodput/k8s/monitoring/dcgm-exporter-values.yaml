@@ -1,20 +1,24 @@
-# dcgm-exporter values for 25-g7-4500-gpu-sharing-goodput — NOT YET APPLIED.
+# dcgm-exporter values for 25-g7-4500-gpu-sharing-goodput — APPLIED 2026-09-29 (helm
+# revision 22 of the shared release), scraping BOTH GPU nodes.
 #
 # dcgm-exporter is ONE shared helm release (monitoring/dcgm-exporter, chart 4.8.3) that
 # is re-pointed at whichever GPU node group the running study uses: every study's DCGM
 # queries filter on pod/gpu only, so scraping two GPU nodes at once would average or sum
 # across them (see study 17's infra/eks/gpu-capacity-fallback.sh, dcgm_cover). On
-# 2026-09-29 it is pinned to llm-serving-l4 for study 24 (studies/24-l4-pd-kernels), which
-# is RUNNING. Switching it here takes study 24's GPU telemetry away, so it is a deliberate
-# step, done only on the user's go-ahead (README "Before starting" #2, which also gives the
-# both-nodes nodeAffinity alternative):
+# 2026-09-29 it was pinned to llm-serving-l4 for study 24 (studies/24-l4-pd-kernels,
+# RUNNING). Instead of re-pointing it (which would take study 24's GPU telemetry away),
+# the user chose to cover both nodes with a nodeAffinity. That is safe for the two studies
+# that can run now: study 24 filters every DCGM query on exported_pod=~vllm-pd, study 25
+# on modelName=~RTX PRO 4500. It is NOT safe for studies 0-17, whose GPU components use
+# pod: .* and would average or sum across the L4s and the RTX PRO 4500: if one of them is
+# ever resumed, pin the exporter back to its own node first. Applied with:
 #
 #   helm upgrade dcgm-exporter gpu-helm-charts/dcgm-exporter -n monitoring \
 #     --version 4.8.3 --reuse-values=false -f k8s/monitoring/dcgm-exporter-values.yaml
 #
-# Two differences from the L4 values: the node-role, and a toleration for the node's
-# akamas.io/gpu-sharing taint (infra/README.md), without which the exporter would not
-# schedule on this node at all.
+# Two differences from the L4-only values: node selection by nodeAffinity over both node
+# roles, and a toleration for the g7 node's akamas.io/gpu-sharing taint (infra/README.md),
+# without which the exporter would not schedule there at all.
 #
 # Phase 0 facts the telemetry depends on (dcgm-exporter 4.6.0-4.8.3, these counters):
 #   - mig: one series per slice (label GPU_I_ID). No DEV_GPU_UTIL, no PROF_DRAM_ACTIVE,
@@ -23,8 +27,16 @@
 #   - time_slicing / mps: one series whose `pod` label names only ONE of the two pods.
 #   - mps: DEV_GPU_UTIL reads 0 under load (NVML does not see MPS client kernels).
 #   - PROF_* series appear only a few sampling cycles after the exporter starts.
-nodeSelector:
-  node-role: llm-serving-g7-4500
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: node-role
+              operator: In
+              values:
+                - llm-serving-l4
+                - llm-serving-g7-4500
 tolerations:
   - key: nvidia.com/gpu
     operator: Exists

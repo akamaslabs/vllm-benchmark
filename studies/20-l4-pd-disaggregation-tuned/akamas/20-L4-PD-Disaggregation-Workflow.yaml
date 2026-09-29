@@ -11,9 +11,11 @@ name: 20-L4-PD-Disaggregation-Workflow
 #   Apply config  40 m — the Deployment's progressDeadlineSeconds is 1200 s and
 #                       apply_config.sh polls for up to 1500 s, plus the log dump.
 #   RunTest       95 m — 6 levels x 600 s = 60 min of load, plus pip install and synthetic
-#                       dataset generation. run_test_tps.sh's own `kubectl wait` (4800 s =
-#                       80 min) stays BELOW this, or Akamas kills the task before the script
-#                       dumps the job's logs.
+#                       dataset generation. run_test_tps.sh's own deadline (4800 s = 80 min)
+#                       stays BELOW this, or Akamas kills the task before the script dumps the
+#                       job's logs. Since 2026-09-29 the script also fails fast: failed AIPerf
+#                       job, serving-pod restart or replacement, or no completed request for
+#                       15 min (see its header).
 tasks:
   - name: Write config
     operator: FileConfigurator

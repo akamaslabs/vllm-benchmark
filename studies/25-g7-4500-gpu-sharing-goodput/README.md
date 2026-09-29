@@ -1,8 +1,8 @@
 # 25-g7-4500-gpu-sharing-goodput
 
-**Status:** TODO — built locally 2026-09-29, not synced to the toolbox, not created in
-Akamas (see "Before starting").
-**Dates:** —
+**Status:** RUNNING — created and started on Akamas 2026-09-29 21:25 UTC (GPU pack 1.3.0
+installed, dcgm-exporter covering both GPU nodes).
+**Dates:** 2026-09-29 –
 
 ## Objective
 

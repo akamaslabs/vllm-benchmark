@@ -1,7 +1,27 @@
 # 23-L4-PD-New-Constraint-CPU-KV
 
-**Status:** RUNNING (created and started 2026-09-28)
-**Dates:** created 2026-09-28
+**Status:** FINISHED (stopped 2026-09-29 after 17 experiments, 2 in error)
+**Dates:** created 2026-09-28, stopped 2026-09-29
+
+## Recap (2026-09-29)
+
+**Nothing usable came out of this study.** No experiment beat the bootstrapped P1D1 of study
+22 (1382.61); the random and AKAMAS experiments scored 319-1122. The search space and the
+constraints had problems that study 24 fixes, so its scores are not worth analysing further:
+
+- The latency constraints averaged six 30 s p95s: scores near the limits moved by up to ~30%
+  with the sample alignment (study 24: p95 over 150 s with `:max`).
+- `NixlPushConnector` with a host buffer pushed TTFT above 10 s from concurrency 8, and
+  multi-decode topologies wasted GPUs on this prefill-bound load: both used a large part of
+  the trials (study 24: pull only).
+- Experiments 12-13 crashed with prefill CUDA OOM (`gpu_memory_utilization` ~0.92 with ~16k
+  batched tokens on the Triton kernel); the workflow then waited 80 min per dead trial until
+  the fail-fast fix (study 24: OOM guard constraint).
+- The prefill kernel was fixed (Triton default) and the decode kernel was Marlin, while the
+  kernel choice changes the prefill step more than any scheduler parameter (study 24: kernel
+  backends in the search space).
+
+The details are in the research notes (`vllm_learnings.md`) and in study 24's README.
 
 > Disaggregation-only optimization with a "no queue" goal. It **reuses study 20's system,
 > telemetry instance and workflow** (the precedent of studies 14, 16 and 21), so the imported

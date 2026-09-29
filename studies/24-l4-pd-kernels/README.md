@@ -1,6 +1,9 @@
 # 24-L4-PD-Kernels
 
-**Status:** PREPARED (not created on Akamas yet, 2026-09-29)
+**Status:** RUNNING (created and started 2026-09-29 18:24 UTC; study id 2f1a2b8f-8d17-4e75-a200-c03cf2b5ba2a)
+**Start note:** the first `akamas start` failed: Airflow registered the new study DAG after
+the campaign service timeout, so the study stayed RUNNING with no experiment, and a restart
+is refused (RUNNING -> RUNNING). Fix: delete the study, create it again, start it again.
 **Needs:** vLLM optimization pack **1.12.0** installed (`linear_backend`, `attention_backend`
 value `auto`, `tuned_kernel_configs`, `time_to_first_token_p95_150s`,
 `inter_token_latency_p95_150s`).

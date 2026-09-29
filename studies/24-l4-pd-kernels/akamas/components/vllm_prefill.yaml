@@ -1,0 +1,10 @@
+kind: component
+system: vLLM_Benchmark_24_L4_PD_Kernels
+name: vllm_prefill
+description: "The prefill vLLM instances (kv_producer; served name qwen3-8b-prefill). No series in aggregated presets."
+componentType: vLLM
+properties:
+  prometheus:
+    pod: "^vllm-pd-[a-z0-9]+-[a-z0-9]+$"
+    model: qwen3-8b-prefill
+    endpoint: "prefill-.*"

@@ -1,0 +1,403 @@
+kind: study
+name: 24-L4-PD-Kernels
+description: >-
+  Study 24: prefill/decode disaggregation of Qwen/Qwen3-8B-FP8 (vLLM 0.29.0, NixlConnector,
+  host-staged KV) on one g6.12xlarge (4x L4), with the kernel backends in the search space:
+  linear (GEMM) backend per role (marlin / humming / triton), one attention backend and one
+  KV cache dtype for both roles, and the tuned Triton FP8 configs on/off. Goal: tokens/s per
+  active GPU at the highest load where neither role queues (waiting <= 1 on each role), TTFT
+  p95 <= 10 s and ITL p95 <= 75 ms, both p95 over 150 s read with :max. Steps: a re-run
+  aggregated baseline, 11 presets (kernel one factor at a time on P1D1, then the expected best
+  kernels on 2P1D/1P2D/2P2D/3P1D), then 60 AKAMAS experiments. Needs vLLM pack 1.12.0.
+# Own system, telemetry instance and workflow (akamas/system.yaml, components/, telemetry/,
+# 24-L4-PD-Kernels-Workflow.yaml); the workflow runs studies/24-l4-pd-kernels/k8s.
+# Kernel choices and their measured effect: k8s/01-deployment_template.yaml ("Kernel
+# backends") and kernel-bench/README.md. Expected results per preset: README.md.
+# Preset values are written out in full (no YAML anchors/merge keys): the Akamas CLI parser
+# was not checked for merge-key support.
+system: vLLM_Benchmark_24_L4_PD_Kernels
+workflow: 24-L4-PD-Kernels-Workflow
+
+# Same goal as studies 22-23: tokens/s per GPU holding weights, all terms from pd_topology
+# (the router). Latency constraints change: the p95 is taken over 150 s (the span of the
+# 6-sample stability window) and aggregated with :max, instead of the average of six 30 s
+# p95s. The 30 s p95 made the score of configs near the limits depend on sample alignment
+# (study 22's P1D1: 986 / 1399 / 1383 for offsets of 0 / 10 / 20 s). See the STUDY 24 note in
+# telemetry/prometheus.yaml. TTFT stays at 10 s: the kernel differences show at high load,
+# where the prefill is the bottleneck; a 5 s limit would cut the windows near concurrency 8.
+# A 5 s view can be recomputed afterwards from Prometheus.
+goal:
+  objective: maximize
+  function:
+    formula: pd_topology.total_token_throughput / pd_topology.active_gpus
+    unit: tokens per second/gpus
+  constraints:
+    absolute:
+      - name: TTFT P95 over 150 s at the router
+        formula: pd_topology.time_to_first_token_p95_150s:max <= 10000
+      - name: ITL P95 over 150 s at the router
+        formula: pd_topology.inter_token_latency_p95_150s:max <= 75
+      - name: request waiting for prefill
+        formula: vllm_prefill.num_requests_waiting <= 1
+      - name: request waiting for decode
+        formula: vllm_decode.num_requests_waiting <= 1
+
+windowing:
+  type: stability
+  stability:
+    metric: pd_topology.total_token_throughput
+    width: 6
+    maxStdDev: 300000000
+    when:
+      metric: pd_topology.total_token_throughput
+      is: max
+
+numberOfTrials: 1
+
+# Kernel domains from kernel-bench (2026-09-29):
+# - prefill linear: triton (-36% prefill step against Marlin), humming (-24%), marlin (the
+#   reference; auto selects Marlin on L4, so auto is not listed separately).
+# - decode linear: marlin and humming (equal); triton is slower on decode (+8% TPOT even
+#   tuned), so it is out.
+# - attention: FLASHINFER and FLASH_ATTN (equal prefill step); TRITON_ATTN is 14% slower on
+#   prefill, so it is out. One parameter for both roles (NIXL compatibility hash): the
+#   template renders vllm_decode.attention_backend and vllm_decode.kv_cache_dtype in
+#   common.args. vllm_prefill.attention_backend / kv_cache_dtype must NOT be selected, and no
+#   equality constraint between two categoricals may be written (it breaks the AKAMAS step).
+# - tuned_kernel_configs: -4% prefill step for triton. One value for the pod.
+# Topology: prefill 0-3, decode 1-2 (0 prefill = aggregated replicas, for the baseline). The
+# connector is pinned to NixlConnector (push: TTFT above 10 s at concurrency 8 in study 23) and
+# the buffer to cpu (no GPU P2P), by constraints: a one-value domain is rejected.
+parametersSelection:
+  - name: pd_topology.pd_prefill_instances
+    domain: [0, 3]
+  - name: pd_topology.pd_decode_instances
+    domain: [1, 2]
+  - name: pd_topology.pd_kv_connector
+    categories: ["NixlConnector", "NixlPushConnector"]
+  - name: pd_topology.pd_kv_buffer_device
+    categories: ["cuda", "cpu"]
+  - name: vllm_prefill.gpu_memory_utilization
+    domain: [0.8, 0.92]
+  - name: vllm_prefill.max_num_seqs
+    domain: [8, 512]
+  - name: vllm_prefill.max_num_batched_tokens
+    domain: [512, 16384]
+  - name: vllm_prefill.linear_backend
+    categories: ["marlin", "humming", "triton"]
+  - name: vllm_decode.gpu_memory_utilization
+    domain: [0.8, 0.92]
+  - name: vllm_decode.max_num_seqs
+    domain: [8, 512]
+  - name: vllm_decode.max_num_batched_tokens
+    domain: [512, 16384]
+  - name: vllm_decode.linear_backend
+    categories: ["marlin", "humming"]
+  - name: vllm_decode.attention_backend
+    categories: ["FLASHINFER", "FLASH_ATTN"]
+  - name: vllm_decode.kv_cache_dtype
+    categories: ["auto", "fp8"]
+  - name: vllm_decode.tuned_kernel_configs
+    categories: ["true", "false"]
+
+# Every constraint with a quoted value or || is evaluated as a boolean (rejection sampling).
+parameterConstraints:
+  - name: one GPU per instance, 4 L4s in the pod
+    formula: pd_topology.pd_prefill_instances + pd_topology.pd_decode_instances <= 4
+  - name: decode batch budget covers its sequence cap
+    formula: vllm_decode.max_num_batched_tokens >= vllm_decode.max_num_seqs
+  - name: prefill batch budget covers its sequence cap
+    formula: vllm_prefill.max_num_batched_tokens >= vllm_prefill.max_num_seqs
+  - name: pull connector (push breaks TTFT with a host buffer, study 23)
+    formula: pd_topology.pd_kv_connector == "NixlConnector"
+  - name: host-staged KV transfer (no GPU P2P on g6.12xlarge)
+    formula: pd_topology.pd_kv_buffer_device == "cpu"
+  - name: FLASH_ATTN is FlashAttention 2 on sm89 and rejects an fp8 KV cache
+    formula: vllm_decode.attention_backend != "FLASH_ATTN" || vllm_decode.kv_cache_dtype == "auto"
+  - name: tuned configs matter only for the triton linear backend (no duplicate points)
+    formula: vllm_decode.tuned_kernel_configs == "false" || vllm_prefill.linear_backend == "triton"
+  # Prefill OOM of study 23 experiments 12-13 (0.92 with ~16k batched tokens, triton: the
+  # 768 MiB gate/up output did not fit). Headroom (1 - gmu) x 22.03 GiB must cover ~0.16 MiB
+  # per batched token. Calibrated on 2 crashes and 3 good runs.
+  - name: prefill activation headroom for the batched tokens
+    formula: vllm_prefill.gpu_memory_utilization * 22.03 + vllm_prefill.max_num_batched_tokens * 0.00016 <= 22.03
+
+# At most 8 (Akamas 3.7).
+kpis:
+  - name: Throughput totale
+    formula: pd_topology.total_token_throughput
+    direction: maximize
+  - name: TTFT P95 150s (router)
+    formula: pd_topology.time_to_first_token_p95_150s
+    direction: minimize
+    aggregation: max
+  - name: ITL P95 150s (router)
+    formula: pd_topology.inter_token_latency_p95_150s
+    direction: minimize
+    aggregation: max
+  - name: Richieste in esecuzione decode (picco)
+    formula: vllm_decode.num_requests_running
+    direction: maximize
+    aggregation: max
+  - name: Utilizzo KV cache decode
+    formula: vllm_decode.kv_cache_usage_avg
+    direction: maximize
+  - name: Richieste in coda prefill (picco)
+    formula: vllm_prefill.num_requests_waiting
+    direction: minimize
+    aggregation: max
+  - name: Tempo in coda P95 prefill
+    formula: vllm_prefill.request_queue_time_p95
+    direction: minimize
+  - name: Preemption decode (picco)
+    formula: vllm_decode.preemption_rate
+    direction: minimize
+    aggregation: max
+
+# Baseline + 11 presets + 60 AKAMAS (~65 min per experiment, about 78 h in total).
+steps:
+  # Study 20's baseline re-run with this study's telemetry: 2 aggregated replicas, vLLM
+  # defaults for the scheduler and KV (not rendered), Marlin, FLASHINFER as in study 20 (with
+  # bf16 KV, attention auto would select FLASH_ATTN), no tuned configs.
+  - name: baseline aggregated
+    type: baseline
+    values:
+      pd_topology.pd_prefill_instances: 0
+      pd_topology.pd_decode_instances: 2
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.linear_backend: "marlin"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.linear_backend: "marlin"
+      vllm_decode.attention_backend: "FLASHINFER"
+      vllm_decode.tuned_kernel_configs: "false"
+    doNotRenderParameters:
+      - vllm_prefill.max_num_seqs
+      - vllm_prefill.max_num_batched_tokens
+      - vllm_decode.max_num_seqs
+      - vllm_decode.max_num_batched_tokens
+      - vllm_decode.kv_cache_dtype
+
+  # P1D1 with study 22's experiment 2 settings: gmu 0.9, 128 seqs, 8192 batched tokens on
+  # both roles, bf16 KV, FLASHINFER, decode Marlin. One kernel factor changes per preset.
+  - name: P1D1 prefill marlin
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 1
+      pd_topology.pd_decode_instances: 1
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 128
+      vllm_prefill.max_num_batched_tokens: 8192
+      vllm_prefill.linear_backend: "marlin"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 128
+      vllm_decode.max_num_batched_tokens: 8192
+      vllm_decode.linear_backend: "marlin"
+      vllm_decode.attention_backend: "FLASHINFER"
+      vllm_decode.kv_cache_dtype: "auto"
+      vllm_decode.tuned_kernel_configs: "false"
+
+  - name: P1D1 prefill humming
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 1
+      pd_topology.pd_decode_instances: 1
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 128
+      vllm_prefill.max_num_batched_tokens: 8192
+      vllm_prefill.linear_backend: "humming"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 128
+      vllm_decode.max_num_batched_tokens: 8192
+      vllm_decode.linear_backend: "marlin"
+      vllm_decode.attention_backend: "FLASHINFER"
+      vllm_decode.kv_cache_dtype: "auto"
+      vllm_decode.tuned_kernel_configs: "false"
+
+  # Study 22's experiment 2 re-run (prefill triton, default config): a repeatability check
+  # against its 1382.61 (1344-1518 recomputed with the 150 s p95).
+  - name: P1D1 prefill triton default
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 1
+      pd_topology.pd_decode_instances: 1
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 128
+      vllm_prefill.max_num_batched_tokens: 8192
+      vllm_prefill.linear_backend: "triton"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 128
+      vllm_decode.max_num_batched_tokens: 8192
+      vllm_decode.linear_backend: "marlin"
+      vllm_decode.attention_backend: "FLASHINFER"
+      vllm_decode.kv_cache_dtype: "auto"
+      vllm_decode.tuned_kernel_configs: "false"
+
+  # The expected best kernels: prefill triton with tuned configs, decode Marlin, FLASHINFER,
+  # bf16 KV. The next presets change one factor from this one.
+  - name: P1D1 prefill triton tuned
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 1
+      pd_topology.pd_decode_instances: 1
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 128
+      vllm_prefill.max_num_batched_tokens: 8192
+      vllm_prefill.linear_backend: "triton"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 128
+      vllm_decode.max_num_batched_tokens: 8192
+      vllm_decode.linear_backend: "marlin"
+      vllm_decode.attention_backend: "FLASHINFER"
+      vllm_decode.kv_cache_dtype: "auto"
+      vllm_decode.tuned_kernel_configs: "true"
+
+  - name: P1D1 decode humming
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 1
+      pd_topology.pd_decode_instances: 1
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 128
+      vllm_prefill.max_num_batched_tokens: 8192
+      vllm_prefill.linear_backend: "triton"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 128
+      vllm_decode.max_num_batched_tokens: 8192
+      vllm_decode.linear_backend: "humming"
+      vllm_decode.attention_backend: "FLASHINFER"
+      vllm_decode.kv_cache_dtype: "auto"
+      vllm_decode.tuned_kernel_configs: "true"
+
+  - name: P1D1 kv fp8
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 1
+      pd_topology.pd_decode_instances: 1
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 128
+      vllm_prefill.max_num_batched_tokens: 8192
+      vllm_prefill.linear_backend: "triton"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 128
+      vllm_decode.max_num_batched_tokens: 8192
+      vllm_decode.linear_backend: "marlin"
+      vllm_decode.attention_backend: "FLASHINFER"
+      vllm_decode.kv_cache_dtype: "fp8"
+      vllm_decode.tuned_kernel_configs: "true"
+
+  - name: P1D1 flash attn
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 1
+      pd_topology.pd_decode_instances: 1
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 128
+      vllm_prefill.max_num_batched_tokens: 8192
+      vllm_prefill.linear_backend: "triton"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 128
+      vllm_decode.max_num_batched_tokens: 8192
+      vllm_decode.linear_backend: "marlin"
+      vllm_decode.attention_backend: "FLASH_ATTN"
+      vllm_decode.kv_cache_dtype: "auto"
+      vllm_decode.tuned_kernel_configs: "true"
+
+  # The expected best kernels on the other topologies, for the full picture.
+  - name: P2D1 best kernels
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 2
+      pd_topology.pd_decode_instances: 1
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 128
+      vllm_prefill.max_num_batched_tokens: 8192
+      vllm_prefill.linear_backend: "triton"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 128
+      vllm_decode.max_num_batched_tokens: 8192
+      vllm_decode.linear_backend: "marlin"
+      vllm_decode.attention_backend: "FLASHINFER"
+      vllm_decode.kv_cache_dtype: "auto"
+      vllm_decode.tuned_kernel_configs: "true"
+
+  - name: P1D2 best kernels
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 1
+      pd_topology.pd_decode_instances: 2
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 128
+      vllm_prefill.max_num_batched_tokens: 8192
+      vllm_prefill.linear_backend: "triton"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 128
+      vllm_decode.max_num_batched_tokens: 8192
+      vllm_decode.linear_backend: "marlin"
+      vllm_decode.attention_backend: "FLASHINFER"
+      vllm_decode.kv_cache_dtype: "auto"
+      vllm_decode.tuned_kernel_configs: "true"
+
+  - name: P2D2 best kernels
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 2
+      pd_topology.pd_decode_instances: 2
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 128
+      vllm_prefill.max_num_batched_tokens: 8192
+      vllm_prefill.linear_backend: "triton"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 128
+      vllm_decode.max_num_batched_tokens: 8192
+      vllm_decode.linear_backend: "marlin"
+      vllm_decode.attention_backend: "FLASHINFER"
+      vllm_decode.kv_cache_dtype: "auto"
+      vllm_decode.tuned_kernel_configs: "true"
+
+  - name: P3D1 best kernels
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 3
+      pd_topology.pd_decode_instances: 1
+      pd_topology.pd_kv_connector: "NixlConnector"
+      pd_topology.pd_kv_buffer_device: "cpu"
+      vllm_prefill.gpu_memory_utilization: 0.9
+      vllm_prefill.max_num_seqs: 128
+      vllm_prefill.max_num_batched_tokens: 8192
+      vllm_prefill.linear_backend: "triton"
+      vllm_decode.gpu_memory_utilization: 0.9
+      vllm_decode.max_num_seqs: 128
+      vllm_decode.max_num_batched_tokens: 8192
+      vllm_decode.linear_backend: "marlin"
+      vllm_decode.attention_backend: "FLASHINFER"
+      vllm_decode.kv_cache_dtype: "auto"
+      vllm_decode.tuned_kernel_configs: "true"
+
+  - name: optimize
+    type: optimize
+    optimizer: AKAMAS
+    numberOfInitExperiments: 0
+    numberOfExperiments: 60
+    maxFailedExperiments: 20

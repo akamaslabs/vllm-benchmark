@@ -224,7 +224,7 @@ probe_capacity() {
         --instance-type "$it" --instance-platform Linux/UNIX --availability-zone "$az" \
         --instance-count 1 --instance-match-criteria targeted \
         --end-date-type limited --end-date "$end" \
-        --query 'CapacityReservation.CapacityReservationId' --output text 2>&1)
+        --query 'CapacityReservation.CapacityReservationId' --output text 2>&1) || true
       if [[ "$out" == cr-* ]]; then
         printf '%-5s ' YES
         aws ec2 cancel-capacity-reservation --region "$REGION" --capacity-reservation-id "$out" >/dev/null 2>&1 \

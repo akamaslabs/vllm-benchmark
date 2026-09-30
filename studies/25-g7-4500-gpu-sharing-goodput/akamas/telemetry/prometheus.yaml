@@ -3,7 +3,15 @@
 # GPU that is shared. Rules from phase 0 and the audit of 2026-09-29 (README "Telemetry
 # rules"):
 #
-#   - GPU (component type GPU) queries filter on modelName=~"$GPU_MODEL$" and gpu, NEVER
+#   - PLACEHOLDERS WITH AN UNDERSCORE ARE NOT SUBSTITUTED by Akamas 3.7 (found 2026-09-30:
+#     its telemetry log shows the executed query with a literal `$GPU_MODEL$`, "No samples
+#     have been found", and no gpu0 metric in experiments 1-7). The GPU model is therefore
+#     written into the GPU queries literally (gpu0 is the only GPU of this system); $GPU$
+#     still comes from the component. The k8s_cluster_* queries' `$NODE_ROLE$` has the same
+#     problem and returns nothing — for cluster AND cluster_loadtest, and in every study
+#     since 17 that used node_role. They cannot be fixed without recreating those
+#     components (a property key without underscore), which is not done on a running study.
+#   - GPU (component type GPU) queries filter on the model name and gpu, NEVER
 #     on pod: under time-slicing and MPS the one DCGM series carries only one of the two
 #     pods' names. The model-name filter also keeps any other GPU node's series out.
 #     (Checked in Prometheus: after the scrape, `pod` on DCGM series is the dcgm-exporter
@@ -123,37 +131,37 @@ metrics:
   datasourceMetric: '(min(histogram_quantile(0.95, sum by(pod, le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m])))))*1000'
   scale: 1
 - metric: gpu_util
-  datasourceMetric: 'avg(DCGM_FI_DEV_GPU_UTIL{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"}) / 100'
+  datasourceMetric: 'avg(DCGM_FI_DEV_GPU_UTIL{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"}) / 100'
 - metric: gpu_sm_active
-  datasourceMetric: 'avg(DCGM_FI_PROF_SM_ACTIVE{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'avg(DCGM_FI_PROF_SM_ACTIVE{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_sm_occupancy
-  datasourceMetric: 'avg(DCGM_FI_PROF_SM_OCCUPANCY{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'avg(DCGM_FI_PROF_SM_OCCUPANCY{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_tensor_core_active
-  datasourceMetric: 'avg(DCGM_FI_PROF_PIPE_TENSOR_ACTIVE{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'avg(DCGM_FI_PROF_PIPE_TENSOR_ACTIVE{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_dram_active
-  datasourceMetric: 'avg(DCGM_FI_PROF_DRAM_ACTIVE{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'avg(DCGM_FI_PROF_DRAM_ACTIVE{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_fb_used
-  datasourceMetric: 'sum(DCGM_FI_DEV_FB_USED{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'sum(DCGM_FI_DEV_FB_USED{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_fb_total
-  datasourceMetric: 'sum(DCGM_FI_DEV_FB_USED{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"} + DCGM_FI_DEV_FB_FREE{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'sum(DCGM_FI_DEV_FB_USED{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"} + DCGM_FI_DEV_FB_FREE{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_power_usage
-  datasourceMetric: 'max(DCGM_FI_DEV_POWER_USAGE{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_POWER_USAGE{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_power_limit
-  datasourceMetric: 'max(DCGM_FI_DEV_POWER_MGMT_LIMIT{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_POWER_MGMT_LIMIT{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_temp
-  datasourceMetric: 'max(DCGM_FI_DEV_GPU_TEMP{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_GPU_TEMP{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_memory_temp
-  datasourceMetric: 'max(DCGM_FI_DEV_MEMORY_TEMP{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_MEMORY_TEMP{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_power_violation_rate
-  datasourceMetric: 'max(rate(DCGM_FI_DEV_POWER_VIOLATION{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"}[2m])) / 1e9'
+  datasourceMetric: 'max(rate(DCGM_FI_DEV_POWER_VIOLATION{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"}[2m])) / 1e9'
 - metric: gpu_thermal_violation_rate
-  datasourceMetric: 'max(rate(DCGM_FI_DEV_THERMAL_VIOLATION{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"}[2m])) / 1e9'
+  datasourceMetric: 'max(rate(DCGM_FI_DEV_THERMAL_VIOLATION{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"}[2m])) / 1e9'
 - metric: gpu_pcie_replay_rate
-  datasourceMetric: 'max(rate(DCGM_FI_DEV_PCIE_REPLAY_COUNTER{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"}[$DURATION$]))'
+  datasourceMetric: 'max(rate(DCGM_FI_DEV_PCIE_REPLAY_COUNTER{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"}[$DURATION$]))'
 - metric: gpu_fp16_pipe_active
-  datasourceMetric: 'avg(DCGM_FI_PROF_PIPE_FP16_ACTIVE{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'avg(DCGM_FI_PROF_PIPE_FP16_ACTIVE{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_fp32_pipe_active
-  datasourceMetric: 'avg(DCGM_FI_PROF_PIPE_FP32_ACTIVE{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'avg(DCGM_FI_PROF_PIPE_FP32_ACTIVE{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: estimated_flops_per_gpu
   datasourceMetric: 'sum(rate(vllm:estimated_flops_per_gpu_total{model_name=~"$MODEL$", pod=~"$POD$"}[1m])) / 1e12'
 - metric: estimated_read_bytes_per_gpu
@@ -161,49 +169,49 @@ metrics:
 - metric: estimated_write_bytes_per_gpu
   datasourceMetric: 'sum(rate(vllm:estimated_write_bytes_per_gpu_total{model_name=~"$MODEL$", pod=~"$POD$"}[1m])) / 1e9'
 - metric: gpu_fp64_pipe_active
-  datasourceMetric: 'avg(DCGM_FI_PROF_PIPE_FP64_ACTIVE{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'avg(DCGM_FI_PROF_PIPE_FP64_ACTIVE{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_sm_clock
-  datasourceMetric: 'avg(DCGM_FI_DEV_SM_CLOCK{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'avg(DCGM_FI_DEV_SM_CLOCK{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_mem_clock
-  datasourceMetric: 'avg(DCGM_FI_DEV_MEM_CLOCK{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'avg(DCGM_FI_DEV_MEM_CLOCK{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_total_energy_consumption
-  datasourceMetric: 'max(DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_mem_copy_util
-  datasourceMetric: 'avg(DCGM_FI_DEV_MEM_COPY_UTIL{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"}) / 100'
+  datasourceMetric: 'avg(DCGM_FI_DEV_MEM_COPY_UTIL{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"}) / 100'
 - metric: gpu_enc_util
-  datasourceMetric: 'avg(DCGM_FI_DEV_ENC_UTIL{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"}) / 100'
+  datasourceMetric: 'avg(DCGM_FI_DEV_ENC_UTIL{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"}) / 100'
 - metric: gpu_dec_util
-  datasourceMetric: 'avg(DCGM_FI_DEV_DEC_UTIL{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"}) / 100'
+  datasourceMetric: 'avg(DCGM_FI_DEV_DEC_UTIL{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"}) / 100'
 - metric: gpu_gr_engine_active
-  datasourceMetric: 'avg(DCGM_FI_PROF_GR_ENGINE_ACTIVE{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'avg(DCGM_FI_PROF_GR_ENGINE_ACTIVE{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_xid_errors
-  datasourceMetric: 'max(DCGM_FI_DEV_XID_ERRORS{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_XID_ERRORS{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_uncorrectable_remapped_rows
-  datasourceMetric: 'max(DCGM_FI_DEV_UNCORRECTABLE_REMAPPED_ROWS{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_UNCORRECTABLE_REMAPPED_ROWS{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_correctable_remapped_rows
-  datasourceMetric: 'max(DCGM_FI_DEV_CORRECTABLE_REMAPPED_ROWS{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_CORRECTABLE_REMAPPED_ROWS{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_row_remap_failure
-  datasourceMetric: 'max(DCGM_FI_DEV_ROW_REMAP_FAILURE{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_ROW_REMAP_FAILURE{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_clock_throttle_reasons
-  datasourceMetric: 'max(DCGM_FI_DEV_CLOCK_THROTTLE_REASONS{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_CLOCK_THROTTLE_REASONS{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_fb_reserved
-  datasourceMetric: 'sum(DCGM_FI_DEV_FB_RESERVED{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'sum(DCGM_FI_DEV_FB_RESERVED{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_fb_used_percent
-  datasourceMetric: 'max(DCGM_FI_DEV_FB_USED_PERCENT{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_FB_USED_PERCENT{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_vgpu_license_status
-  datasourceMetric: 'max(DCGM_FI_DEV_VGPU_LICENSE_STATUS{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_VGPU_LICENSE_STATUS{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_pcie_tx_bytes
-  datasourceMetric: 'sum(DCGM_FI_PROF_PCIE_TX_BYTES{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'sum(DCGM_FI_PROF_PCIE_TX_BYTES{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_pcie_rx_bytes
-  datasourceMetric: 'sum(DCGM_FI_PROF_PCIE_RX_BYTES{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'sum(DCGM_FI_PROF_PCIE_RX_BYTES{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_count
-  datasourceMetric: 'max(DCGM_FI_DEV_COUNT{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_COUNT{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_fan_speed
-  datasourceMetric: 'avg(DCGM_FI_DEV_FAN_SPEED{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"}) / 100'
+  datasourceMetric: 'avg(DCGM_FI_DEV_FAN_SPEED{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"}) / 100'
 - metric: gpu_slowdown_temp
-  datasourceMetric: 'max(DCGM_FI_DEV_SLOWDOWN_TEMP{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_SLOWDOWN_TEMP{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: gpu_pstate
-  datasourceMetric: 'min(DCGM_FI_DEV_PSTATE{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'min(DCGM_FI_DEV_PSTATE{modelName=~".*RTX PRO 4500.*", gpu=~"$GPU$"})'
 - metric: container_cpu_pressure_some
   datasourceMetric: 'sum(rate(container_pressure_cpu_waiting_seconds_total{pod=~"$POD$", container!=""}[2m]))'
 - metric: container_cpu_pressure_full

@@ -120,6 +120,15 @@ self-contained). Update this file:
   replica count — but this entire mechanism is conditional on that scheduler (Run:ai,
   MIG, time-slicing, or MPS) actually being installed on whatever cluster a study runs
   against; confirm before assuming it's available.
+  **GPU-fraction mechanism tested on study 25 (2026-09-30) — not reproduced on that
+  stack**: on one RTX PRO 4500 (165 W, power-capped in every mode) serving
+  Qwen3-4B-Instruct-2507-FP8, two replicas on a split GPU never beat one whole-GPU
+  replica: MPS tuned +1.5 % (a tie within re-scoring noise), MPS at defaults -1 %, MIG
+  -5 %, time-slicing -14 % (re-scored on total throughput,
+  `studies/25-g7-4500-gpu-sharing-goodput/README.md`). A power-bound GPU leaves a split
+  nothing to add, and each replica re-reads its own weights. H4 itself (Kubernetes
+  resource co-tuning) stays open; the Run:ai-style gain needs a GPU one engine cannot
+  saturate, which this one was not.
 
 - **H5 — `tensor_parallel_size`'s optimum is a "minimum that fits," not a value worth
   sweeping freely** [TO BE CONFIRMED] Per
@@ -391,8 +400,8 @@ of this backlog that isn't one of these two goals has moved to **Section F
 | 18 | [18-l4-pd-disaggregation-tps-per-gpu](studies/18-l4-pd-disaggregation-tps-per-gpu/README.md) | vLLM + vLLM_PD_Topology (prefill/decode disaggregation, 4x L4 PCIe) | **First study outside aggregated serving (scaffolded 2026-09-23/24).** It tests Q6's disaggregation thresholds against the measured-imbalance criterion of the scaling-dimensions note. Qwen3-8B-FP8 on 1x g6.12xlarge, NixlConnector, one pod with up to 4 vLLM processes behind a router that measures client-side TTFT/ITL. Synthetic 4096/256 load, 6 levels x 10 min. 10 presets: 2-GPU aggregated controls, 1P1D variants (same settings / specialized / host-staged KV / fp8 KV), 4-GPU aggregated vs 1P3D/2P2D/3P1D. Goal is router-measured tokens/s per active GPU under TTFT/ITL p95 SLAs. Expected: loses on throughput, may win on tail ITL. Needs vLLM pack 1.11.0 (MR !7) and a phase-B smoke test first. | TODO |
 | 19 | [19-l4-pd-disaggregation-tps-per-gpu-rerun](studies/19-l4-pd-disaggregation-tps-per-gpu-rerun/README.md) | vLLM + vLLM_PD_Topology (same as #18) | **Rerun of #18 (2026-09-24)** with the router counting tokens as they stream (continuous usage). #18 counted a request's tokens at its end, and in 30 s windows the scored throughput became a sawtooth. Same node, presets, goal, SLA, ramp; #18's experiments are not bootstrapped. | TODO |
 | 20 | [20-l4-pd-disaggregation-tuned](studies/20-l4-pd-disaggregation-tuned/README.md) | vLLM + vLLM_PD_Topology | **Disaggregation given its fixes (2026-09-25):** decode max_num_seqs capped to its KV capacity (+ constraint), fp8 KV, one prompt per prefill step; vs study 19's aggregated champion (A1-A3) and a true vLLM-default baseline (only gpu_memory_utilization, as studies 1-17). Bootstraps study 19's optimizer. Adds readable `topology` series label, per-role active_gpus, per-instance KV capacity. | TODO |
-| 25 | [25-g7-4500-gpu-sharing-goodput](studies/25-g7-4500-gpu-sharing-goodput/README.md) | GPU (`sharing_mode`, GPU pack 1.3.0) + vLLM, one RTX PRO 4500 Blackwell (g7.4xlarge) | **Tests H4's "GPU fraction per replica" gap directly (scaffolded 2026-09-29, locally only).** `gpu0.sharing_mode` in {exclusive, mig, time_slicing, mps} chooses 1 replica on the whole GPU or 2 replicas of `Qwen/Qwen3-4B-Instruct-2507-FP8` (MIG 2x 1g.16gb, CUDA time-slicing, CUDA MPS), searched with 4 vLLM parameters; goal = aggregate goodput under TTFT p95 1500 / ITL p95 300, AIPerf ShareGPT 16->768. Switching done per experiment by the study's own device plugin (4 named configs) + host nvidia-smi. Phase 0 by hand: every mode and transition works; at vLLM defaults exclusive led (4560 tok/s vs MPS 4252, MIG 4152, time-slicing 3661), CPU was not the bottleneck and the GPU sat at its 165 W cap, so a negative result is plausible. Blocked on GPU pack 1.3.0 install and on dcgm-exporter being free (study 24 runs on it) or covering both nodes. Study 24 is a colleague's. | RUNNING (2026-09-29) |
-| 26 | [26-g7-4500-gpu-slice-right-sizing](studies/26-g7-4500-gpu-slice-right-sizing/README.md) | GPU (`sharing_mode`) + Kubernetes Workload (`replicas`), same node as #25 | **Right-sizing sweep, companion of #25 (scaffolded 2026-09-29, locally only).** No optimizer: baseline + 5 presets measuring goodput PER UNIT OF GPU (tokens/s divided by the GPU fraction the replicas hold) for one MIG slice / one MPS client alone, the same with the neighbour busy, and the whole GPU. Phase 0 by hand: one MIG slice alone 2378 tok/s = 4756 per GPU (+4 % over exclusive, because the idle neighbour leaves it the 165 W budget: 2400 MHz vs exclusive's throttled ~1.8 GHz), both slices busy 2076 each (-9 %). Kept separate from #25 so neither goal rewards an idle half. Never run together with #25. | TODO |
+| 25 | [25-g7-4500-gpu-sharing-goodput](studies/25-g7-4500-gpu-sharing-goodput/README.md) | GPU (`sharing_mode`, GPU pack 1.3.0) + vLLM, one RTX PRO 4500 Blackwell (g7.4xlarge) | **Tested H4's "GPU fraction per replica" gap.** `gpu0.sharing_mode` in {exclusive, mig, time_slicing, mps}: 1 replica on the whole GPU or 2 replicas of `Qwen/Qwen3-4B-Instruct-2507-FP8`, plus 4 vLLM parameters; aggregate goodput under TTFT p95 1500 / ITL p95 300, AIPerf ShareGPT 16->768. 8 experiments, then stopped: a colleague's review moved the question to MIG right-sizing (#26). **Result: splitting does not pay on this power-capped GPU** — re-scored on total throughput, exclusive 6223 tok/s, MPS 6142 (tuned 6315, a tie), MIG 5934 (-5 %), time-slicing 5361 (-14 %); the GPU sat at its 165 W cap in every mode. Windowing on prefill under-scored the split modes (up to -15 %) and underscore placeholders dropped GPU/node metrics (Section C). | STOPPED (2026-09-30) — [recap](studies/25-g7-4500-gpu-sharing-goodput/README.md) |
+| 26 | [26-g7-4500-gpu-slice-right-sizing](studies/26-g7-4500-gpu-slice-right-sizing/README.md) | GPU (`mig_profile`, GPU pack 1.4.0) + vLLM, same node as #25 | **MIG right-sizing sweep, redesigned 2026-09-30 after #25's review** (time-slicing/MPS are not used in enterprise clusters; the allocation unit is a MIG partition). `gpu0.mig_profile` in {none, 2g.32gb, 1g.16gb}, GPU always fully partitioned with one replica per instance (a slice is measured with busy neighbours: MIG does not isolate power — one slice alone served ~14 % more than with its neighbour busy, #25 phase 0). 7 presets varying `max_num_seqs` per size, no optimizer; windowing on `vllm.total_token_throughput`. Output: capacity per slice under the SLO. First concrete step of Section D's study #4 on a GPU with only two MIG sizes. | TODO |
 Before activating a study: run `/new-study` (reads this roadmap and `knowledge/README.md`
 for you), pick a real name, and let it scaffold `studies/<name>/` from the template.
 Once scaffolded, replace the `<tbd>` row above with the real study name and a link.
@@ -418,6 +427,8 @@ need, or revise #3/#4's design to not depend on it.
 
 ## C. Consolidated learnings
 
+- **Rank the window on the goal's own metric** (found 2026-09-30 on study 25). Study 25's `stability` windowing ranked on `vllm.prefill_token_throughput` while the goal was prefill + decode: in modes whose prefill peaks at higher concurrency than their total, Akamas scored a worse window than the trial had, under-scoring those experiments by up to 15 % against the best SLA-compliant window on total throughput (re-scoring script in that study's `results/`). Use `vllm.total_token_throughput` (or whatever the goal formula sums) as the windowing metric.
+- **On one power-capped GPU, splitting it between replicas cannot add throughput; MIG isolates compute and bandwidth but not power** (study 25, RTX PRO 4500 165 W, Qwen3-4B FP8). Every sharing mode sat at the 165 W cap; the best split tied the whole GPU and MIG lost ~5 %. A MIG slice's throughput depends on its neighbour: ~14 % more with the other slice idle (unthrottled clock) than busy. Measure right-sizing with the GPU fully occupied, and read "GPU fractions beat one big replica" results (Run:ai) as conditional on a GPU one engine cannot saturate.
 - **Akamas 3.7 does not substitute `$KEY$` placeholders whose property key contains an underscore** (found 2026-09-30 on study 25). The telemetry log shows the query run with a literal `$GPU_MODEL$` / `$NODE_ROLE$` and "No samples have been found"; nothing errors, the metric is just absent. Consequence: the `k8s_cluster_*` metrics of every study since 17 (`cluster` / `cluster_loadtest` with `node_role`) were never collected (checked on study 23's export: gpu0 had data, cluster none), and study 25's gpu0 metrics were missing in its first 7 experiments until its telemetry instance was recreated with the GPU model written literally. Use letters/digits-only keys (`noderole`, `gpumodel` — as study 26 now does) and check each component's `aggregatedMetrics` after the first trial, not just the score.
 - **`studies/15-qwen3-30b-a3b-parallelism-goodput-per-gpu`** (Qwen3-30B-A3B-Instruct-2507-FP8,
   4x L4, vLLM 0.29.0, 2026-09-18): **`gpu_memory_utilization` does not account for CUDA
@@ -732,6 +743,14 @@ given fixed hardware."
   satisfies this specific load," not "what's the ceiling."
 
 ### Study #4 — MIG Right-Sizing (Goal B, sub-GPU granularity)
+
+**Update 2026-09-30:** the parameter gap below is closed by GPU pack 1.4.0's
+`mig_profile` (categorical, the MIG profile names from NVIDIA's tables, `none` = MIG
+off), and study 26 runs a first, coarse version on one RTX PRO 4500 (only `1g.16gb` x2 and
+`2g.32gb` x1) with the classic device plugin (`migStrategy: single`, the study's own
+node-scoped config), not DRA: DRA on EKS 1.35 cannot allocate MIG devices without the
+1.36 feature gates (Section D, DRA prerequisites). The H100 version described below is
+still the finer-grained follow-up.
 
 **Same open dependency as Study #3, flagged 2026-08-20** — this study's design also
 carries forward vLLM software parameters "from study #2's winning region," which no

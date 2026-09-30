@@ -1,0 +1,9 @@
+experiment,sharing_mode,max_num_seqs,max_num_batched_tokens,akamas_score_prefill_window,prefill_ranked_total,prefill_ranked_ttft_p95,total_ranked_sla_ok_total,total_ranked_running,total_ranked_ttft_p95,total_ranked_itl_p95,total_ranked_gpu_w,total_ranked_sm_clock
+1,exclusive,256,2048,6202.0,5987.8,38788,6222.7,128,179,48,164.9,1768
+2,mig,256,2048,5277.7,5200.6,13543,5934.4,191,243,72,165.0,1847
+3,time_slicing,256,2048,5312.3,5557.6,36710,5360.8,318,461,129,165.0,1760
+4,mps,256,2048,5662.6,5328.5,33114,6141.8,191,243,73,165.0,1509
+5,exclusive,265,4276,6176.3,6176.3,185,6189.8,127,177,48,165.0,1760
+6,exclusive,149,1024,6151.1,6151.1,203,6151.1,127,203,48,165.1,1751
+7,exclusive,768,1024,5213.0,5213.0,669,6078.8,127,185,48,165.0,1726
+8,mps,768,8192,5798.5,5275.7,7027,6314.8,254,274,95,165.0,1563

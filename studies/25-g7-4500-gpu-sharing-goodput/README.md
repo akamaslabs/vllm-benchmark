@@ -1,8 +1,10 @@
 # 25-g7-4500-gpu-sharing-goodput
 
-**Status:** RUNNING — created and started on Akamas 2026-09-29 21:25 UTC (GPU pack 1.3.0
-installed, dcgm-exporter covering both GPU nodes).
-**Dates:** 2026-09-29 –
+**Status:** STOPPED — 8 experiments finished (all VALID), experiment 9 aborted by the stop,
+2026-09-29 21:25 UTC – 2026-09-30 08:30 UTC. Stopped after a colleague's review: in an
+enterprise context the question is MIG right-sizing, not the sharing technique
+(time-slicing and MPS are not used there), which study 26 now asks.
+**Dates:** 2026-09-29 – 2026-09-30
 
 ## Objective
 
@@ -36,8 +38,10 @@ question: the smallest slice meeting a target).
 - **Akamas:** 3.7.x.
 - **Optimization packs:**
   - **GPU 1.3.0** — adds `sharing_mode` to the `GPU` component type. Built for this study
-    on branch `feature/gpu-sharing-mode` of the `nvidia-gpu` pack repo (commit `74d0fd2`,
-    local only). **Not installed** — the server runs GPU 1.2.0 (see "Before starting").
+    on branch `feature/gpu-sharing-mode` of the `nvidia-gpu` pack repo (commit `0f8c315`,
+    rebased on the NVLink-counters branch so it is a superset of the installed pack),
+    installed 2026-09-29 before the start; superseded on 2026-09-30 by 1.4.0 (adds
+    `mig_profile` for study 26, `sharing_mode` unchanged).
   - **vLLM 1.12.0** (installed) — `gpu_memory_utilization`, `max_num_seqs`,
     `max_num_batched_tokens`, `stream_interval`.
   - **Kubernetes** (installed) — node and container components.
@@ -216,42 +220,97 @@ CPU was never the bottleneck (EngineCore and API server ~10 % of a core each, AI
 scheduling overhead without unlocking anything a single engine lacked. The optimizer can
 still find settings (e.g. larger `max_num_seqs` per replica) where that changes.
 
-## Before starting
+## Setup as run (2026-09-29)
 
-Nothing below has been done — each is a deliberate step for the user to confirm.
+1. **GPU pack 1.3.0** installed from the toolbox (`akamas install -f optimization-pack
+   <json>`), a strict superset of the 1.2.0 the server ran (its 42 metrics unchanged plus
+   `sharing_mode`).
+2. **dcgm-exporter** (helm revision 22 of the shared release) covers BOTH
+   `llm-serving-l4` and `llm-serving-g7-4500` with a nodeAffinity
+   (`k8s/monitoring/dcgm-exporter-values.yaml`). Safe for studies 24-26 (they filter on
+   `exported_pod` / `modelName`); NOT for studies 0-17 (`pod: .*`) — pin the exporter back
+   before resuming any of them.
+3. **Not overlapped** with studies 4-17 (their vLLM components use `model: .*` / `pod: .*`
+   and would absorb `qwen3-4b`'s series); study 24 (a colleague's, on the L4 node) filters
+   on its own models and pods, so the two can share the cluster and `system-m8a`.
+4. **Toolbox sync**, then `akamas create -f studies/25-g7-4500-gpu-sharing-goodput/akamas/`
+   and `akamas start study` at 21:25 UTC. The telemetry instance was deleted and recreated
+   on 2026-09-30 with the GPU model written into the queries (Data limitations).
+5. **ServiceMonitor** `vllm-gpu-sharing` and the study PVCs/Services from
+   `infra/eks/provision.sh` step 7.
+6. **AlwaysOn** on the node group's ASG (set 2026-09-29), kept for study 26, which runs on
+   the same node.
 
-1. **GPU pack 1.3.0 install.** Branch `feature/gpu-sharing-mode` of the `nvidia-gpu` pack
-   repo, rebased 2026-09-29 onto `feature/nvlink-profiling-counters` (what the server runs
-   as 1.2.0), so 1.3.0 is a strict superset: 1.2.0's 42 metrics unchanged plus
-   `sharing_mode` (checked on the built JSON). Installing needs an Akamas login with the
-   **Administrator** role in the toolbox; the toolbox session was not logged in / not
-   admin on 2026-09-29 evening.
-2. **dcgm-exporter** — DONE 2026-09-29 (helm revision 22 of the shared release): it now
-   covers BOTH `llm-serving-l4` and `llm-serving-g7-4500` with a nodeAffinity
-   (`k8s/monitoring/dcgm-exporter-values.yaml`). Checked in Prometheus right after: the
-   RTX PRO 4500 series are there, the four L4s still are, and study 24's
-   `exported_pod=~"vllm-pd.*"` filter sees only the L4s. Safe for studies 24 and 25; NOT
-   for studies 0-17 (`pod: .*`) — pin the exporter back before resuming any of them.
-3. **Do not overlap** with another study whose AIPerf Job runs on `system-m8a` (4 vCPU)
-   unless both fit: this Job requests 1500m (study 24's requests 2). And studies 4-17
-   must not be resumed while this one runs: their vLLM components use `model: .*` /
-   `pod: .*` and would absorb `qwen3-4b`'s series (study 24 filters on its own models and
-   pods, so it does not).
-4. **Toolbox sync** (git pull there), then validate and create:
-   `akamas create -f studies/25-g7-4500-gpu-sharing-goodput/akamas/` — the YAML is
-   validated offline against the pack sources, not yet against the server.
-5. **ServiceMonitor** `vllm-gpu-sharing` and the study PVCs/Services:
-   `infra/eks/provision.sh` step 7 (additive, scoped to namespace `gpu-sharing`).
-6. **AlwaysOn** is already on the node group's ASG (set 2026-09-29); remove it when the
-   study ends and the node group goes to 0.
-
-Budget: ~70-80 min per experiment (1-2 cold-ish replica starts, 60 s warm-up, 60 min
-ramp) x 34 experiments ~= 42 h of node time, ~130 USD at 3.04 USD/h.
+Planned budget was ~42 h (34 experiments); ran ~11 h (9 experiments started), ~34 USD.
 
 ## Results
 
-<Filled in by the study-recap skill once the study finishes.>
+Raw data in `results/`: `export.tar.gz` (Akamas export), `trials.csv` (parameters, score,
+scored window and window metrics per experiment), `rescore_total_throughput.py` and its
+output `rescore_total_throughput.csv`.
+
+**Scoring caveat — read before the numbers.** The windowing ranked windows on **prefill**
+throughput while the goal is prefill + decode. In the split modes the prefill peak sits
+at high concurrency (~320 users) where decode slows, so Akamas scored them on a worse
+window than they had. `rescore_total_throughput.py` re-ranks the same trials on total
+throughput among SLA-compliant windows (from Prometheus, ~1 % from Akamas' own
+sampling on the exclusive experiments, where both rankings agree):
+
+| Exp. | Step | `sharing_mode` | `max_num_seqs` / `max_num_batched_tokens` / `stream_interval` | Akamas score (prefill window) | Re-scored (total window) | vs baseline (re-scored) | Running / TTFT p95 / ITL p95 at that window | GPU W / SM MHz |
+|---|---|---|---|---|---|---|---|---|
+| 1 | baseline | exclusive | 256 / 2048 / 1 | 6202 | **6223** | — | 128 / 179 / 48 ms | 165 / 1768 |
+| 2 | Preset MIG | mig | 256 / 2048 / 1 | 5278 | 5934 | -4.6 % | 191 / 243 / 72 ms | 165 / 1847 |
+| 3 | Preset time slicing | time_slicing | 256 / 2048 / 1 | 5312 | 5361 | -13.9 % | 318 / 461 / 129 ms | 165 / 1760 |
+| 4 | Preset MPS | mps | 256 / 2048 / 1 | 5663 | 6142 | -1.3 % | 191 / 243 / 73 ms | 165 / 1509 |
+| 5 | optimize | exclusive | 265 / 4276 / 1 | 6176 | 6190 | -0.5 % | 127 / 177 / 48 ms | 165 / 1760 |
+| 6 | optimize | exclusive | 149 / 1024 / 16 | 6151 | 6151 | -1.2 % | 127 / 203 / 48 ms | 165 / 1751 |
+| 7 | optimize | exclusive | 768 / 1024 / 1 | 5213 | 6079 | -2.3 % | 127 / 185 / 48 ms | 165 / 1726 |
+| 8 | optimize | mps (gmu 0.81) | 768 / 8192 / 16 | 5799 | **6315** | **+1.5 %** | 254 / 274 / 95 ms | 165 / 1563 |
+| 9 | optimize | exclusive | 229 / 8131 / 1 | aborted | — | — | — | — |
+
+Scores are tokens/s (prefill + decode) under TTFT p95 <= 1500 ms / ITL p95 <= 300 ms;
+every experiment met the SLA at its window, so the constraints were not binding at the
+chosen window — the window choice was.
+
+- **Best by Akamas' own score:** the baseline (exclusive, vLLM defaults), 6202.
+- **Best re-scored:** experiment 8, MPS with `max_num_seqs` 768, `max_num_batched_tokens`
+  8192, `stream_interval` 16 — 6315, +1.5 % over the baseline: within the ~2 % that two
+  re-scoring passes over different window alignments differed by, so a tie, not a win.
+- **Ranking of the sharing modes at vLLM defaults (re-scored):** exclusive = MPS (-1 %)
+  > MIG (-5 %) > time-slicing (-14 %).
+- **The GPU was at its 165 W power cap at the best window of every experiment**, with the
+  SM clock throttled to 1.5-1.85 GHz (max 2.415): the one ceiling all modes share.
 
 ## Conclusions
 
-<Filled in by the study-recap skill once the study finishes.>
+- **On this GPU, with this 4B model and ShareGPT chat load, splitting does not pay.** The
+  best split (MPS, tuned) ties the whole GPU; MIG loses ~5 %, time-slicing ~14 %. The
+  mechanisms, from the measurements: the whole GPU is power-bound, so a split cannot add
+  compute; two engines stream their own copy of the 4.3 GiB of weights on every decode
+  step (MIG through half the memory bandwidth each) and halve the KV pool per replica;
+  time-slicing adds context switching. CPU was never the bottleneck (~10 % of a core per
+  vLLM process), so the "one engine is host-bound" argument for splitting did not apply.
+  Specific to this stack: a GPU with more memory bandwidth per watt, or a model small
+  enough that one engine cannot fill the GPU, could come out differently.
+- **vLLM data parallelism over two MIG slices behaves exactly like two pods** (phase 0).
+- **Half a GPU (one MIG slice) is worth ~46 % of the whole with a busy neighbour and ~52 %
+  with an idle one** (phase 0): MIG does not isolate power. That is the right-sizing
+  question the colleague's review pointed to, and study 26 measures it properly.
+- **Two methodology findings that generalize** (ROADMAP section C): rank windows on the
+  goal's own metric (total throughput here, not prefill — the prefill ranking
+  under-scored split modes by up to 15 %), and never use an underscore in a component
+  property that feeds a `$KEY$` placeholder (Akamas 3.7 does not substitute it).
+- **Next:** study 26 (MIG right-sizing on this GPU: `none` / `2g.32gb` / `1g.16gb`, presets
+  only, windowing on total throughput). A finer right-sizing table needs a GPU with more
+  MIG sizes (A100/H100, RTX PRO 6000).
+
+## Data limitations
+
+- **GPU metrics are missing from Akamas for experiments 1-7**: the telemetry used
+  `$GPU_MODEL$`, which Akamas does not substitute (underscore). Fixed by recreating the
+  telemetry instance with the model written into the queries (commit `47ee4f8`); experiment
+  8 has them. The GPU columns above come from Prometheus directly.
+- **`k8s_cluster_*` (node) metrics were never collected** (`$NODE_ROLE$`, same cause), for
+  this study and, as checked on study 23, for every study since 17 using `node_role`.
+- Prometheus keeps ~10 days: re-run `rescore_total_throughput.py` before ~2026-10-09 if the
+  re-scoring needs repeating; afterwards only the export remains.

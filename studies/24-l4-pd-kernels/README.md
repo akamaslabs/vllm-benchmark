@@ -1,6 +1,7 @@
 # 24-L4-PD-Kernels
 
-**Status:** RUNNING (created and started 2026-09-29 18:24 UTC; study id 2f1a2b8f-8d17-4e75-a200-c03cf2b5ba2a)
+**Status:** FINISHED (stopped with `akamas finish study` on 2026-09-30 after 5 experiments; exp 6 ABORTED). Study id 7bbaae06-3409-4da4-a830-a5efc3f1392a (the first, failed start had 2f1a2b8f-8d17-4e75-a200-c03cf2b5ba2a).
+**Why stopped:** the closed-loop concurrency levels make the score jump by a whole level when a latency p95 sits at its limit (see "Results" and the research notes, `load_generation.md`). Study 27 runs the same configs with an open-loop rate ramp.
 **Start note:** the first `akamas start` failed: Airflow registered the new study DAG after
 the campaign service timeout, so the study stayed RUNNING with no experiment, and a restart
 is refused (RUNNING -> RUNNING). Fix: delete the study, create it again, start it again.
@@ -147,6 +148,27 @@ akamas start study 24-L4-PD-Kernels
 
 (Check the exact `akamas create` forms against the files' `kind`/`system` keys; the files
 carry `kind:` for `akamas create -f`.)
+
+## Results (2026-09-30, 5 experiments)
+
+| Exp | Step | Score | Scored at | Expected (table above) |
+|---|---|---|---|---|
+| 1 | baseline aggregated | 1029.05 | | ~1040-1060 |
+| 2 | P1D1 prefill marlin | 551.09 | concurrency 4 (TTFT p95 > 10 s at 8) | ~850-1050 |
+| 3 | P1D1 prefill humming | 888.61 | concurrency 8 | ~1100-1300 |
+| 4 | P1D1 prefill triton default | 985.84 | concurrency 8 (TTFT p95 9.8-11.5 s at 16) | ~1350-1500 |
+| 5 | P1D1 prefill triton tuned | 1519.91 | concurrency 16 (TTFT p95 9.3-9.7 s) | triton default +0-8% |
+
+- The P:D capacity model held: the Marlin prefill saturated at 0.54 req/s (0.57 expected).
+  With Humming and Triton the bf16 decode saturated first, at ~0.69 req/s (~3000 tok/s):
+  15 running sequences, KV 98%, ITL p95 ~210 ms.
+- The scores did not follow the capacity. The TTFT limit stopped each config at a
+  concurrency level, and the levels double. Exp 4 has the same config as study 22's exp 2
+  and the same metrics at every level, but scored 985.84 against 1382.61: its TTFT p95 at
+  concurrency 16 stayed below 10 s for 2 minutes in a row, study 22's for 4.
+- Exp 5 against exp 4: the TTFT is 4% lower at concurrency 2-4 (the prefill step of the
+  tuned configs), and about 15% lower at concurrency 8-16. That was enough to pass
+  concurrency 16. The capacity is the same (decode-bound).
 
 ## Other users of the cluster
 

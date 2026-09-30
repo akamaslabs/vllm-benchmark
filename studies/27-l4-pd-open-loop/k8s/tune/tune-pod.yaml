@@ -1,0 +1,49 @@
+# One-off pod that tunes the Triton W8A8 block-FP8 GEMM for Qwen3-8B-FP8 on the 4 L4s
+# (study 24). Needs the whole GPU node: scale vllm-pd to 0 first (see README.md).
+# The script comes from ConfigMap fp8-tune-script; results land in /out and the pod then
+# sleeps, so they can be copied with `kubectl cp` before the pod is deleted.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fp8-tune
+  namespace: llm-serving
+  labels:
+    app: fp8-tune
+spec:
+  restartPolicy: Never
+  nodeSelector:
+    node-role: llm-serving-l4
+  tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule
+  containers:
+    - name: tune
+      image: vllm/vllm-openai:v0.29.0   # same image and Triton as the serving pod
+      command: ["bash", "-c"]
+      args:
+        - python3 -u /tune/tune_fp8_block.py --save-path /out ${TUNE_ARGS} && echo TUNING-DONE; sleep infinity
+      env:
+        - name: TUNE_ARGS
+          value: ""   # e.g. "--batch-sizes 16,4096" for a smoke run
+      resources:
+        requests:
+          nvidia.com/gpu: "4"
+          cpu: "8"
+          memory: "32Gi"
+        limits:
+          nvidia.com/gpu: "4"
+          cpu: "16"
+          memory: "64Gi"
+      volumeMounts:
+        - name: script
+          mountPath: /tune
+          readOnly: true
+        - name: out
+          mountPath: /out
+  volumes:
+    - name: script
+      configMap:
+        name: fp8-tune-script
+    - name: out
+      emptyDir: {}

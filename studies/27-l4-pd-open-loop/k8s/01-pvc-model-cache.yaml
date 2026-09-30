@@ -1,0 +1,24 @@
+# Model cache for Qwen/Qwen3-8B-FP8 (8.79 GiB of safetensors, HF API 2026-09-23).
+#
+# Its own claim, separate from every other study's model cache. A study that reuses
+# another model's volume pulls its weights next to someone else's, and deleting one
+# study's cache would silently break the other. 30Gi leaves room for the checkpoint plus
+# the HF blobs/refs layout.
+#
+# `gp3-ephemeral` (WaitForFirstConsumer) binds in the Availability Zone where the GPU node
+# actually lands. An EBS volume is AZ-pinned, and on 2026-09-23 g6.12xlarge had capacity
+# only in us-east-2a/2b (capacity-reservation probe), not in 2c. The node group is pinned to
+# those two zones (infra/eks/cluster.yaml). Once this claim has bound, every later node must
+# come back in the same zone, or the pod stays Pending with a volume node-affinity conflict.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vllm-model-cache-qwen3-8b
+  namespace: llm-serving
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3-ephemeral
+  resources:
+    requests:
+      storage: 30Gi

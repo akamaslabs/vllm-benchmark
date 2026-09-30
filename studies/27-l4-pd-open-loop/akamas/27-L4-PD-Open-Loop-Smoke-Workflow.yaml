@@ -1,0 +1,46 @@
+kind: workflow
+name: 27-L4-PD-Open-Loop-Smoke-Workflow
+
+# Smoke test of study 27's load path, before the real study: the same three tasks as
+# 27-L4-PD-Open-Loop-Workflow.yaml, with a 10-minute ramp (RT_RAMP_S=600) to 1.5 req/s
+# (RT_RATE_MAX). A P1D1 with bf16 KV saturates at ~0.69 req/s, so the ramp crosses the SLA
+# after ~3-4 min, and the watchdog must end the test after ~5-7 min. It checks, in one
+# Akamas trial: the ramp, the watchdog, the metrics and the constraints on real data.
+# Use it with 27-L4-PD-Open-Loop-Smoke.yaml.
+tasks:
+  - name: Write config
+    operator: FileConfigurator
+    arguments:
+      ignoreUnsubstitutedTokens: true
+      source:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/vllm-benchmark/studies/27-l4-pd-open-loop/k8s/01-deployment_template.yaml
+      target:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/vllm-benchmark/studies/27-l4-pd-open-loop/k8s/01-deployment.yaml
+
+  - name: Apply config
+    operator: Executor
+    arguments:
+      retries: 0
+      timeout: 40m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/vllm-benchmark/studies/27-l4-pd-open-loop/k8s/apply_config.sh
+
+  - name: RunTest
+    operator: Executor
+    arguments:
+      retries: 0
+      timeout: 40m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: RT_RATE_MAX=1.5 RT_RAMP_S=600 RT_DEADLINE_S=1800 bash /work/vllm-benchmark/studies/27-l4-pd-open-loop/k8s/run_test_tps.sh

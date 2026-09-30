@@ -141,8 +141,12 @@ metrics:
   # --- Step 2 — Detect server saturation ---
   - metric: num_requests_running
     datasourceMetric: 'sum(vllm:num_requests_running{model_name=~"$MODEL$", pod=~"$POD$"})'
+  #     Study 24: `or vector(0)`. vllm_prefill.num_requests_waiting is in a goal constraint, so
+  #     it is a required metric: with no prefill process (aggregated baseline, P = 0) the query
+  #     returned no series and the telemetry failed the trial (2026-09-29, experiment 1). No
+  #     prefill process means no prefill queue, so 0 is the right value.
   - metric: num_requests_waiting
-    datasourceMetric: 'sum(vllm:num_requests_waiting{model_name=~"$MODEL$", pod=~"$POD$"})'
+    datasourceMetric: 'sum(vllm:num_requests_waiting{model_name=~"$MODEL$", pod=~"$POD$"}) or vector(0)'
 
   # --- Step 3 — Evaluate VRAM and KV cache health ---
   - metric: kv_cache_usage_avg

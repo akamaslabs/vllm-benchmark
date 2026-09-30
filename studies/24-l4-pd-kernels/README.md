@@ -73,6 +73,60 @@ If the P1D1 prefill-kernel order (marlin < humming < triton ≤ triton tuned) do
 the presets, the microbenchmark does not predict the loaded system, and the kernel ranking
 must come from the study, not from `kernel-bench/`.
 
+### Expected effect of the scheduler parameters and of the P:D ratio (added 2026-09-30, while experiment 2 ran)
+
+Roofline estimates, not measurements. L4: ~300 GB/s memory bandwidth, ~242 TFLOP/s FP8 and
+~121 TFLOP/s BF16 dense peak, about half of that at the 72 W power limit (SM clock ~1050
+MHz). A GEMM with FP8 weights and M tokens does ~2·M FLOP per weight byte, so it becomes
+compute-bound above a few hundred tokens (~200-400 for Marlin, BF16 compute; ~400-800 for
+Triton FP8). Qwen3-8B KV: 36 layers × 8 KV heads × 128 × 2 (K, V) × 2 bytes = ~147 KB per
+token in bf16 (~74 KB in fp8), so ~0.63 GB (bf16) / ~0.32 GB (fp8) per 4.3k-token sequence;
+weights ~8.8 GB.
+
+- **`max_num_batched_tokens`, prefill.** One 4096-token prompt is already far above the
+  compute-bound threshold, so more tokens per step do not raise the throughput. They make the
+  step longer, and the held-step and input-wait costs grow with the step; they also raise the
+  OOM risk. Expected optimum: about one prompt per step (~4160). Values of 8192 and above:
+  no gain, possible loss. Below ~2048: more steps per prompt, small loss.
+- **`max_num_batched_tokens`, decode.** A decode step holds one token per running sequence,
+  plus the chunk of any prompt; in P/D the decode does no prefill, so values above
+  `max_num_seqs` do not change anything. Expected: no effect.
+- **`max_num_seqs`, decode.** Step time ≈ (weights + b × KV per sequence) / bandwidth. ITL
+  p95 ≤ 75 ms allows b ≈ 14 sequences in bf16 and ≈ 29 in fp8; the KV capacity at gmu 0.9
+  is ≈ 14 (bf16) / ≈ 31 (fp8) sequences. Both limits agree, so values above ~14 (bf16) /
+  ~30 (fp8) do not bind (the presets' 128 does not bind). Values below them cap the decode
+  concurrency and lower the score. Expected optimum: ~14-16 with bf16, ~30-32 with fp8.
+- **`max_num_seqs`, prefill.** Only the requests in the current step run: little effect,
+  except that very low values (< 2-3) can starve the prefill between steps.
+- **`gpu_memory_utilization`, decode.** More KV room: +1 sequence per ~0.63 GB (bf16). Small
+  gain, bounded by the ITL limit above.
+
+If the optimizer does not move these parameters, a later preset set can test them directly
+(e.g. decode `max_num_seqs` 16 / 32 / 64 with fp8, prefill `max_num_batched_tokens` 4160 /
+8192).
+
+**P:D ratio (the number of GPUs matters through it).** Each instance is one GPU (TP=1), so
+the per-instance capacity does not depend on the GPU count; the system serves about
+min(P × prefill capacity, D × decode capacity), and the score divides it by P + D. Estimated
+capacities, 4096 in / 256 out:
+
+| Instance | Capacity |
+|---|---|
+| prefill, triton tuned (~1.07 s per prompt) | ~0.9 req/s |
+| decode, bf16 KV (~14 sequences, ~75 ms step, 256 tokens) | ~0.75 req/s |
+| decode, fp8 KV (~29 sequences, ~75 ms step) | ~1.5 req/s |
+
+Consequences, and a **revision of the table above** (the table keeps the first prediction):
+
+- With the triton prefill, the bf16 decode becomes the P1D1 bottleneck (as in study 23: at
+  concurrency 24+ the bf16 decode queue reached 11-22 s).
+- **`P1D1 kv fp8` revised: +20-25% over `P1D1 prefill triton tuned`** (first prediction:
+  ≈ equal), because fp8 doubles the decode capacity.
+- With fp8 KV, 2P1D (min(1.8, 1.5) / 3 GPUs) and 2P2D (1.8 / 4) reach about the P1D1 fp8
+  value per GPU; with bf16 KV (the topology presets) they stay below it, as in the table.
+- The SLA and waiting constraints stop the load before full saturation, so these ratios are
+  upper bounds on the differences.
+
 ## Before creating the study
 
 1. Install vLLM pack 1.12.0 on Akamas.

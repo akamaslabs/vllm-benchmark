@@ -73,6 +73,6 @@ Done. Remaining manual steps (see the study README, "Before starting"):
       helm upgrade dcgm-exporter gpu-helm-charts/dcgm-exporter -n monitoring \
         --version 4.8.3 --reuse-values=false -f k8s/monitoring/dcgm-exporter-values.yaml
   - For runs past 17:00 UTC: ./gpu-nodegroup.sh --always-on
-  - Install the GPU optimization pack >= 1.3.0 (GPU.sharing_mode) before `akamas create`.
+  - Install the GPU optimization pack >= 1.4.0 (GPU.mig_profile) before `akamas create`.
 NOTE
 kubectl get nodes -L node-role

@@ -1,49 +1,49 @@
 kind: study
 name: 26-G7-4500-GPU-Slice-Right-Sizing
 description: >-
-  Right-sizing sweep, no optimizer: how much goodput per unit of GPU does half of an NVIDIA
-  RTX PRO 4500 Blackwell (g7.4xlarge, 32 GB) deliver serving Qwen/Qwen3-4B-Instruct-2507-FP8
-  with vLLM 0.29.0? One MIG 1g.16gb slice or one MPS client with the other half idle, the
-  same with both halves busy, against one replica on the whole GPU. Goal = aggregate prefill +
-  decode tokens/s divided by the fraction of the GPU the replicas hold, under TTFT p95 1500 ms
-  / ITL p95 300 ms. Phase 0 (study 25, 2026-09-29): one slice alone 2378 tokens/s at 128 users
-  = 4756 per GPU (+4 % over exclusive, its idle neighbour leaves it the power budget), both
-  slices busy 2076 each (-9 %). Companion of study 25; requires GPU pack >= 1.3.0.
+  MIG right-sizing sweep, no optimizer: how much traffic does each MIG partition size of an
+  NVIDIA RTX PRO 4500 Blackwell (g7.4xlarge, 32 GB) sustain within the SLO, serving
+  Qwen/Qwen3-4B-Instruct-2507-FP8 with vLLM 0.29.0? gpu0.mig_profile is none (whole GPU, no
+  MIG), 2g.32gb (whole GPU as one MIG instance) or 1g.16gb (two halves, both serving: the
+  GPU is always fully partitioned, one replica per instance). Seven presets vary
+  max_num_seqs per size. Goal: aggregate prefill + decode tokens/s under TTFT p95 1500 ms /
+  ITL p95 300 ms; capacity per slice = aggregate / slices. Windowing on total throughput.
+  Requires GPU pack >= 1.4.0.
 system: vLLM_Benchmark_26_G7_4500_GPU_Slice
 workflow: 26-G7-4500-GPU-Slice-Right-Sizing-Workflow
 goal:
   objective: maximize
   function:
-    # Per unit of GPU: active_gpus is the FRACTION of the GPU the vLLM pods hold (telemetry
-    # header): 1 for exclusive or both pieces, 0.5 for one piece. Same shape as study 21's.
-    formula: (vllm.prefill_token_throughput + vllm.decode_token_throughput) / vllm.active_gpus
-    unit: tokens per second/gpus
+    # Aggregate over every replica. The GPU is always fully used (one replica per MIG
+    # instance), so the configurations compare like with like; the README reports the
+    # per-slice capacity (this value / number of instances).
+    formula: vllm.prefill_token_throughput + vllm.decode_token_throughput
+    unit: tokens per second
   constraints:
     absolute:
       - name: TTFT P95 interactive-chat SLA
         formula: vllm.time_to_first_token_p95 <= 1500
       - name: ITL P95 interactive-chat SLA
         formula: vllm.inter_token_latency_p95 <= 300
+# On TOTAL throughput, not prefill (study 25 used prefill): the prefill peak sits at high
+# concurrency where decode slows, so a prefill-ranked window under-scored the split modes
+# by up to 15 % against the best SLA-compliant window on total throughput (study 25's
+# re-scoring, 2026-09-30).
 windowing:
   type: stability
   stability:
-    metric: vllm.prefill_token_throughput
+    metric: vllm.total_token_throughput
     width: 6
     maxStdDev: 300000000
     when:
-      metric: vllm.prefill_token_throughput
+      metric: vllm.total_token_throughput
       is: max
 numberOfTrials: 1
 parametersSelection:
-  # No time_slicing: it is not a slice (no memory or compute isolation), so "one piece of a
-  # time-sliced GPU" would just be exclusive with half the memory; study 25 covers it.
-  - name: gpu0.sharing_mode
-    categories: [exclusive, mig, mps]
-  - name: vllm_workload.replicas
-    domain: [1, 2]
-  # The vLLM parameters are in the selection only so every step renders them (every token
-  # of params.env must resolve); each step pins them to vLLM's defaults on this GPU, the
-  # values of study 25's head-to-head presets.
+  - name: gpu0.mig_profile
+    categories: [none, 2g.32gb, 1g.16gb]
+  # The vLLM parameters are selected so every step renders them (all params.env tokens
+  # must resolve); each preset pins them. Per replica.
   - name: vllm.gpu_memory_utilization
     domain: [0.80, 0.90]
   - name: vllm.max_num_seqs
@@ -52,9 +52,6 @@ parametersSelection:
     domain: [1024, 8192]
   - name: vllm.stream_interval
     domain: [1, 16]
-parameterConstraints:
-  - name: exclusive has a single piece, so a single replica
-    formula: gpu0.sharing_mode != "exclusive" || vllm_workload.replicas == 1
 kpis:
   - name: TTFT P95
     formula: vllm.time_to_first_token_p95
@@ -62,20 +59,21 @@ kpis:
   - name: ITL P95
     formula: vllm.inter_token_latency_p95
     direction: minimize
-  # Not per unit: the raw tokens/s the replicas serve, to read next to the goal.
-  - name: Throughput aggregato
-    formula: vllm.total_token_throughput
-    direction: maximize
-  - name: Frazione di GPU usata
-    formula: vllm.active_gpus
-    direction: minimize
   - name: Richieste in esecuzione
     formula: vllm.num_requests_running
     direction: maximize
+  - name: Tempo in coda medio
+    formula: vllm.request_queue_time_avg
+    direction: minimize
   - name: KV cache usata
     formula: vllm.kv_cache_usage_avg
     direction: minimize
-  # The mechanism behind the one-slice result: an idle neighbour leaves its power budget.
+  - name: Preemption (picco)
+    formula: vllm.preemption_rate
+    direction: minimize
+    aggregation: max
+  # MIG isolates compute and memory bandwidth but not power: with both halves busy the
+  # GPU sits at its 165 W cap (study 25), alone a slice ran unthrottled at 2400 MHz.
   - name: Potenza GPU
     formula: gpu0.gpu_power_usage
     direction: minimize
@@ -87,55 +85,58 @@ steps:
     type: baseline
     numberOfTrials: 1
     values:
-      gpu0.sharing_mode: exclusive
-      vllm_workload.replicas: 1
+      gpu0.mig_profile: none
       vllm.gpu_memory_utilization: 0.90
       vllm.max_num_seqs: 256
       vllm.max_num_batched_tokens: 2048
       vllm.stream_interval: 1
-  - name: MIG one slice alone
+  - name: MIG whole GPU seqs 256
     type: preset
     values:
-      gpu0.sharing_mode: mig
-      vllm_workload.replicas: 1
+      gpu0.mig_profile: 2g.32gb
       vllm.gpu_memory_utilization: 0.90
       vllm.max_num_seqs: 256
       vllm.max_num_batched_tokens: 2048
       vllm.stream_interval: 1
-  - name: MIG both slices busy
+  # The whole GPU has 159k tokens of KV (study 25 phase 0): room for bigger batches.
+  - name: MIG whole GPU seqs 512
     type: preset
     values:
-      gpu0.sharing_mode: mig
-      vllm_workload.replicas: 2
+      gpu0.mig_profile: 2g.32gb
+      vllm.gpu_memory_utilization: 0.90
+      vllm.max_num_seqs: 512
+      vllm.max_num_batched_tokens: 2048
+      vllm.stream_interval: 1
+  - name: MIG half GPU seqs 256
+    type: preset
+    values:
+      gpu0.mig_profile: 1g.16gb
       vllm.gpu_memory_utilization: 0.90
       vllm.max_num_seqs: 256
       vllm.max_num_batched_tokens: 2048
       vllm.stream_interval: 1
-  - name: MPS one client alone
+  # A 1g.16gb slice holds 56k tokens of KV: fewer sequences, less KV pressure, lower ITL.
+  - name: MIG half GPU seqs 128
     type: preset
     values:
-      gpu0.sharing_mode: mps
-      vllm_workload.replicas: 1
+      gpu0.mig_profile: 1g.16gb
       vllm.gpu_memory_utilization: 0.90
-      vllm.max_num_seqs: 256
+      vllm.max_num_seqs: 128
       vllm.max_num_batched_tokens: 2048
       vllm.stream_interval: 1
-  - name: MPS both clients busy
+  - name: MIG half GPU seqs 384
     type: preset
     values:
-      gpu0.sharing_mode: mps
-      vllm_workload.replicas: 2
+      gpu0.mig_profile: 1g.16gb
       vllm.gpu_memory_utilization: 0.90
-      vllm.max_num_seqs: 256
+      vllm.max_num_seqs: 384
       vllm.max_num_batched_tokens: 2048
       vllm.stream_interval: 1
-  # The same exclusive configuration again, last: a drift check on the node (thermals,
-  # clocks) across the ~6 h sweep before the one-piece vs whole-GPU gap is trusted.
-  - name: exclusive repeat
+  # The baseline again, last: a drift check on the node before trusting the gaps.
+  - name: no MIG repeat
     type: preset
     values:
-      gpu0.sharing_mode: exclusive
-      vllm_workload.replicas: 1
+      gpu0.mig_profile: none
       vllm.gpu_memory_utilization: 0.90
       vllm.max_num_seqs: 256
       vllm.max_num_batched_tokens: 2048

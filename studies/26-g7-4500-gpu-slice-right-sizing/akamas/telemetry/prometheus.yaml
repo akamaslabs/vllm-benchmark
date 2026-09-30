@@ -29,11 +29,11 @@
 #     floors at ~285 ms (first bucket 0.3 s) — use request_queue_time_avg for real values.
 #   - active_gpus is REDEFINED in this study as the FRACTION of the physical GPU the
 #     matched vLLM pods hold: GPU units they request (kube-state-metrics) divided by the
-#     units the node advertises in the current mode. exclusive x1 = 1, one MIG slice or one
-#     MPS client = 0.5, both = 1; per replica (vllm_r0/vllm_r1) 0.5 each in a split mode.
-#     It is the goal's denominator (goodput per unit of GPU), checked live on 2026-09-29
-#     (0.5 with one replica on one of two MIG slices). gpu_memory_allocated_gb reads DCGM
-#     through exported_pod and is per-replica unreliable under mps; not scored.
+#     units the node advertises in the current layout. The GPU is always fully partitioned
+#     (one replica per MIG instance), so it reads 1 for the aggregate `vllm` component in
+#     every experiment — a sanity check, not the goal's denominator — and 0.5 per replica
+#     (vllm_r0 / vllm_r1) with 1g.16gb. gpu_memory_allocated_gb reads DCGM through
+#     exported_pod; not scored.
 #   - active_dp_engines counts (pod, engine) pairs: 1 in exclusive, 2 with two replicas.
 #   - cAdvisor rate queries (container_*, k8s_cluster_cpu_util) use [2m], as studies 20/24:
 #     the kubelet sometimes yields one cAdvisor point per 60 s, and a [30s] window lost

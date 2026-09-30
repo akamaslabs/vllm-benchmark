@@ -4,11 +4,10 @@ system: vLLM_Benchmark_26_G7_4500_GPU_Slice
 name: gpu0
 description: >-
   The single physical NVIDIA RTX PRO 4500 Blackwell Server Edition (32623 MiB, 165 W, SM
-  12.0) of the g7.4xlarge node. Carries sharing_mode (GPU pack 1.3.0). Queries filter on
-  the GPU model name, never on pod (see telemetry/prometheus.yaml header). Under MIG,
-  DCGM reports per 1g.16gb slice and gpu_util / gpu_dram_active are absent; under MPS
-  gpu_util reads 0. Expect gpu_power_usage near 165 W with the SW-power-cap throttle
-  reason active at load: phase 0 measured exactly that.
+  12.0). Carries mig_profile (GPU pack 1.4.0): none, 2g.32gb (whole GPU as one MIG
+  instance) or 1g.16gb (two halves, both serving). Queries filter on the GPU model and gpu,
+  never on pod; under MIG DCGM reports per instance and gpu_util / gpu_dram_active are
+  absent. MIG isolates compute and memory bandwidth but not power.
 componentType: GPU
 properties:
   prometheus:

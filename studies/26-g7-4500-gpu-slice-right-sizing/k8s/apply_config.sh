@@ -2,13 +2,16 @@
 # Apply-config step for 26-g7-4500-gpu-slice-right-sizing (runs on the toolbox host via the
 # Akamas workflow's Executor task, after FileConfigurator has rendered params.env).
 #
-# One experiment = one GPU sharing mode + how many of its pieces are used + one vLLM
-# configuration. Study 26 (right-sizing) differs from study 25 only here: the replica count
-# is a parameter (vllm_workload.replicas) instead of following from the mode, so one MIG
-# slice / one MPS client can serve alone while the other piece stays idle. The switching
-# sequence is study 25's, validated by hand in its phase 0 (2026-09-29) for every
-# transition between the four modes, including MIG on/off with dcgm-exporter and the
-# device plugin running (no reboot was ever needed).
+# One experiment = one MIG partition size (gpu0.mig_profile) + one vLLM configuration. The
+# GPU is ALWAYS fully partitioned: every MIG instance of the chosen profile that fits is
+# created and serves its own replica of the model, so a small slice is always measured
+# with busy neighbours (the enterprise case: the other slices serve other tenants).
+#   none      MIG off, one replica on the whole GPU (the non-MIG reference)
+#   <profile> MIG on, N instances of that profile (N = what `nvidia-smi mig -lgip`
+#             reports free), N replicas, device-plugin config `mig` (migStrategy single)
+# The switching sequence is study 25's, validated by hand in its phase 0 (2026-09-29): MIG
+# on/off with dcgm-exporter and the device plugin running needs no reboot. The 2g.32gb
+# profile (the whole GPU as one MIG instance) was checked on the node on 2026-09-30.
 #
 # Fail-fast by design (set -e, explicit checks): a half-applied mode would benchmark the
 # previous experiment's configuration under the current one's name — the failure study
@@ -28,41 +31,14 @@ die() { echo "error: $*" >&2; exit "${2:-2}"; }
 grep -q '\${' "$PARAMS" && die "params.env still has unsubstituted tokens — a parameter is missing from the study's parametersSelection: $(grep '\${' "$PARAMS")"
 # shellcheck disable=SC1090
 source "$PARAMS"
-for v in SHARING_MODE REPLICAS GPU_MEMORY_UTILIZATION MAX_NUM_SEQS MAX_NUM_BATCHED_TOKENS STREAM_INTERVAL; do
+for v in MIG_PROFILE GPU_MEMORY_UTILIZATION MAX_NUM_SEQS MAX_NUM_BATCHED_TOKENS STREAM_INTERVAL; do
   [ -n "${!v:-}" ] || die "$v is empty in params.env (doNotRenderParameters renders an empty string, not the token)"
 done
-
-# Plugin config names use a hyphen (time-slicing), the Akamas category an underscore.
-# PIECES = how many units the device plugin advertises in this mode; REPLICAS (<= PIECES)
-# is how many of them serve. The study's parameterConstraints forbid the combinations
-# rejected here; this is the last line of defence.
-case "$SHARING_MODE" in
-  exclusive)    PIECES=1; PLUGIN_CONFIG=exclusive ;;
-  mig)          PIECES=2; PLUGIN_CONFIG=mig ;;
-  time_slicing) PIECES=2; PLUGIN_CONFIG=time-slicing ;;
-  mps)          PIECES=2; PLUGIN_CONFIG=mps ;;
-  *) die "unknown sharing_mode '$SHARING_MODE'" ;;
-esac
-case "$SHARING_MODE:$REPLICAS" in
-  exclusive:1|mig:1|mig:2|mps:1|mps:2|time_slicing:2) ;;
-  *) die "sharing_mode=$SHARING_MODE with replicas=$REPLICAS is not a valid combination" ;;
-esac
-
-# gpu_memory_utilization is the fraction of the memory the REPLICA owns. vLLM measures
-# it against what CUDA reports as total, which phase 0 showed differs per mode:
-#   exclusive     whole GPU (31.38 GiB)                   -> as is
-#   mig           the 1g.16gb slice (15.66 GiB)            -> as is
-#   time_slicing  whole GPU, shared by two engines         -> / 2
-#   mps           whole GPU as total, 15.79 GiB FREE (the  -> / 2; 0.90 un-halved failed
-#                 MPS limit lowers free memory, not total)      with "Free memory ... less
-#                                                               than desired" in phase 0
-# The study domain tops out at 0.90, so the halved value never exceeds 0.45 (14.1 GiB),
-# inside the 15.79 GiB MPS clients get.
-case "$SHARING_MODE" in
-  time_slicing|mps) GMU_EFFECTIVE=$(awk -v g="$GPU_MEMORY_UTILIZATION" 'BEGIN{printf "%.4f", g/2}') ;;
-  *)                GMU_EFFECTIVE=$GPU_MEMORY_UTILIZATION ;;
-esac
-t "mode=$SHARING_MODE replicas=$REPLICAS/$PIECES gpu_memory_utilization=$GPU_MEMORY_UTILIZATION (effective $GMU_EFFECTIVE) max_num_seqs=$MAX_NUM_SEQS max_num_batched_tokens=$MAX_NUM_BATCHED_TOKENS stream_interval=$STREAM_INTERVAL"
+[[ "$MIG_PROFILE" =~ ^(none|[0-9]g\.[0-9]+gb)$ ]] || die "mig_profile '$MIG_PROFILE' is neither none nor a MIG profile name"
+# gpu_memory_utilization is the fraction of the memory the replica's device has: the whole
+# GPU for none, the MIG instance for a profile (vLLM sees the instance as the device).
+GMU_EFFECTIVE=$GPU_MEMORY_UTILIZATION
+t "mig_profile=$MIG_PROFILE gpu_memory_utilization=$GPU_MEMORY_UTILIZATION max_num_seqs=$MAX_NUM_SEQS max_num_batched_tokens=$MAX_NUM_BATCHED_TOKENS stream_interval=$STREAM_INTERVAL"
 
 NODE=$(kubectl get nodes -l node-role=llm-serving-g7-4500 -o jsonpath='{.items[0].metadata.name}')
 [ -n "$NODE" ] || die "no node with node-role=llm-serving-g7-4500 (node group scaled to 0?)" 3
@@ -80,7 +56,7 @@ LEFT=$(kubectl -n $NS get pods -l app=vllm -o name | wc -l | tr -d ' ')
 [ "$LEFT" = 0 ] || die "$LEFT vLLM pod(s) still present after scale-down — refusing to touch the GPU" 3
 
 # --- 2. Neutral device-plugin config -------------------------------------------------
-# Stops the MPS control daemon if the previous mode was mps: it holds a GPU context and
+# Defensive, for a node left in MPS by study 25: the MPS control daemon holds a GPU context and
 # keeps the GPU in Exclusive_Process compute mode, and both must go before MIG changes.
 t "2/6 neutral device-plugin config"
 kubectl label node "$NODE" nvidia.com/device-plugin.config=exclusive --overwrite >/dev/null
@@ -99,48 +75,49 @@ done
 [ "$MPS_LEFT" = 0 ] || die "MPS control daemon still running on $NODE after 2 min" 4
 H sh -c '! pgrep -f "[n]vidia-cuda-mps" >/dev/null' || die "an nvidia-cuda-mps process is still alive on $NODE" 4
 
-# --- 3. MIG state --------------------------------------------------------------------
-t "3/6 MIG state"
+# --- 3. MIG layout -------------------------------------------------------------------
+t "3/6 MIG layout"
 CUR=$(H nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader | tr -d ' ')
-if [ "$SHARING_MODE" = mig ]; then
-  [ "$CUR" = Enabled ] || H nvidia-smi -i 0 -mig 1
-  # Recreate the two slices every time: GPU/compute instances do not survive a reboot
-  # (MIG mode does), and a leftover layout from a manual test must not leak in.
+# Destroy every existing instance first: GPU/compute instances do not survive a reboot
+# (MIG mode does), and a leftover layout from a previous experiment must not leak in.
+if [ "$CUR" = Enabled ]; then
   H nvidia-smi mig -dci >/dev/null 2>&1 || true
   H nvidia-smi mig -dgi >/dev/null 2>&1 || true
-  H nvidia-smi mig -cgi 5,5 -C      # profile 5 = 1g.16gb, the only two-way split
+fi
+if [ "$MIG_PROFILE" = none ]; then
+  [ "$CUR" = Enabled ] && H nvidia-smi -i 0 -mig 0
+  REPLICAS=1; PLUGIN_CONFIG=exclusive; WANT_STATE=Disabled,Disabled
 else
-  if [ "$CUR" = Enabled ]; then
-    H nvidia-smi mig -dci >/dev/null 2>&1 || true
-    H nvidia-smi mig -dgi >/dev/null 2>&1 || true
-    H nvidia-smi -i 0 -mig 0
-  fi
+  [ "$CUR" = Enabled ] || H nvidia-smi -i 0 -mig 1
+  # `nvidia-smi mig -lgip` rows: | 0  MIG <name>  <id>  <free>/<total>  <mem> ...
+  read -r PID FREE < <(H nvidia-smi mig -lgip | awk -v n="$MIG_PROFILE" '$3=="MIG" && $4==n {split($6,a,"/"); print $5, a[1]; exit}') || true
+  [ -n "${PID:-}" ] || die "MIG profile $MIG_PROFILE is not offered by this GPU (nvidia-smi mig -lgip)" 4
+  [ "${FREE:-0}" -ge 1 ] || die "no free $MIG_PROFILE instance on an empty GPU" 4
+  IDS=$(printf "$PID,%.0s" $(seq 1 "$FREE")); IDS=${IDS%,}
+  H nvidia-smi mig -cgi "$IDS" -C
+  REPLICAS=$(H nvidia-smi -L | grep -c "MIG $MIG_PROFILE")
+  [ "$REPLICAS" = "$FREE" ] || die "created $REPLICAS $MIG_PROFILE instances, expected $FREE" 4
+  PLUGIN_CONFIG=mig; WANT_STATE=Enabled,Enabled
 fi
 H nvidia-smi -c DEFAULT >/dev/null
 STATE=$(H nvidia-smi --query-gpu=mig.mode.current,mig.mode.pending --format=csv,noheader | tr -d ' ')
-case "$SHARING_MODE:$STATE" in
-  mig:Enabled,Enabled|exclusive:Disabled,Disabled|time_slicing:Disabled,Disabled|mps:Disabled,Disabled) ;;
-  *) die "MIG state '$STATE' does not match mode $SHARING_MODE (a pending change would need a GPU reset; refusing to benchmark the wrong mode)" 4 ;;
-esac
+[ "$STATE" = "$WANT_STATE" ] || die "MIG state '$STATE', expected $WANT_STATE for $MIG_PROFILE (a pending change would need a GPU reset; refusing to benchmark the wrong layout)" 4
+t "   $REPLICAS x $MIG_PROFILE -> $REPLICAS replica(s)"
 
-# --- 4. Device-plugin config for the mode --------------------------------------------
+# --- 4. Device-plugin config ----------------------------------------------------------
 t "4/6 device-plugin config $PLUGIN_CONFIG"
-[ "$SHARING_MODE" = mps ] && kubectl label node "$NODE" nvidia.com/mps.capable=true --overwrite >/dev/null
 kubectl label node "$NODE" nvidia.com/device-plugin.config=$PLUGIN_CONFIG --overwrite >/dev/null
 # The config-manager sidecar restarts the plugin on a label change (15-40 s in phase 0).
-# Give it time to re-register before trusting the count: the previous mode's value can
-# match by accident (exclusive -> exclusive, or mig -> time_slicing, both 2).
+# Give it time to re-register before trusting the count: the previous layout's value can
+# match by accident.
 sleep 15
 N=""
 for _ in $(seq 1 30); do
   N=$(kubectl get node "$NODE" -o jsonpath='{.status.allocatable.nvidia\.com/gpu}')
-  [ "$N" = "$PIECES" ] && break
+  [ "$N" = "$REPLICAS" ] && break
   sleep 5
 done
-[ "$N" = "$PIECES" ] || die "node advertises nvidia.com/gpu=$N, expected $PIECES for $SHARING_MODE" 5
-if [ "$SHARING_MODE" = mps ]; then
-  kubectl -n $NS rollout status ds/nvdp-g7-nvidia-device-plugin-mps-control-daemon --timeout=180s
-fi
+[ "$N" = "$REPLICAS" ] || die "node advertises nvidia.com/gpu=$N, expected $REPLICAS for $MIG_PROFILE" 5
 
 # --- 5. dcgm-exporter re-reads the GPU layout ----------------------------------------
 # After a MIG change the exporter has to be restarted to see (or stop seeing) the

@@ -74,5 +74,5 @@ AWS_PROFILE=lab ./eks/gpu-nodegroup.sh --always-on    # before runs past 17:00 U
 - Re-pointing the **shared** `dcgm-exporter` release at this node group — a deliberate,
   manual step because it takes GPU telemetry away from whichever study uses it now
   (study README, "Before starting").
-- Installing the GPU optimization pack 1.3.0 (`GPU.sharing_mode`), managed outside this
+- Installing the GPU optimization pack >= 1.4.0 (`GPU.mig_profile`), managed outside this
   repo.

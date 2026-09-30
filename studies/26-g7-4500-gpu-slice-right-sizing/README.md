@@ -1,96 +1,112 @@
 # 26-g7-4500-gpu-slice-right-sizing
 
-**Status:** TODO — built locally 2026-09-29, not synced to the toolbox, not created in
-Akamas (see "Before starting").
+**Status:** TODO — redesigned 2026-09-30 as a MIG-only right-sizing sweep (see "Why MIG
+only"); to be created on Akamas once the toolbox test passes.
 **Dates:** —
 
 ## Objective
 
-How much of a GPU does a small model actually need? Study 25 asks whether splitting one
-RTX PRO 4500 between replicas beats one replica on the whole GPU, always using every
-piece. This study asks the right-sizing question instead: **one piece alone** — a MIG
-`1g.16gb` slice or one MPS client, with the other half idle — against the same piece
-with **its neighbour busy**, and against the whole GPU.
+How much of a GPU does a small model need to hold its SLO? In enterprise GPU clusters
+the unit of allocation is a **MIG partition**: time-slicing and MPS give no memory or
+fault isolation between tenants and are not used there. So the parameter to explore is
+the **MIG partition size**, and the answer is a capacity table: how much traffic each
+size sustains within the SLO — from which the smallest partition for any target traffic
+can be read.
 
-**Goal:** maximize goodput **per unit of GPU** — aggregate
-`vllm.prefill_token_throughput + vllm.decode_token_throughput` divided by
-`vllm.active_gpus`, the fraction of the physical GPU the replicas hold (1 for exclusive or
-both pieces, 0.5 for one piece) — under TTFT p95 <= 1500 ms and ITL p95 <= 300 ms,
-`stability` windowing. Same shape as study 21's per-GPU goal.
+**Parameter:** `gpu0.mig_profile` (GPU pack 1.4.0) on one RTX PRO 4500 Blackwell:
 
-It is a **sweep, not an optimization**: a baseline and five presets, no optimizer step,
-because the answer is a small table, not a search. Chosen with the user on 2026-09-29
-over folding a replica-count parameter into study 25: with a per-unit goal the optimizer
-would favour one slice alone for a reason that only holds while the other half is idle.
+| `mig_profile` | What runs | Replicas |
+|---|---|---|
+| `none` | the whole GPU, MIG off — the non-MIG reference | 1 |
+| `2g.32gb` | the whole GPU as one MIG instance (what MIG itself costs) | 1 |
+| `1g.16gb` | two half-GPU instances, **both serving** | 2 |
 
-**Why it can go either way.** Phase 0 (study 25 README) measured one slice alone at 2378
-tokens/s at 128 users = 4756 per GPU, **+4 %** over exclusive (4560): with the neighbour
-idle the GPU drew ~135 W at a full 2400 MHz, while exclusive sat at its 165 W cap with the
-SM clock throttled to ~1.8 GHz. With both slices busy each delivered ~2076 (**-9 %**). So
-half a GPU is worth slightly more than half — but only if the other half is not used.
+This GPU offers only these two MIG sizes (NVIDIA MIG User Guide, Table 8: `1g.16gb` x2
+or `2g.32gb` x1), so the right-sizing answer here is coarse — half or whole. A100/H100
+(1g..7g, up to 7 instances) or RTX PRO 6000 (1g/2g/4g) would give a finer table; the
+parameter and the scripts are written for that (the profile list comes from `nvidia-smi
+mig -lgip`), only the study's category list would change.
+
+**The GPU is always fully partitioned, one replica per MIG instance.** A slice is
+therefore always measured with busy neighbours, as in a shared cluster. That matters:
+MIG isolates compute and memory bandwidth but **not power**. Measured in study 25: one
+`1g.16gb` slice alone ran unthrottled at 2400 MHz / ~135 W and served 2378 output
+tokens/s at 128 users, while with both slices busy the GPU sat at its 165 W cap and each
+slice served ~2076 (study 25 README, phase 0). The alone number is kept as the
+optimistic bound; the study measures the realistic one.
+
+**Goal:** maximize aggregate `vllm.prefill_token_throughput +
+vllm.decode_token_throughput` under TTFT p95 <= 1500 ms and ITL p95 <= 300 ms. The
+result to read is the **capacity per slice** = aggregate / number of instances, and the
+concurrency at which the SLO still holds.
+
+**Windowing on total throughput** (`vllm.total_token_throughput`, stability width 6,
+`when: max`), not on prefill as in study 25: re-scoring study 25 showed the
+prefill-ranked window sits at high concurrency where decode slows, under-scoring the
+split modes by up to 15 % (study 25 README).
+
+## Why MIG only, and why presets only
+
+Decided 2026-09-30 after review by a colleague: time-slicing and MPS are not usable in an
+enterprise context, MIG is — the question is right-sizing, not the sharing technique.
+With only two MIG sizes on this GPU an optimizer adds little for its ~25 h, so the study
+is a sweep of seven presets (~9 h). If one size turns out interesting, a follow-up can
+run the optimizer on that size alone.
 
 ## Stack & versions
 
-Identical to study 25 (`../25-g7-4500-gpu-sharing-goodput/README.md`, "Stack &
-versions"): Akamas 3.7.x; GPU pack **1.3.0** (`sharing_mode`, not installed yet), vLLM
-pack 1.12.0, Kubernetes pack (installed; this study also uses its `Kubernetes Workload`
-type for `replicas`); `vllm/vllm-openai:v0.29.0` serving
-`Qwen/Qwen3-4B-Instruct-2507-FP8` as `qwen3-4b`; node group `llm-serving-g7-4500`
-(1x g7.4xlarge, RTX PRO 4500 Blackwell Server Edition 32 GB, 165 W, driver 595.91.07);
-AIPerf 0.11.0 ShareGPT, 60 s warm-up, 12 levels `16..768` x 300 s; Prometheus, 117
-metrics.
+- **Akamas** 3.7.x; **GPU pack 1.4.0** (`mig_profile`, installed 2026-09-30), vLLM pack
+  1.12.0, Kubernetes pack (installed build 1.8.0-dev).
+- **Workload:** `vllm/vllm-openai:v0.29.0`, `Qwen/Qwen3-4B-Instruct-2507-FP8` as
+  `qwen3-4b`, `--max-model-len 4096`, prefix caching off; StatefulSet `vllm` in namespace
+  `gpu-sharing`, one pod per MIG instance.
+- **Hardware:** node group `llm-serving-g7-4500`, 1x g7.4xlarge, NVIDIA RTX PRO 4500
+  Blackwell Server Edition 32 GB, 165 W, driver 595.91.07 (`infra/README.md`). Same node,
+  namespace and GPU sharing layer as study 25 — the two studies never run together.
+- **Load:** AIPerf 0.11.0, ShareGPT, 60 s warm-up at 64 users, 12 levels 16..768 x 300 s
+  (`k8s/05-job.yaml`). With `1g.16gb` each slice gets half the users.
+- **Telemetry:** Prometheus, 117 metrics (study 25's catalog); placeholder keys have no
+  underscore (`$GPUMODEL$`, `$NODEROLE$`) because Akamas 3.7 does not substitute keys
+  such as `gpu_model` / `node_role` (found on study 25, 2026-09-30).
 
-Same node, same namespace (`gpu-sharing`), same Kubernetes resource names and the same
-GPU sharing layer as study 25 (`infra/`, idempotent) — **studies 25 and 26 must never run
-at the same time.**
+## Steps (all presets, no optimizer)
 
-## Parameters and steps
+| # | Step | `mig_profile` | Replicas | `max_num_seqs` | Why |
+|---|---|---|---|---|---|
+| 1 | baseline | none | 1 | 256 | whole GPU, no MIG |
+| 2 | MIG whole GPU seqs 256 | 2g.32gb | 1 | 256 | the cost of MIG itself |
+| 3 | MIG whole GPU seqs 512 | 2g.32gb | 1 | 512 | 159k KV tokens leave room for bigger batches |
+| 4 | MIG half GPU seqs 256 | 1g.16gb | 2 | 256 | half GPU at defaults |
+| 5 | MIG half GPU seqs 128 | 1g.16gb | 2 | 128 | 56k KV tokens per slice: less KV pressure, lower ITL |
+| 6 | MIG half GPU seqs 384 | 1g.16gb | 2 | 384 | the slice pushed to its KV limit |
+| 7 | no MIG repeat | none | 1 | 256 | drift check |
 
-| Step | `gpu0.sharing_mode` | `vllm_workload.replicas` | GPU fraction | What it measures |
-|---|---|---|---|---|
-| baseline | exclusive | 1 | 1 | whole GPU, one replica |
-| MIG one slice alone | mig | 1 | 0.5 | a hard half, neighbour idle |
-| MIG both slices busy | mig | 2 | 1 | a hard half, neighbour busy (per slice = goal / 2) |
-| MPS one client alone | mps | 1 | 0.5 | a soft half (50 % SMs, half memory), neighbour idle |
-| MPS both clients busy | mps | 2 | 1 | a soft half, neighbour busy |
-| exclusive repeat | exclusive | 1 | 1 | drift check at the end |
+Other vLLM parameters: `gpu_memory_utilization` 0.90 (of the MIG instance under MIG),
+`max_num_batched_tokens` 2048, `stream_interval` 1. Budget ~7 x 75 min ~= 9 h, ~27 USD.
 
-vLLM parameters are pinned in every step to vLLM's defaults on this GPU
-(`gpu_memory_utilization` 0.90 — halved by `apply_config.sh` under MPS —, `max_num_seqs`
-256, `max_num_batched_tokens` 2048, `stream_interval` 1), exactly study 25's
-head-to-head presets, so its MIG/MPS two-piece presets and this study's rows compare
-like with like. `time_slicing` is excluded: a time-sliced "half" has no memory or compute
-isolation, it is not a slice. One `parameterConstraint`: exclusive implies one replica.
+## How an experiment is applied (`k8s/apply_config.sh`)
 
-Budget: 6 experiments x ~70-80 min ~= 7.5 h of node time, ~23 USD at 3.04 USD/h.
+1. FileConfigurator renders `params.env` (five parameters); the script refuses an
+   unsubstituted or empty value.
+2. Scale vLLM to 0, delete its pods, stop any MPS daemon left by study 25.
+3. Destroy every MIG instance. `none`: MIG off. A profile: MIG on, look up the profile ID
+   and free count in `nvidia-smi mig -lgip`, create that many instances with compute
+   instances (`mig -cgi <id>,<id>,... -C`), check the count.
+4. Device-plugin config `exclusive` (none) or `mig` (migStrategy single), wait until the
+   node advertises one `nvidia.com/gpu` per instance.
+5. Restart dcgm-exporter on the node (it re-reads the MIG layout).
+6. Render the StatefulSet with one replica per instance; `OrderedReady` start;
+   crash-loop fail-fast; full logs to the Akamas task output.
 
-## Design
-
-Everything is study 25's (`k8s/apply_config.sh`, `k8s/run_test_goodput.sh`,
-`k8s/05-job.yaml`, telemetry), with two differences:
-
-1. `REPLICAS` comes from `vllm_workload.replicas` (rendered into `params.env`) instead of
-   following from the mode; `apply_config.sh` still waits for the node to advertise the
-   mode's full number of pieces, then starts only `REPLICAS` of them, and rejects
-   exclusive x2 and time_slicing x1.
-2. `vllm.active_gpus` is redefined as the GPU fraction held by the vLLM pods,
-   `sum(kube_pod_container_resource_requests{resource="nvidia_com_gpu", namespace=
-   "gpu-sharing", pod=~"$POD$"}) / node allocatable nvidia.com/gpu` — 0.5 with one
-   replica on one of two MIG slices, checked live on 2026-09-29.
-
-Caveats to read the results with: the MPS client's cap is the device plugin's
-100/replicas default active-thread percentage, so one MPS client alone still gets only
-half the SMs (a real "half"), unlike exclusive; and under MIG an idle slice still leaves
-its power budget to the busy one, which is exactly the effect this study isolates.
+`k8s/run_test_goodput.sh` fails the trial as soon as the Job fails, a replica restarts or
+is replaced, or no request completes for 15 min (study 25's guards).
 
 ## Before starting
 
-Same as study 25's "Before starting" (GPU pack 1.3.0 with an Administrator login;
-dcgm-exporter scraping `llm-serving-g7-4500`, today pinned to the L4 node for study 24;
-no overlap with another study on `system-m8a`; toolbox sync; `infra/eks/provision.sh`),
-plus: study 25 must not be running.
-
-Setup & run commands: `akamas/README.md`.
+- Study 25 finished (done 2026-09-30 08:30 UTC) and the node left neutral.
+- GPU pack 1.4.0 installed (done).
+- dcgm-exporter covers `llm-serving-g7-4500` (done in study 25, helm revision 22).
+- Toolbox sync, then `akamas create` (commands in `akamas/README.md`) and start.
 
 ## Results
 

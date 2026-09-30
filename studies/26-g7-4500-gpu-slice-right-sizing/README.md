@@ -1,8 +1,9 @@
 # 26-g7-4500-gpu-slice-right-sizing
 
-**Status:** TODO — redesigned 2026-09-30 as a MIG-only right-sizing sweep (see "Why MIG
-only"); to be created on Akamas once the toolbox test passes.
-**Dates:** —
+**Status:** RUNNING — redesigned 2026-09-30 as a MIG-only right-sizing sweep (see "Why MIG
+only"); `apply_config.sh` tested in the toolbox on all three profiles, then created and
+started on Akamas 2026-09-30 09:01 UTC (GPU pack 1.4.0).
+**Dates:** 2026-09-30 –
 
 ## Objective
 
@@ -106,7 +107,8 @@ is replaced, or no request completes for 15 min (study 25's guards).
 - Study 25 finished (done 2026-09-30 08:30 UTC) and the node left neutral.
 - GPU pack 1.4.0 installed (done).
 - dcgm-exporter covers `llm-serving-g7-4500` (done in study 25, helm revision 22).
-- Toolbox sync, then `akamas create` (commands in `akamas/README.md`) and start.
+- Toolbox sync, then `akamas create -f` (commands in `akamas/README.md`) and start (done
+  2026-09-30 09:01 UTC; node and load-generator instances and ASGs tagged AlwaysOn).
 
 ## Results
 

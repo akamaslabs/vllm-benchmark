@@ -1,8 +1,9 @@
 # akamas/ — 26-G7-4500-GPU-Slice-Right-Sizing
 
 **Created:** 2026-09-29, with the `akamas-study-manager` plugin conventions, from study 25's
-resources (same system shape, workflow and telemetry). **Not created on the Akamas server
-yet** — validated offline only (see "Validation").
+resources (same system shape, workflow and telemetry). **Created on the Akamas server and
+started 2026-09-30 09:01 UTC** with `akamas create -f` on this folder (telemetry instance
+`f73a720c-676f-45ac-97a8-6ee4594e7726`, workflow `1f36db7b-898e-49c6-962b-2d15dedacd16`).
 
 ## What it optimizes
 

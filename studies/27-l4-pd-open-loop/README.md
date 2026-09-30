@@ -1,6 +1,6 @@
 # 27-L4-PD-Open-Loop
 
-**Status:** PREPARED (2026-09-30). Not created on Akamas yet. Run the smoke study first.
+**Status:** RUNNING (created and started 2026-09-30 14:01 UTC; study id a1e35c1b-9d3e-40b7-ada2-71e850445b86). The smoke study passed first (see "Smoke test").
 **Needs:** vLLM optimization pack **1.12.0** (as study 24).
 
 > Study 24 with an **open-loop load**. Same model, node, parameters, domains, presets and
@@ -100,6 +100,33 @@ pod start. Check:
 4. The windows before the watchdog meet the constraints, and the later ones do not.
 
 Then delete the smoke study.
+
+### Smoke test results (2026-09-30)
+
+- **Run 1 failed: the ramp sent no request** (`Phase profiling sending complete | sent=0`
+  in 600 s, then AIPerf exited with "No profile results to export"). Cause, in AIPerf
+  0.11.0: the ramp starts at R × 0.1 / D (1.5 × 0.1 / 600 = 0.00025 req/s). The first
+  Poisson interval is drawn at that rate (mean ~4000 s). A later rate change does not
+  reschedule the pending wait (`set_request_rate` only updates the interval generator).
+  Fix: `AIPERF_TIMING_RATE_RAMP_UPDATE_INTERVAL=10` (the maximum) in `k8s/05-job.yaml`. The
+  ramp then starts at R × 10 / D (0.0083 req/s in the study, first request after ~2 min on
+  average). Reproduced and fixed locally: sent=0 → sent=21 in 120 s.
+- **Run 2 passed: VALID, score 1068.69**, 12 min 26 s.
+  - The ramp started (`0.03 → 1.5 QPS over 600.0s`).
+  - The watchdog fired at TTFT p95 23.7 s and ended the test after 577 s ("TTFT p95
+    57421 ms, ITL p95 207 ms for 121 s"). The trial did not fail.
+  - The scored window ends where the SLA breaks: TTFT p95 9.8 s, ITL p95 74.7 ms.
+  - The bf16 decode saturated at ~0.64-0.71 req/s (15 running sequences, decode queue
+    growing), as in study 24 (~0.69 req/s).
+  - The score is low for this config because the smoke ramp is 6× steeper: the 180 s
+    window spans ~0.45 req/s and its average (~0.49 req/s) is far below the SLA point
+    (~0.63 req/s). In the study the window spans ~0.15 req/s.
+  - **Noise:** the 30 s throughput samples moved between ~900 and ~3300 tok/s. 94% of the
+    tokens are prompt tokens, and the router counts each prompt (4096 tokens) at its first
+    token. So a window's throughput is the number of arrivals in 180 s: ~90 requests at
+    0.5 req/s, about ±10%. The repeated baseline measures it.
+- The first `akamas start` of each new study again left it RUNNING with no experiment
+  (study 24's Airflow DAG issue). A 2 min pause between `create` and `start` worked.
 
 ## Create and start (from the toolbox)
 

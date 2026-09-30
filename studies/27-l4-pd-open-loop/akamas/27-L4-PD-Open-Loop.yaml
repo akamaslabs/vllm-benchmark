@@ -1,10 +1,10 @@
 kind: study
-name: 27-L4-PD-Open-Loop
+name: 27-L4-PD-Open-Loop-Gamma
 description: >-
   Study 27: study 24 (P/D disaggregation of Qwen/Qwen3-8B-FP8 on one g6.12xlarge, 4x L4,
-  kernel backends in the search space) with an open-loop load: an AIPerf Poisson rate ramp
-  from 0 to 3 req/s over 60 min, ended by a watchdog past the SLA, instead of 6 closed-loop
-  concurrency levels. Goal: tokens/s per active GPU with TTFT p95 <= 10 s and ITL p95 <= 75
+  kernel backends in the search space) with an open-loop load: an AIPerf rate ramp from 0 to
+  2.4 req/s over 120 min, gamma arrivals (smoothness 4), ended by a watchdog past the SLA,
+  instead of 6 closed-loop concurrency levels. Goal: tokens/s per active GPU with TTFT p95 <= 10 s and ITL p95 <= 75
   ms, both p95 over 150 s read with :max. Steps: the aggregated baseline twice
   (repeatability), study 24's 11 presets, 2 scheduler presets, then 60 AKAMAS experiments.
   Needs vLLM pack 1.12.0.
@@ -12,6 +12,9 @@ description: >-
 # 27-L4-PD-Open-Loop-Workflow.yaml); the workflow runs studies/27-l4-pd-open-loop/k8s.
 # Everything except the load and the queue constraints is study 24's (same parameters, same
 # presets), so the presets compare the two load generators on the same configs.
+# Second run of study 27 (2026-09-30). The first run (study `27-L4-PD-Open-Loop`, finished
+# after its 2 baselines) used Poisson arrivals and a 3.0 req/s / 60 min ramp: the two
+# identical baselines scored 1158.49 and 1089.98. See README.md.
 # The load: k8s/05-job.yaml and k8s/run_test_tps.sh (watchdog). Why: README.md and
 # research/vllm/load_generation.md.
 # Kernel choices and their measured effect: k8s/01-deployment_template.yaml ("Kernel
@@ -159,8 +162,9 @@ kpis:
     aggregation: max
 
 # Baseline twice + 13 presets + 60 AKAMAS. The watchdog ends each ramp past the SLA, so an
-# experiment lasts ~25-55 min (setup ~10 min + ramp until ~1.3x the config's capacity),
-# about 50 h in total.
+# experiment lasts ~8 min of setup + capacity / 0.02 req/s per min + 3-7 min: ~40 min for
+# the baseline, ~48 min for a bf16-decode P1D1, ~85 min for the 2P2D. Presets ~13 h, about
+# 68 h in total.
 steps:
   # Study 20's baseline re-run with this study's telemetry: 2 aggregated replicas, vLLM
   # defaults for the scheduler and KV (not rendered), Marlin, FLASHINFER as in study 20 (with

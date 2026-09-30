@@ -1,6 +1,6 @@
 # 27-L4-PD-Open-Loop
 
-**Status:** RUNNING (created and started 2026-09-30 14:01 UTC; study id a1e35c1b-9d3e-40b7-ada2-71e850445b86). The smoke study passed first (see "Smoke test").
+**Status:** second run `27-L4-PD-Open-Loop-Gamma` (gamma arrivals, 2.4 req/s in 120 min), started 2026-09-30. The first run `27-L4-PD-Open-Loop` (Poisson, 3.0 req/s in 60 min; study id a1e35c1b-9d3e-40b7-ada2-71e850445b86) was finished after its two baselines: see "First run: Poisson".
 **Needs:** vLLM optimization pack **1.12.0** (as study 24).
 
 > Study 24 with an **open-loop load**. Same model, node, parameters, domains, presets and
@@ -27,11 +27,11 @@ Study 24 showed two problems (details in the research notes, `load_generation.md
 
 | Item | Study 24 | Study 27 |
 |---|---|---|
-| Load | closed loop, `--concurrency 2,4,8,16,24,32`, 600 s each | open loop, `--request-rate 3.0 --request-rate-ramp-duration 3600`, Poisson, seed 18 |
-| End of the test | after 60 min | watchdog: TTFT p95 (150 s) > 20 s or ITL p95 (150 s) > 225 ms for 120 s, or 60 min |
+| Load | closed loop, `--concurrency 2,4,8,16,24,32`, 600 s each | open loop, `--request-rate 2.4 --request-rate-ramp-duration 7200`, gamma arrivals (smoothness 4), seed 18 |
+| End of the test | after 60 min | watchdog: TTFT p95 (150 s) > 20 s or ITL p95 (150 s) > 225 ms for 120 s, or 120 min |
 | Queue constraints | `num_requests_waiting <= 1` on each role | removed |
 | Steps | baseline, 11 presets, 60 AKAMAS | baseline twice, the same 11 presets, 2 scheduler presets, 60 AKAMAS |
-| Experiment length | ~65 min | ~25-55 min (setup ~10 min, then the ramp until the watchdog) |
+| Experiment length | ~65 min | ~40-85 min (setup ~8 min, then the ramp until the watchdog) |
 
 Unchanged: parameters, domains, parameter constraints, goal formula, latency constraints
 (TTFT p95 150 s `:max` <= 10 s, ITL p95 150 s `:max` <= 75 ms), windowing, KPIs, telemetry
@@ -49,8 +49,14 @@ queries, serving template, router, launcher, tuned configs.
     sets `RampType.LINEAR`).
   - The Poisson intervals come from a generator derived from the global seed, so every
     trial gets the same arrival sequence.
-- **R = 3.0 req/s** is above every config in the search space (2P2D with fp8 KV is
-  estimated at ~1.8 req/s). The watchdog ends the ramp, so the true peak is always measured.
+- **R = 2.4 req/s in D = 7200 s** (0.02 req/s per minute). R is above every config in the
+  search space (2P2D with fp8 KV is estimated at ~1.8 req/s). The watchdog ends the ramp,
+  so the true peak is always measured. The 180 s scoring window spans 0.06 req/s: 11% of
+  the rate at 0.55 req/s, 4% at 1.5 req/s.
+- **Gamma arrivals, smoothness 4:** the same mean rate as Poisson, a quarter of the
+  variance of the intervals, so about half the noise on the number of arrivals in a window.
+  Checked locally: `pattern=gamma, rate=2.4, smoothness=4.0`, 51 requests sent in 120 s
+  (~58 expected).
 - **Watchdog** (`k8s/run_test_tps.sh`): every 15 s it reads the router's TTFT and ITL p95
   over 150 s from Prometheus. With an open loop the queue past the capacity grows for the
   rest of the ramp, so every later window is invalid. The watchdog ends the test with
@@ -128,6 +134,26 @@ Then delete the smoke study.
 - The first `akamas start` of each new study again left it RUNNING with no experiment
   (study 24's Airflow DAG issue). A 2 min pause between `create` and `start` worked.
 
+## First run: Poisson, 3.0 req/s in 60 min (2026-09-30)
+
+Study `27-L4-PD-Open-Loop`, finished after its two baselines (exp 3 aborted).
+
+| Exp | Score | Deciding constraint | ITL breaks at |
+|---|---|---|---|
+| baseline aggregated | 1158.49 | ITL p95 74.7 ms (TTFT p95 3.7 s) | ~0.55 req/s |
+| baseline aggregated repeat | 1089.98 (−5.9%) | ITL p95 74.7 ms | ~0.55 req/s |
+
+- The system behaved the same in both runs: the ITL broke at the same rate. A
+  recalculation on a 30 s grid gives 1110 and 1121 (1% apart).
+- The 5.9% is measurement noise, from two causes:
+  - **Arrival count.** The score is the throughput realized in the 180 s window, that is
+    the number of arrivals in it. With Poisson at ~0.5 req/s that is ~90 requests ± ~10%,
+    and the 30 s samples moved by ±30%. The max over the valid windows picks a lucky
+    window, and a small shift of the Akamas samples changes which one.
+  - **Ramp slope.** At 0.05 req/s per minute the window spanned 0.15 req/s, 27% of the
+    baseline's SLA rate. A 30 s shift of the crossing moved the score by ~5%.
+- Changes for the second run: gamma arrivals with smoothness 4, and 2.4 req/s in 120 min.
+
 ## Create and start (from the toolbox)
 
 ```bash
@@ -142,9 +168,13 @@ akamas create study 27-L4-PD-Open-Loop-Smoke.yaml
 akamas start study 27-L4-PD-Open-Loop-Smoke
 # after the check:
 akamas delete study 27-L4-PD-Open-Loop-Smoke
-akamas create study 27-L4-PD-Open-Loop.yaml
-akamas start study 27-L4-PD-Open-Loop
+akamas create study 27-L4-PD-Open-Loop.yaml       # study name: 27-L4-PD-Open-Loop-Gamma
+sleep 120
+akamas start study 27-L4-PD-Open-Loop-Gamma
 ```
+
+After a change of the workflow file (for example the RunTest timeout), run
+`akamas update workflow 27-L4-PD-Open-Loop-Workflow.yaml` before the next study.
 
 If `akamas start` leaves the study RUNNING with no experiment (Airflow DAG timeout, study
 24), delete the study, create it again, wait a minute, and start it again.

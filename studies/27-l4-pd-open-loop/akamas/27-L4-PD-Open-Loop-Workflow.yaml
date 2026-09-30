@@ -10,9 +10,9 @@ name: 27-L4-PD-Open-Loop-Workflow
 # Timeouts, computed for this study:
 #   Apply config  40 m — the Deployment's progressDeadlineSeconds is 1200 s and
 #                       apply_config.sh polls for up to 1500 s, plus the log dump.
-#   RunTest       95 m — the rate ramp lasts at most 60 min (the watchdog in run_test_tps.sh
+#   RunTest      160 m — the rate ramp lasts at most 120 min (the watchdog in run_test_tps.sh
 #                       usually ends it earlier), plus pip install and synthetic dataset
-#                       generation. run_test_tps.sh's own deadline (4800 s = 80 min) stays
+#                       generation. run_test_tps.sh's own deadline (8400 s = 140 min) stays
 #                       BELOW this, or Akamas kills the task before the script dumps the
 #                       job's logs.
 tasks:
@@ -49,7 +49,7 @@ tasks:
     operator: Executor
     arguments:
       retries: 0
-      timeout: 95m
+      timeout: 160m
       host:
         hostname: toolbox
         username: akamas

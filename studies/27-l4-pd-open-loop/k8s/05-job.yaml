@@ -20,12 +20,22 @@
 #             `--request-rate R --request-rate-ramp-duration D` (no `--concurrency`, which
 #             would cap the in-flight requests and close the loop again) starts at R*0.1/D
 #             and raises the rate linearly to R, updated every 0.1 s (AIPerf 0.11.0,
-#             timing/phase/runner.py). Poisson arrivals, same seed for every trial, so every
-#             trial gets the same arrival sequence.
-#   R, D      Rendered by run_test_tps.sh from RT_RATE_MAX (default 3.0 req/s) and RT_RAMP_S
-#             (default 3600 s). 3.0 req/s is above every config in the search space (2P2D
-#             with fp8 KV is estimated at ~1.8 req/s): the ramp ends by the watchdog in
-#             run_test_tps.sh, not at R, so the true peak is always measured.
+#             timing/phase/runner.py). Same seed for every trial.
+#   arrivals  GAMMA, smoothness 4 (2026-09-30). The first run of study 27 used Poisson: two
+#             identical baselines scored 1158.49 and 1089.98 (-5.9%), while their ITL broke
+#             at the same rate (~0.55 req/s). The score is the throughput realized in the
+#             180 s window, that is the number of arrivals in it: with Poisson that count
+#             varies by ~±10% at 0.5 req/s (~90 requests), and the max over the valid
+#             windows picks a lucky one. Gamma with shape k keeps the mean rate and divides
+#             the variance of the intervals by k (AIPerf GammaIntervalGenerator, the same
+#             parametrization as vLLM's `burstiness`): the count noise falls to ~1/2.
+#   R, D      Rendered by run_test_tps.sh from RT_RATE_MAX (default 2.4 req/s) and RT_RAMP_S
+#             (default 7200 s): 0.02 req/s per minute. The first run of study 27 used 3.0 in
+#             3600 s: the 180 s window then spanned 0.15 req/s, 27% of the baseline's SLA
+#             rate. Now it spans 0.06 req/s (11% at 0.55 req/s, 4% at 1.5 req/s). 2.4 req/s
+#             is above every config in the search space (2P2D with fp8 KV is estimated at
+#             ~1.8 req/s): the ramp ends by the watchdog in run_test_tps.sh, not at R, so the
+#             true peak is always measured.
 #   goodput   TTFT 10000 ms / ITL 75 ms, the same values as the study's SLA. For the AIPerf
 #             summary only; the score comes from Prometheus.
 #
@@ -82,7 +92,8 @@ spec:
                 --random-seed 18 \
                 --request-rate __RATE_MAX__ \
                 --request-rate-ramp-duration __RAMP_S__ \
-                --arrival-pattern poisson \
+                --arrival-pattern gamma \
+                --arrival-smoothness 4 \
                 --benchmark-duration __RAMP_S__ \
                 --benchmark-grace-period 60 \
                 --goodput "time_to_first_token:10000 inter_token_latency:75" \
@@ -100,9 +111,9 @@ spec:
             # the first Poisson interval is drawn at that rate (mean ~4000 s), and a later
             # rate change does not reschedule the pending wait (request_rate.py
             # set_request_rate only updates the generator). With 10 s (the maximum) the ramp
-            # starts at R x 10 / D: 0.0083 req/s for 3.0 / 3600 s, first request after ~2 min
-            # on average, then the rate follows the ramp in 10 s steps. Reproduced and fixed
-            # locally with AIPerf 0.11.0: sent=0 -> sent=21 in 120 s.
+            # starts at R x 10 / D: 0.0033 req/s for 2.4 / 7200 s, first request after ~5 min
+            # on average (at a negligible load), then the rate follows the ramp in 10 s steps.
+            # Reproduced and fixed locally with AIPerf 0.11.0: sent=0 -> sent=21 in 120 s.
             - name: AIPERF_TIMING_RATE_RAMP_UPDATE_INTERVAL
               value: "10"
             - name: AIPERF_DATASET_CONFIGURATION_TIMEOUT

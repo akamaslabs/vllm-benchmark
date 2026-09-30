@@ -21,7 +21,7 @@
 #
 # STUDY 27 (2026-09-30): open-loop rate ramp and watchdog.
 #   - 05-job.yaml is a template: __RATE_MAX__ and __RAMP_S__ become RT_RATE_MAX (default
-#     3.0 req/s) and RT_RAMP_S (default 3600 s) in a rendered copy, which is applied.
+#     2.4 req/s) and RT_RAMP_S (default 7200 s) in a rendered copy, which is applied.
 #   - The watchdog ENDS THE RAMP, WITH SUCCESS, once the router's TTFT p95 over 150 s stays
 #     above RT_WD_TTFT_MS (default 20000 = 2x the study's limit) or its ITL p95 over 150 s
 #     stays above RT_WD_ITL_MS (default 225 = 3x the limit) for RT_WD_HOLD_S (default 120 s).
@@ -33,8 +33,8 @@ K8S=/work/vllm-benchmark/studies/27-l4-pd-open-loop/k8s
 BENCH_TEMPLATE=$K8S/05-job.yaml
 BENCH_FILE=$(mktemp /tmp/aiperf-job-XXXXXX.yaml)
 NS=llm-serving
-RATE_MAX=${RT_RATE_MAX:-3.0}
-RAMP_S=${RT_RAMP_S:-3600}
+RATE_MAX=${RT_RATE_MAX:-2.4}
+RAMP_S=${RT_RAMP_S:-7200}
 WD_TTFT_MS=${RT_WD_TTFT_MS:-20000}
 WD_ITL_MS=${RT_WD_ITL_MS:-225}
 WD_HOLD_S=${RT_WD_HOLD_S:-120}
@@ -72,15 +72,15 @@ POD_BEFORE=$(serving_pod)
 echo "serving pod before the test: ${POD_BEFORE:-none}, restarts: $RESTARTS_BEFORE"
 
 sed -e "s/__RATE_MAX__/$RATE_MAX/g" -e "s/__RAMP_S__/$RAMP_S/g" "$BENCH_TEMPLATE" > "$BENCH_FILE"
-echo "AIPerf ramp: 0 -> $RATE_MAX req/s over $RAMP_S s (Poisson). Watchdog: TTFT p95 > $WD_TTFT_MS ms or ITL p95 > $WD_ITL_MS ms for $WD_HOLD_S s."
+echo "AIPerf ramp: 0 -> $RATE_MAX req/s over $RAMP_S s (gamma, smoothness 4). Watchdog: TTFT p95 > $WD_TTFT_MS ms or ITL p95 > $WD_ITL_MS ms for $WD_HOLD_S s."
 grep -E -- '--request-rate|--benchmark-duration' "$BENCH_FILE"
 kubectl delete job aiperf-benchmark -n llm-benchmark --ignore-not-found ; kubectl apply -f "$BENCH_FILE"
 
-# Deadline 4800 s (80 min): the 60 min ramp + pip install + synthetic dataset generation.
-# The workflow task's own timeout (95 min) must stay ABOVE this, or Akamas kills the task
+# Deadline 8400 s (140 min): the 120 min ramp + pip install + synthetic dataset generation.
+# The workflow task's own timeout (160 min) must stay ABOVE this, or Akamas kills the task
 # before these logs are dumped.
 POLL_S=${RT_POLL_S:-15}
-DEADLINE_S=${RT_DEADLINE_S:-4800}
+DEADLINE_S=${RT_DEADLINE_S:-8400}
 STALL_S=${RT_STALL_S:-900}          # no new completion for this long, after the first one
 FIRST_OK_S=${RT_FIRST_OK_S:-1500}   # no completion at all this long after the start
 PROGRESS_EVERY_S=${RT_PROGRESS_EVERY_S:-60}

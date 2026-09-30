@@ -418,6 +418,7 @@ need, or revise #3/#4's design to not depend on it.
 
 ## C. Consolidated learnings
 
+- **Akamas 3.7 does not substitute `$KEY$` placeholders whose property key contains an underscore** (found 2026-09-30 on study 25). The telemetry log shows the query run with a literal `$GPU_MODEL$` / `$NODE_ROLE$` and "No samples have been found"; nothing errors, the metric is just absent. Consequence: the `k8s_cluster_*` metrics of every study since 17 (`cluster` / `cluster_loadtest` with `node_role`) were never collected (checked on study 23's export: gpu0 had data, cluster none), and study 25's gpu0 metrics were missing in its first 7 experiments until its telemetry instance was recreated with the GPU model written literally. Use letters/digits-only keys (`noderole`, `gpumodel` — as study 26 now does) and check each component's `aggregatedMetrics` after the first trial, not just the score.
 - **`studies/15-qwen3-30b-a3b-parallelism-goodput-per-gpu`** (Qwen3-30B-A3B-Instruct-2507-FP8,
   4x L4, vLLM 0.29.0, 2026-09-18): **`gpu_memory_utilization` does not account for CUDA
   context and NCCL communication buffers — on this node they are ~2.3-2.4 GiB per GPU,

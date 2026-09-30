@@ -8,4 +8,4 @@ description: >-
 componentType: Kubernetes Cluster
 properties:
   prometheus:
-    node_role: system-m8a
+    noderole: system-m8a

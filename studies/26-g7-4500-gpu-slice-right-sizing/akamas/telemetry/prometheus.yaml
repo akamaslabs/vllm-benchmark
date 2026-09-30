@@ -3,7 +3,9 @@
 # rewritten for a shared GPU), except active_gpus, redefined below. Rules from phase 0 and
 # the audit of 2026-09-29 (study 25 README, "Telemetry rules"):
 #
-#   - GPU (component type GPU) queries filter on modelName=~"$GPU_MODEL$" and gpu, NEVER
+#   - Placeholder keys have NO underscore ($GPUMODEL$, $NODEROLE$): Akamas 3.7 does not
+#     substitute keys like gpu_model / node_role (found on study 25, 2026-09-30).
+#   - GPU (component type GPU) queries filter on modelName=~"$GPUMODEL$" and gpu, NEVER
 #     on pod: under time-slicing and MPS the one DCGM series carries only one of the two
 #     pods' names. The model-name filter also keeps any other GPU node's series out.
 #     (Checked in Prometheus: after the scrape, `pod` on DCGM series is the dcgm-exporter
@@ -126,37 +128,37 @@ metrics:
   datasourceMetric: '(min(histogram_quantile(0.95, sum by(pod, le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m])))))*1000'
   scale: 1
 - metric: gpu_util
-  datasourceMetric: 'avg(DCGM_FI_DEV_GPU_UTIL{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"}) / 100'
+  datasourceMetric: 'avg(DCGM_FI_DEV_GPU_UTIL{modelName=~"$GPUMODEL$", gpu=~"$GPU$"}) / 100'
 - metric: gpu_sm_active
-  datasourceMetric: 'avg(DCGM_FI_PROF_SM_ACTIVE{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'avg(DCGM_FI_PROF_SM_ACTIVE{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_sm_occupancy
-  datasourceMetric: 'avg(DCGM_FI_PROF_SM_OCCUPANCY{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'avg(DCGM_FI_PROF_SM_OCCUPANCY{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_tensor_core_active
-  datasourceMetric: 'avg(DCGM_FI_PROF_PIPE_TENSOR_ACTIVE{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'avg(DCGM_FI_PROF_PIPE_TENSOR_ACTIVE{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_dram_active
-  datasourceMetric: 'avg(DCGM_FI_PROF_DRAM_ACTIVE{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'avg(DCGM_FI_PROF_DRAM_ACTIVE{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_fb_used
-  datasourceMetric: 'sum(DCGM_FI_DEV_FB_USED{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'sum(DCGM_FI_DEV_FB_USED{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_fb_total
-  datasourceMetric: 'sum(DCGM_FI_DEV_FB_USED{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"} + DCGM_FI_DEV_FB_FREE{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'sum(DCGM_FI_DEV_FB_USED{modelName=~"$GPUMODEL$", gpu=~"$GPU$"} + DCGM_FI_DEV_FB_FREE{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_power_usage
-  datasourceMetric: 'max(DCGM_FI_DEV_POWER_USAGE{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_POWER_USAGE{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_power_limit
-  datasourceMetric: 'max(DCGM_FI_DEV_POWER_MGMT_LIMIT{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_POWER_MGMT_LIMIT{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_temp
-  datasourceMetric: 'max(DCGM_FI_DEV_GPU_TEMP{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_GPU_TEMP{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_memory_temp
-  datasourceMetric: 'max(DCGM_FI_DEV_MEMORY_TEMP{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_MEMORY_TEMP{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_power_violation_rate
-  datasourceMetric: 'max(rate(DCGM_FI_DEV_POWER_VIOLATION{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"}[2m])) / 1e9'
+  datasourceMetric: 'max(rate(DCGM_FI_DEV_POWER_VIOLATION{modelName=~"$GPUMODEL$", gpu=~"$GPU$"}[2m])) / 1e9'
 - metric: gpu_thermal_violation_rate
-  datasourceMetric: 'max(rate(DCGM_FI_DEV_THERMAL_VIOLATION{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"}[2m])) / 1e9'
+  datasourceMetric: 'max(rate(DCGM_FI_DEV_THERMAL_VIOLATION{modelName=~"$GPUMODEL$", gpu=~"$GPU$"}[2m])) / 1e9'
 - metric: gpu_pcie_replay_rate
-  datasourceMetric: 'max(rate(DCGM_FI_DEV_PCIE_REPLAY_COUNTER{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"}[$DURATION$]))'
+  datasourceMetric: 'max(rate(DCGM_FI_DEV_PCIE_REPLAY_COUNTER{modelName=~"$GPUMODEL$", gpu=~"$GPU$"}[$DURATION$]))'
 - metric: gpu_fp16_pipe_active
-  datasourceMetric: 'avg(DCGM_FI_PROF_PIPE_FP16_ACTIVE{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'avg(DCGM_FI_PROF_PIPE_FP16_ACTIVE{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_fp32_pipe_active
-  datasourceMetric: 'avg(DCGM_FI_PROF_PIPE_FP32_ACTIVE{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'avg(DCGM_FI_PROF_PIPE_FP32_ACTIVE{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: estimated_flops_per_gpu
   datasourceMetric: 'sum(rate(vllm:estimated_flops_per_gpu_total{model_name=~"$MODEL$", pod=~"$POD$"}[1m])) / 1e12'
 - metric: estimated_read_bytes_per_gpu
@@ -164,49 +166,49 @@ metrics:
 - metric: estimated_write_bytes_per_gpu
   datasourceMetric: 'sum(rate(vllm:estimated_write_bytes_per_gpu_total{model_name=~"$MODEL$", pod=~"$POD$"}[1m])) / 1e9'
 - metric: gpu_fp64_pipe_active
-  datasourceMetric: 'avg(DCGM_FI_PROF_PIPE_FP64_ACTIVE{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'avg(DCGM_FI_PROF_PIPE_FP64_ACTIVE{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_sm_clock
-  datasourceMetric: 'avg(DCGM_FI_DEV_SM_CLOCK{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'avg(DCGM_FI_DEV_SM_CLOCK{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_mem_clock
-  datasourceMetric: 'avg(DCGM_FI_DEV_MEM_CLOCK{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'avg(DCGM_FI_DEV_MEM_CLOCK{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_total_energy_consumption
-  datasourceMetric: 'max(DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_mem_copy_util
-  datasourceMetric: 'avg(DCGM_FI_DEV_MEM_COPY_UTIL{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"}) / 100'
+  datasourceMetric: 'avg(DCGM_FI_DEV_MEM_COPY_UTIL{modelName=~"$GPUMODEL$", gpu=~"$GPU$"}) / 100'
 - metric: gpu_enc_util
-  datasourceMetric: 'avg(DCGM_FI_DEV_ENC_UTIL{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"}) / 100'
+  datasourceMetric: 'avg(DCGM_FI_DEV_ENC_UTIL{modelName=~"$GPUMODEL$", gpu=~"$GPU$"}) / 100'
 - metric: gpu_dec_util
-  datasourceMetric: 'avg(DCGM_FI_DEV_DEC_UTIL{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"}) / 100'
+  datasourceMetric: 'avg(DCGM_FI_DEV_DEC_UTIL{modelName=~"$GPUMODEL$", gpu=~"$GPU$"}) / 100'
 - metric: gpu_gr_engine_active
-  datasourceMetric: 'avg(DCGM_FI_PROF_GR_ENGINE_ACTIVE{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'avg(DCGM_FI_PROF_GR_ENGINE_ACTIVE{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_xid_errors
-  datasourceMetric: 'max(DCGM_FI_DEV_XID_ERRORS{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_XID_ERRORS{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_uncorrectable_remapped_rows
-  datasourceMetric: 'max(DCGM_FI_DEV_UNCORRECTABLE_REMAPPED_ROWS{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_UNCORRECTABLE_REMAPPED_ROWS{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_correctable_remapped_rows
-  datasourceMetric: 'max(DCGM_FI_DEV_CORRECTABLE_REMAPPED_ROWS{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_CORRECTABLE_REMAPPED_ROWS{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_row_remap_failure
-  datasourceMetric: 'max(DCGM_FI_DEV_ROW_REMAP_FAILURE{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_ROW_REMAP_FAILURE{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_clock_throttle_reasons
-  datasourceMetric: 'max(DCGM_FI_DEV_CLOCK_THROTTLE_REASONS{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_CLOCK_THROTTLE_REASONS{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_fb_reserved
-  datasourceMetric: 'sum(DCGM_FI_DEV_FB_RESERVED{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'sum(DCGM_FI_DEV_FB_RESERVED{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_fb_used_percent
-  datasourceMetric: 'max(DCGM_FI_DEV_FB_USED_PERCENT{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_FB_USED_PERCENT{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_vgpu_license_status
-  datasourceMetric: 'max(DCGM_FI_DEV_VGPU_LICENSE_STATUS{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_VGPU_LICENSE_STATUS{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_pcie_tx_bytes
-  datasourceMetric: 'sum(DCGM_FI_PROF_PCIE_TX_BYTES{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'sum(DCGM_FI_PROF_PCIE_TX_BYTES{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_pcie_rx_bytes
-  datasourceMetric: 'sum(DCGM_FI_PROF_PCIE_RX_BYTES{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'sum(DCGM_FI_PROF_PCIE_RX_BYTES{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_count
-  datasourceMetric: 'max(DCGM_FI_DEV_COUNT{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_COUNT{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_fan_speed
-  datasourceMetric: 'avg(DCGM_FI_DEV_FAN_SPEED{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"}) / 100'
+  datasourceMetric: 'avg(DCGM_FI_DEV_FAN_SPEED{modelName=~"$GPUMODEL$", gpu=~"$GPU$"}) / 100'
 - metric: gpu_slowdown_temp
-  datasourceMetric: 'max(DCGM_FI_DEV_SLOWDOWN_TEMP{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'max(DCGM_FI_DEV_SLOWDOWN_TEMP{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: gpu_pstate
-  datasourceMetric: 'min(DCGM_FI_DEV_PSTATE{modelName=~"$GPU_MODEL$", gpu=~"$GPU$"})'
+  datasourceMetric: 'min(DCGM_FI_DEV_PSTATE{modelName=~"$GPUMODEL$", gpu=~"$GPU$"})'
 - metric: container_cpu_pressure_some
   datasourceMetric: 'sum(rate(container_pressure_cpu_waiting_seconds_total{pod=~"$POD$", container!=""}[2m]))'
 - metric: container_cpu_pressure_full
@@ -256,15 +258,15 @@ metrics:
 - metric: container_oom_kills_count
   datasourceMetric: 'sum(container_oom_events_total{pod=~"$POD$", container!=""})'
 - metric: k8s_cluster_cpu_pressure
-  datasourceMetric: 'sum(rate(node_pressure_cpu_waiting_seconds_total[2m]) * on(instance) group_left(nodename) node_uname_info * on(nodename) group_left(node) label_replace(kube_node_labels{label_node_role=~"$NODE_ROLE$"}, "nodename", "$1", "node", "(.*)"))'
+  datasourceMetric: 'sum(rate(node_pressure_cpu_waiting_seconds_total[2m]) * on(instance) group_left(nodename) node_uname_info * on(nodename) group_left(node) label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "nodename", "$1", "node", "(.*)"))'
 - metric: k8s_cluster_memory_pressure_some
-  datasourceMetric: 'sum(rate(node_pressure_memory_waiting_seconds_total[2m]) * on(instance) group_left(nodename) node_uname_info * on(nodename) group_left(node) label_replace(kube_node_labels{label_node_role=~"$NODE_ROLE$"}, "nodename", "$1", "node", "(.*)"))'
+  datasourceMetric: 'sum(rate(node_pressure_memory_waiting_seconds_total[2m]) * on(instance) group_left(nodename) node_uname_info * on(nodename) group_left(node) label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "nodename", "$1", "node", "(.*)"))'
 - metric: k8s_cluster_memory_pressure_full
-  datasourceMetric: 'sum(rate(node_pressure_memory_stalled_seconds_total[2m]) * on(instance) group_left(nodename) node_uname_info * on(nodename) group_left(node) label_replace(kube_node_labels{label_node_role=~"$NODE_ROLE$"}, "nodename", "$1", "node", "(.*)"))'
+  datasourceMetric: 'sum(rate(node_pressure_memory_stalled_seconds_total[2m]) * on(instance) group_left(nodename) node_uname_info * on(nodename) group_left(node) label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "nodename", "$1", "node", "(.*)"))'
 - metric: k8s_cluster_io_pressure_some
-  datasourceMetric: 'sum(rate(node_pressure_io_waiting_seconds_total[2m]) * on(instance) group_left(nodename) node_uname_info * on(nodename) group_left(node) label_replace(kube_node_labels{label_node_role=~"$NODE_ROLE$"}, "nodename", "$1", "node", "(.*)"))'
+  datasourceMetric: 'sum(rate(node_pressure_io_waiting_seconds_total[2m]) * on(instance) group_left(nodename) node_uname_info * on(nodename) group_left(node) label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "nodename", "$1", "node", "(.*)"))'
 - metric: k8s_cluster_io_pressure_full
-  datasourceMetric: 'sum(rate(node_pressure_io_stalled_seconds_total[2m]) * on(instance) group_left(nodename) node_uname_info * on(nodename) group_left(node) label_replace(kube_node_labels{label_node_role=~"$NODE_ROLE$"}, "nodename", "$1", "node", "(.*)"))'
+  datasourceMetric: 'sum(rate(node_pressure_io_stalled_seconds_total[2m]) * on(instance) group_left(nodename) node_uname_info * on(nodename) group_left(node) label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "nodename", "$1", "node", "(.*)"))'
 - metric: time_to_first_token_p90
   datasourceMetric: '(histogram_quantile(0.90, sum by(le)(rate(vllm:time_to_first_token_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000'
   scale: 1
@@ -287,20 +289,20 @@ metrics:
   datasourceMetric: '(sum(rate(vllm:request_queue_time_seconds_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:request_queue_time_seconds_count{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1e-9))*1000'
   scale: 1
 - metric: k8s_cluster_nodes
-  datasourceMetric: 'count(kube_node_labels{label_node_role=~"$NODE_ROLE$"})'
+  datasourceMetric: 'count(kube_node_labels{label_node_role=~"$NODEROLE$"})'
 - metric: k8s_cluster_cpu
-  datasourceMetric: 'sum(kube_node_status_capacity{resource="cpu"} * on(node) group_left() kube_node_labels{label_node_role=~"$NODE_ROLE$"})'
+  datasourceMetric: 'sum(kube_node_status_capacity{resource="cpu"} * on(node) group_left() kube_node_labels{label_node_role=~"$NODEROLE$"})'
 - metric: k8s_cluster_cpu_available
-  datasourceMetric: 'sum(kube_node_status_allocatable{resource="cpu"} * on(node) group_left() kube_node_labels{label_node_role=~"$NODE_ROLE$"})'
+  datasourceMetric: 'sum(kube_node_status_allocatable{resource="cpu"} * on(node) group_left() kube_node_labels{label_node_role=~"$NODEROLE$"})'
 - metric: k8s_cluster_cpu_request
-  datasourceMetric: 'sum(sum by(node)(kube_pod_container_resource_requests{resource="cpu"}) * on(node) group_left() kube_node_labels{label_node_role=~"$NODE_ROLE$"})'
+  datasourceMetric: 'sum(sum by(node)(kube_pod_container_resource_requests{resource="cpu"}) * on(node) group_left() kube_node_labels{label_node_role=~"$NODEROLE$"})'
 - metric: k8s_cluster_cpu_util
-  datasourceMetric: 'sum(sum by(node)(rate(container_cpu_usage_seconds_total{container!=""}[2m])) * on(node) group_left() kube_node_labels{label_node_role=~"$NODE_ROLE$"}) / clamp_min(sum(kube_node_status_capacity{resource="cpu"} * on(node) group_left() kube_node_labels{label_node_role=~"$NODE_ROLE$"}), 1e-9)'
+  datasourceMetric: 'sum(sum by(node)(rate(container_cpu_usage_seconds_total{container!=""}[2m])) * on(node) group_left() kube_node_labels{label_node_role=~"$NODEROLE$"}) / clamp_min(sum(kube_node_status_capacity{resource="cpu"} * on(node) group_left() kube_node_labels{label_node_role=~"$NODEROLE$"}), 1e-9)'
 - metric: k8s_cluster_memory
-  datasourceMetric: 'sum(kube_node_status_capacity{resource="memory"} * on(node) group_left() kube_node_labels{label_node_role=~"$NODE_ROLE$"})'
+  datasourceMetric: 'sum(kube_node_status_capacity{resource="memory"} * on(node) group_left() kube_node_labels{label_node_role=~"$NODEROLE$"})'
 - metric: k8s_cluster_memory_available
-  datasourceMetric: 'sum(kube_node_status_allocatable{resource="memory"} * on(node) group_left() kube_node_labels{label_node_role=~"$NODE_ROLE$"})'
+  datasourceMetric: 'sum(kube_node_status_allocatable{resource="memory"} * on(node) group_left() kube_node_labels{label_node_role=~"$NODEROLE$"})'
 - metric: k8s_cluster_memory_request
-  datasourceMetric: 'sum(sum by(node)(kube_pod_container_resource_requests{resource="memory"}) * on(node) group_left() kube_node_labels{label_node_role=~"$NODE_ROLE$"})'
+  datasourceMetric: 'sum(sum by(node)(kube_pod_container_resource_requests{resource="memory"}) * on(node) group_left() kube_node_labels{label_node_role=~"$NODEROLE$"})'
 - metric: k8s_cluster_memory_util
-  datasourceMetric: 'sum(sum by(node)(container_memory_working_set_bytes{container!=""}) * on(node) group_left() kube_node_labels{label_node_role=~"$NODE_ROLE$"}) / clamp_min(sum(kube_node_status_capacity{resource="memory"} * on(node) group_left() kube_node_labels{label_node_role=~"$NODE_ROLE$"}), 1e-9)'
+  datasourceMetric: 'sum(sum by(node)(container_memory_working_set_bytes{container!=""}) * on(node) group_left() kube_node_labels{label_node_role=~"$NODEROLE$"}) / clamp_min(sum(kube_node_status_capacity{resource="memory"} * on(node) group_left() kube_node_labels{label_node_role=~"$NODEROLE$"}), 1e-9)'

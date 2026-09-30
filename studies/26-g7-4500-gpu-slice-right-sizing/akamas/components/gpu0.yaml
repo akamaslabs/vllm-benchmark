@@ -13,4 +13,4 @@ componentType: GPU
 properties:
   prometheus:
     gpu: "0"
-    gpu_model: .*RTX PRO 4500.*
+    gpumodel: .*RTX PRO 4500.*

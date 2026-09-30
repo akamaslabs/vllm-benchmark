@@ -110,6 +110,18 @@ is replaced, or no request completes for 15 min (study 25's guards).
 - Toolbox sync, then `akamas create -f` (commands in `akamas/README.md`) and start (done
   2026-09-30 09:01 UTC; node and load-generator instances and ASGs tagged AlwaysOn).
 
+## Running notes
+
+- **Experiment 1 (baseline, 2026-09-30 09:01-10:15 UTC): 5926 tok/s, VALID, every metric
+  collected** (`missingMetrics` empty; gpu0 36/36, cluster and cluster_loadtest 14/14 —
+  the letters-only placeholder keys work).
+- **Thermal drift against study 25:** the same configuration scored 6202 in study 25's
+  baseline (2026-09-29 21:56 UTC). Same 165 W and same window load (127-128 running), but
+  the GPU ran at 87.5 °C instead of 76.3 °C and the SM clock at 1673 instead of 1768 MHz
+  (Prometheus, both scored windows): -5 % clock, -4.5 % throughput. Compare the MIG
+  profiles against this study's own baseline and its `no MIG repeat` step, not study 25,
+  and keep an eye on `gpu0.gpu_temp`.
+
 ## Results
 
 <Filled in by the study-recap skill once the study finishes.>

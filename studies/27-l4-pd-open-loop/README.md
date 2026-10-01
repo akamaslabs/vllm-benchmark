@@ -1,6 +1,6 @@
 # 27-L4-PD-Open-Loop
 
-**Status:** second run `27-L4-PD-Open-Loop-Gamma` (gamma arrivals, 2.4 req/s in 120 min), started 2026-09-30. The first run `27-L4-PD-Open-Loop` (Poisson, 3.0 req/s in 60 min; study id a1e35c1b-9d3e-40b7-ada2-71e850445b86) was finished after its two baselines: see "First run: Poisson".
+**Status:** FINISHED. Second run `27-L4-PD-Open-Loop-Gamma` (gamma arrivals, 2.4 req/s in 120 min), started 2026-09-30, stopped 2026-10-01 after 31 experiments (see "Results"). The first run `27-L4-PD-Open-Loop` (Poisson, 3.0 req/s in 60 min; study id a1e35c1b-9d3e-40b7-ada2-71e850445b86) was finished after its two baselines: see "First run: Poisson".
 **Needs:** vLLM optimization pack **1.12.0** (as study 24).
 
 > Study 24 with an **open-loop load**. Same model, node, parameters, domains, presets and
@@ -154,6 +154,96 @@ Study `27-L4-PD-Open-Loop`, finished after its two baselines (exp 3 aborted).
     baseline's SLA rate. A 30 s shift of the crossing moved the score by ~5%.
 - Changes for the second run: gamma arrivals with smoothness 4, and 2.4 req/s in 120 min.
 
+## Results (second run, 2026-09-30 → 2026-10-01)
+
+Study `27-L4-PD-Open-Loop-Gamma` (id 137fd899-7487-4150-a134-02c6c8f59ac2), finished with
+`akamas finish study` after 31 experiments: 15 presets and 16 AKAMAS experiments of 60 (exp 32
+aborted at its start). Score = total tokens/s per active GPU. The best configuration was on a
+plateau since exp 20, and the remaining budget was ~34 h of node. Afterwards `vllm-pd` was
+scaled to 0 replicas.
+
+| Exp | Configuration | Score |
+|---|---|---|
+| 1 / 2 | baseline aggregated P0D2, bf16, Marlin, vLLM defaults / repeat | 1136.92 / 1191.99 |
+| 3 / 4 | P1D1 bf16, prefill Marlin / Humming | 1029.94 / 1306.22 |
+| 5 / 6 | P1D1 bf16, prefill Triton default / tuned | 1422.01 / 1436.31 |
+| 7 | P1D1 bf16, decode Humming | 1449.93 |
+| 8 | **P1D1 fp8** | 1754.57 |
+| 9 | P1D1 bf16, FLASH_ATTN | 1290.59 |
+| 10 / 11 / 12 / 13 | P2D1 / P1D2 / P2D2 / P3D1, bf16 | 902.06 / 1203.20 / 1401.14 / 674.69 |
+| 14 / 15 | P1D1 bf16 batched 4160 / P1D1 fp8 decode seqs 32 | 1394.22 / 1659.32 |
+| 16-19 | AKAMAS, P1D1 fp8 | 1671.22 / 1712.48 / 1686.27 / 1739.12 |
+| 20 / 21 / 28 | AKAMAS, **P0D1 fp8**, Humming, batched 4655 / 14476 / 16348 | **1974.69** / 1944.15 / 1941.11 |
+| 22 / 25 / 26 | AKAMAS, **P0D2 fp8**, Humming, batched 6983 / 14764 / 8659 | **1980.22** / 1855.65 / 1968.08 |
+| 23 / 30 | AKAMAS, P0D1 / P0D2 bf16, Marlin | 1014.33 / 1262.25 |
+| 24 / 27 | AKAMAS, P1D2 fp8 (decode Marlin / prefill batched 512) | 1075.74 / 1114.11 |
+| 29 | AKAMAS, **P2D1 fp8**, prefill Triton, decode Humming | 1132.53 |
+| 31 | AKAMAS, P0D2 fp8, Humming, batched 3180 (2 prefill steps per prompt) | 1509.54 |
+
+### Learnings
+
+Valid for this setup only: Qwen3-8B-FP8, vLLM 0.29.0, one g6.12xlarge (4× L4 at 72 W, no
+GPU P2P), KV through host memory, 4096 in / 256 out, TTFT p95 ≤ 10 s and ITL p95 ≤ 75 ms.
+
+1. **Verified: the open loop removes the level jump.** Triton tuned against Triton default
+   was +54% in study 24 (closed loop) and +1% here. The three P1D1 bf16 presets with Triton
+   or Humming on the decode scored 1422-1450.
+2. **Verified: noise ~±4%.** The two baselines differ by 4.8%. Five near-identical aggregated
+   fp8 configurations scored 1941-1980. The residual noise comes from the window position at
+   the ITL limit, not from the system (see "First run").
+3. **Verified: the best configuration is aggregated with fp8 KV and Humming,** ~1940-1980
+   (+70% against the baseline, +13% against P1D1 fp8). P0D1 and P0D2 give the same score per
+   GPU. Without fp8 the aggregated configuration stays at the baseline level (exps 23, 30).
+4. **Hypothesis (agrees with exps 1, 2, 20-31): the aggregated score is set by the prefill
+   stalls in the ITL.**
+   - A prompt that enters a step stops the decode of the other sequences for the full step
+     (~1.35 s with Humming).
+   - The ITL p95 stays below 75 ms while fewer than ~5% of the steps contain a prefill.
+   - `max_num_batched_tokens` ≥ 4096 puts one prompt in one step. A smaller value doubles the
+     long steps. A much larger value (~15k) puts several queued prompts in one step (exp 25,
+     −6%).
+   - Model: R prefill steps/s against (1 − 1.35 R) / 0.037 decode steps/s gives R ≤ ~0.49
+     req/s per GPU, measured ~0.45. The same model gives ~1230 for the bf16 baseline,
+     measured 1137-1192.
+   - Test written before the result: exp 31 (batched 3180, 2 prefill steps per prompt) was
+     predicted at 1450-1550 and scored 1509.54.
+5. **Verified: P/D capacity per instance** (where the ITL or TTFT limit is reached):
+   - prefill with Triton: ~0.9 req/s
+   - decode with fp8 KV: **~0.8 req/s** (exp 29: decode ITL p95 at 75 ms with 11-15
+     sequences, KV at 50-70%, no preemption)
+   - **Retracted:** "decode with fp8 KV ~1.5 req/s". That is where the ITL p50, not the
+     p95, reaches 75 ms.
+   - The decode is memory-bound. A step reads the weights (~8.8 GB, 37 ms at 1 sequence) and
+     the KV of each sequence (~320 MB at 4.3k context, +1.35 ms per sequence). The p95 is
+     ~1.4× the p50 because the batch size moves with the arrivals.
+   - With these capacities: P1D1 0.40 req/s per GPU (measured 0.40), P2D1 0.27 (0.26), P1D2
+     0.30 (~0.25). No P/D topology can reach the aggregated 0.45. The aggregated GPU uses its
+     compute (prefill) and its memory bandwidth (decode) at the same time. A P/D GPU uses
+     only one of the two.
+6. **Verified: P/D gives a better ITL tail, the aggregated gives a better TTFT.** At the same
+   rate per GPU on 2 GPUs (exp 22 against exp 8):
+   - ITL p99: aggregated 1.4-2.2 s from 0.25 req/s per GPU (the prefill stalls), P1D1
+     0.3-0.47 s.
+   - TTFT p95: aggregated 1.5 s up to saturation, P1D1 3-15 s, P2D1 2 s.
+   - **Hypothesis:** the P/D ITL p99 is one gap per request between the first token (from
+     the prefill) and the second (from the decode, after the NIXL transfer and the decode
+     queue, ~0.5 s). One gap in 256 tokens is in the p99 and not in the p95.
+7. **Verified: FLASH_ATTN is 10% below FLASHINFER** on the P1D1 with bf16 decode (exp 9).
+   The kernel microbenchmark did not show it because its decode test used ~256-token prompts.
+8. **Verified: prefill kernels on P1D1 bf16:** Marlin 1030, Humming 1306, Triton 1422-1436.
+   The tuned Triton configs give +1%.
+9. **Verified: the two scheduler presets do not help.** Batched 4160 on the prefill: −3%
+   (1394). Decode `max_num_seqs` 32 with fp8: −5% (1659), inside the noise.
+10. **Design error, carried over from study 24:** `vllm_decode.linear_backend` excludes
+    Triton because Triton is slower on a pure decode. In P0 the decode instance is aggregated
+    and also does the prefill, so the aggregated configuration could not use Triton. See the
+    notes for the next study.
+11. **Optimizer:** the AKAMAS step found the aggregated fp8 configuration at its fifth
+    experiment (exp 20). Of the next 10 experiments, 3 went to dominated P/D topologies
+    (P1D2 twice, P2D1) and 2 to the aggregated configuration with bf16 KV, because the GP
+    does not transfer the effect of fp8 and of the kernel across topologies. The GP analysis is in
+    `scikit-optimize/benchmarks/cocabo/README.md` (branch `eval/hyperparameter-fitting`).
+
 ## Create and start (from the toolbox)
 
 ```bash
@@ -204,11 +294,34 @@ code, skopt 0.9.2rc39, one thread).
 - **FLASH_ATTN:** remove it. It scored −10% against FLASHINFER on the bf16-decode P1D1, and on
   sm89 it has no tunable knob (FA2 only, `flash_attn_max_num_splits_for_cuda_graph` acts only on
   FA3).
-- **One preset: P2D1 with fp8 KV.** Expected ~0.50 req/s per GPU against 0.405 for the best
-  (P1D1 fp8). The GP does not transfer the topology effect from bf16 to fp8 (`kv_cache_dtype`
-  length scale 0.01), so without an fp8 point outside P1D1 it predicts the prior mean (~1350 ±
-  290) for every other fp8 topology. P0 and P2 are symmetric around P1 for the GP: P0D1 fp8
-  and P2D1 fp8 get the same prediction and the same EI.
+- **~~One preset: P2D1 with fp8 KV.~~ Done by the optimizer (exp 29): 1132.53.** The
+  estimate of ~0.50 req/s per GPU used a decode capacity of ~1.5 req/s, which is wrong (see
+  "Results", learning 5). The GP does not transfer the topology effect from bf16 to fp8
+  (`kv_cache_dtype` length scale 0.01). P0 and P2 are symmetric around P1 for the GP.
+- **Triton for the aggregated configuration (from learning 10).**
+  - Add `triton` to `vllm_decode.linear_backend`.
+  - Change the tuned-config constraint to
+    `vllm_decode.tuned_kernel_configs == "false" || vllm_prefill.linear_backend == "triton" || (pd_topology.pd_prefill_instances == 0 && vllm_decode.linear_backend == "triton")`.
+  - Add one preset: P0D1 fp8, `vllm_decode.linear_backend` triton, tuned configs on, batched
+    ~6000-8000, the other values as exp 20.
+  - Expected: Triton has a 20% shorter prefill step (1.07 s against 1.33 s) and a ~10% slower
+    decode step. With the model of learning 4 that gives ≤ ~0.55 req/s per GPU against ≤ ~0.49
+    for Humming, so between +0% and +10%.
+- **A study with an ITL tail constraint** (ITL p99, or the maximum gap) in place of the ITL
+  p95. It asks the latency question of learning 6: P/D against an aggregated configuration
+  with small chunks. The aggregated configuration then needs a small
+  `max_num_batched_tokens` (many short stalls in place of a few long ones), and the score
+  goes down.
+- **`--no-async-scheduling` on the prefill (one preset, P/D only).** With async scheduling
+  the prefill engine starts step N+1 before it returns the output of step N. The KV copy to
+  the host buffer (`save_kv_to_host`, synchronous) then blocks the engine thread until step
+  N+1 ends, so a request waits one full extra prefill step when a second request is in the
+  queue (`research/vllm/vllm_learnings.md` 6.4-6.5). Sync scheduling on the prefill should
+  remove that step from the TTFT. The cost is the lost CPU/GPU overlap, small with ~1 s
+  steps. The template must render the flag: `vllm_prefill.async_scheduling` has
+  `render: false`, and vLLM accepts `--async-scheduling` or `--no-async-scheduling`, not
+  `=false`. Not tested. It changes the TTFT, not the prefill capacity, so it matters for a
+  latency study more than for this goal.
 - **Engine findings, not changed:**
   - Noise: the fitted noise is `gp.noise_`. skopt sets the WhiteKernel to 0 in `kernel_` after
     the fit on purpose (predictions exclude the noise), so the printed kernel always shows

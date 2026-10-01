@@ -184,3 +184,33 @@ If `akamas start` leaves the study RUNNING with no experiment (Airflow DAG timeo
 As study 24: the pods pin `node-role: llm-serving-l4`, and the telemetry scopes the vLLM,
 container and GPU series to this study's pod names. The second GPU node
 (`llm-serving-g7-4500`) runs studies 25-26 in namespace `gpu-sharing`.
+
+## Notes for the next study (2026-10-01)
+
+From the optimizer engine run locally on this study's inputs (engine 1.9.6 = deployed 1.9.7
+code, skopt 0.9.2rc39, one thread).
+
+- **Baseline:** P0D1 (one GPU, vLLM defaults), with every parameter rendered. The baselines of
+  this study have `doNotRenderParameters`, so the engine never receives them: it has no point
+  with P = 0, and it loses the only repeated configuration (1136.92 / 1191.99), which is the
+  data that shows the noise.
+- **Locked parameters:** `pd_kv_connector` and `pd_kv_buffer_device` have two categories (Akamas
+  rejects a one-value domain) and are fixed by constraints. The engine still receives them: 2 of
+  the 17 GP dimensions are constant columns, their length scales are arbitrary, their ARD values
+  mean nothing, and their constraints reject candidates in the acquisition step. Next study:
+  remove them from `parametersSelection` and set the values in the baseline only (to check: the
+  value Akamas renders for a non-selected parameter in the other steps), or write them as
+  literals in the template.
+- **FLASH_ATTN:** remove it. It scored −10% against FLASHINFER on the bf16-decode P1D1, and on
+  sm89 it has no tunable knob (FA2 only, `flash_attn_max_num_splits_for_cuda_graph` acts only on
+  FA3).
+- **One preset: P2D1 with fp8 KV.** Expected ~0.50 req/s per GPU against 0.405 for the best
+  (P1D1 fp8). The GP does not transfer the topology effect from bf16 to fp8 (`kv_cache_dtype`
+  length scale 0.01), so without an fp8 point outside P1D1 it predicts the prior mean (~1350 ±
+  290) for every other fp8 topology. P0 and P2 are symmetric around P1 for the GP: P0D1 fp8
+  and P2D1 fp8 get the same prediction and the same EI.
+- **Engine findings, not changed:** the fitted nugget stays at its lower bound (noise 0) also
+  with the two baselines added and with the nugget multistart of `eval/hyperparameter-fitting`.
+  The topology length scales are not identifiable with ~19 points in 17 dimensions (P 0.39 →
+  0.018, D 0.105 → 0.012 between fits). Candidates: a nugget floor (~2-4% of the normalized
+  range), fewer dimensions, a kernel that separates topology and KV dtype.

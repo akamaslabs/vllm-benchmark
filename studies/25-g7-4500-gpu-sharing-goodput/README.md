@@ -286,7 +286,7 @@ chosen window — the window choice was.
 - **On this GPU, with this 4B model and ShareGPT chat load, splitting does not pay.** The
   best split (MPS, tuned) ties the whole GPU; MIG loses ~5 %, time-slicing ~14 %. The
   mechanisms, from the measurements: the whole GPU is power-bound, so a split cannot add
-  compute; two engines stream their own copy of the 4.3 GiB of weights on every decode
+  compute; two engines stream their own copy of the ~4.8 GiB of weights on every decode
   step (MIG through half the memory bandwidth each) and halve the KV pool per replica;
   time-slicing adds context switching. CPU was never the bottleneck (~10 % of a core per
   vLLM process), so the "one engine is host-bound" argument for splitting did not apply.

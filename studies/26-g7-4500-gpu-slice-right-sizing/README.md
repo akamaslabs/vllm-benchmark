@@ -1,9 +1,8 @@
 # 26-g7-4500-gpu-slice-right-sizing
 
-**Status:** RUNNING — redesigned 2026-09-30 as a MIG-only right-sizing sweep (see "Why MIG
-only"); `apply_config.sh` tested in the toolbox on all three profiles, then created and
-started on Akamas 2026-09-30 09:01 UTC (GPU pack 1.4.0).
-**Dates:** 2026-09-30 –
+**Status:** DONE — 7 presets, all FINISHED and VALID, 2026-09-30 09:01-18:00 UTC (~9 h,
+~27 USD). Node group scaled to 0 afterwards (2026-10-01).
+**Dates:** 2026-09-30
 
 ## Objective
 
@@ -110,22 +109,131 @@ is replaced, or no request completes for 15 min (study 25's guards).
 - Toolbox sync, then `akamas create -f` (commands in `akamas/README.md`) and start (done
   2026-09-30 09:01 UTC; node and load-generator instances and ASGs tagged AlwaysOn).
 
-## Running notes
-
-- **Experiment 1 (baseline, 2026-09-30 09:01-10:15 UTC): 5926 tok/s, VALID, every metric
-  collected** (`missingMetrics` empty; gpu0 36/36, cluster and cluster_loadtest 14/14 —
-  the letters-only placeholder keys work).
-- **Thermal drift against study 25:** the same configuration scored 6202 in study 25's
-  baseline (2026-09-29 21:56 UTC). Same 165 W and same window load (127-128 running), but
-  the GPU ran at 87.5 °C instead of 76.3 °C and the SM clock at 1673 instead of 1768 MHz
-  (Prometheus, both scored windows): -5 % clock, -4.5 % throughput. Compare the MIG
-  profiles against this study's own baseline and its `no MIG repeat` step, not study 25,
-  and keep an eye on `gpu0.gpu_temp`.
-
 ## Results
 
-<Filled in by the study-recap skill once the study finishes.>
+Raw data in `results/`: `export.tar.gz` (Akamas export), `trials.csv` (parameters, score,
+scored window and its metrics per experiment), `analyze_levels.py` and its outputs
+`levels.csv` (every load level of every experiment, rebuilt from Prometheus) and
+`windows.csv` (the study's windowing emulated, within 0.3 % of Akamas' own scores where
+compared), `aiperf-exp7-no-mig-repeat/` (AIPerf's per-level summaries, the only run whose
+artifacts survive). Every trial collected every metric (`missingMetrics` empty, gpu0
+36/36, cluster / cluster_loadtest 14/14).
+
+### Akamas scores (scored window, 6 x 30 s ranked on total throughput)
+
+| Exp. | Step | `mig_profile` | Replicas | `max_num_seqs` | Score (tok/s) | Per replica | Running | TTFT / ITL p95 (ms) | GPU °C / SM MHz |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | baseline | none | 1 | 256 | 5926 | — | 127 | 201 / 48 | 87.5 / 1674 |
+| 2 | MIG whole GPU seqs 256 | 2g.32gb | 1 | 256 | 5610 | — | 127 | 216 / 48 | 86.2 / 1799 |
+| 3 | MIG whole GPU seqs 512 | 2g.32gb | 1 | 512 | 5588 | — | 126 | 219 / 48 | 87.8 / 1786 |
+| 4 | MIG half GPU seqs 256 | 1g.16gb | 2 | 256 | 5962 | 2936 / 3026 | 191 | 244 / 72 | 79.2 / 1827 |
+| 5 | MIG half GPU seqs 128 | 1g.16gb | 2 | 128 | 6018 | 2895 / 3123 | 191 | 245 / 72 | 78.3 / 1827 |
+| 6 | MIG half GPU seqs 384 | 1g.16gb | 2 | 384 | 6037 | 3106 / 2931 | 190 | 357 / 72 | 75.7 / 1847 |
+| 7 | no MIG repeat | none | 1 | 256 | **6202** | — | 127 | 170 / 48 | 76.0 / 1761 |
+
+All at `gpu_memory_utilization` 0.90, `max_num_batched_tokens` 2048, `stream_interval` 1;
+GPU at its 165 W cap in every scored window. No constraint was binding at any scored
+window: the windowing picked 128 users (one replica) or 192 (two), well inside the SLA.
+
+**Best configuration: no MIG — which is the baseline configuration.** Experiment 7 is the
+baseline repeated, and its +4.7 % over experiment 1 is **thermal drift, not a result**:
+the GPU ran at 76 °C instead of 87.5 °C, so the SM clock at 1761 instead of 1674 MHz at
+the same 165 W (tokens/s per SM MHz at 128 users: 3.48 vs 3.54, the same within 2 % —
+throughput followed the clock). The temperature fell through the day, so the step order and the thermal
+state are confounded. Read naively against the baseline step the scores say "two halves
++1-2 %, whole-GPU MIG -5 %"; that is the temperature gradient. **Compare within thermal
+pairs:**
+
+| Pair (similar temperature) | MIG layout | vs no MIG |
+|---|---|---|
+| exp 1 (87.5 °C) <-> exp 2 / 3 (86-88 °C) | `2g.32gb` x1 | -5.3 % / -5.7 % |
+| exp 7 (76 °C) <-> exp 4 / 5 / 6 (76-79 °C) | `1g.16gb` x2 | -3.9 % / -3.0 % / -2.7 % |
+
+**MIG costs ~3-6 % of throughput, as one whole-GPU instance or as two halves**; the two
+layouts are equivalent within that noise (per-clock 3.13 for `2g.32gb`, 3.19-3.22 for
+the halves, levels 128 / 192). Measured, not explained: under MIG the GPU ran a
+*higher* SM clock at the same 165 W (1764-1850 vs 1637-1753 MHz at the peak levels) but did ~10 % less work
+per clock. The `2g.32gb` instance has the same KV cache as no MIG (159,024 vs 159,008
+tokens), so it is not memory. Consistent with study 25 (MIG 2 x `1g.16gb` -4.6 % against
+exclusive, re-scored).
+
+**The two slices split the load evenly:** per-replica throughput within ±5 % of the two
+replicas' mean at every level up to 320 users.
+
+### Capacity per size (per load level, `results/levels.csv`)
+
+Each AIPerf level is 300 s at a fixed number of closed-loop users (16..768, total across
+replicas); the SLA is checked on the level's p95 from vLLM's histograms. "Users within
+SLO" is the highest level that passed; the next level failed, so the true limit lies in
+between.
+
+| `mig_profile` / `max_num_seqs` | Peak within SLO (tok/s, users) | Per slice | Users within SLO | What breaks it next |
+|---|---|---|---|---|
+| none / 256 (exp 7, 77 °C) | 6093 @ 128 | — | **256** (fails at 320) | admission: 256 slots full, the queue takes TTFT p95 to 4.9 s; KV only 51 % used |
+| none / 256 (exp 1, 90 °C) | 5794 @ 128 | — | 256 | same |
+| 2g.32gb / 256 (exp 2) | 5589 @ 128 | — | 256 | same |
+| 2g.32gb / 512 (exp 3) | 5527 @ 128 | — | **512** (fails at 640) | KV full (99 %), preemption; at 512 users ITL p95 199 ms, TTFT 652 ms, 4231 tok/s |
+| 1g.16gb x2 / 256 (exp 4) | 5907 @ 192 | ~2950 @ 96 users | **320** = 160 per slice (fails at 384) | KV full (97 % at 320, 100 % at 384: 1313 preemptions, TTFT p95 2.3 s) |
+| 1g.16gb x2 / 128 (exp 5) | 5873 @ 192 | ~2940 @ 96 users | 192 (256 at the threshold: TTFT p95 1674 ms) | admission: 128 slots per slice full at 256 users |
+| 1g.16gb x2 / 384 (exp 6) | 5905 @ 192 | ~2950 @ 96 users | 320 = 160 per slice (fails at 384) | KV full, as with 256 |
+
+- **Throughput halves linearly with the slice:** one `1g.16gb` slice sustains ~2900-3100
+  tok/s within the SLO with its neighbour busy, 47-50 % of the whole GPU at the same
+  temperature. In requests: the whole GPU served 18.1 req/s at 128 users (AIPerf, exp 7),
+  so a slice is worth ~9 req/s of this ShareGPT mix.
+- **Concurrent users do not:** a slice holds ~160 users within the SLO, the whole GPU 256
+  (bounded by `max_num_seqs`) or ~512 (bounded by KV, exp 3). A slice has 56,016 tokens
+  of KV, 35 % of the whole GPU's 159,008: each replica carries its own copy of the
+  weights (~4.8 GiB) and its own runtime overhead (activations, CUDA graphs). When the KV cache is the limit, half a GPU holds about a third of the users.
+- **`max_num_seqs` sets the user ceiling, not the throughput.** Whole GPU: 512 vs 256
+  scored the same (5588 vs 5610) and peaked at the same level, but kept the SLO up to 512
+  users instead of 256 — the extra users wait in the batch (ITL) instead of the queue
+  (TTFT), at a lower throughput per user (4231 tok/s at 512 users vs 5527 at 128). Slice:
+  256 and 384 behave identically because the KV cache binds first, at ~160 sequences;
+  128 caps admission below that (192-256 users). In overload, 128 per slice is the one
+  setting with no preemption (~6060 tok/s at 256-768 users, against 5540-5670 for 256
+  / 384 at 512-768 users, with ~7000 preemptions per level) — but its users queue past the TTFT SLA.
+- The Akamas goal (peak tokens/s at the best window) is blind to the user ceiling: it
+  scored experiments 2 and 3 the same. The per-level table is where the right-sizing
+  answer is.
 
 ## Conclusions
 
-<Filled in by the study-recap skill once the study finishes.>
+- **On this GPU and model, no MIG is the most efficient layout, and MIG's cost is small
+  and layout-independent: ~3-6 %**, whether the GPU is one `2g.32gb` instance or two
+  `1g.16gb` halves. Splitting into halves loses nothing beyond what MIG mode itself
+  costs. Stack-specific: RTX PRO 4500 (165 W, power-capped in every configuration),
+  Qwen3-4B FP8, vLLM 0.29.0.
+- **Right-sizing answer for this GPU:** for up to ~3000 tok/s (~9 req/s, ~160 concurrent
+  chat users at TTFT p95 <= 1.5 s / ITL p95 <= 300 ms) a `1g.16gb` slice is enough; above
+  that, the whole GPU (~6000 tok/s, ~18 req/s, 256-512 users depending on
+  `max_num_seqs`). The table is coarse because this GPU has only two MIG sizes.
+- **Throughput scales linearly with the slice, concurrency does not**: KV per slice
+  shrinks faster than the slice (each replica pays its own weights), so a
+  concurrency-bound tenant needs a bigger slice than a throughput-bound one.
+  Generalizable in shape; the ratio depends on model size vs slice memory.
+- **`max_num_seqs` is the knob for how many users a slice holds within the SLO**, not
+  for its tokens/s, and its useful range ends where the KV cache does (~160 here per
+  slice). Untested follow-up: `max_num_seqs` ~160 per slice should keep both the SLO up to
+  ~320 users and the no-preemption overload behaviour of 128.
+- **Thermal drift moved the same configuration by ~5 %** (87.5 vs 76 °C, same 165 W) —
+  as large as the MIG effect. On a power-capped cloud GPU, bracket a study with
+  baseline repeats (as this one did), record `gpu_temp`, and compare configurations run
+  at similar temperatures, not in step order.
+- **Next:** the finer right-sizing table needs a GPU with more MIG sizes (H100/A100: 1g
+  to 7g; RTX PRO 6000: 1g/2g/4g) — ROADMAP section D, study #4. On this GPU, a single
+  follow-up would be `max_num_seqs` ~160 per slice.
+
+## Data limitations
+
+- Per-level numbers (`levels.csv`) are rebuilt from Prometheus, not from AIPerf: each
+  experiment's Job deletes the previous run's artifacts, so AIPerf's own summaries exist
+  only for experiment 7. TTFT / ITL p95 from vLLM's histogram buckets read high against
+  AIPerf (exp 7 at 128 users: 182 vs 128 ms TTFT, 48 vs 29 ms ITL); pass/fail agrees
+  wherever both exist, but experiment 5's failure at 256 users (1674 ms) is within that
+  bucket error — its limit is "192-256 users".
+- Level resolution: 192 / 256 / 320 / 384 / 512 users — "within SLO at 320" means the
+  limit lies in [320, 384).
+- Prometheus keeps ~10 days: re-run `results/analyze_levels.py` before ~2026-10-09 if
+  needed; afterwards only the export (scored windows) remains.
+- Thermal state was not controlled (cloud host); the pairing above is the mitigation.

@@ -1,0 +1,8 @@
+experiment,step,mig_profile,max_num_seqs,max_window_total,max_window_running,max_window_ttft_p95,max_window_itl_p95,max_window_sla_ok,best_sla_ok_total,best_sla_ok_running,max_window_start
+1,baseline,none,256,5912.8,128,198,48,True,5912.8,128,2026-09-30T09:31:42Z
+2,MIG whole GPU seqs 256,2g.32gb,256,5605.6,126,213,48,True,5605.6,126,2026-09-30T10:46:02Z
+3,MIG whole GPU seqs 512,2g.32gb,512,5571.1,127,217,48,True,5571.1,127,2026-09-30T12:00:49Z
+4,MIG half GPU seqs 256,1g.16gb,256,5984.2,190,243,72,True,5984.2,190,2026-09-30T13:25:39Z
+5,MIG half GPU seqs 128,1g.16gb,128,6169.8,254,19500,97,False,5955.0,190,2026-09-30T15:07:32Z
+6,MIG half GPU seqs 384,1g.16gb,384,5991.2,191,244,72,True,5991.2,191,2026-09-30T16:06:24Z
+7,no MIG repeat,none,256,6201.4,127,179,48,True,6201.4,127,2026-09-30T17:17:04Z

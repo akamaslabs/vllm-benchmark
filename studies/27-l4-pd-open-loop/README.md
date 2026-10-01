@@ -214,3 +214,22 @@ code, skopt 0.9.2rc39, one thread).
   The topology length scales are not identifiable with ~19 points in 17 dimensions (P 0.39 →
   0.018, D 0.105 → 0.012 between fits). Candidates: a nugget floor (~2-4% of the normalized
   range), fewer dimensions, a kernel that separates topology and KV dtype.
+- **Profiler run before the next study (~half a day of node, outside Akamas, manual deployment
+  as `../24-l4-pd-kernels/kernel-bench/`).** `kernel-bench` measured client-side wall time of
+  HTTP requests (`time.perf_counter()` around the OpenAI API), so a "prefill step" includes
+  HTTP, tokenization, scheduling and the first-token sampling, not only the forward pass. Its
+  decode test used ~256-token prompts, so it did not cover long-context decode (this is why
+  the FLASH_ATTN −10% was not predicted). A profiler run (vLLM torch profiler:
+  `--profiler-config` with `/start_profile` and `/stop_profile`, a few steps only; or `nsys` for
+  the CPU timeline too) answers two questions:
+  1. **Prefill, now the bottleneck of the best config:** the step time per kernel (linear
+     GEMMs, attention, norms, RoPE, sampling, KV copies) and the TFLOP/s each GEMM reaches
+     against the L4 roofline at 72 W. The estimate is ~65 TFLOP/s per prompt for triton
+     tuned, about half of the capped FP8 peak. It tells if better kernels or more Triton
+     tuning can still help.
+  2. **Decode at ~4350-token context and ~15 sequences:** attention against weight reads in
+     the step (what fp8 or a 4-bit KV can gain), FLASH_ATTN against FLASHINFER, and whether
+     the NIXL transfer on the decode side overlaps the compute or blocks it.
+  Also visible: GPU idle gaps between steps (CPU scheduling, CUDA graphs not used for some
+  batch sizes) and the kernel that really runs. The profiler slows the run: use the ratios
+  between kernels, not the absolute times.

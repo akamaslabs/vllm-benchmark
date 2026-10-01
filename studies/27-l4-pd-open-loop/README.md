@@ -209,11 +209,20 @@ code, skopt 0.9.2rc39, one thread).
   length scale 0.01), so without an fp8 point outside P1D1 it predicts the prior mean (~1350 ±
   290) for every other fp8 topology. P0 and P2 are symmetric around P1 for the GP: P0D1 fp8
   and P2D1 fp8 get the same prediction and the same EI.
-- **Engine findings, not changed:** the fitted nugget stays at its lower bound (noise 0) also
-  with the two baselines added and with the nugget multistart of `eval/hyperparameter-fitting`.
-  The topology length scales are not identifiable with ~19 points in 17 dimensions (P 0.39 →
-  0.018, D 0.105 → 0.012 between fits). Candidates: a nugget floor (~2-4% of the normalized
-  range), fewer dimensions, a kernel that separates topology and KV dtype.
+- **Engine findings, not changed:**
+  - Noise: the fitted noise is `gp.noise_`. skopt sets the WhiteKernel to 0 in `kernel_` after
+    the fit on purpose (predictions exclude the noise), so the printed kernel always shows
+    `WhiteKernel(noise_level=0)`. **Retracted (2026-10-01):** "the nugget stays at 0". Measured
+    noise SD: ~11 tok/s (exp 19 input), ~28 (exp 20), ~31 with the two baselines added, ~36 with
+    the baselines and the nugget multistart of `eval/hyperparameter-fitting`. The repeated
+    baselines alone give ~39. So the rendered baselines bring the noise to the right value.
+  - The topology length scales are not identifiable with ~19 points in 17 dimensions (P 0.39
+    → 0.018, D 0.105 → 0.012 between fits).
+  - Tried locally, no effect on the fp8 transfer: a lower bound of 0.5 or 1.0 on the
+    categorical length scales, and a linear (DotProduct) term added to the Matern (the fit
+    shrinks it to ~0). In the data fp8 exists only around P1D1, so no kernel change gives the
+    GP evidence for "fp8 adds +X on every topology". The fix is data: fp8 points on other
+    topologies.
 - **Profiler run before the next study (~half a day of node, outside Akamas, manual deployment
   as `../24-l4-pd-kernels/kernel-bench/`).** `kernel-bench` measured client-side wall time of
   HTTP requests (`time.perf_counter()` around the OpenAI API), so a "prefill step" includes

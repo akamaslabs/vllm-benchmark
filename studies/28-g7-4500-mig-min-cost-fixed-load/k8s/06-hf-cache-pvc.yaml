@@ -1,0 +1,14 @@
+# Hugging Face cache for the AIPerf pod (tokenizer + the ShareGPT dataset download on the
+# first run). The model itself is never loaded here.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hf-cache
+  namespace: gpu-sharing
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3-ephemeral
+  resources:
+    requests:
+      storage: 5Gi

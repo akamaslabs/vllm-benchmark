@@ -1,0 +1,13 @@
+kind: component
+system: vLLM_Benchmark_28_G7_4500_MIG_Min_Cost
+
+name: vllm_r1
+description: >-
+  Replica vllm-1 alone: the busy neighbour on the second 1g.16gb slice, with the same
+  traffic. EMPTY with mig_profile none (one replica), so nothing that scores an experiment
+  may reference it; one KPI shows whether it really carried its load.
+componentType: vLLM
+properties:
+  prometheus:
+    pod: ^vllm-1$
+    model: qwen3-8b-mig

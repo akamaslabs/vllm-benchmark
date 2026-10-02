@@ -1,0 +1,46 @@
+kind: workflow
+name: 28-G7-4500-MIG-Min-Cost-Calibration-Workflow
+# The calibration: study 27's rate ramp, 0 -> 12 req/s over 2400 s (RT_MODE=ramp, deadline 3300 s).
+# All three tasks run on the toolbox host over SSH with the toolbox's own key
+# (/home/akamas/.ssh/id_rsa, mounted from the toolbox-keys secret; the path must exist on
+# the toolbox when `akamas create workflow` runs, so run it from the toolbox).
+tasks:
+  # The parameters are rendered into an env file, not into a manifest: apply_config.sh
+  # validates them first (render_statefulset.sh), sets the MIG layout from mig_profile and
+  # renders the StatefulSet itself. ignoreUnsubstitutedTokens false: every token must resolve.
+  - name: Write config
+    operator: FileConfigurator
+    arguments:
+      ignoreUnsubstitutedTokens: false
+      source:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/vllm-benchmark/studies/28-g7-4500-mig-min-cost-fixed-load/k8s/params.env.template
+      target:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/vllm-benchmark/studies/28-g7-4500-mig-min-cost-fixed-load/k8s/params.env
+  - name: Apply config
+    operator: Executor
+    arguments:
+      retries: 0
+      # MIG switch (~1-2 min) + up to two sequential replica starts (rollout wait 40 min).
+      timeout: 60m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/vllm-benchmark/studies/28-g7-4500-mig-min-cost-fixed-load/k8s/apply_config.sh
+  - name: RunTest
+    operator: Executor
+    arguments:
+      retries: 0
+      # Above run_test.sh's own deadline, so its log dump always runs.
+      timeout: 65m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: RT_MODE=ramp bash /work/vllm-benchmark/studies/28-g7-4500-mig-min-cost-fixed-load/k8s/run_test.sh

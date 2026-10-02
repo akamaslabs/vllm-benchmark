@@ -1,0 +1,169 @@
+kind: study
+name: 28-G7-4500-MIG-Min-Cost
+description: >-
+  Study 28: the cheapest deployment of Qwen/Qwen3-8B-FP8 (vLLM 0.29.0) on one NVIDIA RTX PRO
+  4500 Blackwell (g7.4xlarge) that holds a fixed open-loop ShareGPT load of 3.3 req/s (AIPerf
+  gamma arrivals, 13 min) within TTFT p95 <= 1500 ms and ITL p95 <= 300 ms (150 s p95, :max)
+  with >= 95 % of the requests completed. Goal: minimize the tenant's estimated hourly cost
+  (AWS on-demand us-east-2): GPU share (whole GPU or a 1g.16gb half with a busy neighbour) +
+  CPU + memory of the pod. vLLM settings and kernels tuned. Baseline, 3 presets, 40 AKAMAS.
+# Design: ../README.md. The load: ../k8s/05-job_template.yaml, ../k8s/run_test.sh.
+system: vLLM_Benchmark_28_G7_4500_MIG_Min_Cost
+workflow: 28-G7-4500-MIG-Min-Cost-Workflow
+
+# USD/h from the AWS Pricing API (2026-10-02, us-east-2 on-demand): GPU 2.0683 per whole GPU
+# (g7.4xlarge 3.04208 minus m8a.4xlarge 0.97376), vCPU 0.04522 and memory 0.0043325 per GiB
+# (from c8a.4xlarge 0.86216 and r8a.4xlarge 1.27808). active_gpus: 1 (none) or 0.5
+# (1g.16gb); container_cpu_limit in millicores, container_memory_limit in bytes.
+goal:
+  objective: minimize
+  function:
+    formula: 2.0683 * vllm_r0.active_gpus + 0.04522 * container.container_cpu_limit / 1000 + 0.0043325 * container.container_memory_limit / 1073741824
+  constraints:
+    absolute:
+      - name: TTFT P95 over 150 s on the tenant
+        formula: vllm_r0.time_to_first_token_p95:max <= 1500
+      - name: ITL P95 over 150 s on the tenant
+        formula: vllm_r0.inter_token_latency_p95:max <= 300
+      # 0.95 x 3.3 req/s: catches a dead or erroring replica, whose failed requests never
+      # reach the latency histograms. Change with run_test.sh's RT_RATE default.
+      - name: The tenant completes the offered load
+        formula: vllm_r0.request_success_rate:avg >= 3.135
+
+# Stability, not trim: a trim window is anchored at the start of the trial, which includes
+# the Apply config task (~14 min of zero traffic). The 24-sample (12 min) window with the
+# most completions is the one inside the 13 min run at R (the warm-up is ~1 req/s); the
+# stability filter is disabled (maxStdDev very large), as in studies 26-27.
+windowing:
+  type: stability
+  stability:
+    metric: vllm_r0.request_success_rate
+    width: 24
+    maxStdDev: 300000000
+    when:
+      metric: vllm_r0.request_success_rate
+      is: max
+
+numberOfTrials: 1
+
+parametersSelection:
+  - name: gpu0.mig_profile
+    categories: [none, 1g.16gb]
+  # Per replica; the StatefulSet renders request = limit (Guaranteed QoS). Lower bounds:
+  # 2 cores (vLLM V1's engine-core process busy-loops on one), 6000 MB (the pack's floor;
+  # to be raised to the footprint the kernel probe measures, plan Task 9).
+  - name: container.cpu_limit
+    domain: [2000, 7000]
+  - name: container.memory_limit
+    domain: [6000, 28000]
+  - name: vllm.gpu_memory_utilization
+    domain: [0.80, 0.95]
+  - name: vllm.kv_cache_dtype
+    categories: [auto, fp8]
+  - name: vllm.max_num_seqs
+    domain: [16, 256]
+  - name: vllm.max_num_batched_tokens
+    domain: [1024, 8192]
+  # PROVISIONAL kernel domains: the kernel probe (plan Task 9) keeps only the backends that
+  # start on SM 12.0 and are within 15 % of the best.
+  - name: vllm.linear_backend
+    categories: [auto, cutlass, flashinfer_cutlass, deep_gemm, marlin, humming, triton]
+  - name: vllm.attention_backend
+    categories: [FLASHINFER, FLASH_ATTN, TRITON_ATTN]
+
+# Quoted values: evaluated as a boolean (rejection sampling), never as a numeric equality.
+parameterConstraints:
+  - name: FLASH_ATTN is FlashAttention 2 and rejects an fp8 KV cache
+    formula: vllm.attention_backend != "FLASH_ATTN" || vllm.kv_cache_dtype == "auto"
+
+# At most 8 (Akamas 3.7).
+kpis:
+  # The cost is the goal itself (the experiment score); KPI formulas are documented as a
+  # single <component>.<metric>, so no arithmetic here.
+  # Working set, not container_memory_used: the latter counts the page cache of the model files.
+  - name: Memoria usata
+    formula: container.container_memory_working_set
+    direction: minimize
+    aggregation: max
+  - name: TTFT P95 150s
+    formula: vllm_r0.time_to_first_token_p95
+    direction: minimize
+    aggregation: max
+  - name: ITL P95 150s
+    formula: vllm_r0.inter_token_latency_p95
+    direction: minimize
+    aggregation: max
+  - name: Richieste completate
+    formula: vllm_r0.request_success_rate
+    direction: maximize
+  - name: KV cache in uso
+    formula: vllm_r0.kv_cache_usage_avg
+    direction: minimize
+  - name: CPU usata
+    formula: container.container_cpu_used
+    direction: minimize
+  - name: Richieste vicino
+    formula: vllm_r1.request_success_rate
+    direction: maximize
+  # Study 26: the same configuration drifted ~5 % with the GPU temperature (165 W cap).
+  - name: Temperatura GPU
+    formula: gpu0.gpu_temp
+    direction: minimize
+
+steps:
+  # Every parameter in every preset: params.env needs every token.
+  - name: baseline
+    type: baseline
+    numberOfTrials: 1
+    values:
+      gpu0.mig_profile: none
+      container.cpu_limit: 7000
+      container.memory_limit: 28000
+      vllm.gpu_memory_utilization: 0.90
+      vllm.kv_cache_dtype: auto
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+      vllm.linear_backend: auto
+      vllm.attention_backend: FLASHINFER
+
+  - name: half GPU bf16
+    type: preset
+    values:
+      gpu0.mig_profile: 1g.16gb
+      container.cpu_limit: 7000
+      container.memory_limit: 28000
+      vllm.gpu_memory_utilization: 0.90
+      vllm.kv_cache_dtype: auto
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+      vllm.linear_backend: auto
+      vllm.attention_backend: FLASHINFER
+      
+  - name: half GPU fp8
+    type: preset
+    values:
+      gpu0.mig_profile: 1g.16gb
+      container.cpu_limit: 7000
+      container.memory_limit: 28000
+      vllm.gpu_memory_utilization: 0.90
+      vllm.kv_cache_dtype: fp8
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+      vllm.linear_backend: auto
+      vllm.attention_backend: FLASHINFER
+  - name: half GPU fp8 lean
+    type: preset
+    values:
+      gpu0.mig_profile: 1g.16gb
+      container.cpu_limit: 2000
+      container.memory_limit: 8000
+      vllm.gpu_memory_utilization: 0.90
+      vllm.kv_cache_dtype: fp8
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+      vllm.linear_backend: auto
+      vllm.attention_backend: FLASHINFER
+
+  - name: optimize
+    type: optimize
+    numberOfExperiments: 40

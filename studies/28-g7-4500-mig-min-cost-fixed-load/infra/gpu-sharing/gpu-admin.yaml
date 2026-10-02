@@ -1,0 +1,35 @@
+# Host-level GPU administration for apply_config.sh: `kubectl exec ds/gpu-admin --
+# nsenter -t 1 -m -u -n -i -- nvidia-smi ...` runs nvidia-smi as root in the host's
+# namespaces (the EKS NVIDIA AMI ships it), which is what MIG mode changes, MIG
+# instance creation and compute-mode resets need. Privileged + hostPID, so it is pinned
+# to this study's node only and does nothing but sleep between calls.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: gpu-admin
+  namespace: gpu-sharing
+spec:
+  selector:
+    matchLabels:
+      app: gpu-admin
+  template:
+    metadata:
+      labels:
+        app: gpu-admin
+    spec:
+      nodeSelector:
+        node-role: llm-serving-g7-4500
+      tolerations:
+        - operator: Exists
+          effect: NoSchedule
+      hostPID: true
+      containers:
+        - name: admin
+          image: busybox:1.36
+          command: ["sleep", "infinity"]
+          securityContext:
+            privileged: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi

@@ -1,0 +1,14 @@
+kind: component
+system: vLLM_Benchmark_28_G7_4500_MIG_Min_Cost
+
+name: vllm
+description: >-
+  Both vLLM replicas together (StatefulSet vllm, pods vllm-0 / vllm-1, namespace
+  gpu-sharing), Qwen/Qwen3-8B-FP8 served as qwen3-8b-mig. Carries every tuned vLLM parameter
+  (the StatefulSet renders them for both replicas: the neighbour runs the same
+  configuration). Aggregate view only; goal, constraints and windowing read vllm_r0.
+componentType: vLLM
+properties:
+  prometheus:
+    pod: ^vllm-[0-9]+$
+    model: qwen3-8b-mig

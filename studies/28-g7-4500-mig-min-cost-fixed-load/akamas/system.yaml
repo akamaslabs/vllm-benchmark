@@ -1,0 +1,11 @@
+kind: system
+
+name: vLLM_Benchmark_28_G7_4500_MIG_Min_Cost
+description: >-
+  Study 28: the cheapest deployment of Qwen/Qwen3-8B-FP8 (vllm/vllm-openai:v0.29.0) that holds
+  a fixed open-loop ShareGPT load (3.3 req/s, AIPerf gamma arrivals) within TTFT p95 <= 1.5 s
+  and ITL p95 <= 300 ms, on one NVIDIA RTX PRO 4500 Blackwell (g7.4xlarge, node group
+  llm-serving-g7-4500): MIG slice (whole GPU or one 1g.16gb half, with a busy neighbour on
+  the other half), the pod's CPU and memory, and the vLLM settings and kernels. Requires GPU
+  pack 1.4.0 (mig_profile), vLLM pack 1.12.0, Kubernetes pack (Kubernetes Container
+  cpu_limit / memory_limit). Created 2026-10-02.

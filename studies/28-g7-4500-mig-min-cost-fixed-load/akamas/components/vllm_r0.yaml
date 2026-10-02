@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_28_G7_4500_MIG_Min_Cost
+
+name: vllm_r0
+description: >-
+  Replica vllm-0 alone: the tenant under test. The component the goal (active_gpus),
+  the SLO constraints, the windowing and most KPIs read.
+componentType: vLLM
+properties:
+  prometheus:
+    pod: ^vllm-0$
+    model: qwen3-8b-mig

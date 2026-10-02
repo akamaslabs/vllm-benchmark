@@ -1,0 +1,11 @@
+kind: component
+system: vLLM_Benchmark_28_G7_4500_MIG_Min_Cost
+
+name: cluster
+description: >-
+  The GPU node (node group llm-serving-g7-4500, one g7.4xlarge, 16 vCPU / 64 GiB) for
+  node-level CPU/memory/pressure counters; $NODEROLE$ resolves from noderole.
+componentType: Kubernetes Cluster
+properties:
+  prometheus:
+    noderole: llm-serving-g7-4500

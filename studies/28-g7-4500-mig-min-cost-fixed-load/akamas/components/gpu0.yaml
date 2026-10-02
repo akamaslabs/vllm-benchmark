@@ -1,0 +1,15 @@
+kind: component
+system: vLLM_Benchmark_28_G7_4500_MIG_Min_Cost
+
+name: gpu0
+description: >-
+  The single physical NVIDIA RTX PRO 4500 Blackwell Server Edition (32623 MiB, 165 W, SM
+  12.0). Carries mig_profile (GPU pack 1.4.0): none (whole GPU) or 1g.16gb (two halves:
+  vllm-0 under test, vllm-1 neighbour). Queries filter on the GPU model and gpu, never on
+  pod; under MIG DCGM reports per instance. MIG isolates compute and memory bandwidth but
+  not power.
+componentType: GPU
+properties:
+  prometheus:
+    gpu: "0"
+    gpumodel: .*RTX PRO 4500.*

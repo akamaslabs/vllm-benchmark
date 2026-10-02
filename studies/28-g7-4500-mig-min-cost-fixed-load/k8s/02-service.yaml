@@ -1,0 +1,36 @@
+# Two Services over the same pods. `vllm` is what AIPerf targets: kube-proxy spreads
+# its connections across the ready replicas (one in exclusive, two otherwise), and the
+# ServiceMonitor scrapes through it, so every replica shows up as its own pod series.
+# `vllm-headless` only exists because a StatefulSet needs a governing Service; it
+# carries a different label so the ServiceMonitor does not scrape each pod twice.
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm
+  namespace: gpu-sharing
+  labels:
+    app: vllm
+spec:
+  selector:
+    app: vllm
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm-headless
+  namespace: gpu-sharing
+  labels:
+    app: vllm-headless
+spec:
+  clusterIP: None
+  selector:
+    app: vllm
+  ports:
+    - name: http
+      port: 8000

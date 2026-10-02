@@ -1,0 +1,13 @@
+kind: component
+system: vLLM_Benchmark_28_G7_4500_MIG_Min_Cost
+
+name: container
+description: >-
+  The vLLM container of pod vllm-0 (cAdvisor / kube-state-metrics). Carries cpu_limit
+  (millicores) and memory_limit (MB): the StatefulSet renders them as request = limit
+  (Guaranteed QoS) for both replicas. The goal reads container_cpu_limit and
+  container_memory_limit, i.e. what the tenant's pod really holds.
+componentType: Kubernetes Container
+properties:
+  prometheus:
+    pod: ^vllm-0$

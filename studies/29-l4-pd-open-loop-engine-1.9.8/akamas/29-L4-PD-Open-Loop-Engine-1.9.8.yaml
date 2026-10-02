@@ -178,13 +178,24 @@ steps:
       - study: 137fd899-7487-4150-a134-02c6c8f59ac2
         experiments: [1]
 
-  # Study 27's experiment 2 (baseline repeat), its 11 study 24 presets (3-13) and its 2
-  # scheduler presets (14-15).
+  # Study 27's experiment 2 (baseline repeat) in its own step. It has doNotRenderParameters,
+  # and the campaign service taints a whole step when one of its parameters is not rendered
+  # (StepLogicHelpers.isStepToBeTainted): the optimizer then ignores every experiment of the
+  # step. A first try with experiments 2-15 in one step gave the AKAMAS step no experiments
+  # ("An optimization of type AKAMAS requires at least one assignments"). The engine of study
+  # 27 did not receive experiment 2 either, so this step keeps the numbering and nothing else.
+  - name: bootstrap study 27 baseline repeat
+    type: bootstrap
+    from:
+      - study: 137fd899-7487-4150-a134-02c6c8f59ac2
+        experiments: [2]
+
+  # Study 27's 11 study 24 presets (3-13) and its 2 scheduler presets (14-15).
   - name: bootstrap study 27 presets
     type: bootstrap
     from:
       - study: 137fd899-7487-4150-a134-02c6c8f59ac2
-        experiments: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        experiments: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
   - name: optimize
     type: optimize

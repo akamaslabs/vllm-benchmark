@@ -33,8 +33,20 @@ experiment 16.
 baselines have `doNotRenderParameters`, and the engine did not receive them. The check shows
 if the imported baseline and the bootstrapped baseline repeat behave the same.
 
-A first study 29 with the 15 presets run again was created and started on 2026-10-02 at 09:33
-UTC, then deleted during its first experiment, in favour of the import.
+History of the study on Akamas (2026-10-02):
+
+1. A first study 29 with the 15 presets run again was created and started at 09:33 UTC, then
+   deleted during its first experiment, in favour of the import.
+2. A second study 29 (id 5d1df06f-8470-489e-b20e-eb5f81390fd9) imported experiments 2-15 in
+   one bootstrap step. Every AKAMAS experiment failed at once with "An optimization of type
+   AKAMAS requires at least one assignments" (19 in a few minutes), and the study was
+   finished and deleted. Cause (campaign service code and log): a step is tainted when one of
+   its parameters is not rendered (`StepLogicHelpers.isStepToBeTainted`), and the optimizer
+   ignores every experiment of a tainted step. Experiment 2 has `doNotRenderParameters`, so
+   the whole bootstrap step was tainted. The imported baseline is not sent either (as in
+   study 23). So the AKAMAS step had no experiments.
+3. The third study 29 puts experiment 2 in its own bootstrap step, and experiments 3-15 in a
+   second one.
 
 ## Engine version on the lab
 

@@ -45,8 +45,22 @@ History of the study on Akamas (2026-10-02):
    ignores every experiment of a tainted step. Experiment 2 has `doNotRenderParameters`, so
    the whole bootstrap step was tainted. The imported baseline is not sent either (as in
    study 23). So the AKAMAS step had no experiments.
-3. The third study 29 puts experiment 2 in its own bootstrap step, and experiments 3-15 in a
-   second one.
+3. A third study 29 (id 63aa55c4-518b-4ebd-9ba5-1fc468a324c2) put experiment 2 in its own
+   bootstrap step and experiments 3-15 in a second one. Its engine input at experiment 16
+   was identical to study 27's (only the order of the constraint list differed). But its
+   experiment 16 was not valid: 6 min, CONSTRAINTS_VIOLATED, 753.09. When the first study 29
+   was deleted, Akamas stopped the workflow but not the AIPerf job `aiperf-benchmark`
+   (namespace `llm-benchmark`). The job ran its ramp on into overload (router TTFT p95 up to
+   120 s) until the RunTest of experiment 16 replaced it. The watchdog of experiment 16 reads
+   the router p95 over the last 150 s, saw the leftover TTFT above 20 s and ended the test at
+   once. The bad point was in the engine data from experiment 17, so the study was finished
+   and deleted after experiment 17 (1616.16).
+4. The fourth study 29 has the same file as the third. Before its creation the job was
+   deleted and the router was idle for 4 minutes.
+
+**After deleting or finishing a study, delete the load job by hand** and wait until the
+router is idle for more than 150 s before the next start:
+`kubectl --context lab-vllm-bench -n llm-benchmark delete job aiperf-benchmark --ignore-not-found`.
 
 ## Engine version on the lab
 

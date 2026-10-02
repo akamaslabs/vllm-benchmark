@@ -1,8 +1,10 @@
 # 28-g7-4500-mig-min-cost-fixed-load
 
-**Status:** TODO — scaffolded 2026-10-02 (`492b032`), kernel probe and calibration done
-2026-10-02 (R = 3.3 req/s proposed, to confirm); next: create and start the main study (plan Task 11).
-**Dates:** —
+**Status:** RUNNING (started 2026-10-02 at 13:0x UTC, see akamas/README.md) — scaffolded 2026-10-02 (`492b032`),
+kernel probe and calibration done 2026-10-02, R = 3.3 req/s confirmed with the user.
+Checkpoint after the three presets (~2 h): if half a GPU in bf16 passes with a large margin,
+propose stopping and restarting at a higher R.
+**Dates:** 2026-10-02 –
 
 ## Objective
 
@@ -147,7 +149,7 @@ SLO and checks the whole pipeline end to end. Decision after it:
   cap, as in study 26.
 - `vllm:request_success_total` by `finished_reason`: no `abort` or `error` in either run, so
   the success-rate constraint needs no filter.
-- **Proposed: R stays 3.3 req/s** (to confirm with the user): 90 % of the half-GPU bf16 capacity measured on the ramp. A ramp
+- **R stays 3.3 req/s** (confirmed with the user 2026-10-02): 90 % of the half-GPU bf16 capacity measured on the ramp. A ramp
   measures a quasi-static limit, and the study holds R for 13 min, so half a GPU in bf16 at
   defaults is borderline: the GPU dimension, the KV dtype and the CPU/RAM floor all matter,
   as intended.
@@ -304,7 +306,7 @@ completions is the 12 min inside the 13 min run at R (the warm-up is ~1 req/s), 
 | 2 | half GPU bf16 | 1g.16gb | 7000 / 28000 | auto | the slice at defaults |
 | 3 | half GPU fp8 | 1g.16gb | 7000 / 28000 | fp8 | twice the KV tokens |
 | 4 | half GPU fp8 lean | 1g.16gb | 2000 / 8500 | fp8 | the cheapest corner of the space |
-| 5 | optimize | — | — | — | 40 AKAMAS experiments (9 parameters) |
+| 5 | optimize | — | — | — | up to 60 AKAMAS experiments (9 parameters), no init experiments, step stops after 20 failed |
 
 Other vLLM parameters in the presets: `gpu_memory_utilization` 0.90, `max_num_seqs`
 256, `max_num_batched_tokens` 2048, `linear_backend` `auto`, `attention_backend`
@@ -319,9 +321,11 @@ considered and not chosen.
 
 **Budget:** ~30 min per experiment (MIG reconfiguration and vLLM start ~14 min on this
 node as in study 26, then the AIPerf Job start, 1 min of warm-up and 13 min at R; less
-when the watchdog ends a failing trial): 44 experiments ~22 h, plus ~2 h of kernel
-probe and ~2 h of calibration, ~26 h at ~3.3 USD/h (g7.4xlarge + load-generator node)
-~ 85 USD.
+when the watchdog ends a failing trial): up to 64 experiments ~32 h, plus ~2 h of kernel
+probe and ~2 h of calibration, ~36 h at ~3.3 USD/h (g7.4xlarge + load-generator node)
+~ 120 USD. Optimize step as studies 27/29 (set 2026-10-02): `optimizer: AKAMAS`,
+`numberOfInitExperiments: 0`, `numberOfExperiments: 60`, `maxFailedExperiments: 20`
+(failed workflows and constraint violations both count).
 
 ## Before starting
 

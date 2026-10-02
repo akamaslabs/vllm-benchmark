@@ -5,7 +5,10 @@ study 26's resources (same system shape, components, telemetry, workflow). **On 
 server since 2026-10-02:** system, components, telemetry instance, both workflows and the
 calibration study (finished; its first start stayed RUNNING with no experiment, the known
 Airflow issue: finished, `akamas delete --force study ...` (`--force` before the
-subcommand), recreated, started). The main study is not created yet (plan Task 11).
+subcommand), recreated, started). The main study `28-G7-4500-MIG-Min-Cost` was first created and started 2026-10-02 12:42 UTC
+with a 40-experiment optimize step; replaced ~10 min later (baseline unfinished: finished,
+`akamas delete --force study`, recreated) to take studies 27/29's optimize step (AKAMAS, 0
+init, 60 experiments, `maxFailedExperiments` 20), since steps cannot change on a created study.
 
 ## What it optimizes
 
@@ -48,7 +51,7 @@ measure each layout's capacity and confirm the target rate. Design: `../README.m
 | `check_offline.py` | offline checks against the repo rules and the local pack checkouts |
 
 **Steps, main study:** `baseline` (none, 7000 m / 28000 MB, bf16), `half GPU bf16`,
-`half GPU fp8`, `half GPU fp8 lean` (2000 m / 8500 MB), `optimize` (40 AKAMAS). Every preset
+`half GPU fp8`, `half GPU fp8 lean` (2000 m / 8500 MB), `optimize` (up to 60 AKAMAS, no init experiments, `maxFailedExperiments` 20). Every preset
 renders every parameter (gpu_memory_utilization 0.90, max_num_seqs 256,
 max_num_batched_tokens 2048, linear_backend auto, attention_backend FLASHINFER).
 **Calibration:** `baseline` and `half GPU bf16`, no optimize step.

@@ -171,4 +171,7 @@ steps:
 
   - name: optimize
     type: optimize
-    numberOfExperiments: 40
+    optimizer: AKAMAS
+    numberOfInitExperiments: 0
+    numberOfExperiments: 60
+    maxFailedExperiments: 20

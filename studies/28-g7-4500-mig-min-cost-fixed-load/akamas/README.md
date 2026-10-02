@@ -1,8 +1,11 @@
 # akamas/ — 28-G7-4500-MIG-Min-Cost
 
 **Created:** 2026-10-02, with the `akamas-study-manager` plugin (0.3.0) conventions, from
-study 26's resources (same system shape, components, telemetry, workflow). **Not created on
-the Akamas server yet** (plan Tasks 10-11, after the user's go-ahead).
+study 26's resources (same system shape, components, telemetry, workflow). **On the Akamas
+server since 2026-10-02:** system, components, telemetry instance, both workflows and the
+calibration study (finished; its first start stayed RUNNING with no experiment, the known
+Airflow issue: finished, `akamas delete --force study ...` (`--force` before the
+subcommand), recreated, started). The main study is not created yet (plan Task 11).
 
 ## What it optimizes
 
@@ -21,7 +24,7 @@ measure each layout's capacity and confirm the target rate. Design: `../README.m
 | Akamas | 3.7.x |
 | Optimization pack **GPU** | 1.4.0 (`mig_profile`), installed 2026-09-30 |
 | Optimization pack **vLLM** | 1.12.0 (`linear_backend`, `attention_backend`, `kv_cache_dtype`) |
-| Kubernetes pack | the installed build (1.8.0-dev in study 26; `Kubernetes Container` `cpu_limit` / `memory_limit` must exist: the local checkout 1.9.0-dev has them) |
+| Kubernetes pack | 1.9.0-dev (installed on the server, checked 2026-10-02; `Kubernetes Container` has `cpu_limit` / `memory_limit`, FileConfigurator confTemplates `${value}m` / `${value}M`) |
 | Serving | `vllm/vllm-openai:v0.29.0`, `Qwen/Qwen3-8B-FP8` served as `qwen3-8b-mig` |
 | Load generator | AIPerf 0.11.0, ShareGPT replay, open loop (gamma arrivals, smoothness 4) |
 | Telemetry | Prometheus (kube-prometheus-stack), dcgm-exporter on the g7 node |

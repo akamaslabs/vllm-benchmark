@@ -1,7 +1,7 @@
 # 28-g7-4500-mig-min-cost-fixed-load
 
-**Status:** TODO — scaffolded and committed 2026-10-02 (`492b032`), kernel probe done 2026-10-02;
-next: the calibration study (plan Task 10).
+**Status:** TODO — scaffolded 2026-10-02 (`492b032`), kernel probe and calibration done
+2026-10-02 (R = 3.3 req/s proposed, to confirm); next: create and start the main study (plan Task 11).
 **Dates:** —
 
 ## Objective
@@ -131,6 +131,26 @@ SLO and checks the whole pipeline end to end. Decision after it:
   and the interesting part becomes CPU/RAM and the vLLM settings.
 - R above the whole-GPU capacity: the target is not reachable on this node; change R
   before starting.
+
+**Calibration results (2026-10-02, study `28-G7-4500-MIG-Min-Cost-Calibration`,
+`results/calibration-export.tar.gz`):** both VALID.
+
+| Step | Score (max req/s on `vllm-0` within the SLO, 3-min window) | What ended it |
+|---|---|---|
+| baseline: whole GPU, bf16, 7 cores / 28000 MB | 11.56 | the ramp's end (12 req/s): no limit reached. At 11.4 req/s TTFT p95 ~90 ms, ITL p95 ~35 ms, KV 18 %: the whole GPU holds well above 12 req/s |
+| half GPU bf16 (busy neighbour) | **3.67** | the KV cache: at ~3.7 req/s KV 100 %, preemptions, waiting queue up to ~200, TTFT p95 to 34-74 s; ITL p95 stayed at ~49 ms |
+
+- Half a GPU in bf16 is KV-bound (14,384 tokens), not decode-bound: fp8 KV should move its
+  limit well above 3.7 req/s. Below ~3.4 req/s TTFT p95 stayed under 0.2 s, with KV 50-75 %
+  and a few preemptions (0.16/s) from 2.8 req/s.
+- The neighbour (`vllm-1`, same ramp, seed 29) behaved the same; the GPU sat at its 165 W
+  cap, as in study 26.
+- `vllm:request_success_total` by `finished_reason`: no `abort` or `error` in either run, so
+  the success-rate constraint needs no filter.
+- **Proposed: R stays 3.3 req/s** (to confirm with the user): 90 % of the half-GPU bf16 capacity measured on the ramp. A ramp
+  measures a quasi-static limit, and the study holds R for 13 min, so half a GPU in bf16 at
+  defaults is borderline: the GPU dimension, the KV dtype and the CPU/RAM floor all matter,
+  as intended.
 
 ### Kernel probe (before the calibration)
 

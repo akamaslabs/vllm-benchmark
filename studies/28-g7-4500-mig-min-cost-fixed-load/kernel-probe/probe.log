@@ -1,0 +1,83 @@
+=== L-auto: linear=auto attention=FLASHINFER kv=auto (09:00:09)
+(EngineCore pid=186) INFO 10-02 09:03:41 [__init__.py:695] Selected DeepGemmFp8BlockScaledMMKernel for Fp8LinearMethod
+(EngineCore pid=186) INFO 10-02 09:03:41 [cuda.py:432] Using AttentionBackendEnum.FLASHINFER backend.
+(EngineCore pid=186) INFO 10-02 09:03:41 [__init__.py:695] Selected DeepGemmFp8BlockScaledMMKernel for Fp8LinearMethod
+(EngineCore pid=186) INFO 10-02 09:03:41 [cuda.py:432] Using AttentionBackendEnum.FLASHINFER backend.
+=== L-cutlass: linear=cutlass attention=FLASHINFER kv=auto (09:07:03)
+(EngineCore pid=171) INFO 10-02 09:08:02 [__init__.py:695] Selected CutlassFp8BlockScaledMMKernel for Fp8LinearMethod
+(EngineCore pid=171) INFO 10-02 09:08:02 [cuda.py:432] Using AttentionBackendEnum.FLASHINFER backend.
+(EngineCore pid=171) INFO 10-02 09:08:02 [__init__.py:695] Selected CutlassFp8BlockScaledMMKernel for Fp8LinearMethod
+(EngineCore pid=171) INFO 10-02 09:08:02 [cuda.py:432] Using AttentionBackendEnum.FLASHINFER backend.
+=== L-fi-cutlass: linear=flashinfer_cutlass attention=FLASHINFER kv=auto (09:09:22)
+(EngineCore pid=171) ValueError: Failed to find a kernel that can implement the ScaledMM linear layer. Reasons: 
+(EngineCore pid=171) FlashInferFp8DeepGEMMDynamicBlockScaledKernel base is not supported due to FlashInfer block-scale FP8 GEMM is not available..
+(APIServer pid=1) Traceback (most recent call last):
+(APIServer pid=1)     raise RuntimeError(
+(APIServer pid=1) RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {}
+=== L-deepgemm: linear=deep_gemm attention=FLASHINFER kv=auto (09:11:19)
+(EngineCore pid=171) INFO 10-02 09:12:49 [__init__.py:695] Selected DeepGemmFp8BlockScaledMMKernel for Fp8LinearMethod
+(EngineCore pid=171) INFO 10-02 09:12:49 [cuda.py:432] Using AttentionBackendEnum.FLASHINFER backend.
+(EngineCore pid=171) INFO 10-02 09:12:49 [__init__.py:695] Selected DeepGemmFp8BlockScaledMMKernel for Fp8LinearMethod
+(EngineCore pid=171) INFO 10-02 09:12:49 [cuda.py:432] Using AttentionBackendEnum.FLASHINFER backend.
+=== L-marlin: linear=marlin attention=FLASHINFER kv=auto (09:15:09)
+(EngineCore pid=173) INFO 10-02 09:16:09 [__init__.py:695] Selected MarlinFP8ScaledMMLinearKernel for Fp8LinearMethod
+(EngineCore pid=173) INFO 10-02 09:16:09 [cuda.py:432] Using AttentionBackendEnum.FLASHINFER backend.
+(EngineCore pid=173) INFO 10-02 09:16:09 [__init__.py:695] Selected MarlinFP8ScaledMMLinearKernel for Fp8LinearMethod
+(EngineCore pid=173) INFO 10-02 09:16:09 [cuda.py:432] Using AttentionBackendEnum.FLASHINFER backend.
+=== L-humming: linear=humming attention=FLASHINFER kv=auto (09:17:31)
+(EngineCore pid=172)     raise NVMLError(ret)
+(EngineCore pid=172) pynvml.NVMLError_NoPermission: Insufficient Permissions
+(APIServer pid=1) Traceback (most recent call last):
+(APIServer pid=1)     raise RuntimeError(
+(APIServer pid=1) RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {}
+=== L-triton: linear=triton attention=FLASHINFER kv=auto (09:20:27)
+(EngineCore pid=172) INFO 10-02 09:21:58 [__init__.py:695] Selected TritonFp8BlockScaledMMKernel for Fp8LinearMethod
+(EngineCore pid=172) INFO 10-02 09:21:58 [cuda.py:432] Using AttentionBackendEnum.FLASHINFER backend.
+(EngineCore pid=172) INFO 10-02 09:21:58 [__init__.py:695] Selected TritonFp8BlockScaledMMKernel for Fp8LinearMethod
+(EngineCore pid=172) INFO 10-02 09:21:58 [cuda.py:432] Using AttentionBackendEnum.FLASHINFER backend.
+=== A-fa: linear=auto attention=FLASH_ATTN kv=auto (09:23:20)
+(EngineCore pid=171) INFO 10-02 09:24:19 [__init__.py:695] Selected DeepGemmFp8BlockScaledMMKernel for Fp8LinearMethod
+(EngineCore pid=171) INFO 10-02 09:24:19 [cuda.py:432] Using AttentionBackendEnum.FLASH_ATTN backend.
+(EngineCore pid=171) INFO 10-02 09:24:19 [__init__.py:695] Selected DeepGemmFp8BlockScaledMMKernel for Fp8LinearMethod
+(EngineCore pid=171) INFO 10-02 09:24:19 [cuda.py:432] Using AttentionBackendEnum.FLASH_ATTN backend.
+=== A-triton: linear=auto attention=TRITON_ATTN kv=auto (09:28:44)
+(EngineCore pid=171) INFO 10-02 09:29:43 [__init__.py:695] Selected DeepGemmFp8BlockScaledMMKernel for Fp8LinearMethod
+(EngineCore pid=171) INFO 10-02 09:29:43 [cuda.py:432] Using AttentionBackendEnum.TRITON_ATTN backend.
+(EngineCore pid=171) INFO 10-02 09:29:43 [__init__.py:695] Selected DeepGemmFp8BlockScaledMMKernel for Fp8LinearMethod
+(EngineCore pid=171) INFO 10-02 09:29:43 [cuda.py:432] Using AttentionBackendEnum.TRITON_ATTN backend.
+=== A-auto: linear=auto attention=auto kv=auto (09:32:04)
+(EngineCore pid=171) INFO 10-02 09:33:03 [__init__.py:695] Selected DeepGemmFp8BlockScaledMMKernel for Fp8LinearMethod
+(EngineCore pid=171) INFO 10-02 09:33:03 [cuda.py:492] Using FLASH_ATTN attention backend out of potential backends: ['FLASH_ATTN', 'FLASHINFER', 'TRITON_ATTN', 'FLEX_ATTENTION'].
+(EngineCore pid=171) INFO 10-02 09:33:03 [__init__.py:695] Selected DeepGemmFp8BlockScaledMMKernel for Fp8LinearMethod
+(EngineCore pid=171) INFO 10-02 09:33:03 [cuda.py:492] Using FLASH_ATTN attention backend out of potential backends: ['FLASH_ATTN', 'FLASHINFER', 'TRITON_ATTN', 'FLEX_ATTENTION'].
+=== K-fi-fp8: linear=auto attention=FLASHINFER kv=fp8 (09:37:28)
+(EngineCore pid=172) INFO 10-02 09:38:28 [__init__.py:695] Selected DeepGemmFp8BlockScaledMMKernel for Fp8LinearMethod
+(EngineCore pid=172) INFO 10-02 09:38:28 [cuda.py:432] Using AttentionBackendEnum.FLASHINFER backend.
+(EngineCore pid=172) INFO 10-02 09:38:28 [__init__.py:695] Selected DeepGemmFp8BlockScaledMMKernel for Fp8LinearMethod
+(EngineCore pid=172) INFO 10-02 09:38:28 [cuda.py:432] Using AttentionBackendEnum.FLASHINFER backend.
+=== K-triton-fp8: linear=auto attention=TRITON_ATTN kv=fp8 (09:40:47)
+(EngineCore pid=171) INFO 10-02 09:41:47 [__init__.py:695] Selected DeepGemmFp8BlockScaledMMKernel for Fp8LinearMethod
+(EngineCore pid=171) INFO 10-02 09:41:47 [cuda.py:432] Using AttentionBackendEnum.TRITON_ATTN backend.
+(EngineCore pid=171) INFO 10-02 09:41:47 [__init__.py:695] Selected DeepGemmFp8BlockScaledMMKernel for Fp8LinearMethod
+(EngineCore pid=171) INFO 10-02 09:41:47 [cuda.py:432] Using AttentionBackendEnum.TRITON_ATTN backend.
+=== K-fa-fp8: linear=auto attention=FLASH_ATTN kv=fp8 (09:44:08)
+(EngineCore pid=171)     raise ValueError(
+(EngineCore pid=171) ValueError: Selected backend AttentionBackendEnum.FLASH_ATTN is not valid for this configuration. Reason: ['kv_cache_dtype not supported', 'FP8 KV cache requires FA3 on SM90 or FA4 on SM100']
+(APIServer pid=1) Traceback (most recent call last):
+(APIServer pid=1)     raise RuntimeError(
+(APIServer pid=1) RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {}
+statefulset.apps/vllm scaled
+name           linear             attention    kv    start_s    pf2k_s  tpot1_ms  tpot30_ms within 15 %
+A-auto         auto               auto         auto      304     0.268      22.9       27.2 yes
+A-fa           auto               FLASH_ATTN   auto      304     0.266      22.9       27.3 yes
+A-triton       auto               TRITON_ATTN  auto      180     0.301      22.7       27.0 yes
+K-fa-fp8       auto               FLASH_ATTN   fp8   did not start (apply exit 4)
+K-fi-fp8       auto               FLASHINFER   fp8       180     0.252      22.9       26.2 yes
+K-triton-fp8   auto               TRITON_ATTN  fp8       181     0.280      22.8       25.7 yes
+L-auto         auto               FLASHINFER   auto      394     0.257      22.9       27.3 yes
+L-cutlass      cutlass            FLASHINFER   auto      119     0.288      22.9       27.5 yes
+L-deepgemm     deep_gemm          FLASHINFER   auto      210     0.251      22.9       27.3 yes
+L-fi-cutlass   flashinfer_cutlass FLASHINFER   auto  did not start (apply exit 4)
+L-humming      humming            FLASHINFER   auto  did not start (apply exit 4)
+L-marlin       marlin             FLASHINFER   auto      119     0.617      23.0       28.1 no
+L-triton       triton             FLASHINFER   auto      151     0.405      24.3       28.7 no

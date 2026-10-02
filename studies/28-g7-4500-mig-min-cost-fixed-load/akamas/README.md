@@ -45,14 +45,15 @@ measure each layout's capacity and confirm the target rate. Design: `../README.m
 | `check_offline.py` | offline checks against the repo rules and the local pack checkouts |
 
 **Steps, main study:** `baseline` (none, 7000 m / 28000 MB, bf16), `half GPU bf16`,
-`half GPU fp8`, `half GPU fp8 lean` (2000 m / 8000 MB), `optimize` (40 AKAMAS). Every preset
+`half GPU fp8`, `half GPU fp8 lean` (2000 m / 8500 MB), `optimize` (40 AKAMAS). Every preset
 renders every parameter (gpu_memory_utilization 0.90, max_num_seqs 256,
 max_num_batched_tokens 2048, linear_backend auto, attention_backend FLASHINFER).
 **Calibration:** `baseline` and `half GPU bf16`, no optimize step.
 **parameterConstraints:** FLASH_ATTN only with `kv_cache_dtype` auto (both studies).
 **Placeholders left:** none (host `toolbox`, user `akamas`, key `/home/akamas/.ssh/id_rsa`,
-as every study here). **Provisional:** the `linear_backend` / `attention_backend`
-categories and the `memory_limit` lower bound, set by the kernel probe (plan Task 9).
+as every study here). **From the kernel probe (2026-10-02):** `linear_backend`
+[auto, cutlass], `attention_backend` [FLASHINFER, FLASH_ATTN, TRITON_ATTN], `memory_limit`
+>= 8500 MB (`../README.md`, "Kernel probe").
 
 **To check at `akamas create study`:** numeric constants in the goal formula. The 3.7 docs
 neither show nor exclude them (they are accepted in `parameterConstraints`, studies

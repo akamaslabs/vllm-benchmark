@@ -37,13 +37,14 @@ numberOfTrials: 1
 parametersSelection:
   - name: gpu0.mig_profile
     categories: [none, 1g.16gb]
-  # Per replica; the StatefulSet renders request = limit (Guaranteed QoS). Lower bounds:
-  # 2 cores (vLLM V1's engine-core process busy-loops on one), 6000 MB (the pack's floor;
-  # to be raised to the footprint the kernel probe measures, plan Task 9).
+  # Per replica; the StatefulSet renders request = limit (Guaranteed QoS). Lower bounds from
+  # the kernel probe (2026-10-02, 13 starts on a 1g.16gb slice): working set peak 5.08 GiB
+  # -> 1.3 x 5.08 GiB + 1 GiB /dev/shm = ~8.2 GB, rounded up to 8500 MB; CPU peak 1.12 cores,
+  # so 2 cores stays the floor (vLLM V1's engine core busy-loops on one).
   - name: container.cpu_limit
     domain: [2000, 7000]
   - name: container.memory_limit
-    domain: [6000, 28000]
+    domain: [8500, 28000]
   - name: vllm.gpu_memory_utilization
     domain: [0.80, 0.95]
   - name: vllm.kv_cache_dtype
@@ -52,15 +53,19 @@ parametersSelection:
     domain: [16, 256]
   - name: vllm.max_num_batched_tokens
     domain: [1024, 8192]
-  # PROVISIONAL kernel domains: the kernel probe (plan Task 9) keeps only the backends that
-  # start on SM 12.0 and are within 15 % of the best.
+  # Kernel domains from the kernel probe (2026-10-02, README "Kernel probe"): auto selects
+  # DeepGemmFp8BlockScaledMMKernel (so deep_gemm would duplicate it), cutlass is the only
+  # other kernel within 15 %; marlin (+140 % prefill) and triton (+58 %) are out,
+  # flashinfer_cutlass and humming do not start on this GPU / MIG slice. All three attention
+  # backends start and are within 15 % (auto selects FLASH_ATTN).
   - name: vllm.linear_backend
-    categories: [auto, cutlass, flashinfer_cutlass, deep_gemm, marlin, humming, triton]
+    categories: [auto, cutlass]
   - name: vllm.attention_backend
     categories: [FLASHINFER, FLASH_ATTN, TRITON_ATTN]
 
 # Quoted values: evaluated as a boolean (rejection sampling), never as a numeric equality.
 parameterConstraints:
+  # Confirmed by the kernel probe on SM 12.0: "FP8 KV cache requires FA3 on SM90 or FA4 on SM100".
   - name: FLASH_ATTN is FlashAttention 2 and rejects an fp8 KV cache
     formula: vllm.attention_backend != "FLASH_ATTN" || vllm.kv_cache_dtype == "auto"
 

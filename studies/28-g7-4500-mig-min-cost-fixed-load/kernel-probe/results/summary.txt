@@ -1,0 +1,14 @@
+name           linear             attention    kv    start_s    pf2k_s  tpot1_ms  tpot30_ms within 15 %
+A-auto         auto               auto         auto      304     0.268      22.9       27.2 yes
+A-fa           auto               FLASH_ATTN   auto      304     0.266      22.9       27.3 yes
+A-triton       auto               TRITON_ATTN  auto      180     0.301      22.7       27.0 yes
+K-fa-fp8       auto               FLASH_ATTN   fp8   did not start (apply exit 4)
+K-fi-fp8       auto               FLASHINFER   fp8       180     0.252      22.9       26.2 yes
+K-triton-fp8   auto               TRITON_ATTN  fp8       181     0.280      22.8       25.7 yes
+L-auto         auto               FLASHINFER   auto      394     0.257      22.9       27.3 yes
+L-cutlass      cutlass            FLASHINFER   auto      119     0.288      22.9       27.5 yes
+L-deepgemm     deep_gemm          FLASHINFER   auto      210     0.251      22.9       27.3 yes
+L-fi-cutlass   flashinfer_cutlass FLASHINFER   auto  did not start (apply exit 4)
+L-humming      humming            FLASHINFER   auto  did not start (apply exit 4)
+L-marlin       marlin             FLASHINFER   auto      119     0.617      23.0       28.1 no
+L-triton       triton             FLASHINFER   auto      151     0.405      24.3       28.7 no

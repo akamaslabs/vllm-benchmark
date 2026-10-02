@@ -1,0 +1,4 @@
+(EngineCore pid=171) INFO 10-02 09:24:19 [__init__.py:695] Selected DeepGemmFp8BlockScaledMMKernel for Fp8LinearMethod
+(EngineCore pid=171) INFO 10-02 09:24:19 [cuda.py:432] Using AttentionBackendEnum.FLASH_ATTN backend.
+(EngineCore pid=171) INFO 10-02 09:24:19 [__init__.py:695] Selected DeepGemmFp8BlockScaledMMKernel for Fp8LinearMethod
+(EngineCore pid=171) INFO 10-02 09:24:19 [cuda.py:432] Using AttentionBackendEnum.FLASH_ATTN backend.

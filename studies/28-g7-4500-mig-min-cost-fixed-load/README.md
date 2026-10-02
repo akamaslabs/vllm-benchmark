@@ -1,6 +1,7 @@
 # 28-g7-4500-mig-min-cost-fixed-load
 
-**Status:** TODO (design approved 2026-10-02, not scaffolded yet)
+**Status:** TODO — scaffolded and committed 2026-10-02 (`492b032`), kernel probe done 2026-10-02;
+next: the calibration study (plan Task 10).
 **Dates:** —
 
 ## Objective
@@ -30,6 +31,11 @@ slice has 15.66 GiB: at `gpu_memory_utilization` 0.90-0.95 that leaves **~2.5-3.
 KV, ~18-24k tokens in bf16, ~36-48k in fp8**. Qwen3-4B (study 26) would fit easily (~56k
 tokens of KV per slice, ~160 closed-loop users within this SLO): the answer would be
 known in advance.
+
+**Measured by the kernel probe (2026-10-02):** tighter than the estimate. On a `1g.16gb`
+slice vLLM reports `Model loading took 8.88 GiB`, `Available KV cache memory: 1.98 GiB` and
+`GPU KV cache size: 14,384 tokens` (bf16, `gpu_memory_utilization` 0.90): 3.5 requests of
+4096 tokens.
 
 ## Stack & versions
 
@@ -133,9 +139,40 @@ start vLLM with each candidate `linear_backend` (`auto`, `cutlass`,
 `flashinfer_cutlass`, `deep_gemm`, `marlin`, `triton`, and any other the pack lists for
 FP8) and each `attention_backend` (`FLASHINFER`, `FLASH_ATTN`, `TRITON_ATTN`), with bf16
 and fp8 KV. Record which combinations start, which kernel vLLM reports it actually
-selected, and the prefill step (2048-token prompt) and decode step (~30 sequences at
-~1000 tokens of context). Keep in the domain the backends that start and are within
-~15 % of the best; note the rest in this README. ~1-2 h of node time.
+selected, and the prefill step (2048-token prompt, mean of 4) and the decode step at the
+study's regime (30 concurrent ShareGPT-like requests: ~100-token prompts, 256 output tokens,
+which fits a slice's KV even in bf16). Keep in the domain the backends that start and are
+within ~15 % of the best of their group; note the rest in this README.
+
+**Results (2026-10-02, 09:00-09:48 UTC, `kernel-probe/results/`):** one replica on a
+`1g.16gb` slice, the other slice idle, 7 cores / 28000 MB, `gpu_memory_utilization` 0.90,
+`max_num_seqs` 256, `max_num_batched_tokens` 2048. Client-side wall times (HTTP included).
+
+| Combination | Kernel vLLM selected | Prefill 2k (s) | TPOT 1 req (ms) | TPOT 30 req (ms) | Decision |
+|---|---|---|---|---|---|
+| linear `auto`, FLASHINFER, bf16 | DeepGemmFp8BlockScaledMMKernel | 0.257 | 22.9 | 27.3 | kept (baseline) |
+| linear `deep_gemm` | DeepGemmFp8BlockScaledMMKernel | 0.251 | 22.9 | 27.3 | dropped: the same kernel as `auto` |
+| linear `cutlass` | CutlassFp8BlockScaledMMKernel | 0.288 | 22.9 | 27.5 | kept (+12 % prefill vs auto) |
+| linear `triton` | TritonFp8BlockScaledMMKernel | 0.405 | 24.3 | 28.7 | dropped (+58 % prefill) |
+| linear `marlin` | MarlinFP8ScaledMMLinearKernel | 0.617 | 23.0 | 28.1 | dropped (+140 % prefill) |
+| linear `flashinfer_cutlass` | — | — | — | — | does not start: "FlashInfer block-scale FP8 GEMM is not available" |
+| linear `humming` | — | — | — | — | does not start: `pynvml.NVMLError_NoPermission` in the container |
+| attention FLASH_ATTN, bf16 | DeepGemm + FLASH_ATTN | 0.266 | 22.9 | 27.3 | kept |
+| attention TRITON_ATTN, bf16 | DeepGemm + TRITON_ATTN | 0.301 | 22.7 | 27.0 | kept |
+| attention `auto`, bf16 | selects FLASH_ATTN | 0.268 | 22.9 | 27.2 | not a category (= FLASH_ATTN) |
+| FLASHINFER, fp8 KV | DeepGemm + FLASHINFER | 0.252 | 22.9 | 26.2 | — (fp8 is the `kv_cache_dtype` parameter) |
+| TRITON_ATTN, fp8 KV | DeepGemm + TRITON_ATTN | 0.280 | 22.8 | 25.7 | — |
+| FLASH_ATTN, fp8 KV | — | — | — | — | does not start: "FP8 KV cache requires FA3 on SM90 or FA4 on SM100": constraint kept |
+
+- Decode is the same with every kernel (TPOT 22.7-24.3 ms alone, 25.7-28.7 ms at 30): it is
+  memory-bound; the linear kernels differ on prefill only. fp8 KV shortens the decode step
+  at 30 sequences by 4-5 %.
+- `tuned_kernel_configs` stays out: Triton is not competitive here.
+- **vLLM's own footprint**, every start of the probe (13, pod `vllm-0`): working set peak
+  5.08 GiB, RSS 4.88 GiB (12.40 GiB with the page cache of the model files), CPU peak 1.12
+  cores. Hence `container.memory_limit` >= 8500 MB (1.3 x 5.08 GiB + 1 GiB `/dev/shm`,
+  rounded up) and the 2-core floor kept.
+- Startup 119-394 s (the first one also downloaded the model onto the node).
 
 ## Parameters tuned
 
@@ -143,13 +180,13 @@ selected, and the prefill step (2048-token prompt) and decode step (~30 sequence
 |---|---|---|---|
 | `gpu0.mig_profile` | `none`, `1g.16gb` | `none` | the GPU share: whole or half |
 | `container.cpu_limit` | 2000-7000 millicores | 7000 | request = limit (Guaranteed QoS). Below 2 cores vLLM V1 starves: its engine-core process busy-loops on one core |
-| `container.memory_limit` | 6000-28000 MB | 28000 | request = limit. Too low -> OOMKilled at load: the trial fails and the optimizer learns the floor |
+| `container.memory_limit` | 8500-28000 MB | 28000 | request = limit. Floor from the kernel probe's measured footprint ("Kernel probe"); below it, OOMKilled at load |
 | `vllm.gpu_memory_utilization` | 0.80-0.95 | 0.90 | of the MIG instance under MIG: sets the KV left after the weights |
 | `vllm.kv_cache_dtype` | `auto`, `fp8` | `auto` | fp8 doubles the KV tokens: likely the lever that makes the 8B fit in half a GPU |
 | `vllm.max_num_seqs` | 16-256 | 256 | admission cap; bounded in practice by the KV cache |
 | `vllm.max_num_batched_tokens` | 1024-8192 | 2048 | prefill chunk per step: TTFT vs ITL |
-| `vllm.linear_backend` | `auto` + the backends that pass the kernel probe | `auto` | FP8 GEMM kernel: study 24 moved the prefill step by up to 36 % on L4 |
-| `vllm.attention_backend` | `FLASHINFER` + the others that pass the probe (`FLASH_ATTN`, `TRITON_ATTN`) | `FLASHINFER` | attention kernel, mostly the long-context decode |
+| `vllm.linear_backend` | `auto` (DeepGEMM), `cutlass` | `auto` | FP8 GEMM kernel; the others are slower or do not start here ("Kernel probe") |
+| `vllm.attention_backend` | `FLASHINFER`, `FLASH_ATTN`, `TRITON_ATTN` | `FLASHINFER` | all three start and are within 15 % ("Kernel probe") |
 
 The vLLM parameters do not change the cost: they decide whether a cheaper configuration
 holds the SLO (fp8 KV, a faster kernel, a smaller `gpu_memory_utilization` margin...).
@@ -166,8 +203,8 @@ studies:
 - **`tuned_kernel_configs` is left out.** Study 24's tuned Triton FP8 configs are files
   for `device_name=NVIDIA_L4`; vLLM would not load them here. They would be re-tuned for
   this GPU (study 24's `tune_fp8_block.py`) only if the probe shows `triton` competitive.
-- If the probe confirms that `FLASH_ATTN` is FlashAttention 2 on SM 12.0, it rejects an
-  fp8 KV cache as on the L4: keep study 24's constraint `attention_backend !=
+- The probe confirmed that `FLASH_ATTN` rejects an fp8 KV cache on SM 12.0 as on the L4
+  ("FP8 KV cache requires FA3 on SM90 or FA4 on SM100"): study 24's constraint is kept, `attention_backend !=
   "FLASH_ATTN" || kv_cache_dtype == "auto"`.
 
 CPU and memory per replica: two replicas at the domain maxima request 14 cores / 56 GB
@@ -198,7 +235,7 @@ cost = 2.0683 * vllm_r0.active_gpus
 `active_gpus` reads the pod's `nvidia.com/gpu` request over the node's allocatable
 (1 with `none`, 0.5 per replica with `1g.16gb`, study 26's query); `container` is scoped
 to pod `vllm-0`. Examples: whole GPU, 7 cores, 28 GB: ~2.50 USD/h; half GPU, 7 cores,
-28 GB: ~1.46; half GPU, 2 cores, 8 GB: ~1.16. The GPU dominates; CPU and RAM separate
+28 GB: ~1.46; half GPU, 2 cores, 8.5 GB: ~1.16. The GPU dominates; CPU and RAM separate
 configurations with the same slice (2 -> 7 cores moves the cost by ~0.23 USD/h).
 
 Constraints (all on `vllm_r0`):
@@ -246,7 +283,7 @@ completions is the 12 min inside the 13 min run at R (the warm-up is ~1 req/s), 
 | 1 | baseline | none | 7000 m / 28000 MB | auto | whole GPU, generous resources: must pass, or R is not reachable |
 | 2 | half GPU bf16 | 1g.16gb | 7000 / 28000 | auto | the slice at defaults |
 | 3 | half GPU fp8 | 1g.16gb | 7000 / 28000 | fp8 | twice the KV tokens |
-| 4 | half GPU fp8 lean | 1g.16gb | 2000 / 8000 | fp8 | the cheapest corner of the space |
+| 4 | half GPU fp8 lean | 1g.16gb | 2000 / 8500 | fp8 | the cheapest corner of the space |
 | 5 | optimize | — | — | — | 40 AKAMAS experiments (9 parameters) |
 
 Other vLLM parameters in the presets: `gpu_memory_utilization` 0.90, `max_num_seqs`
@@ -286,8 +323,8 @@ Hypotheses, not measurements:
 
 - The whole GPU holds 3.3 req/s with a wide margin (study 26: the whole GPU served ~18
   req/s of ShareGPT with Qwen3-4B; the 8B reads about twice the weights per step).
-- Half a GPU in bf16 is KV-bound: ~18-24k tokens against ~25-30 requests in flight of a
-  few hundred tokens each should fit, so it probably passes, with little headroom.
+- Half a GPU in bf16 is KV-bound: 14,384 tokens (measured) against ~25-30 requests in
+  flight of a few hundred tokens each should still fit, with little headroom.
 - fp8 KV passes more easily and lets `gpu_memory_utilization` go lower.
 - The cheapest valid configuration is half a GPU with fp8 KV, ~2-3 cores and the lowest
   memory that loads the model, ~1.2 USD/h against ~2.5 for the baseline.

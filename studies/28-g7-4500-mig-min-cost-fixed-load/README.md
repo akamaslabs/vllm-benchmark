@@ -370,6 +370,15 @@ Hypotheses, not measurements:
 - The Kubernetes pack build on the instance must expose `cpu_limit` / `memory_limit` on
   `Kubernetes Container`, inside the domains above.
 
+## Running notes
+
+- **Experiment 1 (baseline, whole GPU, bf16, 7 cores / 28000 MB), 2026-10-02 12:52-13:12 UTC:
+  VALID, cost 2.498** (2.068 GPU + 0.317 CPU + 0.113 RAM). Wide margins at R = 3.3 req/s
+  (Prometheus, 12 min measured window): TTFT p95 (150 s) max 71 ms, ITL p95 max 24 ms,
+  3.30 req/s completed, KV max 10 %, at most 25 requests running; no `abort` / `error`
+  (`finished_reason`: 96 % `length` — AIPerf sets `max_tokens` to ShareGPT's reference
+  output length — the rest `stop`), so the success-rate query needs no filter.
+
 ## Results
 
 <Filled in by the study-recap skill once the study finishes.>

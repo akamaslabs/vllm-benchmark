@@ -1,6 +1,6 @@
 # 28-g7-4500-mig-min-cost-fixed-load
 
-**Status:** RUNNING (started 2026-10-02 at 13:0x UTC, see akamas/README.md) — scaffolded 2026-10-02 (`492b032`),
+**Status:** RUNNING (started 2026-10-02 12:52 UTC; a first start at 12:42 was replaced, see akamas/README.md) — scaffolded 2026-10-02 (`492b032`),
 kernel probe and calibration done 2026-10-02, R = 3.3 req/s confirmed with the user.
 Checkpoint after the three presets (~2 h): if half a GPU in bf16 passes with a large margin,
 propose stopping and restarting at a higher R.

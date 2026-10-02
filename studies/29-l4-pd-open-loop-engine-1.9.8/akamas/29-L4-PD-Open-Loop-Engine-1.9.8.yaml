@@ -6,10 +6,12 @@ description: >-
   system, telemetry, workflow, parameters, constraints, presets and load: P/D
   disaggregation of Qwen/Qwen3-8B-FP8 on one g6.12xlarge (4x L4), AIPerf open-loop rate
   ramp 0 to 2.4 req/s over 120 min, gamma arrivals (smoothness 4), seed 18. Goal: tokens/s
-  per active GPU with TTFT p95 <= 10 s and ITL p95 <= 75 ms. Stopped after 31 experiments
-  (15 presets + 16 AKAMAS), the budget at which study 27 stopped.
+  per active GPU with TTFT p95 <= 10 s and ITL p95 <= 75 ms. Study 27's baseline and 14
+  presets are imported (baseline from + bootstrap). Stopped after 31 experiments (15
+  imported + 16 AKAMAS), the budget at which study 27 stopped.
 # STUDY 29: this file is a copy of ../../27-l4-pd-open-loop/akamas/27-L4-PD-Open-Loop.yaml.
-# Only `name` and `description` changed. It reuses study 27's system, telemetry instance
+# Changed: `name`, `description`, and the steps before `optimize`, which import study 27's
+# baseline and presets in place of running them again. It reuses study 27's system, telemetry instance
 # and workflow (precedent: studies 14 and 16), so the only difference is the engine version
 # set on the optimizer service. The comments below are study 27's.
 # Own system, telemetry instance and workflow (akamas/system.yaml, components/, telemetry/,
@@ -165,313 +167,24 @@ kpis:
     direction: minimize
     aggregation: max
 
-# Baseline twice + 13 presets + 60 AKAMAS. The watchdog ends each ramp past the SLA, so an
-# experiment lasts ~8 min of setup + capacity / 0.02 req/s per min + 3-7 min: ~40 min for
-# the baseline, ~48 min for a bf16-decode P1D1, ~85 min for the 2P2D. Presets ~13 h, about
-# 68 h in total.
+# STUDY 29: study 27's baseline and its 14 presets are imported, not run again (study 27's
+# steps are in ../../27-l4-pd-open-loop/akamas/27-L4-PD-Open-Loop.yaml). So the AKAMAS step
+# starts from the same data that engine 1.9.7 had at study 27's experiment 16, and only the
+# engine differs. Experiment numbers stay the same: 1 baseline, 2-15 imported, 16+ AKAMAS.
 steps:
-  # Study 20's baseline re-run with this study's telemetry: 2 aggregated replicas, vLLM
-  # defaults for the scheduler and KV (not rendered), Marlin, FLASHINFER as in study 20 (with
-  # bf16 KV, attention auto would select FLASH_ATTN), no tuned configs.
-  - name: baseline aggregated
+  - name: baseline from study 27
     type: baseline
-    values:
-      pd_topology.pd_prefill_instances: 0
-      pd_topology.pd_decode_instances: 2
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.linear_backend: "marlin"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.linear_backend: "marlin"
-      vllm_decode.attention_backend: "FLASHINFER"
-      vllm_decode.tuned_kernel_configs: "false"
-    doNotRenderParameters:
-      - vllm_prefill.max_num_seqs
-      - vllm_prefill.max_num_batched_tokens
-      - vllm_decode.max_num_seqs
-      - vllm_decode.max_num_batched_tokens
-      - vllm_decode.kv_cache_dtype
+    from:
+      - study: 137fd899-7487-4150-a134-02c6c8f59ac2
+        experiments: [1]
 
-  # The same values again: the first measure of the score's repeatability on this setup.
-  - name: baseline aggregated repeat
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 0
-      pd_topology.pd_decode_instances: 2
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.linear_backend: "marlin"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.linear_backend: "marlin"
-      vllm_decode.attention_backend: "FLASHINFER"
-      vllm_decode.tuned_kernel_configs: "false"
-    doNotRenderParameters:
-      - vllm_prefill.max_num_seqs
-      - vllm_prefill.max_num_batched_tokens
-      - vllm_decode.max_num_seqs
-      - vllm_decode.max_num_batched_tokens
-      - vllm_decode.kv_cache_dtype
-
-  # P1D1 with study 22's experiment 2 settings: gmu 0.9, 128 seqs, 8192 batched tokens on
-  # both roles, bf16 KV, FLASHINFER, decode Marlin. One kernel factor changes per preset.
-  - name: P1D1 prefill marlin
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 1
-      pd_topology.pd_decode_instances: 1
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 128
-      vllm_prefill.max_num_batched_tokens: 8192
-      vllm_prefill.linear_backend: "marlin"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 128
-      vllm_decode.max_num_batched_tokens: 8192
-      vllm_decode.linear_backend: "marlin"
-      vllm_decode.attention_backend: "FLASHINFER"
-      vllm_decode.kv_cache_dtype: "auto"
-      vllm_decode.tuned_kernel_configs: "false"
-
-  - name: P1D1 prefill humming
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 1
-      pd_topology.pd_decode_instances: 1
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 128
-      vllm_prefill.max_num_batched_tokens: 8192
-      vllm_prefill.linear_backend: "humming"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 128
-      vllm_decode.max_num_batched_tokens: 8192
-      vllm_decode.linear_backend: "marlin"
-      vllm_decode.attention_backend: "FLASHINFER"
-      vllm_decode.kv_cache_dtype: "auto"
-      vllm_decode.tuned_kernel_configs: "false"
-
-  # Study 22's experiment 2 and study 24's experiment 4 (prefill triton, default config),
-  # which scored 1382.61 and 985.84 with the closed-loop levels.
-  - name: P1D1 prefill triton default
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 1
-      pd_topology.pd_decode_instances: 1
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 128
-      vllm_prefill.max_num_batched_tokens: 8192
-      vllm_prefill.linear_backend: "triton"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 128
-      vllm_decode.max_num_batched_tokens: 8192
-      vllm_decode.linear_backend: "marlin"
-      vllm_decode.attention_backend: "FLASHINFER"
-      vllm_decode.kv_cache_dtype: "auto"
-      vllm_decode.tuned_kernel_configs: "false"
-
-  # The expected best kernels: prefill triton with tuned configs, decode Marlin, FLASHINFER,
-  # bf16 KV. The next presets change one factor from this one.
-  - name: P1D1 prefill triton tuned
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 1
-      pd_topology.pd_decode_instances: 1
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 128
-      vllm_prefill.max_num_batched_tokens: 8192
-      vllm_prefill.linear_backend: "triton"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 128
-      vllm_decode.max_num_batched_tokens: 8192
-      vllm_decode.linear_backend: "marlin"
-      vllm_decode.attention_backend: "FLASHINFER"
-      vllm_decode.kv_cache_dtype: "auto"
-      vllm_decode.tuned_kernel_configs: "true"
-
-  - name: P1D1 decode humming
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 1
-      pd_topology.pd_decode_instances: 1
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 128
-      vllm_prefill.max_num_batched_tokens: 8192
-      vllm_prefill.linear_backend: "triton"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 128
-      vllm_decode.max_num_batched_tokens: 8192
-      vllm_decode.linear_backend: "humming"
-      vllm_decode.attention_backend: "FLASHINFER"
-      vllm_decode.kv_cache_dtype: "auto"
-      vllm_decode.tuned_kernel_configs: "true"
-
-  - name: P1D1 kv fp8
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 1
-      pd_topology.pd_decode_instances: 1
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 128
-      vllm_prefill.max_num_batched_tokens: 8192
-      vllm_prefill.linear_backend: "triton"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 128
-      vllm_decode.max_num_batched_tokens: 8192
-      vllm_decode.linear_backend: "marlin"
-      vllm_decode.attention_backend: "FLASHINFER"
-      vllm_decode.kv_cache_dtype: "fp8"
-      vllm_decode.tuned_kernel_configs: "true"
-
-  - name: P1D1 flash attn
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 1
-      pd_topology.pd_decode_instances: 1
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 128
-      vllm_prefill.max_num_batched_tokens: 8192
-      vllm_prefill.linear_backend: "triton"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 128
-      vllm_decode.max_num_batched_tokens: 8192
-      vllm_decode.linear_backend: "marlin"
-      vllm_decode.attention_backend: "FLASH_ATTN"
-      vllm_decode.kv_cache_dtype: "auto"
-      vllm_decode.tuned_kernel_configs: "true"
-
-  # The expected best kernels on the other topologies, for the full picture.
-  - name: P2D1 best kernels
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 2
-      pd_topology.pd_decode_instances: 1
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 128
-      vllm_prefill.max_num_batched_tokens: 8192
-      vllm_prefill.linear_backend: "triton"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 128
-      vllm_decode.max_num_batched_tokens: 8192
-      vllm_decode.linear_backend: "marlin"
-      vllm_decode.attention_backend: "FLASHINFER"
-      vllm_decode.kv_cache_dtype: "auto"
-      vllm_decode.tuned_kernel_configs: "true"
-
-  - name: P1D2 best kernels
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 1
-      pd_topology.pd_decode_instances: 2
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 128
-      vllm_prefill.max_num_batched_tokens: 8192
-      vllm_prefill.linear_backend: "triton"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 128
-      vllm_decode.max_num_batched_tokens: 8192
-      vllm_decode.linear_backend: "marlin"
-      vllm_decode.attention_backend: "FLASHINFER"
-      vllm_decode.kv_cache_dtype: "auto"
-      vllm_decode.tuned_kernel_configs: "true"
-
-  - name: P2D2 best kernels
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 2
-      pd_topology.pd_decode_instances: 2
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 128
-      vllm_prefill.max_num_batched_tokens: 8192
-      vllm_prefill.linear_backend: "triton"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 128
-      vllm_decode.max_num_batched_tokens: 8192
-      vllm_decode.linear_backend: "marlin"
-      vllm_decode.attention_backend: "FLASHINFER"
-      vllm_decode.kv_cache_dtype: "auto"
-      vllm_decode.tuned_kernel_configs: "true"
-
-  - name: P3D1 best kernels
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 3
-      pd_topology.pd_decode_instances: 1
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 128
-      vllm_prefill.max_num_batched_tokens: 8192
-      vllm_prefill.linear_backend: "triton"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 128
-      vllm_decode.max_num_batched_tokens: 8192
-      vllm_decode.linear_backend: "marlin"
-      vllm_decode.attention_backend: "FLASHINFER"
-      vllm_decode.kv_cache_dtype: "auto"
-      vllm_decode.tuned_kernel_configs: "true"
-
-  # Scheduler presets (study 24 README, "Expected effect of the scheduler parameters").
-  # "P1D1 prefill triton tuned" with one prefill prompt per step: roofline optimum ~4160
-  # batched tokens (one 4096-token prompt plus the chat template), shorter steps, lower TTFT.
-  - name: P1D1 prefill batched 4160
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 1
-      pd_topology.pd_decode_instances: 1
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 128
-      vllm_prefill.max_num_batched_tokens: 4160
-      vllm_prefill.linear_backend: "triton"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 128
-      vllm_decode.max_num_batched_tokens: 8192
-      vllm_decode.linear_backend: "marlin"
-      vllm_decode.attention_backend: "FLASHINFER"
-      vllm_decode.kv_cache_dtype: "auto"
-      vllm_decode.tuned_kernel_configs: "true"
-
-  # "P1D1 kv fp8" with the decode sequence cap at the expected limit: ITL 75 ms and the fp8
-  # KV capacity both allow ~29-31 sequences. Expected: the same score as with 128.
-  - name: P1D1 kv fp8 decode seqs 32
-    type: preset
-    values:
-      pd_topology.pd_prefill_instances: 1
-      pd_topology.pd_decode_instances: 1
-      pd_topology.pd_kv_connector: "NixlConnector"
-      pd_topology.pd_kv_buffer_device: "cpu"
-      vllm_prefill.gpu_memory_utilization: 0.9
-      vllm_prefill.max_num_seqs: 128
-      vllm_prefill.max_num_batched_tokens: 8192
-      vllm_prefill.linear_backend: "triton"
-      vllm_decode.gpu_memory_utilization: 0.9
-      vllm_decode.max_num_seqs: 32
-      vllm_decode.max_num_batched_tokens: 8192
-      vllm_decode.linear_backend: "marlin"
-      vllm_decode.attention_backend: "FLASHINFER"
-      vllm_decode.kv_cache_dtype: "fp8"
-      vllm_decode.tuned_kernel_configs: "true"
+  # Study 27's experiment 2 (baseline repeat), its 11 study 24 presets (3-13) and its 2
+  # scheduler presets (14-15).
+  - name: bootstrap study 27 presets
+    type: bootstrap
+    from:
+      - study: 137fd899-7487-4150-a134-02c6c8f59ac2
+        experiments: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
   - name: optimize
     type: optimize

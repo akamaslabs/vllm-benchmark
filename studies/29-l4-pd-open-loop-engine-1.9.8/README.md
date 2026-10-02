@@ -13,13 +13,28 @@ optimizer service (see "Engine version on the lab").
 | Item | Study 27 | Study 29 |
 |---|---|---|
 | Optimizer engine | 1.9.7 (skopt 0.9.2rc39) | **1.9.8** (skopt 0.9.2rc40, mixed kernel: an overlap kernel on the one-hot categoricals) |
-| Study file | `../27-l4-pd-open-loop/akamas/27-L4-PD-Open-Loop.yaml` | `akamas/29-L4-PD-Open-Loop-Engine-1.9.8.yaml`, a copy with a new `name` and `description` |
-| Budget | stopped after 31 experiments | stopped after 31 experiments (15 presets + 16 AKAMAS) |
+| Study file | `../27-l4-pd-open-loop/akamas/27-L4-PD-Open-Loop.yaml` | `akamas/29-L4-PD-Open-Loop-Engine-1.9.8.yaml`, a copy with a new `name`, `description` and first steps |
+| Experiments 1-15 | baseline + 14 presets, run | **imported from study 27**: `baseline` with `from` (exp 1), `bootstrap` (exps 2-15) |
+| Budget | stopped after 31 experiments | stopped after 31 experiments (15 imported + 16 AKAMAS) |
 
 Unchanged: system `vLLM_Benchmark_27_L4_PD_Open_Loop`, its telemetry instance, workflow
 `27-L4-PD-Open-Loop-Workflow` (it runs `../27-l4-pd-open-loop/k8s/`), the load (AIPerf rate
 ramp 0 → 2.4 req/s in 7200 s, gamma arrivals with smoothness 4, seed 18), the watchdog, the
-goal, the constraints and the 15 presets.
+goal, the constraints and the AKAMAS step.
+
+Why the import: running the 15 presets again costs ~13 h of node and changes their scores by
+the noise (~±4%), so the two engines would start from different data. With the import, the
+AKAMAS step of engine 1.9.8 starts from the data that engine 1.9.7 had at study 27's
+experiment 16.
+
+**Check after the first AKAMAS experiment:** the engine input of study 29's experiment 16
+(ConfigMap `opt-engine-<study 29 id>-16-*`) must equal the input of study 27's experiment 16
+(`opt-engine-137fd899-...-16-*`), except `writeBackApi`. One open point: study 27's two
+baselines have `doNotRenderParameters`, and the engine did not receive them. The check shows
+if the imported baseline and the bootstrapped baseline repeat behave the same.
+
+A first study 29 with the 15 presets run again was created and started on 2026-10-02 at 09:33
+UTC, then deleted during its first experiment, in favour of the import.
 
 ## Engine version on the lab
 
@@ -43,8 +58,8 @@ sets the chart value again.
 
 ## Comparison criteria (written before the start)
 
-Both studies run the same 15 presets, so the comparison uses the 16 AKAMAS experiments
-(exps 16-31) of each study.
+Both studies have the same 15 experiments before the AKAMAS step (study 29 imports them), so
+the comparison uses the 16 AKAMAS experiments (exps 16-31) of each study.
 
 | Criterion | Study 27 (engine 1.9.7) |
 |---|---|
@@ -63,8 +78,7 @@ We prefer 1.9.8 if:
 If 1 or 3 fails, we do not prefer 1.9.8. If 1 and 3 hold and 2 does not, the result is a tie.
 
 Limits: one run for each engine, with ~±4% noise on each score. This is evidence from one
-real case, not a statistical certification. The 15 presets run with identical configurations
-in both studies, so they also give 15 paired repeats for the noise estimate.
+real case, not a statistical certification.
 
 ## Create, start and stop (from the toolbox)
 

@@ -1,6 +1,6 @@
 # 29-L4-PD-Open-Loop-Engine-1.9.8
 
-**Status:** RUNNING (created 2026-10-02).
+**Status:** FINISHED (2026-10-03, 31 experiments: 15 imported + 16 AKAMAS). See "Results".
 **Needs:** vLLM optimization pack **1.12.0** (as study 27), optimizer engine **1.9.8** on the
 optimizer service (see "Engine version on the lab").
 
@@ -122,6 +122,76 @@ Node: the node group `llm-serving-l4` (cluster `vllm-bench`, AWS profile `lab`) 
 `desiredSize=1` before the start and to 0 after the stop. Then scale `vllm-pd` (namespace
 `llm-serving`) to 0 replicas.
 
-## Results
+## Results (2026-10-02 → 2026-10-03)
 
-<Filled in when the study stops.>
+Study `29-L4-PD-Open-Loop-Engine-1.9.8` (id 5f8c60d4-fa78-416d-9979-170360049c62), started
+2026-10-02 14:44 UTC, finished 2026-10-03 03:39 UTC by the stop script after experiment 31
+(experiment 32 aborted). Then the load job was deleted, `vllm-pd` scaled to 0 and the node
+group `llm-serving-l4` set to 0. The engine input at experiment 16 was identical to study
+27's (checked on the ConfigMaps, saved in `optimizer-engine/study_inputs/`).
+
+| Exp | Study 29 (engine 1.9.8) | Score | Study 27 (engine 1.9.7) | Score |
+|---|---|---|---|---|
+| 16 | P1D1 fp8, decode Humming | 1711.26 | P1D1 fp8, decode Marlin | 1671.22 |
+| 17 | P1D1 fp8, decode Humming | 1670.98 | P1D1 fp8 | 1712.48 |
+| 18 | P1D1 fp8, decode Marlin | 1589.49 | P1D1 fp8 | 1686.27 |
+| 19 | P1D1 fp8, decode Humming | 1711.08 | P1D1 fp8 | 1739.12 |
+| 20 | P0D1 fp8, Humming, batched 16265 | 1738.18 | P0D1 fp8, Humming, batched 4655 | 1974.69 |
+| 21 | P0D1 fp8, Marlin, batched 4462 | 1504.69 | P0D1 fp8, Humming, batched 14476 | 1944.15 |
+| 22 | P2D2 fp8 | 1550.31 | P0D2 fp8, Humming, batched 6983 | 1980.22 |
+| 23 | P2D2 fp8 | 1613.26 | P0D1 bf16, Marlin | 1014.33 |
+| 24 | P0D2 fp8, Marlin | ERROR (telemetry) | P1D2 fp8 | 1075.74 |
+| 25 | P0D1 fp8, Humming, batched 13677 | 1801.99 | P0D2 fp8, batched 14764 | 1855.65 |
+| 26 | **the same configuration as exp 25** | 1801.73 | P0D2 fp8, batched 8659 | 1968.08 |
+| 27 | P0D1 fp8, Humming, batched 16315 | **1864.02** | P1D2 fp8 | 1114.11 |
+| 28 | P1D2 fp8 | 1122.78 | P0D1 fp8, batched 16348 | 1941.11 |
+| 29 | P0D1 bf16, FLASH_ATTN, batched 16342 | 1483.58 | P2D1 fp8 | 1132.53 |
+| 30 | P3D1 fp8 | 842.91 | P0D2 bf16, Marlin | 1262.25 |
+| 31 | P0D2 fp8, Marlin, batched 5740 | 1509.75 | P0D2 fp8, batched 3180 | 1509.54 |
+
+Experiment 24 failed outside the engine: the Akamas `telemetry` pod was OOMKilled at
+2026-10-02 22:59:19 UTC (10 restarts in its life), and the metric collection got
+"Connection refused".
+
+### Criteria (fixed before the start)
+
+| Criterion | Study 27 (1.9.7) | Study 29 (1.9.8) |
+|---|---|---|
+| Best score | 1980.22 | 1864.02 (−5.9%) |
+| AKAMAS experiments to reach ≥ 1900 | 5 | never |
+| Wasted AKAMAS experiments (< 1300) | 5 of 16 | 2 of 16 |
+| Failed experiments | 0 | 1 (telemetry OOM, not the engine) |
+| Mean / median of the 16 scores | 1599 / 1699 | 1568 / 1613 |
+| Experiments ≥ 1800 | 6 | 3 |
+
+**Verdict by the rule written before the start: we do not prefer 1.9.8.** Criterion 1 fails
+(1864 < ~1900). Criterion 2 holds on wasted experiments (2 against 5). Criterion 3 fails
+on the count, but the failure is an infrastructure fault, not an engine fault.
+
+### What the engines did differently
+
+- **The same categorical path.** Both engines ran four P1D1 fp8 experiments, then found the
+  aggregated fp8 configuration at experiment 20.
+- **1.9.8 kept the numeric parameters at the upper bounds.** In its 4 aggregated fp8
+  experiments with Humming, `max_num_batched_tokens` was 13677-16315, `max_num_seqs`
+  511-512 and decode `gpu_memory_utilization` 0.92. Engine 1.9.7 spread its aggregated
+  experiments over batched 4655-16348 and seqs 70-425.
+- **The corner does not explain the gap by itself.** Study 27's experiment 28 was near the
+  same corner (batched 16348, seqs 425, gmu 0.92) and scored 1941.11, against 1801-1864 here.
+  **Hypothesis:** part of the gap is a difference between runs, not between engines. Study
+  29 ran on another EC2 instance (launched 2026-10-02), and study 26 measured a ~5% drift of
+  the same baseline with the GPU temperature. The imported presets cannot show this offset,
+  because they were not run again. A re-run of one study 27 configuration on the study 29
+  node would have measured it.
+- **1.9.8 proposed an exact duplicate.** Experiments 25 and 26 have the same values in all
+  15 parameters (the corner of the domain). They scored 1801.99 and 1801.73: a repeat within
+  0.01%, but one experiment of the budget spent on a known point.
+- **1.9.8 explored the categorical space more evenly.** It tried P2D2 fp8 twice (never tried
+  by 1.9.7, 1550-1613, as the capacity model predicts), P3D1 fp8, P1D2 fp8 once, and
+  FLASH_ATTN with bf16. It wasted fewer experiments below 1300.
+
+Limits: one run for each engine, ~±4% noise on a single score, and a possible offset
+between the two nodes (see above). The best-score gap (5.9%) is just above the noise. The
+pattern at the bounds and the duplicate are structural and do not depend on the noise.
+Next time: run one known configuration (for example study 27's experiment 20) again as the
+first experiment, to measure the node offset.

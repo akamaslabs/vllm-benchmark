@@ -10,7 +10,10 @@
 #   - which attention backends start (A-*): vLLM forces TRITON_ATTN for this model on SM 8.9;
 #   - fp8 KV with TRITON_ATTN (K-fp8);
 #   - which FP8 linear kernels start and how fast they are (L-*);
-#   - the edges of the study's domains (E-*): the memory corner, eager/O0, O3/throughput.
+#   - the edges of the study's domains (E-*): the memory corner, eager/O0, O3/throughput;
+#   - Gemma 4's MTP speculative decoding (M-*, drafter google/gemma-4-26B-A4B-it-assistant):
+#     does it start on Ada, and does it gain at batch 1 and at 64 concurrent requests;
+#     acceptance on English and Italian prompts.
 # KP_COMBOS overrides the list (name, then KEY=VALUE overrides; "-" for none).
 set -uo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -41,6 +44,9 @@ L-torch       LINEAR_BACKEND=torch
 E-memory      GPU_MEMORY_UTILIZATION=0.94 MAX_NUM_SEQS=512 MAX_NUM_BATCHED_TOKENS=16384 KV_CACHE_DTYPE=fp8
 E-eager       ENFORCE_EAGER=true OPTIMIZATION_LEVEL=0 ASYNC_SCHEDULING=false SCHEDULING_POLICY=priority BLOCK_SIZE=128 PERFORMANCE_MODE=interactivity MAX_NUM_SEQS=16 MAX_NUM_BATCHED_TOKENS=512
 E-o3          OPTIMIZATION_LEVEL=3 PERFORMANCE_MODE=throughput BLOCK_SIZE=48 MAX_CUDAGRAPH_CAPTURE_SIZE=16 GPU_MEMORY_UTILIZATION=0.80
+M-mtp2        SPEC_METHOD=mtp SPEC_TOKENS=2
+M-mtp4        SPEC_METHOD=mtp SPEC_TOKENS=4
+M-mtp2-fp8    SPEC_METHOD=mtp SPEC_TOKENS=2 KV_CACHE_DTYPE=fp8
 "}
 while read -r NAME OVR; do
   [ -n "${NAME:-}" ] || continue

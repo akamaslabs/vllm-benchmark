@@ -150,10 +150,12 @@ Richieste completate (the req/s of the scored window = the knee), TTFT P95 150s,
 
 ## Startup probe (before the smoke run)
 
-`probe/probe.sh`, outside Akamas, ~12 vLLM starts on the L40S (~60-75 min, the first one also
+`probe/probe.sh`, outside Akamas, 15 vLLM starts on the L40S (~75-90 min, the first one also
 downloads the model). Per combination it runs `k8s/apply_config.sh` and a short benchmark
-inside the pod (prefill step of a ~2000-token prompt, TPOT at 64 concurrent requests). It
-answers what cannot be verified from the source:
+inside the pod: prefill step of a ~2000-token prompt; long natural-language essays (256
+tokens) one at a time, 64 concurrent in English and 32 concurrent in Italian; the MTP
+acceptance rate per phase from vLLM's counters. It answers what cannot be verified from the
+source:
 
 - **B-default:** Gemma 4 FP8 MoE loads and serves on Ada with vLLM 0.29.0 (fused-MoE FP8 path),
   the log line "forcing TRITON_ATTN backend", `Model loading took`, `GPU KV cache size`.
@@ -164,6 +166,15 @@ answers what cannot be verified from the source:
 - **E-memory** (gmu 0.94, 512 sequences, 16384 batched tokens, fp8), **E-eager** (eager, O0,
   no async, priority, block 128, interactivity, 16 sequences), **E-o3** (O3, throughput,
   block 48, capture 16, gmu 0.80): the corners of the domains.
+- **M-mtp2 / M-mtp4 / M-mtp2-fp8:** Gemma 4's MTP speculative decoding (drafter
+  `google/gemma-4-26B-A4B-it-assistant`, 0.78 GiB, shares the target's KV cache; vLLM
+  `--spec-method mtp --spec-model ... --spec-tokens K`). Does it start on Ada, what does it
+  gain at batch 1 and at 64 concurrent requests against the same configuration without it,
+  and how many drafted tokens are accepted on English and on Italian text. Decided with the
+  user 2026-10-06: MTP enters the study as a variable (`spec_method` {none, mtp},
+  `spec_tokens`, none <-> 0 constraint, one preset) only if it does not lose at 64
+  concurrent requests; otherwise it is left to a later latency study with the customer's
+  SLA and prompts. Never always-on: its gain depends on the load.
 
 Decision after it: `Model loading took` should be ~26 GiB, the text weights only: with
 `--language-model-only` vLLM 0.29.0 skips the vision tower (`_mark_tower_model` drops tower

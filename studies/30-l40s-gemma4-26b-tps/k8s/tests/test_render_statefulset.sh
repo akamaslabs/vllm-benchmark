@@ -66,6 +66,18 @@ fi
 params LINEAR_BACKEND=auto ATTENTION_BACKEND=auto
 render && ! args | grep -q -- '--attention-backend\|--linear-backend' && ok "auto backends: no flag" || ko "auto backends: no flag"
 
+# 2b. Speculative decoding: mtp/K renders the three flags; none/0 renders none.
+params SPEC_METHOD=mtp SPEC_TOKENS=3
+if render; then
+  for a in --spec-method=mtp --spec-model=google/gemma-4-26B-A4B-it-assistant --spec-tokens=3; do
+    args | grep -qx -- "$a" && ok "arg $a" || ko "arg $a"
+  done
+else
+  ko "mtp renders"
+fi
+params SPEC_METHOD=none SPEC_TOKENS=0
+render && ! args | grep -q -- '--spec-' && ok "none/0: no --spec- flag" || ko "none/0: no --spec- flag"
+
 # 3. Invalid inputs exit 2 and write nothing.
 expect_reject() {
   local name=$1; shift
@@ -85,6 +97,10 @@ expect_reject "batched tokens below max_num_seqs" 'MAX_NUM_SEQS=512' 'MAX_NUM_BA
 expect_reject "unknown kv dtype" 'KV_CACHE_DTYPE=int8'
 expect_reject "unknown performance mode" 'PERFORMANCE_MODE=fast'
 expect_reject "unknown attention backend" 'ATTENTION_BACKEND=XFORMERS'
+expect_reject "spec none with tokens" 'SPEC_METHOD=none' 'SPEC_TOKENS=2'
+expect_reject "spec mtp with 0 tokens" 'SPEC_METHOD=mtp' 'SPEC_TOKENS=0'
+expect_reject "spec method without tokens" 'SPEC_METHOD=mtp'
+expect_reject "unknown spec method" 'SPEC_METHOD=ngram' 'SPEC_TOKENS=2'
 expect_reject "FLASH_ATTN with fp8 KV" 'ATTENTION_BACKEND=FLASH_ATTN' 'KV_CACHE_DTYPE=fp8'
 params 'ATTENTION_BACKEND=FLASH_ATTN' 'KV_CACHE_DTYPE=fp8'
 RENDER_ALLOW_FA_FP8=1 bash "$R" "$TMP/params.env" "$T" "$TMP/out.yaml" >/dev/null 2>&1 \

@@ -8,7 +8,12 @@
 #     must become --x / --no-x (--x=false is an error, study 27's note);
 #   - LINEAR_BACKEND / ATTENTION_BACKEND are optional (see params.env.template): absent or
 #     "auto" means no flag, so vLLM keeps its own choice (for Gemma 4 on SM 8.9: TRITON_ATTN,
-#     forced by Gemma4Config only when no backend is given).
+#     forced by Gemma4Config only when no backend is given);
+#   - SPEC_METHOD / SPEC_TOKENS are optional too (vLLM pack spec_method / spec_tokens): absent
+#     or none/0 means no --spec-* flag at all (vLLM builds a SpeculativeConfig as soon as any
+#     of them is passed, and spec_tokens 0 is the pack's off sentinel, never valid for vLLM);
+#     mtp/K renders Gemma 4's MTP drafter (google/gemma-4-26B-A4B-it-assistant, 0.78 GiB,
+#     shares the target's KV cache).
 # RENDER_ALLOW_FA_FP8=1 lifts the FLASH_ATTN + fp8 guard (the startup probe uses it to check
 # that guard on this GPU; the study never sets it).
 set -euo pipefail
@@ -21,7 +26,7 @@ PARAMS=$1 TEMPLATE=$2 OUT=$3
 if grep -q '\${' "$PARAMS"; then
   die "params.env still has unsubstituted tokens (a parameter is missing from parametersSelection): $(grep '\${' "$PARAMS" | tr '\n' ' ')"
 fi
-LINEAR_BACKEND="" ATTENTION_BACKEND=""
+LINEAR_BACKEND="" ATTENTION_BACKEND="" SPEC_METHOD="" SPEC_TOKENS=""
 # shellcheck disable=SC1090
 source "$PARAMS"
 REQUIRED="GPU_MEMORY_UTILIZATION MAX_NUM_SEQS MAX_NUM_BATCHED_TOKENS KV_CACHE_DTYPE PERFORMANCE_MODE
@@ -30,7 +35,7 @@ for v in $REQUIRED; do
   [ -n "${!v:-}" ] || die "$v is empty in params.env (doNotRenderParameters renders an empty string, not the token)"
 done
 # An optional line that is present must not be empty either.
-for v in LINEAR_BACKEND ATTENTION_BACKEND; do
+for v in LINEAR_BACKEND ATTENTION_BACKEND SPEC_METHOD SPEC_TOKENS; do
   if grep -q "^$v=" "$PARAMS" && [ -z "${!v}" ]; then die "$v is present but empty in params.env"; fi
 done
 
@@ -51,6 +56,16 @@ done
 [ -z "$LINEAR_BACKEND" ] || [[ "$LINEAR_BACKEND" =~ ^[a-z0-9_]+$ ]] || die "linear_backend '$LINEAR_BACKEND' is not a backend name"
 [ -z "$ATTENTION_BACKEND" ] || [[ "$ATTENTION_BACKEND" =~ ^(auto|FLASHINFER|FLASH_ATTN|TRITON_ATTN)$ ]] \
   || die "attention_backend '$ATTENTION_BACKEND' is not auto, FLASHINFER, FLASH_ATTN or TRITON_ATTN"
+# Speculative decoding: method and token count come together, and none <-> 0 (the pack's
+# sentinel; the study pairs them with a parameterConstraint).
+if [ -n "$SPEC_METHOD$SPEC_TOKENS" ]; then
+  [[ "$SPEC_METHOD" =~ ^(none|mtp)$ ]] || die "spec_method '$SPEC_METHOD' is not none or mtp"
+  [[ "$SPEC_TOKENS" =~ ^[0-9]+$ ]] || die "spec_tokens '$SPEC_TOKENS' is not an integer"
+  if [ "$SPEC_METHOD" = none ] && [ "$SPEC_TOKENS" != 0 ]; then die "spec_method none needs spec_tokens 0 (got $SPEC_TOKENS)"; fi
+  if [ "$SPEC_METHOD" = mtp ] && { [ "$SPEC_TOKENS" -lt 1 ] || [ "$SPEC_TOKENS" -gt 16 ]; }; then
+    die "spec_method mtp needs spec_tokens 1-16 (got $SPEC_TOKENS)"
+  fi
+fi
 # FlashAttention 2 rejects an fp8 KV cache (vLLM 0.29.0 fa_utils.py: fp8 needs FA3 on SM 9.x or
 # FA4 on SM 10.x); confirmed on SM 8.9 (study 24) and SM 12.0 (study 28).
 if [ "$ATTENTION_BACKEND" = FLASH_ATTN ] && [ "$KV_CACHE_DTYPE" != auto ] && [ "${RENDER_ALLOW_FA_FP8:-0}" != 1 ]; then
@@ -73,6 +88,9 @@ ARGS=(
 )
 [ -n "$LINEAR_BACKEND" ] && [ "$LINEAR_BACKEND" != auto ] && ARGS+=("--linear-backend=$LINEAR_BACKEND")
 [ -n "$ATTENTION_BACKEND" ] && [ "$ATTENTION_BACKEND" != auto ] && ARGS+=("--attention-backend=$ATTENTION_BACKEND")
+if [ "$SPEC_METHOD" = mtp ]; then
+  ARGS+=("--spec-method=mtp" "--spec-model=google/gemma-4-26B-A4B-it-assistant" "--spec-tokens=$SPEC_TOKENS")
+fi
 
 INDENT=$(grep -m1 '@TUNED_ARGS@' "$TEMPLATE" | sed 's/@TUNED_ARGS@.*//')
 [ -n "$INDENT" ] || die "template has no TUNED_ARGS line"

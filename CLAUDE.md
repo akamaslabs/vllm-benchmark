@@ -7,9 +7,18 @@ and the Claude Code tooling for configuring them and analyzing their results —
 
 ## Akamas version
 
-- **Target: Akamas 3.7.x** (installed version, confirmed 2026-07-07).
-- Versioned docs for 3.7: <https://docs.akamas.io/akamas-docs/3.7/>. Append `.md` to any
-  URL for raw markdown; full index at `https://docs.akamas.io/akamas-docs/llms.txt`.
+- **Target: Akamas Studio 4.1.x** from 2026-10-06 (4.1.0, chart 1.9.0-rc14, at
+  <https://akamas41.lab.akamas.io>, namespace `akamas-41` on `vllm-bench`; CLI via
+  `kubectl -n akamas-41 exec deploy/toolbox -c toolbox -- akamas ...`, SSH via
+  `toolbox-ssh vllm-bench akamas-41`). It is the version used at customers. The old 3.7.1
+  (<https://akamas.lab.akamas.io>, namespace `akamas`) is kept as it was for the studies run
+  there (studies 27, 28, 29 and 1-Gatling were imported into 4.1).
+- Docs: `llms.txt` (`https://docs.akamas.io/akamas-docs/llms.txt`) lists versioned trees only
+  up to 3.7 (<https://docs.akamas.io/akamas-docs/3.7/>); for 4.1 use the unversioned pages.
+  Append `.md` to any URL for raw markdown. The 3.7-specific rules in
+  `.claude/rules/akamas-yaml.md` were written on 3.7: re-check one before relying on it on
+  4.1 (study 30 was accepted on 4.1 with 8 KPIs, mixed categorical/numeric constraints and
+  `when` nested under `stability`).
 - **Optimization packs (which component types/parameters/metrics exist — vLLM,
   Kubernetes, GPU, etc.) are managed outside this repo**, via the `akamas-optimization-pack`
   plugin (see the vLLM pack itself at

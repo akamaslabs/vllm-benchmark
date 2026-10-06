@@ -2,8 +2,19 @@
 
 **Created:** 2026-10-05, with the `akamas-study-manager` plugin (0.3.0) conventions, from
 study 28's resources (same system shape, telemetry catalog, workflow pipeline), without the
-MIG layout, the neighbour replica and the cost goal. **Not yet on the Akamas server**: the
-files are local until the user confirms the sync (push, `git pull` on the toolbox).
+MIG layout, the neighbour replica and the cost goal. **On Akamas 4.1 since 2026-10-06**
+(`akamas41.lab.akamas.io`, namespace `akamas-41`; packs vLLM 1.12.0, GPU 1.4.0, Kubernetes
+1.9.0, checked on the server): system, 6 components, telemetry instance, the main workflow
+and the study, created from the 4.1 toolbox with `akamas create -f` (the smoke workflow and
+study were not created: the smoke ran outside Akamas). The server accepted the files as they
+are: 8 KPIs, the mixed categorical/numeric sentinel constraints, ordinal `block_size`, `when`
+nested under `stability`. **First start, 10:56 UTC: baseline failed in Apply config (exit 3,
+`nodes is forbidden`)**: the 4.1 toolbox's ServiceAccount `akamas-41/toolbox` had no RBAC
+(the 3.7 one is bound to cluster-admin by `toolbox-admin`); fixed by the user with
+ClusterRoleBinding `toolbox-admin-akamas-41` (cluster-admin), the study deleted, recreated
+and started again at 11:56 UTC (a background `sleep` before the start had stalled while the
+workstation slept). The toolbox key in OpenSSH format works for the workflow
+operators on 4.1 (Write config passed).
 
 ## What it optimizes
 

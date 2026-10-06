@@ -1,8 +1,9 @@
 # 30-l40s-gemma4-26b-tps
 
-**Status:** TODO — scaffolded 2026-10-05; 2026-10-06 07:18 UTC the g6e.8xlarge pool was
-empty, so the study moved to a g6e.xlarge node (`llm-serving-l40s-1xl`, brought up the same
-morning). Nothing is on the Akamas server yet.
+**Status:** RUNNING on Akamas 4.1 (`30-L40S-Gemma4-TPS`, started 2026-10-06 11:56 UTC after
+a first start failed on the 4.1 toolbox's missing RBAC; see `akamas/README.md`). Scaffolded
+2026-10-05; on 2026-10-06 07:18 UTC the g6e.8xlarge pool was empty, so the study moved to a
+g6e.xlarge node (`llm-serving-l40s-1xl`).
 **Dates:** 2026-10-06 –
 
 ## Objective

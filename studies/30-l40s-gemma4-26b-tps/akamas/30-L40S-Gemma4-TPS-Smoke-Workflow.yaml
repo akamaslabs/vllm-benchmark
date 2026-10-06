@@ -1,0 +1,51 @@
+kind: workflow
+name: 30-L40S-Gemma4-TPS-Smoke-Workflow
+# The smoke run: the same pipeline with a steep ramp, 0 -> 40 req/s over 900 s, to check every task end to end and to locate the baseline's knee, which sets the study's RT_RATE / RT_RAMP_S.
+# All three tasks run on the toolbox host over SSH with the toolbox's own key
+# (/home/akamas/.ssh/id_rsa, mounted from the toolbox-keys secret; the path must exist on
+# the toolbox when `akamas create workflow` runs, so run it from the toolbox).
+tasks:
+  # The parameters are rendered into an env file, not into a manifest: render_statefulset.sh
+  # validates them and writes the vLLM flags (booleans as --x / --no-x, which a plain
+  # ${vllm.param} token in the manifest could not do). ignoreUnsubstitutedTokens false: every
+  # token must resolve.
+  - name: Write config
+    operator: FileConfigurator
+    arguments:
+      ignoreUnsubstitutedTokens: false
+      source:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/vllm-benchmark/studies/30-l40s-gemma4-26b-tps/k8s/params.env.template
+      target:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/vllm-benchmark/studies/30-l40s-gemma4-26b-tps/k8s/params.env
+  - name: Apply config
+    operator: Executor
+    arguments:
+      retries: 0
+      # apply_config.sh's rollout wait (2400 s: cold node = image pull + 27 GiB model
+      # download) plus the warm-up and the log dump.
+      timeout: 45m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/vllm-benchmark/studies/30-l40s-gemma4-26b-tps/k8s/apply_config.sh
+  - name: RunTest
+    operator: Executor
+    arguments:
+      retries: 0
+      # The smoke trial is the first one: it also pays pip and the one-time ShareGPT prep with
+      # the Gemma 4 tokenizer (study 28: ~5 min with Qwen's), during which vLLM completes
+      # nothing. Wider guards than the defaults: no first completion for 2400 s, no progress
+      # for 1500 s, deadline 3300 s; the timeout stays above the deadline.
+      timeout: 60m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: RT_RATE=40 RT_RAMP_S=900 RT_FIRST_OK_S=2400 RT_STALL_S=1500 RT_DEADLINE_S=3300 bash /work/vllm-benchmark/studies/30-l40s-gemma4-26b-tps/k8s/run_test.sh

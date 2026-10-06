@@ -1,0 +1,131 @@
+kind: study
+name: 30-L40S-Gemma4-TPS-Smoke
+description: >-
+  Smoke run for study 30: one trial of the vLLM-default baseline with a steep ramp (0 -> 40
+  req/s over 15 min), same system, goal, constraints, windowing, parameters and KPIs as
+  30-L40S-Gemma4-TPS. It checks the pipeline end to end (vLLM start, ShareGPT prep with the
+  Gemma 4 tokenizer, AIPerf ramp, watchdog, scoring) and locates the baseline's knee, which
+  sets the study's RT_RATE / RT_RAMP_S. Delete it afterwards.
+# Generated from 30-L40S-Gemma4-TPS.yaml (everything but name, description, workflow and
+# steps is identical); keep the two in sync if the main study changes before its creation.
+system: vLLM_Benchmark_30_L40S_Gemma4_TPS
+workflow: 30-L40S-Gemma4-TPS-Smoke-Workflow
+goal:
+  objective: maximize
+  function:
+    formula: vllm.total_token_throughput
+    unit: tokens per second
+  constraints:
+    absolute:
+    - name: TTFT P95 over 150 s
+      formula: vllm.time_to_first_token_p95:max <= 1500
+    - name: ITL P95 over 150 s
+      formula: vllm.inter_token_latency_p95:max <= 300
+windowing:
+  type: stability
+  stability:
+    metric: vllm.total_token_throughput
+    width: 6
+    maxStdDev: 300000000
+    when:
+      metric: vllm.total_token_throughput
+      is: max
+numberOfTrials: 1
+parametersSelection:
+- name: vllm.gpu_memory_utilization
+  domain:
+  - 0.8
+  - 0.94
+- name: vllm.max_num_seqs
+  domain:
+  - 16
+  - 512
+- name: vllm.max_num_batched_tokens
+  domain:
+  - 512
+  - 16384
+- name: vllm.kv_cache_dtype
+  categories:
+  - auto
+  - fp8
+- name: vllm.performance_mode
+  categories:
+  - balanced
+  - interactivity
+  - throughput
+- name: vllm.optimization_level
+  domain:
+  - 0
+  - 3
+- name: vllm.enforce_eager
+  categories:
+  - 'true'
+  - 'false'
+- name: vllm.scheduling_policy
+  categories:
+  - fcfs
+  - priority
+- name: vllm.async_scheduling
+  categories:
+  - 'true'
+  - 'false'
+- name: vllm.max_cudagraph_capture_size
+  domain:
+  - 16
+  - 512
+- name: vllm.block_size
+  categories:
+  - '16'
+  - '32'
+  - '48'
+  - '64'
+  - '80'
+  - '96'
+  - '112'
+  - '128'
+parameterConstraints:
+- name: max_num_batched_tokens must be at least max_num_seqs
+  formula: vllm.max_num_batched_tokens >= vllm.max_num_seqs
+kpis:
+- name: Throughput totale
+  formula: vllm.total_token_throughput
+  direction: maximize
+- name: Token generati
+  formula: vllm.decode_token_throughput
+  direction: maximize
+- name: Richieste completate
+  formula: vllm.request_success_rate
+  direction: maximize
+- name: TTFT P95 150s
+  formula: vllm.time_to_first_token_p95
+  direction: minimize
+  aggregation: max
+- name: ITL P95 150s
+  formula: vllm.inter_token_latency_p95
+  direction: minimize
+  aggregation: max
+- name: KV cache in uso
+  formula: vllm.kv_cache_usage_avg
+  direction: minimize
+- name: Preemption
+  formula: vllm.preemption_rate
+  direction: minimize
+- name: Potenza GPU
+  formula: gpu0.gpu_power_usage
+  direction: minimize
+steps:
+- name: baseline
+  type: baseline
+  numberOfTrials: 1
+  values:
+    vllm.gpu_memory_utilization: 0.92
+    vllm.max_num_seqs: 256
+    vllm.max_num_batched_tokens: 2048
+    vllm.kv_cache_dtype: auto
+    vllm.performance_mode: balanced
+    vllm.optimization_level: 2
+    vllm.enforce_eager: 'false'
+    vllm.scheduling_policy: fcfs
+    vllm.async_scheduling: 'true'
+    vllm.max_cudagraph_capture_size: 512
+    vllm.block_size: '16'

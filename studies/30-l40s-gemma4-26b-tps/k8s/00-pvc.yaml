@@ -1,0 +1,14 @@
+# AIPerf results + the model-specific ShareGPT inputs cache (sharegpt-cache/). Own
+# namespace, own volume: nothing shared with the other studies' AIPerf Jobs.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: aiperf-results
+  namespace: llm-l40s
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3
+  resources:
+    requests:
+      storage: 10Gi

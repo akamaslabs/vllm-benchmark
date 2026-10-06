@@ -1,0 +1,11 @@
+kind: component
+system: vLLM_Benchmark_30_L40S_Gemma4_TPS
+
+name: cluster
+description: >-
+  The GPU node (node group llm-serving-l40s-1xl, one g6e.xlarge, 4 vCPU / 32 GiB) for
+  node-level CPU/memory/pressure counters; $NODEROLE$ resolves from noderole.
+componentType: Kubernetes Cluster
+properties:
+  prometheus:
+    noderole: llm-serving-l40s-1xl

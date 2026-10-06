@@ -1,0 +1,35 @@
+# Two Services over the single vLLM pod. `vllm` is what the ServiceMonitor scrapes (the
+# series keep pod="vllm-0"); `vllm-headless` is the StatefulSet's governing Service and the
+# stable DNS name AIPerf targets (vllm-0.vllm-headless.llm-l40s.svc.cluster.local). It
+# carries a different label so the ServiceMonitor does not scrape the pod twice.
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm
+  namespace: llm-l40s
+  labels:
+    app: vllm
+spec:
+  selector:
+    app: vllm
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm-headless
+  namespace: llm-l40s
+  labels:
+    app: vllm-headless
+spec:
+  clusterIP: None
+  selector:
+    app: vllm
+  ports:
+    - name: http
+      port: 8000

@@ -31,4 +31,6 @@ studies/20-l4-pd-disaggregation-tuned/k8s/01-deployment.yaml
 studies/28-g7-4500-mig-min-cost-fixed-load/k8s/params.env
 studies/28-g7-4500-mig-min-cost-fixed-load/k8s/01-statefulset.yaml
 studies/28-g7-4500-mig-min-cost-fixed-load/k8s/01-statefulset.yaml.check
+studies/30-l40s-gemma4-26b-tps/k8s/params.env
+studies/30-l40s-gemma4-26b-tps/k8s/01-statefulset.yaml
 __pycache__/

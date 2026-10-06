@@ -15,7 +15,7 @@ run 1; rc=$?
 [ $rc = 0 ] && ok "ready: exit 0" || ko "ready: exit $rc ($(tail -3 "$TMP/out.txt"))"
 grep -q '^applied aiperf-l40s$' "$TMP/kubectl.log" && ok "ready: Job applied" || ko "ready: Job applied"
 grep -q 'delete job -l app=aiperf-l40s' "$TMP/kubectl.log" && ok "leftover Job deleted first" || ko "leftover Job deleted first"
-grep -q 'ramp 0 -> 30 req/s over 4500 s' "$TMP/out.txt" && ok "default ramp 30 req/s / 4500 s" || ko "default ramp"
+grep -q 'ramp 0 -> 40 req/s over 6000 s' "$TMP/out.txt" && ok "default ramp 40 req/s / 6000 s" || ko "default ramp"
 run 0; rc=$?
 [ $rc = 2 ] && ok "not ready: exit 2" || ko "not ready: exit $rc"
 grep -q '^applied ' "$TMP/kubectl.log" && ko "not ready: no Job" || ok "not ready: no Job"

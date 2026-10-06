@@ -3,8 +3,8 @@
 #
 # One AIPerf Job against vllm-0: 60 s warm-up, then study 27's open-loop linear rate ramp,
 # 0 -> RT_RATE req/s over RT_RAMP_S s (gamma arrivals, fixed seed; render_job.sh).
-# Defaults RT_RATE=30, RT_RAMP_S=4500 (0.4 req/s per minute): set in the workflow command
-# after the smoke run (README "Load").
+# Defaults RT_RATE=40, RT_RAMP_S=6000 (0.4 req/s per minute), as the workflow command: set
+# from the manual smoke run of 2026-10-06 (README "Load").
 # The trial FAILS (exit 1) if the Job fails, the vLLM pod restarts or is replaced, vllm-0
 # completes nothing for RT_STALL_S, or the deadline passes (study 27/28 guards). The
 # watchdog ENDS the test with SUCCESS (exit 0) once vllm-0's TTFT p95 (150 s) > RT_WD_TTFT_MS
@@ -16,8 +16,8 @@ set -euo pipefail
 K8S=${K8S:-/work/vllm-benchmark/studies/30-l40s-gemma4-26b-tps/k8s}
 NS=llm-l40s
 MODEL=gemma4-26b-l40s
-RATE=${RT_RATE:-30}
-RAMP_S=${RT_RAMP_S:-4500}
+RATE=${RT_RATE:-40}
+RAMP_S=${RT_RAMP_S:-6000}
 # pip (~2 min) + one-time ShareGPT prep (~10 min, first trial only) + 60 s warm-up + the
 # ramp + grace. The workflow's RunTest timeout must stay above it, or Akamas kills the task
 # before the log dump.

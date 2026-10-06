@@ -130,13 +130,15 @@ box it cannot bind (0.94 x 44.99 GiB + 512 x 0.001 GiB = 42.8 < ~43.5 GiB).
 - **Scoring:** `stability` windowing on `vllm.total_token_throughput`, 6 samples (3 min),
   `maxStdDev` 300000000 (filter disabled), `when: max`: the valid window with the most
   tokens/s, i.e. the last 3 minutes before the SLA breaks.
-- **R and D:** defaults `RT_RATE=30`, `RT_RAMP_S=4500` (0.4 req/s per minute), sized on a
-  guessed baseline knee K of ~10 req/s. The rule, applied after the smoke run: **R ~ 3 K
-  (rounded up to 5), D = 4500 s**. Then the baseline crosses its knee at ~25 min, a 2x
-  configuration at ~50 min; a 3-minute window spans ~12 % of the baseline's K and ~6 % of a
-  2x configuration's. Arrival noise is small here: ~1800 requests in a window at 10 req/s,
-  against ~90 in study 27. A configuration better than R/K is censored at R (the ramp ends
-  without breaking the SLA; RunTest says so in its log): raise R if that happens.
+- **R and D: 0 -> 40 req/s over 6000 s** (0.4 req/s per minute; `RT_RATE=40 RT_RAMP_S=6000`
+  in the workflow, RunTest timeout 130 min), set from the manual smoke run of 2026-10-06
+  ("Smoke run"): the baseline breaks at ~10 req/s. The rule written before it was R ~ 3 K;
+  R is 4 K because fp8 KV (twice the KV) and MTP (+50 % decode at 64 requests in the probe)
+  could take the best configurations to 2-3 K, and a configuration above R is censored at R
+  (the ramp ends without breaking the SLA; RunTest says so in its log). A configuration only
+  runs until its own knee: the baseline crosses it ~25 min into the ramp. A 3-minute window
+  spans 1.2 req/s, ~12 % of the baseline's knee and ~5 % of a 2.5x configuration's; arrival
+  noise is small (~1800 requests per window at 10 req/s, against ~90 in study 27).
 
 ## Steps
 
@@ -231,10 +233,42 @@ shape; the mean made identical kernels look 3x apart). Essays of 256 tokens, ign
   `attention_backend` out; `spec_method` {none, mtp} + `spec_tokens` 0-4 as variables with a
   `kv fp8 mtp2` preset; `enforce_eager` fixed false and `optimization_level` 1-3.
 
+### Smoke run (manual, 2026-10-06, `smoke/results/`)
+
+Run outside Akamas while the Akamas 4.1 instance was being installed (`smoke/smoke_manual.sh`):
+the workflow's own `apply_config.sh` (baseline values) and `run_test.sh` with the smoke ramp
+(0 -> 40 req/s over 900 s), the watchdog reading Prometheus through a port-forward;
+`smoke/smoke_analyze.py` recomputes the study's score from Prometheus (same queries, 30 s
+samples, best valid 6-sample window).
+
+- **Pipeline end to end OK:** vLLM up in 5 min (09:54 UTC); pip + the one-time ShareGPT prep
+  with the Gemma 4 tokenizer ~5 min; the ramp started (`0.44 -> 40.0 QPS over 900.0s`); the
+  watchdog went over at 10:04:38 (TTFT p95 7.9 s) and ended the test with success after
+  754 s; the Job was deleted. A harmless AIPerf warning `Failed to parse JSON string: '{'`.
+- **The baseline is KV-bound at ~10 req/s with ~220 requests in flight:** at 10:04:00, 9.92
+  req/s, 3879 tokens/s, 221 running, KV cache 93 %, TTFT p95 243 ms, ITL p95 74 ms; 30 s
+  later the KV cache is full, preemptions start (12-17/s), the waiting queue grows (121 ->
+  1245) and TTFT p95 jumps to 7-75 s. ITL p95 never passed 97 ms: TTFT (queueing behind the
+  full KV cache) is the binding constraint. Past the knee the engine still served ~3500-3850
+  tokens/s.
+- **Host CPU is not the bottleneck on the g6e.xlarge:** vLLM's container used <= 0.54 cores,
+  AIPerf <= 0.15 during the ramp (~1 core during its dataset prep).
+- **Score as Akamas computes it: 2583 tokens/s** (window 10:01:30-10:04:00, 6.61 req/s
+  average): low against the ~3900 reached, because the smoke ramp is 6.6x steeper than the
+  study's (the window spans 3.7 -> 9.9 req/s).
+
 ## Morning runbook (2026-10-06)
 
 Steps 1-4 done on 2026-10-06 (node up 07:24 UTC, AlwaysOn tagged, provision, dcgm-exporter
-helm revision 23 at 07:44, probe 07:50-09:22).
+helm revision 23 at 07:44, probe 07:50-09:22); step 6's pipeline check and step 7 done by the
+manual smoke run (09:49-10:07, R/D = 40 req/s / 6000 s). **Move to Akamas 4.1 (decided
+2026-10-06):** a colleague is installing Akamas Studio 4.1 on the `vllm-bench` cluster (the
+version used at customers); the study is created there, not on 3.7. Before `akamas create`
+on 4.1: check the packs (vLLM >= 1.12.0 with `spec_method` / `spec_tokens` /
+`linear_backend` / `total_token_throughput` / `spec_decode_*`, GPU, Kubernetes) and re-check
+the 3.7-specific repo rules (<= 8 KPIs, placeholder names, no `update workflow`, `when`
+nesting, editable fields of a running study). The Akamas smoke study can be skipped: the
+main study's baseline is the first check of the Akamas side (scoring, window, KPIs).
 
 1. **Node up + AlwaysOn** (the study runs past 17:00 UTC; tag changes on shared AWS
    resources are the user's to run): `AWS_PROFILE=lab ./infra/eks/gpu-nodegroup.sh --up`
@@ -269,10 +303,10 @@ helm revision 23 at 07:44, probe 07:50-09:22).
 
 ## Budget
 
-~35-85 min per experiment (vLLM start ~5-8 min with the model on the node: torch.compile and
-CUDA-graph capture are slower on 4 vCPU; pip ~2 min, warm-up 1 min, the ramp until the
-watchdog, 2-4 min of watchdog hold): 64 experiments ~2.5-3 days, **~130 USD** of g6e.xlarge
-(1.861 USD/h), plus ~2 h of probe and smoke. The
+~35-80 min per experiment, measured pieces: vLLM start ~4.5-6.5 min with the model on the
+node, pip + warm-up ~3 min, the ramp until the knee (baseline ~25 min; a 2.5x configuration
+~60 min), 2-4 min of watchdog hold. 65 experiments ~2.5-3.5 days, **~130-160 USD** of
+g6e.xlarge (1.861 USD/h); probe and smoke took ~2 h. The
 optimize step can be stopped earlier if the best configuration plateaus (study 27).
 
 ## Expected results (written before the start)

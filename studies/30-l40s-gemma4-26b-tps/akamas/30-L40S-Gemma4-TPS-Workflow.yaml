@@ -1,6 +1,6 @@
 kind: workflow
 name: 30-L40S-Gemma4-TPS-Workflow
-# The study: study 27's open-loop linear rate ramp, 0 -> 30 req/s over 4500 s (0.4 req/s per minute). RT_RATE / RT_RAMP_S are set from the smoke run (README "Load"): if they change, delete and recreate this workflow before creating the study.
+# The study: study 27's open-loop linear rate ramp, 0 -> 40 req/s over 6000 s (0.4 req/s per minute), set from the manual smoke run of 2026-10-06 (baseline knee ~10 req/s; README "Load"). If they change, delete and recreate this workflow before creating the study.
 # All three tasks run on the toolbox host over SSH with the toolbox's own key
 # (/home/akamas/.ssh/id_rsa, mounted from the toolbox-keys secret; the path must exist on
 # the toolbox when `akamas create workflow` runs, so run it from the toolbox).
@@ -40,9 +40,9 @@ tasks:
     arguments:
       retries: 0
       # Above run_test.sh's own deadline (RT_RAMP_S + 1500 s), so its log dump always runs.
-      timeout: 110m
+      timeout: 130m
       host:
         hostname: toolbox
         username: akamas
         key: /home/akamas/.ssh/id_rsa
-      command: RT_RATE=30 RT_RAMP_S=4500 bash /work/vllm-benchmark/studies/30-l40s-gemma4-26b-tps/k8s/run_test.sh
+      command: RT_RATE=40 RT_RAMP_S=6000 bash /work/vllm-benchmark/studies/30-l40s-gemma4-26b-tps/k8s/run_test.sh

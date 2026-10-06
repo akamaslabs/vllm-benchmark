@@ -1,0 +1,233 @@
+vLLM pod before the test: vllm-0:e9db9905-ab0e-43eb-88e5-85b787e88ec4:0
+ramp 0 -> 40 req/s over 900 s; watchdog: TTFT p95 > 3000 ms or ITL p95 > 600 ms for 120 s, armed 150 s after the measured run starts; deadline 3300 s
+No resources found
+job.batch/aiperf-l40s created
+09:59:25 measured run started; watchdog armed in 150 s
+10:04:38 watchdog: over (TTFT p95 7850 ms, ITL p95 80 ms)
+Watchdog ended the test after 754 s: TTFT p95 75057 ms, ITL p95 97 ms for 133 s. The test is complete (Akamas scores the best valid window before it).
+--- job/aiperf-l40s: full logs ---
+vllm-0 is ready.
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+
+[notice] A new release of pip is available: 25.0.1 -> 26.2.1
+[notice] To update, run: pip install --upgrade pip
+No cached ShareGPT inputs for gemma4-26b-l40s: generating once (~5-10 min)...
+09:54:57.337 INFO     Starting AIPerf System (_single_run.py:64)
+09:54:57.479 INFO     HTTP Request: GET https://huggingface.co/api/agent-harnesses "HTTP/1.1 200 OK" (_client.py:1025)
+09:54:57.505 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic "HTTP/1.1 200 OK" (_client.py:1025)
+09:54:57.509 INFO     [OK] Tokenizer RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic detected (tokenizer_display.py:297)
+09:54:57.509 INFO     1 tokenizer validated | 0.2s (tokenizer_display.py:306)
+09:54:57.509 INFO     Prefetching 1 tokenizer into HF cache... (tokenizer_validator.py:129)
+09:54:58.174 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/revision/main "HTTP/1.1 200 OK" (_client.py:1025)
+09:54:58.195 INFO     HTTP Request: HEAD https://huggingface.co/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/resolve/ed35d7abe5d940da41b4ff06eb482feb0be8cb44/config.json "HTTP/1.1 307 Temporary Redirect" (_client.py:1025)
+09:54:58.199 INFO     HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/ed35d7abe5d940da41b4ff06eb482feb0be8cb44/config.json?%2FRedHatAI%2Fgemma-4-26B-A4B-it-FP8-dynamic%2Fresolve%2Fed35d7abe5d940da41b4ff06eb482feb0be8cb44%2Fconfig.json=&etag=%220b12d99eddced0152038902c9aeaa8901dc3fec4%22 "HTTP/1.1 200 OK" (_client.py:1025)
+09:54:58.204 INFO     HTTP Request: GET https://huggingface.co/api/resolve-cache/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/ed35d7abe5d940da41b4ff06eb482feb0be8cb44/config.json?%2FRedHatAI%2Fgemma-4-26B-A4B-it-FP8-dynamic%2Fresolve%2Fed35d7abe5d940da41b4ff06eb482feb0be8cb44%2Fconfig.json=&etag=%220b12d99eddced0152038902c9aeaa8901dc3fec4%22 "HTTP/1.1 200 OK" (_client.py:1025)
+09:54:58.241 INFO     HTTP Request: HEAD https://huggingface.co/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/resolve/ed35d7abe5d940da41b4ff06eb482feb0be8cb44/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect" (_client.py:1025)
+09:54:58.245 INFO     HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/ed35d7abe5d940da41b4ff06eb482feb0be8cb44/tokenizer_config.json?%2FRedHatAI%2Fgemma-4-26B-A4B-it-FP8-dynamic%2Fresolve%2Fed35d7abe5d940da41b4ff06eb482feb0be8cb44%2Ftokenizer_config.json=&etag=%2259bb6fd5faeef78fb713b45af55dd271596ac57b%22 "HTTP/1.1 200 OK" (_client.py:1025)
+09:54:58.248 INFO     HTTP Request: GET https://huggingface.co/api/resolve-cache/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/ed35d7abe5d940da41b4ff06eb482feb0be8cb44/tokenizer_config.json?%2FRedHatAI%2Fgemma-4-26B-A4B-it-FP8-dynamic%2Fresolve%2Fed35d7abe5d940da41b4ff06eb482feb0be8cb44%2Ftokenizer_config.json=&etag=%2259bb6fd5faeef78fb713b45af55dd271596ac57b%22 "HTTP/1.1 200 OK" (_client.py:1025)
+09:54:58.272 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found" (_client.py:1025)
+09:54:58.299 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK" (_client.py:1025)
+09:54:58.321 INFO     HTTP Request: HEAD https://huggingface.co/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/resolve/ed35d7abe5d940da41b4ff06eb482feb0be8cb44/tokenizer.json "HTTP/1.1 302 Found" (_client.py:1025)
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+09:54:58.321 WARNING  Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads. (_http.py:993)
+09:54:58.344 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/xet-read-token/ed35d7abe5d940da41b4ff06eb482feb0be8cb44 "HTTP/1.1 200 OK" (_client.py:1025)
+09:54:59.064 INFO     HTTP Request: HEAD https://huggingface.co/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/resolve/ed35d7abe5d940da41b4ff06eb482feb0be8cb44/added_tokens.json "HTTP/1.1 404 Not Found" (_client.py:1025)
+09:54:59.090 INFO     HTTP Request: HEAD https://huggingface.co/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/resolve/ed35d7abe5d940da41b4ff06eb482feb0be8cb44/special_tokens_map.json "HTTP/1.1 404 Not Found" (_client.py:1025)
+09:54:59.114 INFO     HTTP Request: HEAD https://huggingface.co/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/resolve/ed35d7abe5d940da41b4ff06eb482feb0be8cb44/chat_template.jinja "HTTP/1.1 307 Temporary Redirect" (_client.py:1025)
+09:54:59.118 INFO     HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/ed35d7abe5d940da41b4ff06eb482feb0be8cb44/chat_template.jinja?%2FRedHatAI%2Fgemma-4-26B-A4B-it-FP8-dynamic%2Fresolve%2Fed35d7abe5d940da41b4ff06eb482feb0be8cb44%2Fchat_template.jinja=&etag=%226eef19f4660280e6fdfbd3dce976c419178acb30%22 "HTTP/1.1 200 OK" (_client.py:1025)
+09:54:59.122 INFO     HTTP Request: GET https://huggingface.co/api/resolve-cache/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/ed35d7abe5d940da41b4ff06eb482feb0be8cb44/chat_template.jinja?%2FRedHatAI%2Fgemma-4-26B-A4B-it-FP8-dynamic%2Fresolve%2Fed35d7abe5d940da41b4ff06eb482feb0be8cb44%2Fchat_template.jinja=&etag=%226eef19f4660280e6fdfbd3dce976c419178acb30%22 "HTTP/1.1 200 OK" (_client.py:1025)
+09:55:00.225 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic "HTTP/1.1 200 OK" (_client.py:1025)
+09:55:00.304 INFO       Cached RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic (2.79s) (tokenizer_validator.py:146)
+09:55:00.311 INFO     1 tokenizer cached • 2.8s (tokenizer_validator.py:166)
+09:55:00.560 INFO     GPU telemetry export enabled: /tmp/sharegpt-prep/gpu_telemetry_export.jsonl (jsonl_writer.py:56)
+09:55:00.567 INFO     Telemetry streaming is disabled (set --otel-url and/or --mlflow-tracking-uri to enable) (otel_metrics_results_processor.py:128)
+09:55:00.567 INFO     OTel metrics streamer is disabled and will not be used: Telemetry streaming is disabled (set --otel-url and/or --mlflow-tracking-uri to enable) (records_manager.py:216)
+09:55:00.567 INFO     Record metrics export enabled: /tmp/sharegpt-prep/profile_export.jsonl (record_export_results_processor.py:58)
+09:55:00.570 INFO     Server Metrics: Discovered 1 endpoints: ['http://vllm-0.vllm-headless.llm-l40s.svc.cluster.local:8000/metrics'] (manager.py:75)
+09:55:00.632 INFO     Registered Gpu Telemetry Manager (id: 'gpu_telemetry_manager') (system_controller.py:391)
+09:55:00.639 INFO     Registered Worker Manager (id: 'worker_manager') (system_controller.py:391)
+09:55:00.691 INFO     Registered Dataset Manager (id: 'dataset_manager') (system_controller.py:391)
+09:55:00.752 INFO     Registered Server Metrics Manager (id: 'server_metrics_manager') (system_controller.py:391)
+09:55:00.753 INFO     Registered Records Manager (id: 'records_manager') (system_controller.py:391)
+09:55:00.769 INFO     Registered Worker (id: 'worker_3a5cb398') (system_controller.py:391)
+09:55:00.771 INFO     Registered Record Processor (id: 'record_processor_dc961b65') (system_controller.py:391)
+09:55:00.779 INFO     Registered Timing Manager (id: 'timing_manager') (system_controller.py:391)
+09:55:01.042 INFO     AIPerf System is CONFIGURING (system_controller.py:280)
+09:55:01.043 INFO     Configuring all services to start profiling (system_controller.py:293)
+09:55:01.043 INFO     Configuring tokenizer(s) for dataset manager (dataset_manager.py:139)
+09:55:01.043 INFO     Configuring tokenizers for inference result parser (resolve_alias: True) (inference_result_parser.py:77)
+09:55:01.044 INFO     Waiting for dataset to be configured before configuring timing (manager.py:122)
+09:55:01.053 WARNING  GPU Telemetry: http://localhost:9400/metrics is not reachable (manager.py:243)
+09:55:01.054 INFO     Server Metrics: Capturing baseline metrics... (manager.py:160)
+09:55:01.054 WARNING  GPU Telemetry: http://localhost:9401/metrics is not reachable (manager.py:243)
+09:55:01.054 INFO     DCGM telemetry skipped: no DCGM endpoints reachable (system_controller.py:505)
+09:55:01.067 INFO     Skipping unsupported summary metric: http_request_size_bytes (data_collector.py:300)
+09:55:01.067 INFO     Skipping unsupported summary metric: http_response_size_bytes (data_collector.py:300)
+09:55:01.068 INFO     Server metrics enabled - 1/1 endpoint(s) reachable. (system_controller.py:531)
+09:55:01.711 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/revision/main "HTTP/1.1 200 OK" (_client.py:1025)
+09:55:01.711 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/revision/main "HTTP/1.1 200 OK" (_client.py:1025)
+09:55:01.752 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found" (_client.py:1025)
+09:55:01.754 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found" (_client.py:1025)
+09:55:01.778 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK" (_client.py:1025)
+09:55:01.780 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK" (_client.py:1025)
+09:55:02.988 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic "HTTP/1.1 200 OK" (_client.py:1025)
+09:55:03.006 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic "HTTP/1.1 200 OK" (_client.py:1025)
+09:55:03.012 INFO     Tokenizer(s) configured in 1.97 seconds (dataset_manager.py:143)
+09:55:03.012 INFO     Configuring dataset for dataset_manager (dataset_manager.py:149)
+09:55:03.030 INFO     Initialized tokenizers: {'gemma4-26b-l40s': {'class': 'GemmaTokenizer', 'name_or_path': 'RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic'}} in 1.99 seconds (inference_result_parser.py:100)
+09:55:03.335 INFO     No local dataset cache found, downloading from https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json (base_public_dataset.py:112)
+09:55:29.951 INFO     Saving ShareGPT dataset to local cache .cache/aiperf/datasets/ShareGPT_V3_unfiltered_cleaned_split.json (base_public_dataset.py:131)
+09:55:30.918 INFO     Validating ShareGPT dataset and constructing conversation dataset (sharegpt.py:102)
+09:57:20.150 INFO     Memory-mapped backing store initialized (streaming to /tmp/aiperf_mmap_166fdd19dfd4/dataset.dat) (memory_map_utils.py:141)
+09:57:22.358 INFO     Data file finalized: 72872 conversations, 148.79 MB (memory_map_utils.py:245)
+09:57:22.359 INFO     Index file created: /tmp/aiperf_mmap_166fdd19dfd4/index.dat (memory_map_utils.py:252)
+09:57:22.360 INFO     Backing store finalized: client_type=DatasetClientStoreType.MEMORY_MAP data_file_path=PosixPath('/tmp/aiperf_mmap_166fdd19dfd4/dataset.dat') index_file_path=PosixPath('/tmp/aiperf_mmap_166fdd19dfd4/index.dat') conversation_count=72872 total_size_bytes=156019437 compressed_data_file_path=None compressed_index_file_path=None compressed_size_bytes=0 (dataset_manager.py:479)
+09:57:27.151 INFO     sampling strategy: sequential, unique conversations: 72872, unique turn count: 250609 (dataset_manager.py:497)
+09:57:27.513 INFO     Generating inputs.json file at /tmp/sharegpt-prep/inputs.json (dataset_manager.py:337)
+09:57:27.957 INFO     Initialized 1 phase(s): ['Profiling'] (phase_orchestrator.py:165)
+09:57:33.267 INFO     inputs.json file generated in 5.75 seconds (dataset_manager.py:356)
+09:57:35.744 INFO     Dataset client initialized and freed 72872 conversations from memory (dataset_manager.py:185)
+09:57:35.744 INFO     Dataset configured in 152.73 seconds (dataset_manager.py:156)
+09:57:35.745 INFO     All services configured in 154.70 seconds (system_controller.py:304)
+09:57:35.745 INFO     AIPerf System is CONFIGURED (system_controller.py:282)
+09:57:35.745 INFO     Server Metrics: Started 1 collector(s) successfully (manager.py:228)
+09:57:35.746 INFO     All services started profiling successfully (system_controller.py:326)
+09:57:35.746 INFO     AIPerf System is PROFILING (system_controller.py:284)
+09:57:35.770 INFO     Creating interval generator: pattern=concurrency_burst, rate=None, smoothness=None (request_rate.py:114)
+09:57:35.770 NOTICE   Phase profiling started | target: 1 requests (runner.py:376)
+09:57:35.770 INFO     Credit phase start: profiling (records_manager.py:606)
+09:57:35.770 NOTICE   Phase profiling sending complete | sent=1, completed=0, in_flight=1 | sessions: sent=1, completed=0 (runner.py:615)
+09:57:35.771 INFO     Sent 1 requests. Waiting for all to complete... (records_manager.py:622)
+09:57:38.011 NOTICE   Phase profiling complete | completed=1, cancelled=0, errors=0 | sessions: completed=0, cancelled=0 | elapsed=2.24s (runner.py:693)
+09:57:38.011 NOTICE   All credits completed (phase_orchestrator.py:180)
+09:57:38.012 INFO     Received CREDIT_PHASE_COMPLETE message, Phase complete: PhaseRecordsStats(phase=CreditPhase.PROFILING, start_ns=1791280655770435051, sent_end_ns=1791280655770848295, requests_end_ns=1791280658011649217, total_expected_requests=1, expected_duration_sec=None, expected_num_sessions=None, expected_grace_period_sec=None, final_requests_sent=None, final_requests_completed=1, final_requests_cancelled=0, final_request_errors=0, final_sent_sessions=None, final_completed_sessions=None, final_cancelled_sessions=None, timeout_triggered=False, grace_period_timeout_triggered=False, was_cancelled=False, records_end_ns=None, success_records=0, error_records=0) (records_manager.py:648)
+09:57:38.012 NOTICE   All requests have completed, please wait for the results to be processed (currently 0 of 1 records processed)... (records_manager.py:653)
+09:57:38.012 INFO     All credits complete, please wait for the results to be processed... (records_manager.py:677)
+09:57:38.012 INFO     Received credits complete from 'timing_manager' (system_controller.py:426)
+09:57:38.017 INFO     Processed 1 valid requests and 0 errors (1 total). (records_manager.py:383)
+09:57:38.017 INFO     Received all records, processing now... (records_manager.py:389)
+09:57:38.017 INFO     Server Metrics: Profiling complete, capturing final metrics... (manager.py:258)
+09:57:38.018 INFO     Waiting 2.0s for server metrics flush period... (records_manager.py:439)
+09:57:40.013 INFO     Processing records results... (records_manager.py:937)
+09:57:40.023 INFO     Waiting for server metrics results... (system_controller.py:783)
+09:57:40.023 INFO     Waiting for server metrics results... (system_controller.py:783)
+09:57:40.026 INFO     _finalize_and_process_results completed (records_manager.py:446)
+09:57:40.027 INFO     All results received, initiating shutdown (system_controller.py:778)
+09:57:40.633 INFO     Exporting all records (exporter_manager.py:62)
+09:57:40.672 INFO     Exporting console data (exporter_manager.py:134)
+
+
+                                    NVIDIA AIPerf | LLM Metrics                                     
+┏━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━┓
+┃                  Metric ┃      avg ┃      min ┃      max ┃      p99 ┃      p90 ┃      p50 ┃  std ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━┩
+│     Time to First Token │    37.78 │    37.78 │    37.78 │    37.78 │    37.78 │    37.78 │ 0.00 │
+│                    (ms) │          │          │          │          │          │          │      │
+│    Time to Second Token │     8.46 │     8.46 │     8.46 │     8.46 │     8.46 │     8.46 │ 0.00 │
+│                    (ms) │          │          │          │          │          │          │      │
+│    Time to First Output │    37.78 │    37.78 │    37.78 │    37.78 │    37.78 │    37.78 │ 0.00 │
+│              Token (ms) │          │          │          │          │          │          │      │
+│    Request Latency (ms) │ 2,238.27 │ 2,238.27 │ 2,238.27 │ 2,238.27 │ 2,238.27 │ 2,238.27 │ 0.00 │
+│     Inter Token Latency │     8.70 │     8.70 │     8.70 │     8.70 │     8.70 │     8.70 │ 0.00 │
+│                    (ms) │          │          │          │          │          │          │      │
+│ Output Token Throughput │   114.97 │   114.97 │   114.97 │   114.97 │   114.97 │   114.97 │ 0.00 │
+│                Per User │          │          │          │          │          │          │      │
+│       (tokens/sec/user) │          │          │          │          │          │          │      │
+│        E2E Output Token │   113.48 │   113.48 │   113.48 │   113.48 │   113.48 │   113.48 │ 0.00 │
+│              Throughput │          │          │          │          │          │          │      │
+│       (tokens/sec/user) │          │          │          │          │          │          │      │
+│  Output Sequence Length │   254.00 │   254.00 │   254.00 │   254.00 │   254.00 │   254.00 │ 0.00 │
+│                (tokens) │          │          │          │          │          │          │      │
+│   Input Sequence Length │    33.00 │    33.00 │    33.00 │    33.00 │    33.00 │    33.00 │ 0.00 │
+│                (tokens) │          │          │          │          │          │          │      │
+│ Output Token Throughput │   113.48 │      N/A │      N/A │      N/A │      N/A │      N/A │  N/A │
+│            (tokens/sec) │          │          │          │          │          │          │      │
+│      Request Throughput │     0.45 │      N/A │      N/A │      N/A │      N/A │      N/A │  N/A │
+│          (requests/sec) │          │          │          │          │          │          │      │
+│           Request Count │     1.00 │      N/A │      N/A │      N/A │      N/A │      N/A │  N/A │
+│              (requests) │          │          │          │          │          │          │      │
+└─────────────────────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────┘
+
+
+No GPU telemetry data collected during the benchmarking run.
+
+CLI Command: aiperf profile --model 'gemma4-26b-l40s' --tokenizer 
+'RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic' --url 
+'http://vllm-0.vllm-headless.llm-l40s.svc.cluster.local:8000' --endpoint-type 'chat' --streaming 
+--public-dataset 'sharegpt' --concurrency 1 --request-count 1 --ui 'simple' --output-artifact-dir 
+'/tmp/sharegpt-prep'
+Benchmark Duration: 2.24 sec
+CSV Export: /tmp/sharegpt-prep/profile_export_aiperf.csv
+JSON Export: /tmp/sharegpt-prep/profile_export_aiperf.json
+Server Metrics CSV Export: /tmp/sharegpt-prep/server_metrics_export.csv
+Server Metrics JSON Export: /tmp/sharegpt-prep/server_metrics_export.json
+Log File: /tmp/sharegpt-prep/logs/aiperf.log
+
+09:57:41 warm-up: 60 s at concurrency 4 (discarded)
+09:59:13 MEASURED RUN START: --request-rate 40 --request-rate-ramp-duration 900 --arrival-pattern gamma --arrival-smoothness 4 --random-seed 30 --benchmark-duration 900 --benchmark-grace-period 60
+09:59:13.957 INFO     Starting AIPerf System (_single_run.py:64)
+09:59:13.962 INFO     [OK] Tokenizer RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic detected (tokenizer_display.py:297)
+09:59:13.962 INFO     1 tokenizer validated | 0.0s (tokenizer_display.py:306)
+09:59:13.962 INFO     HF cache hit (skipping prefetch): ['RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic'] (tokenizer_validator.py:99)
+09:59:14.622 WARNING  Failed to parse JSON string: '{' - JSONDecodeError('unexpected end of data: line 1 column 2 (char 1)') (resolver.py:337)
+09:59:15.031 INFO     GPU telemetry export enabled: /benchmarks/study30/aiperf-1791280753/gpu_telemetry_export.jsonl (jsonl_writer.py:56)
+09:59:15.037 INFO     Server Metrics: Discovered 1 endpoints: ['http://vllm-0.vllm-headless.llm-l40s.svc.cluster.local:8000/metrics'] (manager.py:75)
+09:59:15.038 INFO     Telemetry streaming is disabled (set --otel-url and/or --mlflow-tracking-uri to enable) (otel_metrics_results_processor.py:128)
+09:59:15.038 INFO     OTel metrics streamer is disabled and will not be used: Telemetry streaming is disabled (set --otel-url and/or --mlflow-tracking-uri to enable) (records_manager.py:216)
+09:59:15.039 INFO     Record metrics export enabled: /benchmarks/study30/aiperf-1791280753/profile_export.jsonl (record_export_results_processor.py:58)
+09:59:15.082 INFO     Registered Server Metrics Manager (id: 'server_metrics_manager') (system_controller.py:391)
+09:59:15.118 INFO     Registered Dataset Manager (id: 'dataset_manager') (system_controller.py:391)
+09:59:15.118 INFO     Registered Worker Manager (id: 'worker_manager') (system_controller.py:391)
+09:59:15.182 INFO     Registered Gpu Telemetry Manager (id: 'gpu_telemetry_manager') (system_controller.py:391)
+09:59:15.222 INFO     Registered Records Manager (id: 'records_manager') (system_controller.py:391)
+09:59:15.226 INFO     Registered Timing Manager (id: 'timing_manager') (system_controller.py:391)
+09:59:15.296 INFO     Registered Worker (id: 'worker_2556aa7f') (system_controller.py:391)
+09:59:15.298 INFO     Registered Record Processor (id: 'record_processor_1dd404f3') (system_controller.py:391)
+09:59:15.350 INFO     Registered Worker (id: 'worker_0d3fa59b') (system_controller.py:391)
+09:59:15.522 INFO     AIPerf System is CONFIGURING (system_controller.py:280)
+09:59:15.523 INFO     Configuring all services to start profiling (system_controller.py:293)
+09:59:15.523 INFO     Waiting for dataset to be configured before configuring timing (manager.py:122)
+09:59:15.523 INFO     Configuring tokenizer(s) for dataset manager (dataset_manager.py:139)
+09:59:15.523 INFO     Configuring tokenizers for inference result parser (resolve_alias: True) (inference_result_parser.py:77)
+09:59:15.533 INFO     Server Metrics: Capturing baseline metrics... (manager.py:160)
+09:59:15.533 WARNING  GPU Telemetry: http://localhost:9400/metrics is not reachable (manager.py:243)
+09:59:15.534 WARNING  GPU Telemetry: http://localhost:9401/metrics is not reachable (manager.py:243)
+09:59:15.535 INFO     DCGM telemetry skipped: no DCGM endpoints reachable (system_controller.py:505)
+09:59:15.548 INFO     Skipping unsupported summary metric: http_request_size_bytes (data_collector.py:300)
+09:59:15.548 INFO     Skipping unsupported summary metric: http_response_size_bytes (data_collector.py:300)
+09:59:15.549 INFO     Server metrics enabled - 1/1 endpoint(s) reachable. (system_controller.py:531)
+09:59:16.257 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/revision/main "HTTP/1.1 200 OK" (_client.py:1025)
+09:59:16.257 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/revision/main "HTTP/1.1 200 OK" (_client.py:1025)
+09:59:16.299 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found" (_client.py:1025)
+09:59:16.299 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found" (_client.py:1025)
+09:59:16.325 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK" (_client.py:1025)
+09:59:16.325 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK" (_client.py:1025)
+09:59:17.545 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic "HTTP/1.1 200 OK" (_client.py:1025)
+09:59:17.547 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic "HTTP/1.1 200 OK" (_client.py:1025)
+09:59:17.569 INFO     Tokenizer(s) configured in 2.05 seconds (dataset_manager.py:143)
+09:59:17.569 INFO     Configuring dataset for dataset_manager (dataset_manager.py:149)
+09:59:17.571 INFO     Initialized tokenizers: {'gemma4-26b-l40s': {'class': 'GemmaTokenizer', 'name_or_path': 'RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic'}} in 2.05 seconds (inference_result_parser.py:100)
+09:59:17.864 INFO     Using explicit dataset format: inputs_json (custom.py:60)
+09:59:20.254 INFO     Loaded 72872 sessions (250609 total turns) (inputs_json.py:87)
+09:59:28.508 INFO     Memory-mapped backing store initialized (streaming to /tmp/aiperf_mmap_559b7ad5c21f/dataset.dat) (memory_map_utils.py:141)
+09:59:30.664 INFO     Data file finalized: 72872 conversations, 170.44 MB (memory_map_utils.py:245)
+09:59:30.665 INFO     Index file created: /tmp/aiperf_mmap_559b7ad5c21f/index.dat (memory_map_utils.py:252)
+09:59:30.666 INFO     Backing store finalized: client_type=DatasetClientStoreType.MEMORY_MAP data_file_path=PosixPath('/tmp/aiperf_mmap_559b7ad5c21f/dataset.dat') index_file_path=PosixPath('/tmp/aiperf_mmap_559b7ad5c21f/index.dat') conversation_count=72872 total_size_bytes=178714656 compressed_data_file_path=None compressed_index_file_path=None compressed_size_bytes=0 (dataset_manager.py:479)
+09:59:33.046 INFO     sampling strategy: sequential, unique conversations: 72872, unique turn count: 250609 (dataset_manager.py:497)
+09:59:33.412 INFO     Generating inputs.json file at /benchmarks/study30/aiperf-1791280753/inputs.json (dataset_manager.py:337)
+09:59:33.997 INFO     Initialized 1 phase(s): ['Profiling'] (phase_orchestrator.py:165)
+09:59:40.975 INFO     inputs.json file generated in 7.56 seconds (dataset_manager.py:356)
+09:59:43.264 INFO     Dataset client initialized and freed 72872 conversations from memory (dataset_manager.py:185)
+09:59:43.264 INFO     Dataset configured in 25.70 seconds (dataset_manager.py:156)
+09:59:43.265 INFO     All services configured in 27.74 seconds (system_controller.py:304)
+09:59:43.265 INFO     AIPerf System is CONFIGURED (system_controller.py:282)
+09:59:43.266 INFO     Server Metrics: Started 1 collector(s) successfully (manager.py:228)
+09:59:43.266 INFO     All services started profiling successfully (system_controller.py:326)
+09:59:43.266 INFO     AIPerf System is PROFILING (system_controller.py:284)
+09:59:43.289 INFO     Creating interval generator: pattern=gamma, rate=40.0, smoothness=4.0 (request_rate.py:114)
+09:59:43.289 INFO     Starting request rate ramp: 0.44 → 40.0 QPS over 900.0s (runner.py:513)
+09:59:43.289 NOTICE   Phase profiling started | target: 900.0s duration (runner.py:376)
+09:59:43.290 INFO     Waiting for event 'profiling phase sending' with timeout of 899.999832698s (runner.py:751)
+09:59:43.290 INFO     Credit phase start: profiling (records_manager.py:606)
+10:04:28.530 WARNING  Event loop for worker_2556aa7f is taking too long to run. Overhead: 29.46ms (event_loop_monitor.py:89)
+job.batch "aiperf-l40s" deleted from llm-l40s namespace

@@ -38,7 +38,7 @@ best valid 3-minute window. Design: `../README.md`.
 | `components/container.yaml` | `container` (Kubernetes Container, pod `vllm-0`) |
 | `components/cluster.yaml`, `cluster_loadtest.yaml`, `container_loadtest.yaml` | node and load-generator views (Kubernetes pack) |
 | `telemetry/prometheus.yaml` | `Prometheus_30_L40S_Gemma4_TPS`: study 28's 117 metrics, `active_gpus` on this namespace/node role, TTFT/ITL p95 over `[150s]`, plus 5 `spec_decode_*` metrics (0 with MTP off) |
-| `30-L40S-Gemma4-TPS-Workflow.yaml` | `Write config` -> `Apply config` (45 m) -> `RunTest` (110 m, `RT_RATE=30 RT_RAMP_S=4500`), scripts in `../k8s/` |
+| `30-L40S-Gemma4-TPS-Workflow.yaml` | `Write config` -> `Apply config` (45 m) -> `RunTest` (130 m, `RT_RATE=40 RT_RAMP_S=6000`), scripts in `../k8s/` |
 | `30-L40S-Gemma4-TPS-Smoke-Workflow.yaml` | the same, `RT_RATE=40 RT_RAMP_S=900` with wider first-trial guards (`RT_FIRST_OK_S=2400 RT_STALL_S=1500 RT_DEADLINE_S=3300`, 60 m): it also builds the ShareGPT cache |
 | `30-L40S-Gemma4-TPS.yaml` | study `30-L40S-Gemma4-TPS` |
 | `30-L40S-Gemma4-TPS-Smoke.yaml` | study `30-L40S-Gemma4-TPS-Smoke` (baseline only) |

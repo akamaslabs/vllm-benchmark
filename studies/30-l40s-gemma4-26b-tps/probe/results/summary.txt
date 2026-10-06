@@ -1,0 +1,16 @@
+name          start_s    pf_s  tok/s@1  tok/s@64    it@32 within 15 %    acc en1/en64/it   overrides
+A-fa          did not start (apply exit 4)  ATTENTION_BACKEND=FLASH_ATTN
+A-flashinfer      382   0.097     95.5      1725     1147 yes            -/-/-             ATTENTION_BACKEND=FLASHINFER
+A-triton          326   0.110    116.3      1853     1244 yes            -/-/-             ATTENTION_BACKEND=TRITON_ATTN
+B-default         837   0.109    116.1      1859     1246 -              -/-/-             -
+E-eager           218   0.241     17.4       258      260 -              -/-/-             ENFORCE_EAGER=true OPTIMIZATION_LEVEL=0 ASYNC_SCHEDULING=false SCHEDULING_POLICY=priority BLOCK_SIZE=128 PERFORMANCE_MODE=interactivity MAX_NUM_SEQS=16 MAX_NUM_BATCHED_TOKENS=512
+E-memory          297   0.097    115.5      1949     1280 -              -/-/-             GPU_MEMORY_UTILIZATION=0.94 MAX_NUM_SEQS=512 MAX_NUM_BATCHED_TOKENS=16384 KV_CACHE_DTYPE=fp8
+E-o3              277   0.111    116.2      1613      870 -              -/-/-             OPTIMIZATION_LEVEL=3 PERFORMANCE_MODE=throughput BLOCK_SIZE=48 MAX_CUDAGRAPH_CAPTURE_SIZE=16 GPU_MEMORY_UTILIZATION=0.80
+K-fp8             384   0.098    115.7      1952     1283 -              -/-/-             KV_CACHE_DTYPE=fp8
+L-cutlass         275   0.110    116.3      1844     1244 yes            -/-/-             LINEAR_BACKEND=cutlass
+L-marlin          277   0.113    122.0      1876     1298 yes            -/-/-             LINEAR_BACKEND=marlin
+L-torch           257   0.105    118.8      1937     1317 yes            -/-/-             LINEAR_BACKEND=torch
+L-triton          276   0.110    116.2      1845     1246 yes            -/-/-             LINEAR_BACKEND=triton
+M-mtp2-fp8        366   0.100    150.2      2953     1872 vs ref +30%/+51% 0.61/0.60/0.56    SPEC_METHOD=mtp SPEC_TOKENS=2 KV_CACHE_DTYPE=fp8
+M-mtp2            343   0.110    157.3      2784     1854 vs ref +35%/+50% 0.65/0.60/0.57    SPEC_METHOD=mtp SPEC_TOKENS=2
+M-mtp4            344   0.111    150.4      2674     1691 vs ref +30%/+44% 0.46/0.42/0.38    SPEC_METHOD=mtp SPEC_TOKENS=4

@@ -60,49 +60,57 @@ not studied here before (the first Gemma model, the first L40S).
 - vLLM 0.29.0 supports it (`Gemma4ForConditionalGeneration`). Its `Gemma4Config` forces
   `TRITON_ATTN` on this GPU: the two head dims (256, 512) would mix backends, FA2/FA3 stop at
   256 and FA4 does not exist on Ada.
-- Expected KV cache (estimate, the probe measures it): ~41 GiB of budget at
+- KV cache measured by the probe: 63,988 tokens in bf16, 127,625 in fp8 at
+  `gpu_memory_utilization` 0.92 (13.47 GiB of KV in bf16). The estimate written before it: ~41 GiB of budget at
   `gpu_memory_utilization` 0.92, minus ~26 GiB of weights and ~2 GiB of activations and
   graphs, ~13 GiB of KV: ~225 KB per token in bf16 for requests shorter than the 1024-token
   window, so ~55-60k tokens, ~100 ShareGPT requests in flight; about twice that in fp8.
 
 ## Parameters tuned
 
-Studies 0-1's base set, re-checked against vLLM 0.29.0's source and this model. Every
-parameter goes through `k8s/params.env.template` -> `k8s/render_statefulset.sh`, which
-writes booleans as `--x` / `--no-x` (vLLM 0.29.0 parses them with `BooleanOptionalAction`
-and rejects `--x=false`, study 27's note).
+Studies 0-1's base set, re-checked against vLLM 0.29.0's source and this model, then fixed by
+the startup probe of 2026-10-06 (see "Startup probe": results in `probe/results/summary.txt`).
+13 parameters. Every one goes through `k8s/params.env.template` -> `k8s/render_statefulset.sh`,
+which writes booleans as `--x` / `--no-x` (vLLM 0.29.0 parses them with `BooleanOptionalAction`
+and rejects `--x=false`, study 27's note) and omits every `--spec-*` flag with `none`/0.
 
 | Parameter | Domain | Baseline (vLLM 0.29.0 default) | Why |
 |---|---|---|---|
-| `vllm.gpu_memory_utilization` | 0.80-0.94 | 0.92 | sets the KV left after ~26 GiB of weights; 0.94 still leaves ~2.7 GiB for the CUDA context and the sampler warm-up (0.5 GiB at 512 sequences with this vocabulary) |
+| `vllm.gpu_memory_utilization` | 0.80-0.94 | 0.92 | sets the KV left after 24.7 GiB of weights; 0.94 measured safe (E-memory: 167k tokens with fp8) |
 | `vllm.max_num_seqs` | 16-512 | 256 | admission cap; the KV cache is expected to bind first |
 | `vllm.max_num_batched_tokens` | 512-16384 | 2048 | prefill budget per step: TTFT against ITL stalls |
-| `vllm.kv_cache_dtype` | auto, fp8 | auto | twice the KV tokens (fp8_e5m2 left out: a near-duplicate) |
+| `vllm.kv_cache_dtype` | auto, fp8 | auto | probe: 63,988 -> 127,625 tokens, no speed cost (fp8_e5m2 left out: a near-duplicate) |
 | `vllm.performance_mode` | balanced, interactivity, throughput | balanced | vLLM 0.29.0 preset (CUDA graph sizes, batching) |
-| `vllm.optimization_level` | 0-3 | 2 | 0 = no compilation, no CUDA graphs |
-| `vllm.enforce_eager` | true, false | false | |
+| `vllm.optimization_level` | 1-3 | 2 | 0 (no compilation, no CUDA graphs) out: ~7x slower at batch 1 in the probe |
 | `vllm.scheduling_policy` | fcfs, priority | fcfs | AIPerf sends one priority, so priority ~ fcfs; kept as in studies 0-1 |
 | `vllm.async_scheduling` | true, false | true | |
 | `vllm.max_cudagraph_capture_size` | 16-512 | 512 | vLLM's default is min(2 x max_num_seqs, 512); clamped by vLLM to the max batch tokens |
-| `vllm.block_size` | 16, 32, ..., 128 (ordinal) | 16 | TRITON_ATTN takes any multiple of 16 |
+| `vllm.block_size` | 16, 32, ..., 128 (ordinal) | 16 | TRITON_ATTN takes any multiple of 16 (48 and 128 started in the probe) |
+| `vllm.linear_backend` | auto, torch, marlin | auto | probe: Cutlass (auto), torch (+4 % at 64 requests), Marlin (+1 %); triton falls back to Cutlass |
+| `vllm.spec_method` | none, mtp | none | Gemma 4's MTP drafter: +35 % tokens/s at batch 1, +50 % at 64 requests (K=2) |
+| `vllm.spec_tokens` | 0-4 (0 only with none) | 0 | K=2 beat K=4 in the probe (acceptance 0.60 against 0.42) |
 
 **parameterConstraints:** `max_num_batched_tokens >= max_num_seqs` (vLLM 0.29.0 raises
-`ValueError` otherwise). Study 16's sampler-warm-up guard is not needed: with this domain
+`ValueError` otherwise), and study 17's sentinel pair `spec_method != "none" || spec_tokens ==
+0`, `spec_method == "none" || spec_tokens > 0`. MTP needs no token-budget constraint: vLLM
+0.29.0 reserves no extra drafting slots for `mtp`. Study 16's sampler-warm-up guard is not needed: with this domain
 box it cannot bind (0.94 x 44.99 GiB + 512 x 0.001 GiB = 42.8 < ~43.5 GiB).
 
 **Left out, with the reason:**
 
 - **All parallelism** (`tensor/pipeline/data/decode_context/prefill_context_parallel_size`,
   `enable_expert_parallel`): one GPU.
-- **`attention_backend`** and **`linear_backend`**: decided by the startup probe. A backend
-  enters only if it starts and serves within 15 % of the best of its group, and the
-  parameter enters only if at least two do (study 28's rule). For attention, TRITON_ATTN is
-  expected to be the only one on SM 8.9.
+- **`attention_backend`**: FLASH_ATTN does not start (`head_size not supported`: FlashAttention
+  2 stops at head dim 256, Gemma 4's full-attention layers use 512). FLASHINFER starts but
+  serves 7 % fewer tokens/s at 64 requests and 18 % fewer at batch 1, with 17 % less KV cache
+  and a mixed 256/512 head-dim path whose numerics were not checked. vLLM's own choice for
+  Gemma 4 on SM 8.9, TRITON_ATTN, is rendered (no flag).
+- **`enforce_eager`** (fixed false) and **`optimization_level` 0**: decided with the user on
+  2026-10-06 after the probe's E-eager start ran ~7x slower at batch 1.
 - **`disable_cascade_attn`**: no effect (cascade attention needs prefix caching, which is off,
   and the FlashAttention backend).
 - **`tokenizer_mode`**: `slow` cannot load (the checkpoint ships `tokenizer.json` only), and
   `hf` is what `auto` selects for a non-Mistral model.
-- **`spec_method` / `spec_tokens`**: no speculative decoding in a base-configuration study.
 - `enable_prefix_caching` off and `max_model_len` 4096 as fixed flags (repo convention for
   ShareGPT replay).
 
@@ -138,15 +146,16 @@ box it cannot bind (0.94 x 44.99 GiB + 512 x 0.001 GiB = 42.8 < ~43.5 GiB).
 | 2 | baseline repeat | the same | first measure of the noise (study 27: ~±4 %) |
 | 3 | kv fp8 | baseline + `kv_cache_dtype` fp8 | twice the KV tokens: the expected largest single lever |
 | 4 | kv fp8 large batch | fp8, gmu 0.94, `max_num_seqs` 512, `max_num_batched_tokens` 8192, `performance_mode` throughput | the large-batch corner |
-| 5 | optimize | AKAMAS, 0 init experiments, 60 experiments, `maxFailedExperiments` 20 | as studies 27-29 |
+| 5 | kv fp8 mtp2 | baseline + fp8 + MTP K=2 | the probe's best point (2953 generated tokens/s at 64 requests, +59 %) |
+| 6 | optimize | AKAMAS, 0 init experiments, 60 experiments, `maxFailedExperiments` 20 | as studies 27-29 |
 
 Every baseline/preset renders every parameter (study 27's note: a `doNotRenderParameters`
 step never reaches the optimizer engine). **Smoke study** `30-L40S-Gemma4-TPS-Smoke`: the
 baseline only, with a steep ramp (0 -> 40 req/s over 15 min).
 
-**KPIs (8, Italian names as the repo convention):** Throughput totale, Token generati,
-Richieste completate (the req/s of the scored window = the knee), TTFT P95 150s, ITL P95
-150s, KV cache in uso, Preemption, Potenza GPU.
+**KPIs (8, Italian names as the repo convention):** Throughput totale, Accettazione MTP
+(accepted / drafted tokens, 0 with MTP off), Richieste completate (the req/s of the scored window = the knee), TTFT P95 150s, ITL P95
+150s, KV cache in uso, Preemption, Richieste in esecuzione (the requests in flight at the scored window: the concurrency the configuration holds).
 
 ## Startup probe (before the smoke run)
 
@@ -176,13 +185,56 @@ source:
   concurrent requests; otherwise it is left to a later latency study with the customer's
   SLA and prompts. Never always-on: its gain depends on the load.
 
-Decision after it: `Model loading took` should be ~26 GiB, the text weights only: with
+Decision rule written before it (applied in "Probe results" below): `Model loading took`
+should be ~26 GiB, the text weights only: with
 `--language-model-only` vLLM 0.29.0 skips the vision tower (`_mark_tower_model` drops tower
 modules when every multimodal limit is 0; checked in the source). Backends per the 15 % rule (edit both studies, `k8s/params.env.template`,
 re-run `akamas/check_offline.py`); if an E- corner fails, narrow that domain; write the
 measured KV size and the summary table here.
 
+### Probe results (2026-10-06, 07:50-09:22 UTC, `probe/results/`)
+
+One L40S on g6e.xlarge, vLLM 0.29.0, model runner V2 in every start (no V1 fallback, so the
+comparisons are not mixed across runners: study 17's trap). Prefill = median of 4 (one
+sample in four took ~0.9 s instead of ~0.1 s in half the starts, the first use of a new batch
+shape; the mean made identical kernels look 3x apart). Essays of 256 tokens, ignore_eos.
+
+| Combination | Selected kernels | KV cache (tokens) | Prefill 2k (s) | tok/s, 1 request | tok/s, 64 EN | tok/s, 32 IT | MTP acceptance EN1/EN64/IT |
+|---|---|---|---|---|---|---|---|
+| B-default | Cutlass linear, TRITON_ATTN, Triton fused MoE (default config) | 63,988 | 0.109 | 116 | 1859 | 1246 | - |
+| A-triton | same as B-default | - | 0.110 | 116 | 1853 | 1244 | - |
+| A-flashinfer | FLASHINFER | 52,978 | 0.097 | 96 | 1725 | 1147 | - |
+| A-fa | does not start: `head_size not supported` | | | | | | |
+| K-fp8 | | 127,625 | 0.098 | 116 | 1952 | 1283 | - |
+| L-cutlass | Cutlass (= auto) | | 0.110 | 116 | 1844 | 1244 | - |
+| L-triton | **Cutlass** (fallback) | | 0.110 | 116 | 1845 | 1246 | - |
+| L-marlin | MarlinFP8 (W8A16) | | 0.113 | 122 | 1876 | 1298 | - |
+| L-torch | ChannelWiseTorchFP8 | | 0.105 | 119 | 1937 | 1317 | - |
+| E-memory | gmu 0.94, 512 seqs, 16384 batched, fp8 | 167,127 | 0.097 | 116 | 1949 | 1280 | - |
+| E-eager | eager, O0, sync, priority, block 128, 16 seqs | | 0.241 | 17 | 258 | 260 | - |
+| E-o3 | O3, throughput, block 48, capture 16, gmu 0.80 | | 0.111 | 116 | 1613 | 870 | - |
+| M-mtp2 | MTP K=2 | 57,065 | 0.110 | 157 | 2784 | 1854 | 0.65/0.60/0.57 |
+| M-mtp4 | MTP K=4 | 56,894 | 0.111 | 150 | 2674 | 1691 | 0.46/0.42/0.38 |
+| M-mtp2-fp8 | MTP K=2 + fp8 KV | 114,093 | 0.100 | 150 | 2953 | 1872 | 0.61/0.60/0.56 |
+
+- Startup: 824 s cold (image pull 3 min, model download 3 min, weight load 4 min at the
+  instance's ~110 MB/s EBS limit), then ~4.5-6.5 min warm (weight load 1.5-2.5 min: 32 GiB of
+  RAM cannot keep the 27 GB of files in the page cache). `Model loading took 24.72 GiB`
+  (25.5 with the drafter): the vision tower is skipped.
+- `Using default MoE config. Performance might be sub-optimal!`: vLLM 0.29.0 ships no tuned
+  fused-MoE config for E=128, N=704, fp8_w8a8 on NVIDIA_L40S (B200/H100/RTX PRO 6000 only).
+- **MTP is the one large lever**, against the expectation written before the probe: +50 %
+  generated tokens/s at 64 concurrent requests, nearly the same on Italian text. 64 requests
+  is still below saturation (~115 ShareGPT requests in flight in bf16, ~230 in fp8): whether
+  the gain holds at the knee is what the study measures.
+- **Decisions (with the user, 2026-10-06):** `linear_backend` [auto, torch, marlin];
+  `attention_backend` out; `spec_method` {none, mtp} + `spec_tokens` 0-4 as variables with a
+  `kv fp8 mtp2` preset; `enforce_eager` fixed false and `optimization_level` 1-3.
+
 ## Morning runbook (2026-10-06)
+
+Steps 1-4 done on 2026-10-06 (node up 07:24 UTC, AlwaysOn tagged, provision, dcgm-exporter
+helm revision 23 at 07:44, probe 07:50-09:22).
 
 1. **Node up + AlwaysOn** (the study runs past 17:00 UTC; tag changes on shared AWS
    resources are the user's to run): `AWS_PROFILE=lab ./infra/eks/gpu-nodegroup.sh --up`
@@ -225,18 +277,22 @@ optimize step can be stopped earlier if the best configuration plateaus (study 2
 
 ## Expected results (written before the start)
 
-Hypotheses, not measurements:
+Hypotheses, not measurements (the MTP line updated after the probe, 2026-10-06):
 
+- **MTP keeps a gain at the knee, smaller than the probe's +50 % at 64 requests**: at the knee
+  (~100-230 requests in flight) the verification of K+1 tokens per sequence costs more compute
+  per step, and the drafter takes ~11 % of the KV cache. K=1-2 should beat K=3-4.
 - The baseline is **KV-bound**: ~100 ShareGPT requests in flight in bf16; past that the
   scheduler queues and TTFT crosses 1.5 s. Knee guessed at ~8-15 req/s.
-- **fp8 KV is the largest single lever** (twice the requests in flight), as in study 0
-  (fp8 KV in the winner) and study 27 (fp8 KV in every top configuration).
+- **fp8 KV is the second lever** (twice the requests in flight, no speed cost in the probe),
+  as in study 0 (fp8 KV in the winner) and study 27 (fp8 KV in every top configuration); the
+  best configuration combines it with MTP.
 - With fp8, the limit moves to the decode step: an MoE step at large batch reads nearly
   all 128 experts (~25 GB of FP8 weights), ~30 ms at the L40S's 864 GB/s, so ITL stays far
   below 300 ms and TTFT (queueing) binds again.
 - `max_num_batched_tokens` above 2048 helps TTFT at high rate (ShareGPT prompts are short,
-  several per step); `enforce_eager` / O0 lose clearly (no CUDA graphs on a decode-heavy
-  load); `scheduling_policy` and `block_size` are inside the noise.
+  several per step); `linear_backend` moves the score by a few % at most (the MoE experts do
+  not use it); `scheduling_policy` and `block_size` are inside the noise.
 
 ## Risks
 

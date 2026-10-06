@@ -9,8 +9,9 @@ files are local until the user confirms the sync (push, `git pull` on the toolbo
 
 **How many tokens per second can one L40S serve with Gemma 4 26B-A4B within a chat SLA?**
 The study maximizes vLLM's total token throughput (prompt + generation tokens/s) of
-`RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic` on one NVIDIA L40S, over 11 base vLLM settings
-(studies 0-1's set, single GPU, no parallelism), subject to TTFT p95 <= 1500 ms and ITL
+`RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic` on one NVIDIA L40S, over 13 vLLM settings
+(studies 0-1's base set as fixed by the startup probe, plus `linear_backend` and Gemma 4's
+MTP speculative decoding; single GPU, no parallelism), subject to TTFT p95 <= 1500 ms and ITL
 p95 <= 300 ms (150 s p95, `:max` over the scored window). The load is study 27's open-loop
 AIPerf rate ramp on ShareGPT; a watchdog ends each trial past the SLA, and the score is the
 best valid 3-minute window. Design: `../README.md`.
@@ -36,7 +37,7 @@ best valid 3-minute window. Design: `../README.md`.
 | `components/gpu0.yaml` | `gpu0` (GPU, `gpu="0"`, model `.*L40S.*`) |
 | `components/container.yaml` | `container` (Kubernetes Container, pod `vllm-0`) |
 | `components/cluster.yaml`, `cluster_loadtest.yaml`, `container_loadtest.yaml` | node and load-generator views (Kubernetes pack) |
-| `telemetry/prometheus.yaml` | `Prometheus_30_L40S_Gemma4_TPS`: study 28's 117 metrics, `active_gpus` on this namespace/node role, TTFT/ITL p95 over `[150s]` |
+| `telemetry/prometheus.yaml` | `Prometheus_30_L40S_Gemma4_TPS`: study 28's 117 metrics, `active_gpus` on this namespace/node role, TTFT/ITL p95 over `[150s]`, plus 5 `spec_decode_*` metrics (0 with MTP off) |
 | `30-L40S-Gemma4-TPS-Workflow.yaml` | `Write config` -> `Apply config` (45 m) -> `RunTest` (110 m, `RT_RATE=30 RT_RAMP_S=4500`), scripts in `../k8s/` |
 | `30-L40S-Gemma4-TPS-Smoke-Workflow.yaml` | the same, `RT_RATE=40 RT_RAMP_S=900` with wider first-trial guards (`RT_FIRST_OK_S=2400 RT_STALL_S=1500 RT_DEADLINE_S=3300`, 60 m): it also builds the ShareGPT cache |
 | `30-L40S-Gemma4-TPS.yaml` | study `30-L40S-Gemma4-TPS` |
@@ -44,25 +45,24 @@ best valid 3-minute window. Design: `../README.md`.
 | `check_offline.py` | offline checks against the repo rules and the local pack checkouts |
 
 **Steps, main study:** `baseline` (vLLM 0.29.0 defaults on a < 70 GB GPU, every parameter
-written out), `baseline repeat`, `kv fp8`, `kv fp8 large batch`, `optimize` (AKAMAS, 0 init,
-60 experiments, `maxFailedExperiments` 20). **Smoke:** `baseline` only.
+written out), `baseline repeat`, `kv fp8`, `kv fp8 large batch`, `kv fp8 mtp2`, `optimize` (AKAMAS,
+0 init, 60 experiments, `maxFailedExperiments` 20). **Smoke:** `baseline` only.
 **Windowing shape:** `when:` is nested under `stability:`, as in studies 27/28, which the
 3.7.x server accepted. The plugin's schema reference shows `when:` as a sibling of
 `stability:`; do not "fix" it without checking on the server.
 **parameterConstraints:** `max_num_batched_tokens >= max_num_seqs` (vLLM 0.29.0 raises
-otherwise). **Placeholders left:** none (host `toolbox`, user `akamas`, key
+otherwise); `spec_method != "none" || spec_tokens == 0` and `spec_method == "none" ||
+spec_tokens > 0` (study 17's sentinel pair). **Placeholders left:** none (host `toolbox`, user `akamas`, key
 `/home/akamas/.ssh/id_rsa`, as every study here; Prometheus address as studies 24-29).
 
-**May change after the startup probe (before `akamas create`):** if the probe finds >= 2
-attention or linear backends that start and serve within 15 %, add the parameter to both
-studies' `parametersSelection` (and every preset's `values`), add its line to
-`../k8s/params.env.template`, and add the FLASH_ATTN + fp8 constraint if FLASH_ATTN enters
-(`vllm.attention_backend != "FLASH_ATTN" || vllm.kv_cache_dtype == "auto"`). Then re-run
-`python3 check_offline.py`.
+**Decided by the startup probe (2026-10-06, `../probe/results/summary.txt`):**
+`linear_backend` [auto, torch, marlin]; `attention_backend` out (FLASH_ATTN does not start,
+FLASHINFER slower); `spec_method` {none, mtp} + `spec_tokens` 0-4 (MTP K=2: +50 % at 64
+requests); `enforce_eager` fixed false, `optimization_level` 1-3 (eager / O0 ~7x slower).
 
 ## Validation
 
-Offline, 2026-10-05: `python3 check_offline.py` -> 0 failures. It checks component names,
+Offline, 2026-10-05 and again 2026-10-06 after the probe's changes: `python3 check_offline.py` -> 0 failures. It checks component names,
 every `params.env.template` token in `parametersSelection` and every selected parameter
 rendered by the template, domains and categories inside the local packs (vLLM 1.12.0, GPU
 1.4.0, Kubernetes 1.9.0-dev), step names, every baseline/preset rendering every parameter

@@ -55,12 +55,8 @@ parametersSelection:
   - throughput
 - name: vllm.optimization_level
   domain:
-  - 0
+  - 1
   - 3
-- name: vllm.enforce_eager
-  categories:
-  - 'true'
-  - 'false'
 - name: vllm.scheduling_policy
   categories:
   - fcfs
@@ -83,15 +79,32 @@ parametersSelection:
   - '96'
   - '112'
   - '128'
+- name: vllm.linear_backend
+  categories:
+  - auto
+  - torch
+  - marlin
+- name: vllm.spec_method
+  categories:
+  - none
+  - mtp
+- name: vllm.spec_tokens
+  domain:
+  - 0
+  - 4
 parameterConstraints:
 - name: max_num_batched_tokens must be at least max_num_seqs
   formula: vllm.max_num_batched_tokens >= vllm.max_num_seqs
+- name: speculative decoding off forces spec_tokens to its off sentinel
+  formula: vllm.spec_method != "none" || vllm.spec_tokens == 0
+- name: speculative decoding on requires a real spec_tokens
+  formula: vllm.spec_method == "none" || vllm.spec_tokens > 0
 kpis:
 - name: Throughput totale
   formula: vllm.total_token_throughput
   direction: maximize
-- name: Token generati
-  formula: vllm.decode_token_throughput
+- name: Accettazione MTP
+  formula: vllm.spec_decode_acceptance_rate
   direction: maximize
 - name: Richieste completate
   formula: vllm.request_success_rate
@@ -110,9 +123,10 @@ kpis:
 - name: Preemption
   formula: vllm.preemption_rate
   direction: minimize
-- name: Potenza GPU
-  formula: gpu0.gpu_power_usage
-  direction: minimize
+- name: Richieste in esecuzione
+  formula: vllm.num_requests_running
+  direction: maximize
+  aggregation: max
 steps:
 - name: baseline
   type: baseline
@@ -124,8 +138,10 @@ steps:
     vllm.kv_cache_dtype: auto
     vllm.performance_mode: balanced
     vllm.optimization_level: 2
-    vllm.enforce_eager: 'false'
     vllm.scheduling_policy: fcfs
     vllm.async_scheduling: 'true'
     vllm.max_cudagraph_capture_size: 512
     vllm.block_size: '16'
+    vllm.linear_backend: auto
+    vllm.spec_method: none
+    vllm.spec_tokens: 0

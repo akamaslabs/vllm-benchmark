@@ -1,8 +1,8 @@
 """Startup probe summary for study 30: one row per combination, from results/<name>.json.
 
 'within 15 %' (groups A- attention backends, L- linear backends, ranked with B-default, the
-auto choice of both): prefill step <= 1.15 x the best of the group AND generated tokens/s at
-64 concurrent requests >= best / 1.15. The README's rule: a backend enters the study's
+auto choice of both): prefill step (median of 4) <= 1.15 x the best of the group AND
+generated tokens/s at 64 concurrent requests >= best / 1.15. The README's rule: a backend enters the study's
 domain only if it starts and is within 15 % of the best of its group, and the parameter
 enters only if at least two backends do.
 'vs ref' (group M-, MTP speculative decoding): tokens/s per request at batch 1 and generated
@@ -14,10 +14,17 @@ c64, Italian c32).
 import glob
 import json
 import os
+import statistics
 import sys
 
 rows = {json.load(open(p))['name']: json.load(open(p)) for p in sorted(glob.glob(os.path.join(sys.argv[1], '*.json')))}
 ok = {n: r for n, r in rows.items() if r.get('started') and r.get('bench')}
+# The prefill step is the MEDIAN of its 4 samples, not the mean: on 2026-10-06 one sample in
+# four took ~0.9 s instead of ~0.1 s in 4 combinations out of 8 (first use of a new batch
+# shape), which tripled the mean and made identical kernels look 3x apart.
+for r in ok.values():
+    if r['bench'].get('prefill_s'):
+        r['bench']['summary']['prefill_mean_s'] = statistics.median(r['bench']['prefill_s'])
 group = lambda n: n.split('-')[0]
 RANKED = ('A', 'L')
 best_pf, best_tp = {}, {}

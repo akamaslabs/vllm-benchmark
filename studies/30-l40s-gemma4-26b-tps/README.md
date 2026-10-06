@@ -348,6 +348,36 @@ Hypotheses, not measurements (the MTP line updated after the probe, 2026-10-06):
 - **Shared dcgm-exporter:** this study's GPU queries filter on `modelName=~".*L40S.*"`; the
   release now scrapes three node roles. Studies 0-17 (pod `.*`) would mix GPUs if resumed.
 
+## Running notes
+
+- **Exp 1-3 (2026-10-06):** baseline 2518.6 tok/s (VALID; knee ~7 req/s: a burst of long
+  ShareGPT requests filled the bf16 KV cache, 59 -> 99 % in 30 s, preemptions, TTFT p95 3.6-7
+  s); baseline repeat 2606.7 (+3.5 %); kv fp8 4711.3 (+87 %; bounded by `max_num_seqs` 256 at
+  ~13 req/s with the KV cache at 55-64 %, not by the KV).
+- **Incident, 17:00 UTC:** the nightly stop Lambda stopped the node a colleague had added to the
+  `akamas` node group that morning (i-0233c5261eb853831, no `AlwaysOn` tag); the ASG replaced
+  it (i-01e44dc827bffd796, also untagged). Almost the whole Akamas 4.1 platform ran on it
+  (Airflow, orchestrator, optimizer, database, elasticsearch, telemetry, toolbox): all
+  recreated at 17:00-17:01. The experiment then running (started 16:48: MTP K=2, fp8, gmu
+  0.83, 237 seqs, batched 1121, O3, throughput, block 80) lost its RunTest (`run_test.sh` and
+  its watchdog ran in the toolbox): the AIPerf Job ran on to the end of the ramp (18:37) with
+  TTFT p95 > 38 s from 17:32, and the experiment stayed RUNNING (Airflow's task timeout was lost
+  too). Its measurement is not usable (best window 17:19:30-17:22:00, 3385 tok/s, before the
+  restart). 19:45 UTC: load Job deleted, vLLM at 0, GPU node group scaled to 0 (the user
+  resumes tomorrow). The database and elasticsearch are on PVCs: exps 1-5 should be intact
+  (to check after the next CLI login).
+- **To resume (2026-10-07 morning):**
+  1. tag the replaced `akamas` node and its ASG `AlwaysOn=true` (user; command in the chat of
+     2026-10-06), or it happens again at 17:00;
+  2. `AWS_PROFILE=lab ./infra/eks/gpu-nodegroup.sh --up` (the L40S ASG already carries
+     `AlwaysOn` with PropagateAtLaunch; check the new instance has it); g6e.xlarge capacity is
+     not guaranteed;
+  3. `akamas finish study 30-L40S-Gemma4-TPS --workspace default` if it was not stopped from
+     the UI, then `akamas resume study 30-L40S-Gemma4-TPS -m KEEP` (drops the failed trial and
+     measures the same configuration again);
+  4. follow-up: run the watchdog inside the AIPerf Job pod, so a toolbox restart cannot leave
+     the ramp running past saturation.
+
 ## Results
 
 <Filled in by the study-recap skill once the study finishes.>

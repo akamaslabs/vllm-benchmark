@@ -46,6 +46,9 @@ if aws eks describe-nodegroup --cluster-name $CLUSTER --region $REGION --nodegro
   aws eks update-nodegroup-config --cluster-name $CLUSTER --region $REGION --nodegroup-name $NG \
     --taints 'addOrUpdateTaints=[{key=nvidia.com/gpu,value=present,effect=NO_SCHEDULE}]' \
     --query 'update.id' --output text || true   # "no changes" is not an error
+  # The taint update puts the node group in UPDATING; a scaling update right after it is
+  # refused ("not in Active State", 2026-10-07). Wait for ACTIVE first.
+  aws eks wait nodegroup-active --cluster-name $CLUSTER --region $REGION --nodegroup-name $NG
 else
   # Same instance role as the cluster's other node groups.
   ROLE=$(aws eks describe-nodegroup --cluster-name $CLUSTER --region $REGION --nodegroup-name akamas \

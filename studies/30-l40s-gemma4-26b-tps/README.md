@@ -114,6 +114,21 @@ box it cannot bind (0.94 x 44.99 GiB + 512 x 0.001 GiB = 42.8 < ~43.5 GiB).
   `hf` is what `auto` selects for a non-Mistral model.
 - `enable_prefix_caching` off and `max_model_len` 4096 as fixed flags (repo convention for
   ShareGPT replay).
+- **The scheduler knobs of the vLLM AgentX post** (pack 1.9.0+, all on the 4.1 server, never
+  tuned by any study yet; `knowledge/notes/2026-09-vllm-agentx-agentic-serving.md`), left
+  out of this study (noted 2026-10-07, after its start):
+  `long_prefill_token_threshold` caps the prompt tokens one request schedules per step, which
+  breaks head-of-line blocking by long prefills (+93 % on 100K-token agentic prompts in the
+  post). Here it has almost nothing to cap: ShareGPT prompts as Gemma 4 tokenizes them are 41
+  tokens median, 73 mean, 312 p95, 794 p99 (measured on the study's runs), against a step
+  budget of 512-16384; and ITL never bound (TTFT did, through the KV cache or
+  `max_num_seqs`). `watermark` (free KV blocks kept at admission) and
+  `scheduler_reserve_full_isl` (admit only if the whole prompt fits) act on the baseline's
+  failure mode (a burst of long requests filling the KV cache, then preemptions): candidates
+  for a follow-up. `prefill_schedule_interval` needs data parallelism; the admission caps
+  `max_num_queued_reqs` / `max_num_queued_tokens` reject requests, not a lever for a
+  tokens/s goal; `max_num_partial_prefills` / `max_long_partial_prefills` were removed in
+  vLLM 0.28. Adding a parameter to a running study needs a new study.
 
 ## Load
 

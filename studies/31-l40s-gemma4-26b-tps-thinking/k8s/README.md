@@ -10,8 +10,8 @@ What differs from study 30: `01-statefulset_template.yaml` (`enable_thinking` tr
 `--reasoning-parser=gemma4`, `--max-model-len=16384`), `05-job_template.yaml` (requests
 without `max_tokens`, a count-based warm-up, a `LENGTHS` summary at the end of a completed
 run), `render_job.sh`
-(`--closed` mode for the length run), `run_test.sh` (provisional ramp 0 -> 6 req/s over
-6000 s).
+(`--closed` mode for the length run), `run_test.sh` (ramp 0 -> 4 req/s over 6000 s,
+from the smoke run).
 
 | File | What |
 |---|---|

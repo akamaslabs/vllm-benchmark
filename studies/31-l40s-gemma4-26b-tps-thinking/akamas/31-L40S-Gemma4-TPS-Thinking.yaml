@@ -261,7 +261,27 @@ steps:
       vllm.linear_backend: auto
       vllm.spec_method: mtp
       vllm.spec_tokens: 2
-  # As studies 27-29: AKAMAS, no init experiments (the 4 steps above seed the model), the
+  # Study 30's best configuration (experiment 28, 8418 total tokens/s without thinking, read
+  # from `akamas describe study 30-L40S-Gemma4-TPS` on 2026-10-08): how much the
+  # configuration found without thinking is worth once the model reasons. The one step that
+  # study 30 does not have.
+  - name: study 30 best
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.94
+      vllm.max_num_seqs: 451
+      vllm.max_num_batched_tokens: 16384
+      vllm.kv_cache_dtype: fp8
+      vllm.performance_mode: balanced
+      vllm.optimization_level: 1
+      vllm.scheduling_policy: fcfs
+      vllm.async_scheduling: "true"
+      vllm.max_cudagraph_capture_size: 179
+      vllm.block_size: "16"
+      vllm.linear_backend: torch
+      vllm.spec_method: mtp
+      vllm.spec_tokens: 3
+  # As studies 27-29: AKAMAS, no init experiments (the 5 steps above seed the model), the
   # step stops after 20 failed experiments (workflow errors and constraint violations).
   - name: optimize
     type: optimize

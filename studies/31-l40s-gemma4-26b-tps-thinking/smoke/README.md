@@ -7,8 +7,8 @@ AIPerf Jobs.
 1. **Length run** (closed loop, 32 concurrent, 320 requests): how many tokens Gemma 4 reasons
    and answers on ShareGPT prompts once `max_tokens` is gone. The Job log ends with the
    `LENGTHS` lines (reasoning / answer tokens, TTFT, time to the first answer token, outputs
-   that may have hit `max_model_len`). They decide `--max-model-len` (16384 is
-   provisional) and give the expected knee.
+   that may have hit `max_model_len`). They decided `--max-model-len` (16384 kept,
+   2026-10-08) and give the expected knee.
 2. **Smoke ramp**: `../k8s/run_test.sh` with a steep ramp over 1800 s and wide first-trial
    guards; the watchdog ends it past the knee. The top rate comes from the length run, 2.5 x
    2900 / mean output tokens per request (2900 = study 30's baseline generated tokens/s at

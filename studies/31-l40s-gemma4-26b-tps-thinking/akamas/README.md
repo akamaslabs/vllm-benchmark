@@ -41,21 +41,23 @@ carry no `max_tokens` (`../k8s/05-job_template.yaml`). TTFT is now the time to t
 | `components/container.yaml` | `container` (Kubernetes Container, pod `vllm-0`) |
 | `components/cluster.yaml`, `cluster_loadtest.yaml`, `container_loadtest.yaml` | node and load-generator views (Kubernetes pack) |
 | `telemetry/prometheus.yaml` | `Prometheus_31_L40S_Gemma4_TPS_Thinking`: study 30's metrics unchanged (the model filter comes from the `vllm` component) |
-| `31-L40S-Gemma4-TPS-Thinking-Workflow.yaml` | `Write config` -> `Apply config` (45 m) -> `RunTest` (130 m, `RT_RATE=6 RT_RAMP_S=6000`, **provisional**), scripts in `../k8s/` |
+| `31-L40S-Gemma4-TPS-Thinking-Workflow.yaml` | `Write config` -> `Apply config` (45 m) -> `RunTest` (130 m, `RT_RATE=4 RT_RAMP_S=6000`, from the smoke run), scripts in `../k8s/` |
 | `31-L40S-Gemma4-TPS-Thinking.yaml` | study `31-L40S-Gemma4-TPS-Thinking` |
 | `check_offline.py` | offline checks against the repo rules and the local pack checkouts |
 
 **Identical to study 30** (checked by loading both manifests: `goal`, `windowing`,
-`parametersSelection`, `parameterConstraints`, `kpis`, `steps`, `numberOfTrials` are equal;
-the telemetry metrics are equal line by line; the workflow differs only in the study folder
-and `RT_RATE`). **Steps:** `baseline` (vLLM 0.29.0 defaults, every parameter written out),
-`baseline repeat`, `kv fp8`, `kv fp8 large batch`, `kv fp8 mtp2`, `optimize` (AKAMAS, 0 init,
-60 experiments, `maxFailedExperiments` 20). **parameterConstraints:** `max_num_batched_tokens
+`parametersSelection`, `parameterConstraints`, `kpis`, `numberOfTrials` are equal, and the
+steps but one; the telemetry metrics are equal line by line; the workflow differs only in the
+study folder and `RT_RATE`). **Steps:** `baseline` (vLLM 0.29.0 defaults, every parameter
+written out), `baseline repeat`, `kv fp8`, `kv fp8 large batch`, `kv fp8 mtp2`, **`study 30
+best`** (the one step study 30 does not have, added 2026-10-08: study 30's best configuration,
+experiment 28, as `akamas describe study 30-L40S-Gemma4-TPS` reports it), `optimize`
+(AKAMAS, 0 init, 60 experiments, `maxFailedExperiments` 20). **parameterConstraints:** `max_num_batched_tokens
 >= max_num_seqs`; `spec_method != "none" || spec_tokens == 0` and `spec_method == "none" ||
 spec_tokens > 0`. **No Akamas smoke study:** the smoke run is manual
 (`../smoke/smoke_manual.sh`), as study 30's turned out to be. **Placeholders left:** none
 (host `toolbox`, user `akamas`, key `/home/akamas/.ssh/id_rsa`, Prometheus address, as study
-30); `RT_RATE` / `RT_RAMP_S` are real values but provisional.
+30); `RT_RATE` / `RT_RAMP_S` set from the manual smoke run of 2026-10-08.
 
 ## Validation
 
@@ -73,8 +75,8 @@ all reported). **Not validated on the Akamas server yet** (pending the user's go
 
 From the 4.1 toolbox (`toolbox-ssh vllm-bench akamas-41`, or prefix each command with
 `kubectl -n akamas-41 exec deploy/toolbox -c toolbox --`), in `/work/vllm-benchmark`, after the
-user's go-ahead and a `git pull`; study 30 finished first (same GPU node), and the workflow's
-`RT_RATE` / `RT_RAMP_S` set from the manual smoke run (`../README.md`, "Runbook").
+user's go-ahead and a `git pull`; study 30 finished first (same GPU node); the workflow's
+`RT_RATE` / `RT_RAMP_S` come from the manual smoke run (`../README.md`, "Smoke run").
 
 ```bash
 A=studies/31-l40s-gemma4-26b-tps-thinking/akamas

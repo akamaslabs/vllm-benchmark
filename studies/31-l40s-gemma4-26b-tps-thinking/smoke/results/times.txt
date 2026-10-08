@@ -1,0 +1,7 @@
+2026-10-08T15:35:54Z SMOKE START (phases: length ramp)
+2026-10-08T15:40:51Z APPLY END rc=0
+2026-10-08T15:40:51Z LENGTH RUN START (32 concurrent, 320 requests)
+2026-10-08T15:57:17Z LENGTH RUN END rc=0 after 984 s
+ramp rate from the length run: mean output 1500.7 tokens -> 0 -> 4.8 req/s
+2026-10-08T15:57:18Z RUNTEST START (0 -> 4.8 req/s over 1800 s)
+2026-10-08T16:10:41Z RUNTEST END rc=0

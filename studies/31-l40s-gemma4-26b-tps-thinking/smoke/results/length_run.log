@@ -1,0 +1,288 @@
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+
+[notice] A new release of pip is available: 25.0.1 -> 26.2.1
+[notice] To update, run: pip install --upgrade pip
+No cached ShareGPT inputs for gemma4-26b-l40s-think: generating once (~5-10 min)...
+15:41:33.127 INFO     Starting AIPerf System (_single_run.py:64)
+15:41:33.142 INFO     [OK] Tokenizer RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic detected (tokenizer_display.py:297)
+15:41:33.142 INFO     1 tokenizer validated | 0.0s (tokenizer_display.py:306)
+15:41:33.145 INFO     HF cache hit (skipping prefetch): ['RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic'] (tokenizer_validator.py:99)
+15:41:33.422 INFO     GPU telemetry export enabled: /tmp/sharegpt-prep/gpu_telemetry_export.jsonl (jsonl_writer.py:56)
+15:41:33.428 INFO     Telemetry streaming is disabled (set --otel-url and/or --mlflow-tracking-uri to enable) (otel_metrics_results_processor.py:128)
+15:41:33.428 INFO     OTel metrics streamer is disabled and will not be used: Telemetry streaming is disabled (set --otel-url and/or --mlflow-tracking-uri to enable) (records_manager.py:216)
+15:41:33.428 INFO     Record metrics export enabled: /tmp/sharegpt-prep/profile_export.jsonl (record_export_results_processor.py:58)
+15:41:33.434 INFO     Server Metrics: Discovered 1 endpoints: ['http://vllm-0.vllm-headless.llm-l40s.svc.cluster.local:8000/metrics'] (manager.py:75)
+15:41:33.472 INFO     Registered Gpu Telemetry Manager (id: 'gpu_telemetry_manager') (system_controller.py:391)
+15:41:33.502 INFO     Registered Server Metrics Manager (id: 'server_metrics_manager') (system_controller.py:391)
+15:41:33.505 INFO     Registered Timing Manager (id: 'timing_manager') (system_controller.py:391)
+15:41:33.508 INFO     Registered Dataset Manager (id: 'dataset_manager') (system_controller.py:391)
+15:41:33.509 INFO     Registered Worker Manager (id: 'worker_manager') (system_controller.py:391)
+15:41:33.545 INFO     Registered Records Manager (id: 'records_manager') (system_controller.py:391)
+15:41:33.638 INFO     Registered Worker (id: 'worker_0286833c') (system_controller.py:391)
+15:41:33.668 INFO     Registered Record Processor (id: 'record_processor_1f70a848') (system_controller.py:391)
+15:41:33.912 INFO     AIPerf System is CONFIGURING (system_controller.py:280)
+15:41:33.912 INFO     Configuring all services to start profiling (system_controller.py:293)
+15:41:33.914 INFO     Configuring tokenizers for inference result parser (resolve_alias: True) (inference_result_parser.py:77)
+15:41:33.913 INFO     Configuring tokenizer(s) for dataset manager (dataset_manager.py:139)
+15:41:33.915 INFO     Waiting for dataset to be configured before configuring timing (manager.py:122)
+15:41:33.924 WARNING  GPU Telemetry: http://localhost:9400/metrics is not reachable (manager.py:243)
+15:41:33.925 WARNING  GPU Telemetry: http://localhost:9401/metrics is not reachable (manager.py:243)
+15:41:33.926 INFO     DCGM telemetry skipped: no DCGM endpoints reachable (system_controller.py:505)
+15:41:33.930 INFO     Server Metrics: Capturing baseline metrics... (manager.py:160)
+15:41:33.942 INFO     Skipping unsupported summary metric: http_request_size_bytes (data_collector.py:300)
+15:41:33.942 INFO     Skipping unsupported summary metric: http_response_size_bytes (data_collector.py:300)
+15:41:33.943 INFO     Server metrics enabled - 1/1 endpoint(s) reachable. (system_controller.py:531)
+15:41:34.661 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/revision/main "HTTP/1.1 200 OK" (_client.py:1025)
+15:41:34.664 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/revision/main "HTTP/1.1 200 OK" (_client.py:1025)
+15:41:34.710 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found" (_client.py:1025)
+15:41:34.713 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found" (_client.py:1025)
+15:41:34.735 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK" (_client.py:1025)
+15:41:34.741 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK" (_client.py:1025)
+15:41:36.045 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic "HTTP/1.1 200 OK" (_client.py:1025)
+15:41:36.069 INFO     Initialized tokenizers: {'gemma4-26b-l40s-think': {'class': 'GemmaTokenizer', 'name_or_path': 'RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic'}} in 2.16 seconds (inference_result_parser.py:100)
+15:41:36.076 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic "HTTP/1.1 200 OK" (_client.py:1025)
+15:41:36.099 INFO     Tokenizer(s) configured in 2.18 seconds (dataset_manager.py:143)
+15:41:36.099 INFO     Configuring dataset for dataset_manager (dataset_manager.py:149)
+15:41:36.418 INFO     No local dataset cache found, downloading from https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json (base_public_dataset.py:112)
+15:42:14.567 INFO     Saving ShareGPT dataset to local cache .cache/aiperf/datasets/ShareGPT_V3_unfiltered_cleaned_split.json (base_public_dataset.py:131)
+15:42:15.532 INFO     Validating ShareGPT dataset and constructing conversation dataset (sharegpt.py:102)
+15:44:05.624 INFO     Memory-mapped backing store initialized (streaming to /tmp/aiperf_mmap_9351bca358b6/dataset.dat) (memory_map_utils.py:141)
+15:44:07.815 INFO     Data file finalized: 72872 conversations, 150.23 MB (memory_map_utils.py:245)
+15:44:07.816 INFO     Index file created: /tmp/aiperf_mmap_9351bca358b6/index.dat (memory_map_utils.py:252)
+15:44:07.818 INFO     Backing store finalized: client_type=DatasetClientStoreType.MEMORY_MAP data_file_path=PosixPath('/tmp/aiperf_mmap_9351bca358b6/dataset.dat') index_file_path=PosixPath('/tmp/aiperf_mmap_9351bca358b6/index.dat') conversation_count=72872 total_size_bytes=157523091 compressed_data_file_path=None compressed_index_file_path=None compressed_size_bytes=0 (dataset_manager.py:479)
+15:44:12.705 INFO     sampling strategy: sequential, unique conversations: 72872, unique turn count: 250609 (dataset_manager.py:497)
+15:44:13.153 INFO     Generating inputs.json file at /tmp/sharegpt-prep/inputs.json (dataset_manager.py:337)
+15:44:13.931 INFO     Initialized 1 phase(s): ['Profiling'] (phase_orchestrator.py:165)
+15:44:18.849 INFO     inputs.json file generated in 5.70 seconds (dataset_manager.py:356)
+15:44:24.454 INFO     Dataset client initialized and freed 72872 conversations from memory (dataset_manager.py:185)
+15:44:24.454 INFO     Dataset configured in 168.35 seconds (dataset_manager.py:156)
+15:44:24.455 INFO     All services configured in 170.54 seconds (system_controller.py:304)
+15:44:24.455 INFO     AIPerf System is CONFIGURED (system_controller.py:282)
+15:44:24.455 INFO     Server Metrics: Started 1 collector(s) successfully (manager.py:228)
+15:44:24.456 INFO     All services started profiling successfully (system_controller.py:326)
+15:44:24.456 INFO     AIPerf System is PROFILING (system_controller.py:284)
+15:44:24.480 INFO     Creating interval generator: pattern=concurrency_burst, rate=None, smoothness=None (request_rate.py:114)
+15:44:24.480 NOTICE   Phase profiling started | target: 1 requests (runner.py:376)
+15:44:24.480 INFO     Credit phase start: profiling (records_manager.py:606)
+15:44:24.481 NOTICE   Phase profiling sending complete | sent=1, completed=0, in_flight=1 | sessions: sent=1, completed=0 (runner.py:615)
+15:44:24.481 INFO     Sent 1 requests. Waiting for all to complete... (records_manager.py:622)
+15:44:26.726 NOTICE   Phase profiling complete | completed=1, cancelled=0, errors=0 | sessions: completed=0, cancelled=0 | elapsed=2.25s (runner.py:693)
+15:44:26.726 NOTICE   All credits completed (phase_orchestrator.py:180)
+15:44:26.726 INFO     Received CREDIT_PHASE_COMPLETE message, Phase complete: PhaseRecordsStats(phase=CreditPhase.PROFILING, start_ns=1791474264480588965, sent_end_ns=1791474264480991060, requests_end_ns=1791474266725995159, total_expected_requests=1, expected_duration_sec=None, expected_num_sessions=None, expected_grace_period_sec=None, final_requests_sent=None, final_requests_completed=1, final_requests_cancelled=0, final_request_errors=0, final_sent_sessions=None, final_completed_sessions=None, final_cancelled_sessions=None, timeout_triggered=False, grace_period_timeout_triggered=False, was_cancelled=False, records_end_ns=None, success_records=0, error_records=0) (records_manager.py:648)
+15:44:26.726 NOTICE   All requests have completed, please wait for the results to be processed (currently 0 of 1 records processed)... (records_manager.py:653)
+15:44:26.726 INFO     All credits complete, please wait for the results to be processed... (records_manager.py:677)
+15:44:26.727 INFO     Received credits complete from 'timing_manager' (system_controller.py:426)
+15:44:26.731 INFO     Processed 1 valid requests and 0 errors (1 total). (records_manager.py:383)
+15:44:26.731 INFO     Received all records, processing now... (records_manager.py:389)
+15:44:26.731 INFO     Server Metrics: Profiling complete, capturing final metrics... (manager.py:258)
+15:44:26.732 INFO     Waiting 2.0s for server metrics flush period... (records_manager.py:439)
+15:44:28.726 INFO     Processing records results... (records_manager.py:937)
+15:44:28.735 INFO     Waiting for server metrics results... (system_controller.py:783)
+15:44:28.735 INFO     Waiting for server metrics results... (system_controller.py:783)
+15:44:28.739 INFO     _finalize_and_process_results completed (records_manager.py:446)
+15:44:28.740 INFO     All results received, initiating shutdown (system_controller.py:778)
+15:44:29.345 INFO     Exporting all records (exporter_manager.py:62)
+15:44:29.385 INFO     Exporting console data (exporter_manager.py:134)
+
+
+                                    NVIDIA AIPerf | LLM Metrics                                     
+┏━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━┓
+┃                  Metric ┃      avg ┃      min ┃      max ┃      p99 ┃      p90 ┃      p50 ┃  std ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━┩
+│     Time to First Token │    65.16 │    65.16 │    65.16 │    65.16 │    65.16 │    65.16 │ 0.00 │
+│                    (ms) │          │          │          │          │          │          │      │
+│    Time to Second Token │    17.03 │    17.03 │    17.03 │    17.03 │    17.03 │    17.03 │ 0.00 │
+│                    (ms) │          │          │          │          │          │          │      │
+│    Request Latency (ms) │ 2,233.99 │ 2,233.99 │ 2,233.99 │ 2,233.99 │ 2,233.99 │ 2,233.99 │ 0.00 │
+│     Inter Token Latency │     8.68 │     8.68 │     8.68 │     8.68 │     8.68 │     8.68 │ 0.00 │
+│                    (ms) │          │          │          │          │          │          │      │
+│ Output Token Throughput │   115.27 │   115.27 │   115.27 │   115.27 │   115.27 │   115.27 │ 0.00 │
+│                Per User │          │          │          │          │          │          │      │
+│       (tokens/sec/user) │          │          │          │          │          │          │      │
+│        E2E Output Token │   112.35 │   112.35 │   112.35 │   112.35 │   112.35 │   112.35 │ 0.00 │
+│              Throughput │          │          │          │          │          │          │      │
+│       (tokens/sec/user) │          │          │          │          │          │          │      │
+│  Output Sequence Length │   251.00 │   251.00 │   251.00 │   251.00 │   251.00 │   251.00 │ 0.00 │
+│                (tokens) │          │          │          │          │          │          │      │
+│   Input Sequence Length │    33.00 │    33.00 │    33.00 │    33.00 │    33.00 │    33.00 │ 0.00 │
+│                (tokens) │          │          │          │          │          │          │      │
+│ Output Token Throughput │   112.35 │      N/A │      N/A │      N/A │      N/A │      N/A │  N/A │
+│            (tokens/sec) │          │          │          │          │          │          │      │
+│      Request Throughput │     0.45 │      N/A │      N/A │      N/A │      N/A │      N/A │  N/A │
+│          (requests/sec) │          │          │          │          │          │          │      │
+│           Request Count │     1.00 │      N/A │      N/A │      N/A │      N/A │      N/A │  N/A │
+│              (requests) │          │          │          │          │          │          │      │
+└─────────────────────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────┘
+
+
+No GPU telemetry data collected during the benchmarking run.
+
+CLI Command: aiperf profile --model 'gemma4-26b-l40s-think' --tokenizer 
+'RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic' --url 
+'http://vllm-0.vllm-headless.llm-l40s.svc.cluster.local:8000' --endpoint-type 'chat' --streaming 
+--public-dataset 'sharegpt' --concurrency 1 --request-count 1 --ui 'simple' --output-artifact-dir 
+'/tmp/sharegpt-prep'
+Benchmark Duration: 2.23 sec
+CSV Export: /tmp/sharegpt-prep/profile_export_aiperf.csv
+JSON Export: /tmp/sharegpt-prep/profile_export_aiperf.json
+Server Metrics CSV Export: /tmp/sharegpt-prep/server_metrics_export.csv
+Server Metrics JSON Export: /tmp/sharegpt-prep/server_metrics_export.json
+Log File: /tmp/sharegpt-prep/logs/aiperf.log
+
+nomax: 250609 payloads, 250609 max_tokens fields dropped
+15:44:32 warm-up: 8 requests at concurrency 4 (discarded)
+15:46:04 MEASURED RUN START: --concurrency 32 --request-count 320 --random-seed 30
+15:46:04.830 INFO     Starting AIPerf System (_single_run.py:64)
+15:46:04.835 INFO     [OK] Tokenizer RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic detected (tokenizer_display.py:297)
+15:46:04.835 INFO     1 tokenizer validated | 0.0s (tokenizer_display.py:306)
+15:46:04.835 INFO     HF cache hit (skipping prefetch): ['RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic'] (tokenizer_validator.py:99)
+15:46:06.791 INFO     GPU telemetry export enabled: /benchmarks/study31/aiperf-1791474364/gpu_telemetry_export.jsonl (jsonl_writer.py:56)
+15:46:06.797 INFO     Server Metrics: Discovered 1 endpoints: ['http://vllm-0.vllm-headless.llm-l40s.svc.cluster.local:8000/metrics'] (manager.py:75)
+15:46:06.798 INFO     Telemetry streaming is disabled (set --otel-url and/or --mlflow-tracking-uri to enable) (otel_metrics_results_processor.py:128)
+15:46:06.798 INFO     OTel metrics streamer is disabled and will not be used: Telemetry streaming is disabled (set --otel-url and/or --mlflow-tracking-uri to enable) (records_manager.py:216)
+15:46:06.798 INFO     Record metrics export enabled: /benchmarks/study31/aiperf-1791474364/profile_export.jsonl (record_export_results_processor.py:58)
+15:46:06.862 INFO     Registered Server Metrics Manager (id: 'server_metrics_manager') (system_controller.py:391)
+15:46:06.875 INFO     Registered Dataset Manager (id: 'dataset_manager') (system_controller.py:391)
+15:46:06.876 INFO     Registered Worker Manager (id: 'worker_manager') (system_controller.py:391)
+15:46:06.942 INFO     Registered Gpu Telemetry Manager (id: 'gpu_telemetry_manager') (system_controller.py:391)
+15:46:06.982 INFO     Registered Records Manager (id: 'records_manager') (system_controller.py:391)
+15:46:07.003 INFO     Registered Timing Manager (id: 'timing_manager') (system_controller.py:391)
+15:46:07.061 INFO     Registered Record Processor (id: 'record_processor_7d2f22c8') (system_controller.py:391)
+15:46:07.062 INFO     Registered Worker (id: 'worker_2e7d5989') (system_controller.py:391)
+15:46:07.116 INFO     Registered Worker (id: 'worker_db6aef0a') (system_controller.py:391)
+15:46:07.281 INFO     AIPerf System is CONFIGURING (system_controller.py:280)
+15:46:07.281 INFO     Configuring all services to start profiling (system_controller.py:293)
+15:46:07.282 INFO     Configuring tokenizers for inference result parser (resolve_alias: True) (inference_result_parser.py:77)
+15:46:07.282 INFO     Waiting for dataset to be configured before configuring timing (manager.py:122)
+15:46:07.282 INFO     Configuring tokenizer(s) for dataset manager (dataset_manager.py:139)
+15:46:07.291 INFO     Server Metrics: Capturing baseline metrics... (manager.py:160)
+15:46:07.293 WARNING  GPU Telemetry: http://localhost:9400/metrics is not reachable (manager.py:243)
+15:46:07.294 WARNING  GPU Telemetry: http://localhost:9401/metrics is not reachable (manager.py:243)
+15:46:07.294 INFO     DCGM telemetry skipped: no DCGM endpoints reachable (system_controller.py:505)
+15:46:07.303 INFO     Skipping unsupported summary metric: http_request_size_bytes (data_collector.py:300)
+15:46:07.303 INFO     Skipping unsupported summary metric: http_response_size_bytes (data_collector.py:300)
+15:46:07.304 INFO     Server metrics enabled - 1/1 endpoint(s) reachable. (system_controller.py:531)
+15:46:07.956 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/revision/main "HTTP/1.1 200 OK" (_client.py:1025)
+15:46:07.958 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/revision/main "HTTP/1.1 200 OK" (_client.py:1025)
+15:46:08.002 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found" (_client.py:1025)
+15:46:08.003 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found" (_client.py:1025)
+15:46:08.031 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK" (_client.py:1025)
+15:46:08.045 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK" (_client.py:1025)
+15:46:09.272 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic "HTTP/1.1 200 OK" (_client.py:1025)
+15:46:09.278 INFO     HTTP Request: GET https://huggingface.co/api/models/RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic "HTTP/1.1 200 OK" (_client.py:1025)
+15:46:09.296 INFO     Tokenizer(s) configured in 2.01 seconds (dataset_manager.py:143)
+15:46:09.296 INFO     Configuring dataset for dataset_manager (dataset_manager.py:149)
+15:46:09.302 INFO     Initialized tokenizers: {'gemma4-26b-l40s-think': {'class': 'GemmaTokenizer', 'name_or_path': 'RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic'}} in 2.02 seconds (inference_result_parser.py:100)
+15:46:09.594 INFO     Using explicit dataset format: inputs_json (custom.py:60)
+15:46:11.908 INFO     Loaded 72872 sessions (250609 total turns) (inputs_json.py:87)
+15:46:19.916 INFO     Memory-mapped backing store initialized (streaming to /tmp/aiperf_mmap_b308a4ae32a9/dataset.dat) (memory_map_utils.py:141)
+15:46:22.062 INFO     Data file finalized: 72872 conversations, 166.65 MB (memory_map_utils.py:245)
+15:46:22.063 INFO     Index file created: /tmp/aiperf_mmap_b308a4ae32a9/index.dat (memory_map_utils.py:252)
+15:46:22.064 INFO     Backing store finalized: client_type=DatasetClientStoreType.MEMORY_MAP data_file_path=PosixPath('/tmp/aiperf_mmap_b308a4ae32a9/dataset.dat') index_file_path=PosixPath('/tmp/aiperf_mmap_b308a4ae32a9/index.dat') conversation_count=72872 total_size_bytes=174741755 compressed_data_file_path=None compressed_index_file_path=None compressed_size_bytes=0 (dataset_manager.py:479)
+15:46:24.417 INFO     sampling strategy: sequential, unique conversations: 72872, unique turn count: 250609 (dataset_manager.py:497)
+15:46:24.822 INFO     Generating inputs.json file at /benchmarks/study31/aiperf-1791474364/inputs.json (dataset_manager.py:337)
+15:46:25.440 INFO     Initialized 1 phase(s): ['Profiling'] (phase_orchestrator.py:165)
+15:46:32.008 INFO     inputs.json file generated in 7.19 seconds (dataset_manager.py:356)
+15:46:34.280 INFO     Dataset client initialized and freed 72872 conversations from memory (dataset_manager.py:185)
+15:46:34.280 INFO     Dataset configured in 24.98 seconds (dataset_manager.py:156)
+15:46:34.281 INFO     All services configured in 27.00 seconds (system_controller.py:304)
+15:46:34.281 INFO     AIPerf System is CONFIGURED (system_controller.py:282)
+15:46:34.282 INFO     Server Metrics: Started 1 collector(s) successfully (manager.py:228)
+15:46:34.282 INFO     All services started profiling successfully (system_controller.py:326)
+15:46:34.282 INFO     AIPerf System is PROFILING (system_controller.py:284)
+15:46:34.305 INFO     Creating interval generator: pattern=concurrency_burst, rate=None, smoothness=None (request_rate.py:114)
+15:46:34.305 NOTICE   Phase profiling started | target: 320 requests (runner.py:376)
+15:46:34.306 INFO     Credit phase start: profiling (records_manager.py:606)
+15:55:58.186 NOTICE   Phase profiling sending complete | sent=320, completed=288, in_flight=32 | sessions: sent=103, completed=71 (runner.py:615)
+15:55:58.186 INFO     Sent 320 requests. Waiting for all to complete... (records_manager.py:622)
+15:56:51.092 NOTICE   Phase profiling complete | completed=320, cancelled=0, errors=0 | sessions: completed=84, cancelled=0 | elapsed=616.79s (runner.py:693)
+15:56:51.092 NOTICE   All credits completed (phase_orchestrator.py:180)
+15:56:51.092 INFO     Received CREDIT_PHASE_COMPLETE message, Phase complete: PhaseRecordsStats(phase=CreditPhase.PROFILING, start_ns=1791474394305749836, sent_end_ns=1791474958186435102, requests_end_ns=1791475011092282306, total_expected_requests=320, expected_duration_sec=None, expected_num_sessions=None, expected_grace_period_sec=None, final_requests_sent=None, final_requests_completed=320, final_requests_cancelled=0, final_request_errors=0, final_sent_sessions=None, final_completed_sessions=None, final_cancelled_sessions=None, timeout_triggered=False, grace_period_timeout_triggered=False, was_cancelled=False, records_end_ns=None, success_records=319, error_records=0) (records_manager.py:648)
+15:56:51.093 NOTICE   All requests have completed, please wait for the results to be processed (currently 319 of 320 records processed)... (records_manager.py:653)
+15:56:51.093 INFO     All credits complete, please wait for the results to be processed... (records_manager.py:677)
+15:56:51.093 INFO     Received credits complete from 'timing_manager' (system_controller.py:426)
+15:56:51.118 INFO     Processed 320 valid requests and 0 errors (320 total). (records_manager.py:383)
+15:56:51.118 INFO     Received all records, processing now... (records_manager.py:389)
+15:56:51.118 INFO     Server Metrics: Profiling complete, capturing final metrics... (manager.py:258)
+15:56:51.119 INFO     Waiting 2.0s for server metrics flush period... (records_manager.py:439)
+15:56:53.092 INFO     Processing records results... (records_manager.py:937)
+15:56:53.102 INFO     Waiting for server metrics results... (system_controller.py:783)
+15:56:53.102 INFO     Waiting for server metrics results... (system_controller.py:783)
+15:56:53.126 INFO     _finalize_and_process_results completed (records_manager.py:446)
+15:56:53.127 INFO     All results received, initiating shutdown (system_controller.py:778)
+15:56:53.730 INFO     Exporting all records (exporter_manager.py:62)
+15:56:53.771 INFO     Exporting console data (exporter_manager.py:134)
+
+
+                                    NVIDIA AIPerf | LLM Metrics                                     
+┏━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┓
+┃      Metric ┃       avg ┃      min ┃        max ┃        p99 ┃       p90 ┃       p50 ┃       std ┃
+┡━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━┩
+│     Time to │    319.05 │   211.99 │   1,082.02 │   1,060.29 │    375.97 │    237.75 │    245.66 │
+│ First Token │           │          │            │            │           │           │           │
+│        (ms) │           │          │            │            │           │           │           │
+│     Time to │     60.45 │    18.37 │      88.71 │      84.93 │     80.22 │     74.79 │     19.79 │
+│      Second │           │          │            │            │           │           │           │
+│  Token (ms) │           │          │            │            │           │           │           │
+│     Time to │ 29,152.15 │ 4,404.46 │ 240,492.53 │  74,568.43 │ 39,567.51 │ 27,248.91 │ 16,030.86 │
+│       First │           │          │            │            │           │           │           │
+│      Output │           │          │            │            │           │           │           │
+│  Token (ms) │           │          │            │            │           │           │           │
+│     Request │ 58,813.22 │ 5,343.53 │ 245,455.02 │ 111,805.46 │ 82,312.24 │ 59,421.15 │ 24,508.16 │
+│     Latency │           │          │            │            │           │           │           │
+│        (ms) │           │          │            │            │           │           │           │
+│ Inter Token │     39.06 │    27.08 │      41.37 │      40.96 │     39.89 │     39.29 │      1.52 │
+│     Latency │           │          │            │            │           │           │           │
+│        (ms) │           │          │            │            │           │           │           │
+│      Output │     25.65 │    24.17 │      36.93 │      31.79 │     25.93 │     25.45 │      1.28 │
+│       Token │           │          │            │            │           │           │           │
+│  Throughput │           │          │            │            │           │           │           │
+│    Per User │           │          │            │            │           │           │           │
+│ (tokens/se… │           │          │            │            │           │           │           │
+│  E2E Output │     25.50 │    24.02 │      36.83 │      31.68 │     25.74 │     25.31 │      1.26 │
+│       Token │           │          │            │            │           │           │           │
+│  Throughput │           │          │            │            │           │           │           │
+│ (tokens/se… │           │          │            │            │           │           │           │
+│      Output │  1,500.73 │   130.00 │   6,205.00 │   2,821.02 │  2,136.30 │  1,511.00 │    627.35 │
+│    Sequence │           │          │            │            │           │           │           │
+│      Length │           │          │            │            │           │           │           │
+│    (tokens) │           │          │            │            │           │           │           │
+│      Output │    778.62 │      N/A │        N/A │        N/A │       N/A │       N/A │       N/A │
+│       Token │           │          │            │            │           │           │           │
+│  Throughput │           │          │            │            │           │           │           │
+│ (tokens/se… │           │          │            │            │           │           │           │
+│     Request │      0.52 │      N/A │        N/A │        N/A │       N/A │       N/A │       N/A │
+│  Throughput │           │          │            │            │           │           │           │
+│ (requests/… │           │          │            │            │           │           │           │
+│     Goodput │      0.52 │      N/A │        N/A │        N/A │       N/A │       N/A │       N/A │
+│ (requests/… │           │          │            │            │           │           │           │
+│     Request │    320.00 │      N/A │        N/A │        N/A │       N/A │       N/A │       N/A │
+│       Count │           │          │            │            │           │           │           │
+│  (requests) │           │          │            │            │           │           │           │
+└─────────────┴───────────┴──────────┴────────────┴────────────┴───────────┴───────────┴───────────┘
+
+
+No GPU telemetry data collected during the benchmarking run.
+
+CLI Command: aiperf profile --model 'gemma4-26b-l40s-think' --tokenizer 
+'RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic' --url 
+'http://vllm-0.vllm-headless.llm-l40s.svc.cluster.local:8000' --endpoint-type 'chat' --streaming 
+--input-file '/benchmarks/sharegpt-cache/inputs-gemma4-26b-l40s-think-nomax.json' 
+--custom-dataset-type 'inputs_json' --concurrency 32 --request-count 320 --random-seed 30 --goodput 
+'time_to_first_token:1500 inter_token_latency:300' --ui 'simple' --output-artifact-dir 
+'/benchmarks/study31/aiperf-1791474364'
+Benchmark Duration: 616.77 sec
+CSV Export: /benchmarks/study31/aiperf-1791474364/profile_export_aiperf.csv
+JSON Export: /benchmarks/study31/aiperf-1791474364/profile_export_aiperf.json
+Server Metrics CSV Export: /benchmarks/study31/aiperf-1791474364/server_metrics_export.csv
+Server Metrics JSON Export: /benchmarks/study31/aiperf-1791474364/server_metrics_export.json
+Log File: /benchmarks/study31/aiperf-1791474364/logs/aiperf.log
+
+LENGTHS: 320 requests ok, 0 errors
+LENGTHS reasoning_token_count        n=  320 mean=    738.7 p50=    697.0 p90=   1016.0 p99=   1936.0 max=   6078.0
+LENGTHS output_token_count           n=  320 mean=    762.0 p50=    790.0 p90=   1226.0 p99=   1840.0 max=   2254.0
+LENGTHS output_sequence_length       n=  320 mean=   1500.7 p50=   1511.0 p90=   2157.0 p99=   2829.0 max=   6205.0
+LENGTHS time_to_first_token          n=  320 mean=    319.0 p50=    237.8 p90=   1022.4 p99=   1060.3 max=   1082.0
+LENGTHS time_to_first_output_token   n=  320 mean=  29152.2 p50=  27267.8 p90=  39996.5 p99=  76589.8 max= 240492.5
+LENGTHS output >= 15300 tokens (may have hit max_model_len 16384): 0 of 320
+Profiling: 0/1 |[32m          [0m|   0% [00:00<?]Profiling: 0/1 |[32m          [0m|   0% [00:00<?]Profiling: 0/1 |[32m          [0m|   0% [00:00<?]Profiling: 0/1 |[32m          [0m|   0% [00:00<?]                                                                                                                              Profiling: 1/1 |[32m██████████[0m| 100% [00:02<00:00]Profiling: 1/1 |[32m██████████[0m| 100% [00:02<00:00]Processing Records: 0/1 |[34m          [0m|   0% [00:00<?]Processing Records: 1/1 |[34m██████████[0m| 100% [00:01<00:00]Processing Records: 1/1 |[34m██████████[0m| 100% [00:01<00:00]Profiling: 0/320 |[32m          [0m|   0% [00:00<?]Profiling: 0/320 |[32m          [0m|   0% [00:00<?]                                            Profiling: 4/320 |[32m▏         [0m|   1% [00:33<44:45]Profiling: 4/320 |[32m▏         [0m|   1% [00:33<44:45]Profiling: 8/320 |[32m▎         [0m|   2% [00:47<28:54]Profiling: 8/320 |[32m▎         [0m|   2% [00:47<28:54]Profiling: 14/320 |[32m▍         [0m|   4% [01:03<20:07]Profiling: 14/320 |[32m▍         [0m|   4% [01:03<20:07]Profiling: 18/320 |[32m▌         [0m|   6% [01:07<14:43]Profiling: 18/320 |[32m▌         [0m|   6% [01:07<14:43]Profiling: 23/320 |[32m▋         [0m|   7% [01:17<12:43]Profiling: 23/320 |[32m▋         [0m|   7% [01:17<12:43]Profiling: 27/320 |[32m▊         [0m|   8% [01:21<10:13]Profiling: 27/320 |[32m▊         [0m|   8% [01:21<10:13]Profiling: 31/320 |[32m▉         [0m|  10% [01:29<09:56]Profiling: 31/320 |[32m▉         [0m|  10% [01:29<09:56]Profiling: 35/320 |[32m█         [0m|  11% [01:39<10:25]Profiling: 35/320 |[32m█         [0m|  11% [01:39<10:25]Profiling: 39/320 |[32m█▏        [0m|  12% [01:43<08:35]Profiling: 39/320 |[32m█▏        [0m|  12% [01:43<08:35]Profiling: 43/320 |[32m█▎        [0m|  13% [01:51<08:42]Profiling: 43/320 |[32m█▎        [0m|  13% [01:51<08:42]Profiling: 47/320 |[32m█▍        [0m|  15% [01:55<07:21]Profiling: 47/320 |[32m█▍        [0m|  15% [01:55<07:21]Profiling: 51/320 |[32m█▌        [0m|  16% [02:03<07:46]Profiling: 51/320 |[32m█▌        [0m|  16% [02:03<07:46]Profiling: 55/320 |[32m█▋        [0m|  17% [02:09<07:20]Profiling: 55/320 |[32m█▋        [0m|  17% [02:09<07:20]Profiling: 59/320 |[32m█▊        [0m|  18% [02:15<07:01]Profiling: 59/320 |[32m█▊        [0m|  18% [02:15<07:01]Profiling: 64/320 |[32m██        [0m|  20% [02:19<05:40]Profiling: 64/320 |[32m██        [0m|  20% [02:19<05:40]Profiling: 68/320 |[32m██▏       [0m|  21% [02:31<07:35]Profiling: 68/320 |[32m██▏       [0m|  21% [02:31<07:35]Profiling: 73/320 |[32m██▎       [0m|  23% [02:43<08:15]Profiling: 73/320 |[32m██▎       [0m|  23% [02:43<08:15]Profiling: 77/320 |[32m██▍       [0m|  24% [02:49<07:33]Profiling: 77/320 |[32m██▍       [0m|  24% [02:49<07:33]Profiling: 82/320 |[32m██▌       [0m|  26% [02:55<06:31]Profiling: 82/320 |[32m██▌       [0m|  26% [02:55<06:31]Profiling: 86/320 |[32m██▋       [0m|  27% [03:03<06:47]Profiling: 86/320 |[32m██▋       [0m|  27% [03:03<06:47]Profiling: 91/320 |[32m██▊       [0m|  28% [03:09<05:58]Profiling: 91/320 |[32m██▊       [0m|  28% [03:09<05:58]Profiling: 95/320 |[32m██▉       [0m|  30% [03:19<06:49]Profiling: 95/320 |[32m██▉       [0m|  30% [03:19<06:49]Profiling: 100/320 |[32m███▏      [0m|  31% [03:29<06:53]Profiling: 100/320 |[32m███▏      [0m|  31% [03:29<06:53]Profiling: 105/320 |[32m███▎      [0m|  33% [03:35<05:57]Profiling: 105/320 |[32m███▎      [0m|  33% [03:35<05:57]Profiling: 109/320 |[32m███▍      [0m|  34% [03:41<05:41]Profiling: 109/320 |[32m███▍      [0m|  34% [03:41<05:41]Profiling: 114/320 |[32m███▌      [0m|  36% [03:51<05:58]Profiling: 114/320 |[32m███▌      [0m|  36% [03:51<05:58]Profiling: 118/320 |[32m███▋      [0m|  37% [03:59<06:05]Profiling: 118/320 |[32m███▋      [0m|  37% [03:59<06:05]Profiling: 122/320 |[32m███▊      [0m|  38% [04:05<05:41]Profiling: 122/320 |[32m███▊      [0m|  38% [04:05<05:41]Profiling: 127/320 |[32m███▉      [0m|  40% [04:13<05:24]Profiling: 127/320 |[32m███▉      [0m|  40% [04:13<05:24]Profiling: 131/320 |[32m████      [0m|  41% [04:19<05:08]Profiling: 131/320 |[32m████      [0m|  41% [04:19<05:08]Profiling: 135/320 |[32m████▏     [0m|  42% [04:33<06:39]Profiling: 135/320 |[32m████▏     [0m|  42% [04:33<06:39]Profiling: 140/320 |[32m████▍     [0m|  44% [04:43<06:19]Profiling: 140/320 |[32m████▍     [0m|  44% [04:43<06:19]Profiling: 144/320 |[32m████▌     [0m|  45% [04:47<05:16]Profiling: 144/320 |[32m████▌     [0m|  45% [04:47<05:16]Profiling: 148/320 |[32m████▋     [0m|  46% [05:09<08:09]Profiling: 148/320 |[32m████▋     [0m|  46% [05:09<08:09]Profiling: 153/320 |[32m████▊     [0m|  48% [05:19<07:08]Profiling: 153/320 |[32m████▊     [0m|  48% [05:19<07:08]Profiling: 157/320 |[32m████▉     [0m|  49% [05:23<05:47]Profiling: 157/320 |[32m████▉     [0m|  49% [05:23<05:47]Profiling: 161/320 |[32m█████     [0m|  50% [05:31<05:32]Profiling: 161/320 |[32m█████     [0m|  50% [05:31<05:32]Profiling: 165/320 |[32m█████▏    [0m|  52% [05:35<04:35]Profiling: 165/320 |[32m█████▏    [0m|  52% [05:35<04:35]Profiling: 169/320 |[32m█████▎    [0m|  53% [05:39<03:54]Profiling: 169/320 |[32m█████▎    [0m|  53% [05:39<03:54]Profiling: 175/320 |[32m█████▍    [0m|  55% [05:47<03:32]Profiling: 175/320 |[32m█████▍    [0m|  55% [05:47<03:32]Profiling: 180/320 |[32m█████▋    [0m|  56% [06:07<05:16]Profiling: 180/320 |[32m█████▋    [0m|  56% [06:07<05:16]Profiling: 184/320 |[32m█████▊    [0m|  57% [06:17<05:16]Profiling: 184/320 |[32m█████▊    [0m|  57% [06:17<05:16]Profiling: 188/320 |[32m█████▉    [0m|  59% [06:27<05:13]Profiling: 188/320 |[32m█████▉    [0m|  59% [06:27<05:13]Profiling: 193/320 |[32m██████    [0m|  60% [06:31<03:55]Profiling: 193/320 |[32m██████    [0m|  60% [06:31<03:55]Profiling: 198/320 |[32m██████▏   [0m|  62% [06:38<03:20]Profiling: 198/320 |[32m██████▏   [0m|  62% [06:38<03:20]Profiling: 204/320 |[32m██████▍   [0m|  64% [06:45<02:58]Profiling: 204/320 |[32m██████▍   [0m|  64% [06:45<02:58]Profiling: 208/320 |[32m██████▌   [0m|  65% [06:55<03:19]Profiling: 208/320 |[32m██████▌   [0m|  65% [06:55<03:19]Profiling: 212/320 |[32m██████▋   [0m|  66% [07:05<03:32]Profiling: 212/320 |[32m██████▋   [0m|  66% [07:05<03:32]Profiling: 217/320 |[32m██████▊   [0m|  68% [07:13<03:10]Profiling: 217/320 |[32m██████▊   [0m|  68% [07:13<03:10]Profiling: 221/320 |[32m██████▉   [0m|  69% [07:19<02:53]Profiling: 221/320 |[32m██████▉   [0m|  69% [07:19<02:53]Profiling: 225/320 |[32m███████   [0m|  70% [07:25<02:40]Profiling: 225/320 |[32m███████   [0m|  70% [07:25<02:40]Profiling: 229/320 |[32m███████▏  [0m|  72% [07:35<02:54]Profiling: 229/320 |[32m███████▏  [0m|  72% [07:35<02:54]Profiling: 233/320 |[32m███████▎  [0m|  73% [07:45<03:01]Profiling: 233/320 |[32m███████▎  [0m|  73% [07:45<03:01]Profiling: 237/320 |[32m███████▍  [0m|  74% [07:49<02:26]Profiling: 237/320 |[32m███████▍  [0m|  74% [07:49<02:26]Profiling: 241/320 |[32m███████▌  [0m|  75% [07:55<02:13]Profiling: 241/320 |[32m███████▌  [0m|  75% [07:55<02:13]Profiling: 246/320 |[32m███████▋  [0m|  77% [08:07<02:23]Profiling: 246/320 |[32m███████▋  [0m|  77% [08:07<02:23]Profiling: 251/320 |[32m███████▊  [0m|  78% [08:13<01:56]Profiling: 251/320 |[32m███████▊  [0m|  78% [08:13<01:56]Profiling: 258/320 |[32m████████  [0m|  81% [08:21<01:31]Profiling: 258/320 |[32m████████  [0m|  81% [08:21<01:31]Profiling: 262/320 |[32m████████▏ [0m|  82% [08:29<01:32]Profiling: 262/320 |[32m████████▏ [0m|  82% [08:29<01:32]Profiling: 266/320 |[32m████████▎ [0m|  83% [08:39<01:39]Profiling: 266/320 |[32m████████▎ [0m|  83% [08:39<01:39]Profiling: 270/320 |[32m████████▍ [0m|  84% [08:47<01:33]Profiling: 270/320 |[32m████████▍ [0m|  84% [08:47<01:33]Profiling: 274/320 |[32m████████▌ [0m|  86% [08:51<01:15]Profiling: 274/320 |[32m████████▌ [0m|  86% [08:51<01:15]Profiling: 278/320 |[32m████████▋ [0m|  87% [08:59<01:13]Profiling: 278/320 |[32m████████▋ [0m|  87% [08:59<01:13]Profiling: 283/320 |[32m████████▊ [0m|  88% [09:03<00:52]Profiling: 283/320 |[32m████████▊ [0m|  88% [09:03<00:52]Profiling: 287/320 |[32m████████▉ [0m|  90% [09:21<01:15]Profiling: 287/320 |[32m████████▉ [0m|  90% [09:21<01:15]Profiling: 291/320 |[32m█████████ [0m|  91% [09:25<00:55]Profiling: 291/320 |[32m█████████ [0m|  91% [09:25<00:55]Profiling: 295/320 |[32m█████████▏[0m|  92% [09:31<00:44]Profiling: 295/320 |[32m█████████▏[0m|  92% [09:31<00:44]Profiling: 301/320 |[32m█████████▍[0m|  94% [09:44<00:35]Profiling: 301/320 |[32m█████████▍[0m|  94% [09:44<00:35]Profiling: 306/320 |[32m█████████▌[0m|  96% [09:48<00:21]Profiling: 306/320 |[32m█████████▌[0m|  96% [09:48<00:21]Profiling: 310/320 |[32m█████████▋[0m|  97% [09:56<00:16]Profiling: 310/320 |[32m█████████▋[0m|  97% [09:56<00:16]Profiling: 314/320 |[32m█████████▊[0m|  98% [10:06<00:11]Profiling: 314/320 |[32m█████████▊[0m|  98% [10:06<00:11]Profiling: 319/320 |[32m█████████▉[0m| 100% [10:14<00:01]Profiling: 319/320 |[32m█████████▉[0m| 100% [10:14<00:01]Processing Records: 0/320 |[34m          [0m|   0% [00:00<?]Processing Records: 320/320 |[34m██████████[0m| 100% [00:01<00:00]Processing Records: 320/320 |[34m██████████[0m| 100% [00:01<00:00]

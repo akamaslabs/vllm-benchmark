@@ -61,8 +61,8 @@ spec:
             # Study 30 had 4096 (ShareGPT prompt + reply). With thinking on, the requests carry no
             # max_tokens (05-job_template.yaml strips ShareGPT's), so vLLM caps each one at
             # max_model_len - prompt: prompt (p99 794 tokens) + reasoning trace + answer.
-            # Provisional, to be confirmed by the length run before the smoke ramp
-            # (smoke/smoke_manual.sh): no trace should end on this cap. vLLM V1 allocates KV
+            # Confirmed by the smoke length run (2026-10-08, 320 ShareGPT requests): at most 6205
+            # generated tokens (p99 2829), none near the cap; kept with the user. vLLM V1 allocates KV
             # pages on demand, so a higher cap does not reserve memory; it only lets a runaway
             # trace hold its slot longer.
             - "--max-model-len=16384"

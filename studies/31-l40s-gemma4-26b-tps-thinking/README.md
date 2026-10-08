@@ -1,15 +1,17 @@
 # 31-l40s-gemma4-26b-tps-thinking
 
-**Status:** TODO. Scaffolded 2026-10-08 from study 30; runs after study 30 on the same L40S
-node. Not created on Akamas yet; the smoke run (length run + ramp) comes first.
+**Status:** TODO. Scaffolded 2026-10-08 from study 30; runs after study 30 (stopped
+at 31 experiments) on the same L40S node. Smoke run done 2026-10-08 (`max_model_len` 16384 kept,
+ramp 0 -> 4 req/s over 6000 s); not created on Akamas yet.
 **Dates:** —
 
 ## Objective
 
 **Study 30 with Gemma 4's thinking mode on: what changes once the model reasons before it
 answers?** Same model, GPU, vLLM image, 13 parameters, goal, SLA, windowing, KPIs and steps as
-study 30 (`../30-l40s-gemma4-26b-tps/README.md`). Only the serving flags that turn thinking on
-and the requests' output budget differ, so the two studies compare setting by setting.
+study 30 (`../30-l40s-gemma4-26b-tps/README.md`), plus one preset: study 30's best
+configuration. Only the serving flags that turn thinking on and the requests' output budget
+differ, so the two studies compare setting by setting.
 
 - **Goal:** maximize vLLM's **total token throughput** (`vllm.total_token_throughput` =
   prompt + generation tokens/s; with thinking on, generation counts reasoning and answer
@@ -18,8 +20,9 @@ and the requests' output budget differ, so the two studies compare setting by se
   over 150 s, read with `:max` over the scored window. TTFT is now the time to the first
   *reasoning* token (see below).
 - **Questions:** (1) how far the knee moves, in req/s and in tokens/s, when every request
-  reasons; (2) whether the levers of study 30 (fp8 KV, MTP, batch caps) keep their rank, and
-  whether the optimizer finds a different best configuration; (3) how long Gemma 4 reasons on
+  reasons; (2) whether the levers of study 30 (fp8 KV, MTP, batch caps) keep their rank, how
+  study 30's best configuration scores with thinking on, and whether the optimizer finds a
+  different best configuration; (3) how long Gemma 4 reasons on
   ShareGPT prompts, and how long a user waits for the first answer token at the knee.
 
 ## What changes with thinking on
@@ -28,11 +31,11 @@ and the requests' output budget differ, so the two studies compare setting by se
 |---|---|---|---|
 | Chat template | `enable_thinking` false | `--default-chat-template-kwargs '{"enable_thinking": true}'`: `<|think|>` at the top of a system turn, the thought channel left open. The template defaults to false (`enable_thinking \| default(false)`), so the flag is required | `k8s/01-statefulset_template.yaml` |
 | Reasoning parser | none | `--reasoning-parser=gemma4` (vLLM 0.29.0 `Gemma4ParserReasoningAdapter`): the trace streams in the `reasoning` field, the answer in `content` | same |
-| `max_model_len` | 4096 | **16384, provisional** (the length run confirms it): prompt + trace + answer | same |
+| `max_model_len` | 4096 | **16384** (prompt + trace + answer; the smoke length run's longest request generated 6205 tokens) | same |
 | Output budget | AIPerf's ShareGPT `max_tokens` = the length of the ShareGPT reply (aiperf 0.11.0 `dataset/loader/sharegpt.py`) | **no `max_tokens`**: the Job strips it from a copy of the cache (`inputs-<model>-nomax.json`); vLLM caps each request at `max_model_len` - prompt | `k8s/05-job_template.yaml` |
 | AIPerf warm-up | 60 s at concurrency 4 | 8 requests at concurrency 4: with a 60 s window and requests that reason longer than that, AIPerf 0.11.0 exits non-zero ("No profile results to export") and the trial fails (reproduced by `k8s/tests/dry_run_thinking.sh`) | `k8s/05-job_template.yaml` |
 | Served model name | `gemma4-26b-l40s` | `gemma4-26b-l40s-think` (separate vLLM series and ShareGPT cache) | StatefulSet, components, scripts |
-| Ramp | 0 -> 40 req/s over 6000 s | **0 -> 6 req/s over 6000 s, provisional** (from the smoke run) | workflow, `k8s/run_test.sh` |
+| Ramp | 0 -> 40 req/s over 6000 s | **0 -> 4 req/s over 6000 s** (R = 4 K, K ~ 1 req/s from the smoke run) | workflow, `k8s/run_test.sh` |
 
 **Why not keep ShareGPT's `max_tokens`:** with thinking on, the reasoning trace uses up the
 reply's token budget, and almost every request would stop mid-thought without an answer. That
@@ -101,15 +104,14 @@ customer turning thinking on would deploy.
   run (discarded), the watchdog (`k8s/run_test.sh`) ends the test past 2x the SLA for 120 s.
 - **ShareGPT without `max_tokens`:** every request reasons and answers until the model stops,
   or until `max_model_len` - prompt.
-- **R and D: provisional 0 -> 6 req/s over 6000 s.** Estimated before any measurement: study
-  30's baseline broke at ~10 req/s with ~300 generated tokens per request; if a request
-  generates several times more, the knee falls by about the same factor, to ~1-2 req/s. Study
-  30's rule (R ~ 4 K, D such that the baseline crosses its knee ~25 min into the ramp) gives
-  R ~ 6 and D = 6000 s. **The smoke run measures K and sets R = 4 K, D = 6000 s** (with D fixed
-  at 6000 s, the baseline crosses at 6000 x K / R = 1500 s whatever K is); then the workflow's
-  command and `k8s/run_test.sh`'s default change together. At 1.5 req/s a 3-minute window
-  holds ~270 requests (~1800 in study 30), and each request lasts tens of seconds, so the
-  window's tokens/s is smoother than its req/s.
+- **R and D: 0 -> 4 req/s over 6000 s** (0.04 req/s per minute), decided with the user from
+  the smoke run (2026-10-08, "Smoke run" below): baseline knee K ~ 1 req/s, R = 4 K (study
+  30's rule; with D fixed at 6000 s the baseline crosses its knee at 6000 x K / R ~ 1500 s,
+  1300-1800 s for K between the Little's-law capacity 0.8 and the bounds' midpoint 1.03),
+  D = 6000 s. A configuration up to 4-5x the baseline's req/s still saturates before the
+  ramp ends (study 30's best was 3.3x its baseline). Before the smoke run the estimate was
+  0 -> 6. At ~1 req/s a 3-minute window holds ~180 requests (~1800 in study 30), and each
+  request lasts ~1-2 minutes, so the window's tokens/s is smoother than its req/s.
 - **Scoring:** as study 30: `stability` windowing on `vllm.total_token_throughput`, 6 samples
   (3 min), filter disabled, `when: max`.
 
@@ -117,8 +119,12 @@ customer turning thinking on would deploy.
 
 As study 30: `baseline` (vLLM 0.29.0 defaults, every parameter written out), `baseline repeat`
 (noise), `kv fp8`, `kv fp8 large batch` (fp8, gmu 0.94, 512 seqs, 8192 batched tokens,
-throughput mode), `kv fp8 mtp2` (fp8 + MTP K=2), `optimize` (AKAMAS, 0 init, 60 experiments,
-`maxFailedExperiments` 20). **KPIs (8, Italian names as the repo convention):** Throughput
+throughput mode), `kv fp8 mtp2` (fp8 + MTP K=2), then one step study 30 does not have,
+`study 30 best` (study 30's experiment 28, 8418 total tokens/s without thinking: fp8 KV, MTP
+K=3, gmu 0.94, 451 seqs, 16384 batched tokens, optimization level 1, cudagraph capture 179,
+`linear_backend` torch; added 2026-10-08 after study 30 stopped, decided with the user: how
+much the best configuration without thinking is worth once the model reasons), and
+`optimize` (AKAMAS, 0 init, 60 experiments, `maxFailedExperiments` 20). **KPIs (8, Italian names as the repo convention):** Throughput
 totale, Accettazione MTP, Richieste completate, TTFT P95 150s, ITL P95 150s, KV cache in uso,
 Preemption, Richieste in esecuzione. Generated tokens per request (the length of the
 workload at the window) is not a KPI (8 is the limit): it is `decode_token_throughput /
@@ -145,10 +151,10 @@ Hypotheses, not measurements:
 
 ## Risks
 
-- **Trace length unknown until the length run:** too long a tail (runaway traces up to
-  16384 tokens) holds slots and KV; too low a cap truncates. The length run counts the
-  requests near the cap; lower or raise `--max-model-len` from it (no KV is reserved for the
-  cap, so lowering it does not change the KV size, only the tail).
+- **Runaway traces:** a trace that loops can run up to 16384 tokens and hold its slot and KV
+  for ~10 minutes. The smoke length run saw none (longest request 6205 generated tokens, p99
+  2829); every trial's `LENGTHS` lines count the requests near the cap (no KV is reserved for
+  the cap, so lowering it would change only the tail).
 - **Numerics-changing settings change the workload:** `kv_cache_dtype` fp8 and
   `linear_backend` (marlin is W8A16) can change what the model generates, hence the trace
   lengths, not only the speed. With sampling at temperature 1.0 lengths vary anyway; generated
@@ -194,6 +200,46 @@ Hypotheses, not measurements:
    `bash k8s/tests/test_*.sh` and `python3 akamas/check_offline.py`.
 5. **Sync:** commit and push (user), `git pull` on the 4.1 toolbox.
 6. **Create and start:** commands in `akamas/README.md`, "Setup & run".
+
+## Smoke run
+
+2026-10-08, manual (`smoke/smoke_manual.sh`), baseline values, thinking on, vLLM started in
+~5 min (bf16 KV cache 170,836 tokens). Logs in `smoke/results/`.
+
+**Length run** (closed loop, 32 concurrent, 320 ShareGPT requests without `max_tokens`, 617 s
+of profiling): 320 ok, 0 errors.
+
+| Per request | mean | p50 | p90 | p99 | max |
+|---|---|---|---|---|---|
+| reasoning tokens | 739 | 697 | 1016 | 1936 | 6078 |
+| answer tokens | 762 | 790 | 1226 | 1840 | 2254 |
+| generated tokens (reasoning + answer) | **1501** | 1511 | 2157 | 2829 | 6205 |
+| TTFT (first reasoning token), ms | 319 | 238 | 1022 | 1060 | 1082 |
+| time to the first answer token, s | 29.2 | 27.3 | 40.0 | 76.6 | 240.5 |
+
+~5x study 30's ~300 generated tokens per request, half of them reasoning; 0 of 320 near
+`max_model_len` (>= 15300 generated tokens), so **`--max-model-len=16384` is kept** (decided
+with the user). At 32 concurrent requests: ~780 generated tokens/s, ITL ~39 ms. The ramp's top
+rate followed from the mean: 2.5 x 2900 / 1501 = 4.8 req/s.
+
+**Smoke ramp** (0 -> 4.8 req/s over 1800 s, AIPerf's ramp from 16:00:04 UTC; the watchdog saw
+TTFT p95 over 2x the SLA at 16:08:22 and ended the test 797 s into the measured run;
+`smoke_analyze.py` over 15:57:18-16:10:41, `smoke/results/summary.txt`):
+
+| | Study 31 smoke (thinking) | Study 30 smoke |
+|---|---|---|
+| Score (best valid 3-min window) | **1346 total tokens/s**, 0.73 req/s completed (16:05:48-16:08:18) | 2583 tokens/s, 6.61 req/s |
+| Running requests at the knee | 86 | 221 |
+| TTFT p95 / ITL p95, max over the window | 912 ms / 74 ms | 243 ms / 74 ms |
+| What saturates | KV cache (99 % from 16:07:48), then preemption and queueing | the same |
+| vLLM container CPU | <= 0.27 cores | <= 0.54 cores |
+
+The knee is KV-bound, as expected: 86 requests of ~2000 tokens fill the 170,836-token bf16
+cache, then TTFT explodes (34-74 s) while ITL stays at ~75 ms. TTFT stays ~240 ms until the
+cache is full. The reasoning parser does not load the 4 vCPU. **K:** low bound 0.73 req/s
+(completed in the scored window), high bound 1.33 req/s (the offered rate at the `over` line,
+4.8 x 498 / 1800), midpoint 1.03; Little's law gives ~0.8 req/s sustained (86 running / ~110 s
+per request, 1500 tokens x 73 ms). **R = 4 req/s, D = 6000 s** (decided with the user).
 
 ## Running notes
 

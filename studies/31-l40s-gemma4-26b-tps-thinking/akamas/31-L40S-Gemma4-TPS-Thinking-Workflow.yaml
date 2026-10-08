@@ -1,10 +1,9 @@
 kind: workflow
 name: 31-L40S-Gemma4-TPS-Thinking-Workflow
-# The study: study 27's open-loop linear rate ramp, 0 -> 6 req/s over 6000 s (0.06 req/s per
-# minute). PROVISIONAL: estimated before any measurement (thinking makes each request several
-# times longer than in study 30, whose baseline knee was ~10 req/s; README "Load"). Set
-# RT_RATE / RT_RAMP_S (and the RunTest timeout, above RT_RAMP_S + 1500 s) from the manual smoke
-# run before creating this workflow; once created, a change means delete and recreate.
+# The study: study 27's open-loop linear rate ramp, 0 -> 4 req/s over 6000 s (0.04 req/s per
+# minute), R = 4 K from the manual smoke run of 2026-10-08 (baseline knee K ~ 1 req/s; README
+# "Smoke run"). The RunTest timeout stays above RT_RAMP_S + 1500 s; once this workflow is
+# created, a change means delete and recreate.
 # All three tasks run on the toolbox host over SSH with the toolbox's own key
 # (/home/akamas/.ssh/id_rsa, mounted from the toolbox-keys secret; the path must exist on
 # the toolbox when `akamas create workflow` runs, so run it from the toolbox).
@@ -49,4 +48,4 @@ tasks:
         hostname: toolbox
         username: akamas
         key: /home/akamas/.ssh/id_rsa
-      command: RT_RATE=6 RT_RAMP_S=6000 bash /work/vllm-benchmark/studies/31-l40s-gemma4-26b-tps-thinking/k8s/run_test.sh
+      command: RT_RATE=4 RT_RAMP_S=6000 bash /work/vllm-benchmark/studies/31-l40s-gemma4-26b-tps-thinking/k8s/run_test.sh

@@ -1,0 +1,19 @@
+#!/bin/bash
+# Stub kubectl for the apply_config.sh / run_test.sh tests. Logs every call to $STUB_LOG and
+# answers the calls those scripts make. STUB_READY: what `get sts vllm` reports ready.
+echo "kubectl $*" >> "$STUB_LOG"
+args="$*"
+case "$args" in
+  *"get nodes"*) echo "node-l40s" ;;
+  *"get sts vllm"*readyReplicas*) echo "${STUB_READY:-1}" ;;
+  *"get pod vllm-0"*restartCount*) echo 0 ;;
+  *"get pods"*"app=vllm"*uid*) echo "vllm-0:uid0:0" ;;
+  *"get pods"*"app=vllm"*"-o name"*) : ;;
+  *"get job aiperf-l40s"*succeeded*) echo 1 ;;
+  *"get job aiperf-l40s"*failed*) echo "" ;;
+  *"apply -f "*) f=${args##*-f }; echo "applied $(grep -m1 '^  name: ' "$f" | awk '{print $2}')" >> "$STUB_LOG" ;;
+  logs*|*" logs "*) echo "MEASURED RUN START" ;;
+  exec*|*" exec "*) echo 5 ;;
+  *) : ;;
+esac
+exit 0

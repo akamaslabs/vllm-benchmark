@@ -1,0 +1,271 @@
+kind: study
+name: 31-L40S-Gemma4-TPS-Thinking
+description: >-
+  Study 31: study 30 with Gemma 4's thinking mode on. Base vLLM configuration tuning of
+  RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic (MoE, 26B total / 4B active) on one NVIDIA L40S 48
+  GB, vLLM 0.29.0, single GPU and no parallelism, served with enable_thinking true, the gemma4
+  reasoning parser and max_model_len 16384; ShareGPT requests carry no max_tokens, so every
+  request reasons and answers to the end. Goal: total tokens/s (prompt + generation, reasoning
+  tokens included) under TTFT p95 <= 1500 ms and ITL p95 <= 300 ms (150 s p95, :max; TTFT is
+  the first reasoning token). Load: study 27's open-loop AIPerf rate ramp on ShareGPT (gamma
+  arrivals, smoothness 4), ended by a watchdog past the SLA. Steps, parameters, constraints and
+  KPIs as study 30: vLLM-default baseline twice, two fp8-KV presets, fp8 + MTP (K=2), 60
+  AKAMAS experiments. Needs vLLM pack 1.12.0.
+# Study 30's manifest with new names (system, workflow); only the serving (k8s/) and the load
+# (no max_tokens) differ, so the two studies' results compare setting by setting.
+# Own system, telemetry instance and workflow (akamas/system.yaml, components/, telemetry/,
+# 31-L40S-Gemma4-TPS-Thinking-Workflow.yaml); the workflow runs
+# studies/31-l40s-gemma4-26b-tps-thinking/k8s. Design and reasons: ../README.md. Preset values are written out in full (no YAML
+# anchors/merge keys: the Akamas CLI parser was not checked for merge-key support).
+system: vLLM_Benchmark_31_L40S_Gemma4_TPS_Thinking
+workflow: 31-L40S-Gemma4-TPS-Thinking-Workflow
+
+# Total tokens/s = prefill + decode, the "TPS" of studies 11/12/25, from vLLM's own
+# counters; with thinking on, decode counts reasoning and answer tokens alike (vLLM does not
+# tell them apart). The two latency constraints are the SLA of studies 1 and 25-28 (chat); their
+# p95 is taken over 150 s in this study's telemetry and read with :max over the scored
+# window. With an open-loop ramp the scored window is the last 3 min before the SLA breaks.
+goal:
+  objective: maximize
+  function:
+    formula: vllm.total_token_throughput
+    unit: tokens per second
+  constraints:
+    absolute:
+      - name: TTFT P95 over 150 s
+        formula: vllm.time_to_first_token_p95:max <= 1500
+      - name: ITL P95 over 150 s
+        formula: vllm.inter_token_latency_p95:max <= 300
+
+# The valid 6-sample (3 min) window with the highest throughput: the end of the ramp before
+# the SLA breaks (studies 27/28). maxStdDev 300000000 disables the stability filter.
+windowing:
+  type: stability
+  stability:
+    metric: vllm.total_token_throughput
+    width: 6
+    maxStdDev: 300000000
+    when:
+      metric: vllm.total_token_throughput
+      is: max
+
+numberOfTrials: 1
+
+# Study 30's set, domains and constraints, unchanged. Studies 0-1's base vLLM set, re-checked
+# against vLLM 0.29.0 and this model, then fixed by study 30's startup probe of 2026-10-06
+# (studies/30-l40s-gemma4-26b-tps/probe/results/summary.txt; study 30 README "Parameters tuned").
+# Added by the probe: linear_backend, spec_method / spec_tokens (Gemma 4 MTP). Out:
+#   - every parallelism knob (tensor/pipeline/data/context parallel, expert parallel): one GPU;
+#   - attention_backend: FLASH_ATTN does not start (head_size 512 not supported), FLASHINFER
+#     is 7 % slower at 64 requests with 17 % less KV cache and an unverified mixed-head-dim
+#     path; vLLM's own choice (TRITON_ATTN) is rendered;
+#   - enforce_eager (fixed false, decided with the user 2026-10-06): eager / O0 ran ~7x slower
+#     at batch 1 in the probe; optimization_level starts at 1 for the same reason;
+#   - disable_cascade_attn: no effect here (cascade attention needs prefix caching, off, and
+#     the FlashAttention backend);
+#   - tokenizer_mode: "slow" cannot load (the checkpoint ships tokenizer.json only), "hf" is
+#     what "auto" already selects for a non-Mistral model.
+parametersSelection:
+  # vLLM 0.29.0 default 0.92. Ceiling 0.94: the sampler warm-up (max_num_seqs x 262144-token
+  # vocabulary x 4 B = 0.5 GiB at 512) and the CUDA context stay inside the ~2.7 GiB left
+  # outside vLLM's budget, so study 16's sampler-guard constraint cannot bind in this box
+  # (0.94 x 44.99 + 512 x 0.001 = 42.8 < ~43.5 GiB); the probe's E-memory start checks the corner.
+  - name: vllm.gpu_memory_utilization
+    domain: [0.80, 0.94]
+  # vLLM default 256 on a < 70 GB GPU. The KV cache, not this cap, is expected to bind
+  # (~64k tokens in bf16 at 0.92, ~128k in fp8 (study 30's probe); with reasoning traces of
+  # ~1-2k tokens, a few dozen to ~100 requests in flight).
+  - name: vllm.max_num_seqs
+    domain: [16, 512]
+  # vLLM default 2048 on a < 70 GB GPU. Up to 16384: several prompts per step, shorter TTFT,
+  # longer ITL stalls.
+  - name: vllm.max_num_batched_tokens
+    domain: [512, 16384]
+  # fp8 = fp8_e4m3; fp8_e5m2 is left out (a near-duplicate with less precision).
+  - name: vllm.kv_cache_dtype
+    categories: [auto, fp8]
+  - name: vllm.performance_mode
+    categories: [balanced, interactivity, throughput]
+  # 1 = piecewise CUDA graphs, 2 = vLLM's default (full + piecewise), 3 = longest compile.
+  # 0 (no compilation, no CUDA graphs) is out: ~7x slower at batch 1 in the probe (E-eager).
+  - name: vllm.optimization_level
+    domain: [1, 3]
+  # All AIPerf requests have the same priority: priority orders them by arrival as fcfs does,
+  # with a heap instead of a queue. Kept as in studies 0-1.
+  - name: vllm.scheduling_policy
+    categories: [fcfs, priority]
+  - name: vllm.async_scheduling
+    categories: ["true", "false"]
+  # vLLM default min(2 x max_num_seqs, 512) = 512; vLLM clamps it to the max batch tokens, so
+  # no constraint is needed.
+  - name: vllm.max_cudagraph_capture_size
+    domain: [16, 512]
+  # Ordinal. TRITON_ATTN takes any multiple of 16; vLLM's hybrid KV manager adapts the
+  # full-attention layers' block to the sliding layers' page size. The probe starts 48 and 128.
+  - name: vllm.block_size
+    categories: ["16", "32", "48", "64", "80", "96", "112", "128"]
+  # From the probe: auto (CutlassFP8ScaledMMLinearKernel), torch
+  # (ChannelWiseTorchFP8ScaledMMLinearKernel, +4 % at 64 requests), marlin (W8A16, +1 %) all
+  # start; triton falls back to Cutlass for this channel-wise FP8 checkpoint (left out as a
+  # duplicate of auto). The MoE experts run on the Triton fused-MoE kernel whatever this is.
+  - name: vllm.linear_backend
+    categories: [auto, torch, marlin]
+  # Gemma 4's MTP drafter (google/gemma-4-26B-A4B-it-assistant, 0.78 GiB, shares the target's
+  # KV cache: ~11 % less KV for its weights). Probe: K=2 +35 % tokens/s at batch 1 and +50 % at
+  # 64 concurrent requests, acceptance 0.60 (English) / 0.57 (Italian); K=4 +30 % / +44 %,
+  # acceptance 0.42 / 0.38. A variable, not always on (decided with the user 2026-10-06): the
+  # gain at saturation is what the study measures. spec_tokens 0 is the pack's off sentinel
+  # (never rendered); the two constraints below pair it with none.
+  - name: vllm.spec_method
+    categories: [none, mtp]
+  - name: vllm.spec_tokens
+    domain: [0, 4]
+
+# Quoted values / || are evaluated as a boolean (rejection sampling).
+parameterConstraints:
+  # vLLM 0.29.0 vllm/config/scheduler.py raises ValueError when max_num_batched_tokens <
+  # max_num_seqs (studies 13-17); render_statefulset.sh refuses the pair too.
+  - name: max_num_batched_tokens must be at least max_num_seqs
+    formula: vllm.max_num_batched_tokens >= vllm.max_num_seqs
+  # Study 17's sentinel pair. MTP needs no extra token-budget constraint: vLLM 0.29.0 reserves
+  # no additional drafting slots for mtp (SpeculativeConfig.max_num_new_slots_for_drafting).
+  - name: speculative decoding off forces spec_tokens to its off sentinel
+    formula: vllm.spec_method != "none" || vllm.spec_tokens == 0
+  - name: speculative decoding on requires a real spec_tokens
+    formula: vllm.spec_method == "none" || vllm.spec_tokens > 0
+
+# At most 8 (an Akamas 3.7 limit; study 30's 8 were accepted on 4.1).
+kpis:
+  - name: Throughput totale
+    formula: vllm.total_token_throughput
+    direction: maximize
+  # 0 with spec_method none (the telemetry query falls back to 0).
+  - name: Accettazione MTP
+    formula: vllm.spec_decode_acceptance_rate
+    direction: maximize
+  - name: Richieste completate
+    formula: vllm.request_success_rate
+    direction: maximize
+  - name: TTFT P95 150s
+    formula: vllm.time_to_first_token_p95
+    direction: minimize
+    aggregation: max
+  - name: ITL P95 150s
+    formula: vllm.inter_token_latency_p95
+    direction: minimize
+    aggregation: max
+  - name: KV cache in uso
+    formula: vllm.kv_cache_usage_avg
+    direction: minimize
+  - name: Preemption
+    formula: vllm.preemption_rate
+    direction: minimize
+  # Concurrency reached: the requests in flight at the scored window (Little's law: rate x
+  # time in the system), the "concurrent users" the configuration holds within the SLA.
+  - name: Richieste in esecuzione
+    formula: vllm.num_requests_running
+    direction: maximize
+    aggregation: max
+
+# Every baseline/preset renders every parameter (study 27's note: a step with
+# doNotRenderParameters never reaches the optimizer engine, which then loses the repeated
+# baseline that measures the noise).
+steps:
+  # vLLM 0.29.0's own defaults on a GPU with < 70 GB (arg_utils.py get_batch_defaults, the
+  # API-server context), written out.
+  - name: baseline
+    type: baseline
+    numberOfTrials: 1
+    values:
+      vllm.gpu_memory_utilization: 0.92
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+      vllm.kv_cache_dtype: auto
+      vllm.performance_mode: balanced
+      vllm.optimization_level: 2
+      vllm.scheduling_policy: fcfs
+      vllm.async_scheduling: "true"
+      vllm.max_cudagraph_capture_size: 512
+      vllm.block_size: "16"
+      vllm.linear_backend: auto
+      vllm.spec_method: none
+      vllm.spec_tokens: 0
+  # The same configuration again: the first measure of the noise of this load on this node.
+  - name: baseline repeat
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.92
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+      vllm.kv_cache_dtype: auto
+      vllm.performance_mode: balanced
+      vllm.optimization_level: 2
+      vllm.scheduling_policy: fcfs
+      vllm.async_scheduling: "true"
+      vllm.max_cudagraph_capture_size: 512
+      vllm.block_size: "16"
+      vllm.linear_backend: auto
+      vllm.spec_method: none
+      vllm.spec_tokens: 0
+  # Twice the KV tokens: expected to be the largest single lever when the KV cache binds
+  # (study 0's winner had fp8 KV too).
+  - name: kv fp8
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.92
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+      vllm.kv_cache_dtype: fp8
+      vllm.performance_mode: balanced
+      vllm.optimization_level: 2
+      vllm.scheduling_policy: fcfs
+      vllm.async_scheduling: "true"
+      vllm.max_cudagraph_capture_size: 512
+      vllm.block_size: "16"
+      vllm.linear_backend: auto
+      vllm.spec_method: none
+      vllm.spec_tokens: 0
+  # The large-batch corner: fp8 KV, the most memory for the KV cache, twice the sequence cap
+  # and 4x the prefill budget, throughput mode.
+  - name: kv fp8 large batch
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.94
+      vllm.max_num_seqs: 512
+      vllm.max_num_batched_tokens: 8192
+      vllm.kv_cache_dtype: fp8
+      vllm.performance_mode: throughput
+      vllm.optimization_level: 2
+      vllm.scheduling_policy: fcfs
+      vllm.async_scheduling: "true"
+      vllm.max_cudagraph_capture_size: 512
+      vllm.block_size: "16"
+      vllm.linear_backend: auto
+      vllm.spec_method: none
+      vllm.spec_tokens: 0
+  # The probe's best point: fp8 KV + MTP K=2 (2953 generated tokens/s at 64 requests, +59 %
+  # over the baseline). Gives the optimizer a valid MTP point from the start.
+  - name: kv fp8 mtp2
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.92
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+      vllm.kv_cache_dtype: fp8
+      vllm.performance_mode: balanced
+      vllm.optimization_level: 2
+      vllm.scheduling_policy: fcfs
+      vllm.async_scheduling: "true"
+      vllm.max_cudagraph_capture_size: 512
+      vllm.block_size: "16"
+      vllm.linear_backend: auto
+      vllm.spec_method: mtp
+      vllm.spec_tokens: 2
+  # As studies 27-29: AKAMAS, no init experiments (the 4 steps above seed the model), the
+  # step stops after 20 failed experiments (workflow errors and constraint violations).
+  - name: optimize
+    type: optimize
+    optimizer: AKAMAS
+    numberOfInitExperiments: 0
+    numberOfExperiments: 60
+    maxFailedExperiments: 20

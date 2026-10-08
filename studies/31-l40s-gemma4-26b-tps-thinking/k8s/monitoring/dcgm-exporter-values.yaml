@@ -1,0 +1,54 @@
+# dcgm-exporter values for 31-l40s-gemma4-26b-tps-thinking: study 30's file, unchanged (same node role); the
+# live release already carries it since study 30. Study 30's note follows.
+# APPLIED 2026-10-06 07:44 UTC (helm revision 23;
+# checked: exporter pod on the L40S node, target up, Prometheus returns modelName="NVIDIA L40S").
+# The live release (monitoring/dcgm-exporter, chart 4.8.3, helm revision 22, applied
+# 2026-09-29 from study 25/28's file) covers llm-serving-l4 and llm-serving-g7-4500 with a
+# nodeAffinity. This file is that one with ONE change: llm-serving-l40s-1xl added to the
+# node roles, so the exporter schedules on this study's L40S node. Without it the GPU
+# series are simply absent and nothing errors (the study 17 trap).
+#
+# Safe next to the other GPU node groups: this study's gpu0 component filters every DCGM
+# query on modelName=~".*L40S.*" and gpu="0", never on pod; studies 24-29 filter on their
+# own exported_pod / modelName. Still NOT safe for studies 0-17 (pod: .*), as before.
+# Apply before the first experiment (README "Morning runbook"):
+#
+#   helm upgrade dcgm-exporter gpu-helm-charts/dcgm-exporter -n monitoring \
+#     --version 4.8.3 --reuse-values=false -f k8s/monitoring/dcgm-exporter-values.yaml
+#
+# The L40S node carries only the nvidia.com/gpu taint; the akamas.io/gpu-sharing toleration
+# is kept for the g7 node.
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: node-role
+              operator: In
+              values:
+                - llm-serving-l4
+                - llm-serving-g7-4500
+                - llm-serving-l40s-1xl
+tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+  - key: akamas.io/gpu-sharing
+    operator: Exists
+    effect: NoSchedule
+serviceMonitor:
+  enabled: true
+  interval: 5s
+  scrapeTimeout: 4s
+  namespace: monitoring
+extraConfigMapVolumes:
+- name: exporter-metrics-volume
+  configMap:
+    name: dcgm-custom-metrics
+    items:
+    - key: metrics
+      path: dcgm_counters.csv
+extraVolumeMounts:
+- name: exporter-metrics-volume
+  mountPath: /etc/dcgm-exporter/default-counters.csv
+  subPath: dcgm_counters.csv

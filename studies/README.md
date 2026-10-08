@@ -39,6 +39,7 @@ what's actually been built and found).
 | [26-g7-4500-gpu-slice-right-sizing](26-g7-4500-gpu-slice-right-sizing/README.md) | DONE (2026-09-30, 7 presets) | gpu0.mig_profile (none / 2g.32gb / 1g.16gb, GPU pack 1.4.0), GPU fully partitioned with one replica per MIG instance, same node/model/load as #25; 7 presets varying max_num_seqs, no optimizer, windowing on total throughput | No MIG best (6202 tok/s); MIG costs ~3-6 % in either layout at matched temperature (same baseline drifted ~5 % with GPU temperature). One 1g.16gb slice ~3000 tok/s (~9 req/s, 47-50 % of the GPU) but ~160 users within SLO vs 256-512 whole (KV 35 %); max_num_seqs moves the user ceiling, not tokens/s |
 | [28-g7-4500-mig-min-cost-fixed-load](28-g7-4500-mig-min-cost-fixed-load/README.md) | RUNNING (started 2026-10-02) | | |
 | [30-l40s-gemma4-26b-tps](30-l40s-gemma4-26b-tps/README.md) | RUNNING on Akamas 4.1 (started 2026-10-06) | Gemma 4 26B-A4B FP8 on 1x L40S (g6e.xlarge), vLLM 0.29.0, 13 params incl. MTP speculative decoding and linear_backend; total tok/s under TTFT p95 1.5 s / ITL p95 300 ms; open-loop ramp 0 -> 40 req/s over 100 min on ShareGPT; baseline x2, 3 presets, 60 AKAMAS | |
+| [31-l40s-gemma4-26b-tps-thinking](31-l40s-gemma4-26b-tps-thinking/README.md) | TODO | | |
 
 ## Maintaining this table
 

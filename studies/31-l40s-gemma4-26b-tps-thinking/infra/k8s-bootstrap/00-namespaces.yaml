@@ -1,0 +1,14 @@
+# Namespaces for 31-l40s-gemma4-26b-tps-thinking. The vLLM StatefulSet and the AIPerf Job live in
+# llm-l40s, shared with study 30 (which runs before it on the same node); nothing is shared
+# with the namespaces other studies use (llm-serving,
+# llm-benchmark, gpu-sharing). The toolbox's ServiceAccount (akamas/toolbox) is bound to
+# cluster-admin, so the workflow scripts need no extra RBAC here.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: llm-l40s
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring

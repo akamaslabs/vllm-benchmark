@@ -1,0 +1,13 @@
+kind: component
+system: vLLM_Benchmark_31_L40S_Gemma4_TPS_Thinking
+
+name: vllm
+description: >-
+  The vLLM server (StatefulSet vllm, pod vllm-0, namespace llm-l40s),
+  RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic served as gemma4-26b-l40s-think. Carries every tuned
+  vLLM parameter and the goal, constraint and windowing metrics.
+componentType: vLLM
+properties:
+  prometheus:
+    pod: ^vllm-0$
+    model: gemma4-26b-l40s-think

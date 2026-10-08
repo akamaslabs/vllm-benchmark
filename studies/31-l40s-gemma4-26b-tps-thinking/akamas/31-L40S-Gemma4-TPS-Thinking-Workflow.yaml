@@ -1,0 +1,52 @@
+kind: workflow
+name: 31-L40S-Gemma4-TPS-Thinking-Workflow
+# The study: study 27's open-loop linear rate ramp, 0 -> 6 req/s over 6000 s (0.06 req/s per
+# minute). PROVISIONAL: estimated before any measurement (thinking makes each request several
+# times longer than in study 30, whose baseline knee was ~10 req/s; README "Load"). Set
+# RT_RATE / RT_RAMP_S (and the RunTest timeout, above RT_RAMP_S + 1500 s) from the manual smoke
+# run before creating this workflow; once created, a change means delete and recreate.
+# All three tasks run on the toolbox host over SSH with the toolbox's own key
+# (/home/akamas/.ssh/id_rsa, mounted from the toolbox-keys secret; the path must exist on
+# the toolbox when `akamas create workflow` runs, so run it from the toolbox).
+tasks:
+  # The parameters are rendered into an env file, not into a manifest: render_statefulset.sh
+  # validates them and writes the vLLM flags (booleans as --x / --no-x, which a plain
+  # ${vllm.param} token in the manifest could not do). ignoreUnsubstitutedTokens false: every
+  # token must resolve.
+  - name: Write config
+    operator: FileConfigurator
+    arguments:
+      ignoreUnsubstitutedTokens: false
+      source:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/vllm-benchmark/studies/31-l40s-gemma4-26b-tps-thinking/k8s/params.env.template
+      target:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/vllm-benchmark/studies/31-l40s-gemma4-26b-tps-thinking/k8s/params.env
+  - name: Apply config
+    operator: Executor
+    arguments:
+      retries: 0
+      # apply_config.sh's rollout wait (2400 s: cold node = image pull + 27 GiB model
+      # download) plus the warm-up and the log dump.
+      timeout: 45m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/vllm-benchmark/studies/31-l40s-gemma4-26b-tps-thinking/k8s/apply_config.sh
+  - name: RunTest
+    operator: Executor
+    arguments:
+      retries: 0
+      # Above run_test.sh's own deadline (RT_RAMP_S + 1500 s), so its log dump always runs.
+      timeout: 130m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: RT_RATE=6 RT_RAMP_S=6000 bash /work/vllm-benchmark/studies/31-l40s-gemma4-26b-tps-thinking/k8s/run_test.sh

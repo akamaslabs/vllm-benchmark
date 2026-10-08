@@ -1,0 +1,11 @@
+kind: system
+
+name: vLLM_Benchmark_31_L40S_Gemma4_TPS_Thinking
+description: >-
+  Study 31: study 30 with Gemma 4's thinking mode on. Base vLLM configuration tuning (single
+  GPU, no parallelism) of RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic (vllm/vllm-openai:v0.29.0,
+  served as gemma4-26b-l40s-think with enable_thinking true and the gemma4 reasoning parser)
+  on one NVIDIA L40S 48 GB (g6e.xlarge, node group llm-serving-l40s-1xl). Goal: total
+  tokens/s (prompt + generation) under TTFT p95 <= 1.5 s and ITL p95 <= 300 ms, with study
+  27's open-loop AIPerf rate ramp on ShareGPT without max_tokens. Requires vLLM pack 1.12.0,
+  GPU pack, Kubernetes pack. Created 2026-10-08.

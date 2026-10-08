@@ -3,7 +3,7 @@
 **Created:** 2026-10-08, with the `akamas-study-manager` plugin (0.3.0, modify mode), from
 study 30's resources (`../../30-l40s-gemma4-26b-tps/akamas/`) as they were accepted by the
 Akamas 4.1 server on 2026-10-06. **Target: Akamas Studio 4.1** (`akamas41.lab.akamas.io`,
-namespace `akamas-41`). Not created on the server yet.
+namespace `akamas-41`). Created and started on the server 2026-10-08 (18:36 UTC).
 
 ## What it optimizes
 
@@ -69,7 +69,8 @@ in placeholders) plus three for the copy: every component, the telemetry instanc
 study name the same system; every workflow path points at this study's folder; the `vllm`
 component's `model` equals the StatefulSet's `--served-model-name`. Mutation-tested (a
 component left on study 30's system, a workflow path to study 30's folder, the old model name:
-all reported). **Not validated on the Akamas server yet** (pending the user's go-ahead).
+all reported). **Server:** every resource created on Akamas 4.1 on 2026-10-08 with the
+commands below; `akamas describe study` lists the 7 steps.
 
 ## Setup & run
 

@@ -1,9 +1,9 @@
 # 31-l40s-gemma4-26b-tps-thinking
 
-**Status:** TODO. Scaffolded 2026-10-08 from study 30; runs after study 30 (stopped
-at 31 experiments) on the same L40S node. Smoke run done 2026-10-08 (`max_model_len` 16384 kept,
-ramp 0 -> 4 req/s over 6000 s); not created on Akamas yet.
-**Dates:** —
+**Status:** RUNNING on Akamas 4.1 (`31-L40S-Gemma4-TPS-Thinking`, started 2026-10-08 18:36 UTC),
+after study 30 (stopped at 31 experiments) on the same L40S node. Smoke run 2026-10-08
+(`max_model_len` 16384 kept, ramp 0 -> 4 req/s over 6000 s).
+**Dates:** scaffolded 2026-10-08; created and started on Akamas 4.1 2026-10-08 18:36 UTC.
 
 ## Objective
 
@@ -243,7 +243,9 @@ per request, 1500 tokens x 73 ms). **R = 4 req/s, D = 6000 s** (decided with the
 
 ## Running notes
 
-—
+- 2026-10-08: created on Akamas 4.1 from the toolbox (commit 6232727), one file at a time as in
+  `akamas/README.md`; the server accepted every resource and lists the 7 steps (`study 30
+  best` included); started 18:36:03 UTC, experiment 1 (baseline) RUNNING right away.
 
 ## Results
 

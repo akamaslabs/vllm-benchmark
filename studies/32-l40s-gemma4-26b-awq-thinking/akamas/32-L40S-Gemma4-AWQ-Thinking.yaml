@@ -82,10 +82,14 @@ parametersSelection:
   # ~1-2k tokens, a few dozen to ~100 requests in flight).
   - name: vllm.max_num_seqs
     domain: [16, 512]
-  # vLLM default 2048 on a < 70 GB GPU. Up to 16384: several prompts per step, shorter TTFT,
-  # longer ITL stalls.
+  # From 2496, not 512 (study 32, experiment 1): with the vision tower loaded (the compose does
+  # not pass --language-model-only) vLLM 0.29.0 needs one Gemma 4 image (2496 tokens) to fit a
+  # batch. Unset, it raises its 2048 default to 2496 by itself (arg_utils.py
+  # _get_min_mm_batched_tokens); set below 2496, the engine stops at startup ("Chunked MM input
+  # disabled but max_tokens_per_mm_item (2496) is larger than max_num_batched_tokens"). Up to
+  # 16384: several prompts per step, shorter TTFT, longer ITL stalls.
   - name: vllm.max_num_batched_tokens
-    domain: [512, 16384]
+    domain: [2496, 16384]
   # fp8 = fp8_e4m3; fp8_e5m2 is left out (a near-duplicate with less precision).
   - name: vllm.kv_cache_dtype
     categories: [auto, fp8]
@@ -177,9 +181,8 @@ kpis:
     direction: maximize
     aggregation: max
 
-# The two baselines render only what the customer's compose passes (gpu_memory_utilization,
-# max_num_seqs; max_num_batched_tokens 2048 is vLLM's default on a < 70 GB GPU, kept rendered),
-# decided with the user 2026-10-09. Cost, known from study 27: a step with
+# The baseline renders only what the customer's compose passes (gpu_memory_utilization,
+# max_num_seqs), decided with the user 2026-10-09. Cost, known from study 27: a step with
 # doNotRenderParameters never reaches the optimizer engine, so the baseline and its repeat
 # seed nothing; the presets below render every parameter and do.
 steps:
@@ -191,13 +194,14 @@ steps:
     values:
       vllm.gpu_memory_utilization: 0.90
       vllm.max_num_seqs: 64
-      vllm.max_num_batched_tokens: 2048
     # The compose passes none of these: not rendered = no flag = vLLM's own default (an empty
     # line in params.env, render_statefulset.sh). Akamas 4.1 refuses a parameter both in
     # values and here (create, 2026-10-09), so they have no value: vLLM 0.29.0's config classes
-    # give auto, balanced, O2, fcfs, async on, capture size min(2 x 64, 512) = 128, block 16,
+    # give 2496 batched tokens (2048 raised to one Gemma 4 image, the vision tower being
+    # loaded), auto, balanced, O2, fcfs, async on, capture size min(2 x 64, 512) = 128, block 16,
     # auto, no speculative decoding, the values baseline repeat writes out.
     doNotRenderParameters:
+      - vllm.max_num_batched_tokens
       - vllm.kv_cache_dtype
       - vllm.performance_mode
       - vllm.optimization_level
@@ -214,7 +218,7 @@ steps:
     values:
       vllm.gpu_memory_utilization: 0.90
       vllm.max_num_seqs: 64
-      vllm.max_num_batched_tokens: 2048
+      vllm.max_num_batched_tokens: 2496
       vllm.kv_cache_dtype: auto
       vllm.performance_mode: balanced
       vllm.optimization_level: 2
@@ -233,7 +237,7 @@ steps:
     values:
       vllm.gpu_memory_utilization: 0.90
       vllm.max_num_seqs: 64
-      vllm.max_num_batched_tokens: 2048
+      vllm.max_num_batched_tokens: 2496
       vllm.kv_cache_dtype: fp8
       vllm.performance_mode: balanced
       vllm.optimization_level: 2
@@ -252,7 +256,7 @@ steps:
     values:
       vllm.gpu_memory_utilization: 0.90
       vllm.max_num_seqs: 64
-      vllm.max_num_batched_tokens: 2048
+      vllm.max_num_batched_tokens: 2496
       vllm.kv_cache_dtype: fp8
       vllm.performance_mode: balanced
       vllm.optimization_level: 2
@@ -271,7 +275,7 @@ steps:
     values:
       vllm.gpu_memory_utilization: 0.92
       vllm.max_num_seqs: 256
-      vllm.max_num_batched_tokens: 2048
+      vllm.max_num_batched_tokens: 2496
       vllm.kv_cache_dtype: auto
       vllm.performance_mode: balanced
       vllm.optimization_level: 2

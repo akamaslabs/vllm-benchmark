@@ -78,14 +78,16 @@ render && ! args | grep -q -- '--attention-backend\|--linear-backend' && ok "aut
 
 # 2a. doNotRenderParameters (the study's baseline steps): Akamas renders an empty value, and an
 # empty value means "no flag", so vLLM picks its own default, as the customer's compose does.
-DNR="KV_CACHE_DTYPE= PERFORMANCE_MODE= OPTIMIZATION_LEVEL= SCHEDULING_POLICY= ASYNC_SCHEDULING= MAX_CUDAGRAPH_CAPTURE_SIZE= BLOCK_SIZE= LINEAR_BACKEND= SPEC_METHOD= SPEC_TOKENS="
+DNR="MAX_NUM_BATCHED_TOKENS= KV_CACHE_DTYPE= PERFORMANCE_MODE= OPTIMIZATION_LEVEL= SCHEDULING_POLICY= ASYNC_SCHEDULING= MAX_CUDAGRAPH_CAPTURE_SIZE= BLOCK_SIZE= LINEAR_BACKEND= SPEC_METHOD= SPEC_TOKENS="
 # shellcheck disable=SC2086
 params $DNR
 if render; then
-  for a in --gpu-memory-utilization=0.90 --max-num-seqs=64 --max-num-batched-tokens=2048 --no-enforce-eager; do
+  for a in --gpu-memory-utilization=0.90 --max-num-seqs=64 --no-enforce-eager; do
     args | grep -qx -- "$a" && ok "not-rendered baseline: arg $a" || ko "not-rendered baseline: arg $a"
   done
-  for f in --kv-cache-dtype --performance-mode --optimization-level --scheduling-policy --async-scheduling \
+  # vLLM 0.29.0 raises an unset max_num_batched_tokens to Gemma 4's image size (2496); an
+  # explicit 2048 crashes the engine (study 32, experiment 1).
+  for f in --max-num-batched-tokens --kv-cache-dtype --performance-mode --optimization-level --scheduling-policy --async-scheduling \
            --no-async-scheduling --max-cudagraph-capture-size --block-size --linear-backend --spec-; do
     args | grep -q -- "^$f" && ko "not-rendered baseline: no $f" || ok "not-rendered baseline: no $f"
   done
@@ -117,7 +119,6 @@ expect_reject() {
 expect_reject "unsubstituted token" 'MAX_NUM_SEQS=${vllm.max_num_seqs}'
 expect_reject "empty gpu_memory_utilization (always rendered)" 'GPU_MEMORY_UTILIZATION='
 expect_reject "empty max_num_seqs (always rendered)" 'MAX_NUM_SEQS='
-expect_reject "empty max_num_batched_tokens (always rendered)" 'MAX_NUM_BATCHED_TOKENS='
 expect_reject "missing line (the template writes every line)" 'PERFORMANCE_MODE=-'
 expect_reject "boolean as yes" 'ENFORCE_EAGER=yes'
 expect_reject "gpu_memory_utilization not a fraction" 'GPU_MEMORY_UTILIZATION=92'

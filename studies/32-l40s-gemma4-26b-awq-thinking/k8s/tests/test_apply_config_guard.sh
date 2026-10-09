@@ -38,8 +38,8 @@ run_with "$GOOD"
 grep -q '^applied vllm$' "$TMP/kubectl.log" && ok "valid params: StatefulSet applied" || ko "valid params: StatefulSet applied"
 grep -q 'scale sts vllm --replicas=0' "$TMP/kubectl.log" && ok "valid params: GPU freed first" || ko "valid params: GPU freed first"
 # The baseline steps' doNotRenderParameters: empty values, applied with vLLM's defaults.
-run_with "$(printf '%s\n' "$GOOD" | sed -E 's/^(KV_CACHE_DTYPE|PERFORMANCE_MODE|OPTIMIZATION_LEVEL|SCHEDULING_POLICY|ASYNC_SCHEDULING|MAX_CUDAGRAPH_CAPTURE_SIZE|BLOCK_SIZE)=.*/\1=/')"
+run_with "$(printf '%s\n' "$GOOD" | sed -E 's/^(MAX_NUM_BATCHED_TOKENS|KV_CACHE_DTYPE|PERFORMANCE_MODE|OPTIMIZATION_LEVEL|SCHEDULING_POLICY|ASYNC_SCHEDULING|MAX_CUDAGRAPH_CAPTURE_SIZE|BLOCK_SIZE)=.*/\1=/')"
 grep -q '^BLOCK_SIZE=$' "$TMP/params.env" && ok "not-rendered values: params.env has empty values" || ko "not-rendered values: params.env has empty values"
 [ $RC = 0 ] && grep -q '^applied vllm$' "$TMP/kubectl.log" && ok "not-rendered values: applied" || ko "not-rendered values: rc=$RC"
-grep -q -- '--block-size\|--kv-cache-dtype' "$TMP/sts.yaml" && ko "not-rendered values: no flag for them" || ok "not-rendered values: no flag for them"
+grep -q -- '--block-size\|--kv-cache-dtype\|--max-num-batched-tokens' "$TMP/sts.yaml" && ko "not-rendered values: no flag for them" || ok "not-rendered values: no flag for them"
 echo "$FAILS failure(s)"; [ $FAILS = 0 ]

@@ -17,9 +17,13 @@
 # Study 32: an EMPTY value means "no flag", so vLLM picks its own default. Akamas renders a
 # parameter listed in a step's doNotRenderParameters as an empty string (not the token), and the
 # study's baseline steps list every parameter the customer's compose does not pass, so the
-# baseline starts vLLM with the compose's flags only. GPU_MEMORY_UTILIZATION, MAX_NUM_SEQS,
-# MAX_NUM_BATCHED_TOKENS and ENFORCE_EAGER are always rendered and must not be empty; the other
-# template keys must have their line (the template writes them all), empty or not.
+# baseline starts vLLM with the compose's flags only. GPU_MEMORY_UTILIZATION, MAX_NUM_SEQS and
+# ENFORCE_EAGER are always rendered and must not be empty; the other template keys must have
+# their line (the template writes them all), empty or not. MAX_NUM_BATCHED_TOKENS empty matters:
+# with the vision tower loaded, vLLM 0.29.0 raises an unset value to Gemma 4's largest image
+# (2496 tokens, arg_utils.py _get_min_mm_batched_tokens), while an explicit 2048 stops the engine
+# ("Chunked MM input disabled but max_tokens_per_mm_item (2496) is larger than
+# max_num_batched_tokens (2048)", study 32 experiment 1).
 # RENDER_ALLOW_FA_FP8=1 lifts the FLASH_ATTN + fp8 guard (the startup probe uses it to check
 # that guard on this GPU; the study never sets it).
 set -euo pipefail
@@ -33,15 +37,15 @@ if grep -q '\${' "$PARAMS"; then
   die "params.env still has unsubstituted tokens (a parameter is missing from parametersSelection): $(grep '\${' "$PARAMS" | tr '\n' ' ')"
 fi
 LINEAR_BACKEND="" ATTENTION_BACKEND="" SPEC_METHOD="" SPEC_TOKENS=""
-KV_CACHE_DTYPE="" PERFORMANCE_MODE="" OPTIMIZATION_LEVEL="" SCHEDULING_POLICY="" ASYNC_SCHEDULING=""
+MAX_NUM_BATCHED_TOKENS="" KV_CACHE_DTYPE="" PERFORMANCE_MODE="" OPTIMIZATION_LEVEL="" SCHEDULING_POLICY="" ASYNC_SCHEDULING=""
 MAX_CUDAGRAPH_CAPTURE_SIZE="" BLOCK_SIZE=""
 # shellcheck disable=SC1090
 source "$PARAMS"
-REQUIRED="GPU_MEMORY_UTILIZATION MAX_NUM_SEQS MAX_NUM_BATCHED_TOKENS ENFORCE_EAGER"
+REQUIRED="GPU_MEMORY_UTILIZATION MAX_NUM_SEQS ENFORCE_EAGER"
 for v in $REQUIRED; do
   [ -n "${!v:-}" ] || die "$v is empty in params.env (it is always rendered: never in doNotRenderParameters)"
 done
-DEFAULTABLE="KV_CACHE_DTYPE PERFORMANCE_MODE OPTIMIZATION_LEVEL SCHEDULING_POLICY ASYNC_SCHEDULING
+DEFAULTABLE="MAX_NUM_BATCHED_TOKENS KV_CACHE_DTYPE PERFORMANCE_MODE OPTIMIZATION_LEVEL SCHEDULING_POLICY ASYNC_SCHEDULING
 MAX_CUDAGRAPH_CAPTURE_SIZE BLOCK_SIZE"
 for v in $DEFAULTABLE; do
   grep -q "^$v=" "$PARAMS" || die "$v has no line in params.env (empty means vLLM's default, absent means a broken template)"
@@ -55,7 +59,7 @@ done
 [ -z "$BLOCK_SIZE" ] || { [ "$BLOCK_SIZE" -ge 16 ] && [ $((BLOCK_SIZE % 16)) = 0 ]; } \
   || die "block_size '$BLOCK_SIZE' is not a multiple of 16"
 # vLLM 0.29.0 vllm/config/scheduler.py raises ValueError when max_num_batched_tokens < max_num_seqs.
-[ "$MAX_NUM_BATCHED_TOKENS" -ge "$MAX_NUM_SEQS" ] || die "max_num_batched_tokens $MAX_NUM_BATCHED_TOKENS < max_num_seqs $MAX_NUM_SEQS"
+[ -z "$MAX_NUM_BATCHED_TOKENS" ] || [ "$MAX_NUM_BATCHED_TOKENS" -ge "$MAX_NUM_SEQS" ] || die "max_num_batched_tokens $MAX_NUM_BATCHED_TOKENS < max_num_seqs $MAX_NUM_SEQS"
 [ -z "$KV_CACHE_DTYPE" ] || [[ "$KV_CACHE_DTYPE" =~ ^(auto|fp8|fp8_e4m3|fp8_e5m2)$ ]] || die "kv_cache_dtype '$KV_CACHE_DTYPE' is not auto, fp8, fp8_e4m3 or fp8_e5m2"
 [ -z "$PERFORMANCE_MODE" ] || [[ "$PERFORMANCE_MODE" =~ ^(balanced|interactivity|throughput)$ ]] || die "performance_mode '$PERFORMANCE_MODE' is not balanced, interactivity or throughput"
 [ -z "$SCHEDULING_POLICY" ] || [[ "$SCHEDULING_POLICY" =~ ^(fcfs|priority)$ ]] || die "scheduling_policy '$SCHEDULING_POLICY' is not fcfs or priority"
@@ -84,10 +88,10 @@ flag() { [ "$2" = true ] && echo "--$1" || echo "--no-$1"; }
 ARGS=(
   "--gpu-memory-utilization=$GPU_MEMORY_UTILIZATION"
   "--max-num-seqs=$MAX_NUM_SEQS"
-  "--max-num-batched-tokens=$MAX_NUM_BATCHED_TOKENS"
   "$(flag enforce-eager "$ENFORCE_EAGER")"
 )
 # Empty = not rendered = no flag (vLLM's default).
+[ -z "$MAX_NUM_BATCHED_TOKENS" ] || ARGS+=("--max-num-batched-tokens=$MAX_NUM_BATCHED_TOKENS")
 [ -z "$KV_CACHE_DTYPE" ] || ARGS+=("--kv-cache-dtype=$KV_CACHE_DTYPE")
 [ -z "$PERFORMANCE_MODE" ] || ARGS+=("--performance-mode=$PERFORMANCE_MODE")
 [ -z "$OPTIMIZATION_LEVEL" ] || ARGS+=("--optimization-level=$OPTIMIZATION_LEVEL")

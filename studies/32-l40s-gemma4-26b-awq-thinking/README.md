@@ -44,7 +44,8 @@ kept so the results read the same way.
 | Thinking | on, server-wide | on, server-wide (their clients would send `enable_thinking` per request: same prompt) | same |
 | Served model name | `gemma4-26b-l40s-think` | `gemma4-26b-awq-think` (not in the compose; our scripts key on it) | StatefulSet, components, scripts |
 | Load | ShareGPT replay, one turn per request (prompts: mean 81 tokens, p50 43, p99 847, study 31's vLLM histogram) | **synthetic multi-turn chat with history** (input per request median ~3000 / p90 ~6000 tokens, the customer's figures) | `k8s/05-job_template.yaml`, `k8s/render_job.sh` |
-| Baseline | vLLM 0.29.0 defaults, every parameter rendered | **the compose**: `gpu_memory_utilization` 0.90, `max_num_seqs` 64; the 10 parameters it does not pass are not rendered (vLLM's defaults) | `akamas/32-L40S-Gemma4-AWQ-Thinking.yaml`, `k8s/render_statefulset.sh` |
+| Baseline | vLLM 0.29.0 defaults, every parameter rendered | **the compose**: `gpu_memory_utilization` 0.90, `max_num_seqs` 64; the 11 parameters it does not pass are not rendered (vLLM's defaults) | `akamas/32-L40S-Gemma4-AWQ-Thinking.yaml`, `k8s/render_statefulset.sh` |
+| `max_num_batched_tokens` | 512-16384 | **2496-16384**: with the vision tower loaded, one Gemma 4 image (2496 tokens) must fit a batch | manifest |
 | `linear_backend` | {auto, torch, marlin} (FP8 kernels) | {auto, triton, humming} (int4 kernels that can run here, from vLLM 0.29.0's source) | manifest, `k8s/params.env.template` |
 | Ramp | 0 -> 4 req/s over 6000 s | 0 -> 2 req/s over 6000 s, **provisional** until the smoke run | workflow, `k8s/run_test.sh` |
 | Goal and constraints | total tokens/s; TTFT p95 <= 1500 ms, ITL p95 <= 300 ms | **completed requests/s; e2e p95 <= 30 s** (the e2e p95 query takes a 150 s window, 30 s before) | manifest, `akamas/telemetry/prometheus.yaml` |
@@ -88,7 +89,8 @@ ramp past the knee, though they are no longer constraints).
 
 Study 31's 13 parameters, domains and constraints, but `linear_backend` (rationale for the
 rest: study 30's README, "Parameters tuned"): `gpu_memory_utilization` 0.80-0.94,
-`max_num_seqs` 16-512, `max_num_batched_tokens` 512-16384, `kv_cache_dtype` {auto, fp8},
+`max_num_seqs` 16-512, **`max_num_batched_tokens` 2496-16384** (vision tower loaded, see
+"Running notes"), `kv_cache_dtype` {auto, fp8},
 `performance_mode`, `optimization_level` 1-3, `scheduling_policy`, `async_scheduling`,
 `max_cudagraph_capture_size` 16-512, `block_size` 16-128 (ordinal), **`linear_backend` {auto,
 triton, humming}**, `spec_method` {none, mtp}, `spec_tokens` 0-4.
@@ -156,15 +158,15 @@ turn is served from the prefix cache twice.
 
 ## Steps
 
-- `baseline`: **the compose.** `gpu_memory_utilization` 0.90, `max_num_seqs` 64 and
-  `max_num_batched_tokens` 2048 (vLLM's default on a < 70 GB GPU) are rendered; the other 10
-  parameters are in `doNotRenderParameters`, so Akamas writes them empty and
+- `baseline`: **the compose.** `gpu_memory_utilization` 0.90 and `max_num_seqs` 64 are
+  rendered; the other 11 parameters are in `doNotRenderParameters`, so Akamas writes them empty and
   `k8s/render_statefulset.sh` passes no flag: vLLM picks its defaults, as with the compose
   (decided with the user 2026-10-09). Known cost (study 27): a step with
   `doNotRenderParameters` never reaches the optimizer engine.
 - `baseline repeat` (noise): the same values, every one written out (the user's choice): the
-  defaults vLLM resolves when the baseline leaves them out (vLLM 0.29.0's config classes:
-  capture size 128, block 16, async on, fcfs, balanced, O2), so it reaches the optimizer.
+  defaults vLLM resolves when the baseline leaves them out (vLLM 0.29.0's config classes: 2496
+  batched tokens, capture size 128, block 16, async on, fcfs, balanced, O2), so it reaches the
+  optimizer. The compose-based presets and `vllm defaults` use 2496 batched tokens too.
 - Presets: `kv fp8` (compose + fp8 KV), `kv fp8 mtp2` (compose + fp8 + MTP K=2), `vllm
   defaults` (studies 30/31's baseline: 0.92, 256 sequences; the cap removed), `kv fp8 large
   batch` (fp8, 0.94, 512 sequences, 8192 batched tokens, throughput mode), `study 30 best`
@@ -291,6 +293,19 @@ Not run yet.
   vLLM started with the compose's flags only (`--gpu-memory-utilization=0.90000
   --max-num-seqs=64 --max-num-batched-tokens=2048 --no-enforce-eager` besides the fixed ones),
   downloading the AWQ checkpoint.
+
+- 2026-10-09 20:00: **experiment 1 (baseline) FAILED, the study in ERROR.** Apply config exited
+  4 at 15:37 UTC: vLLM stopped at startup, then crash-looped (50 restarts, scaled to 0 at 20:08):
+  `ValueError: Chunked MM input disabled but max_tokens_per_mm_item (2496) is larger than
+  max_num_batched_tokens (2048)`. The compose loads the vision tower (no
+  `--language-model-only`, unlike studies 30/31), and for Gemma 4 vLLM 0.29.0 needs one image
+  (2496 tokens) to fit a batch: unset, `max_num_batched_tokens` is raised from 2048 to 2496
+  automatically (`arg_utils.py` `_get_min_mm_batched_tokens`); the baseline rendered 2048
+  explicitly. Fix: the baseline leaves `max_num_batched_tokens` unrendered too (as the compose),
+  `render_statefulset.sh` omits the flag when it is empty, the domain starts at 2496, and the
+  repeat and the presets that had 2048 use 2496. The baseline's start was then checked by hand
+  with `k8s/apply_config.sh` before the study was recreated (the domain change needs a new
+  study; the failed one held no data).
 
 ## Results
 

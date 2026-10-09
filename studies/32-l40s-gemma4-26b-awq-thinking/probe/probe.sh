@@ -25,12 +25,11 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 STUDY_DIR=$(dirname "$HERE"); export STUDY_DIR
 OUT=${KP_OUT:-$HERE/results}; mkdir -p "$OUT"
 NS=llm-l40s
-# The study's baseline: the compose's two values (and the always-rendered batch budget and
-# enforce_eager); every other line empty = no flag = vLLM's default, as doNotRenderParameters
+# The study's baseline: the compose's two values (and enforce_eager); every other line empty = no flag = vLLM's default, as doNotRenderParameters
 # renders it. A combination's overrides fill some of them in.
 BASELINE='GPU_MEMORY_UTILIZATION=0.90
 MAX_NUM_SEQS=64
-MAX_NUM_BATCHED_TOKENS=2048
+MAX_NUM_BATCHED_TOKENS=
 KV_CACHE_DTYPE=
 PERFORMANCE_MODE=
 OPTIMIZATION_LEVEL=

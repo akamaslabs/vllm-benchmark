@@ -47,7 +47,9 @@ prompts (`../k8s/05-job_template.yaml`). Inside it: the baselines, the presets a
 | `32-L40S-Gemma4-AWQ-Thinking.yaml` | study `32-L40S-Gemma4-AWQ-Thinking` |
 | `check_offline.py` | offline checks against the repo rules and the local pack checkouts |
 
-**Goal:** maximize `vllm.request_success_rate` under `vllm.e2e_request_latency_p95:max <= 30000`
+**`max_num_batched_tokens`:** domain 2496-16384 (512-16384 in study 31): the vision tower is
+loaded, and one image (2496 tokens) must fit a batch (experiment 1 of the first creation failed
+on it). **Goal:** maximize `vllm.request_success_rate` under `vllm.e2e_request_latency_p95:max <= 30000`
 (ms; its telemetry query now takes a 150 s window, as the TTFT / ITL p95s); windowing on
 `vllm.request_success_rate`. The threshold can be changed on a running study with `akamas update
 study` (goal changes keep the history). **As study 31:** `parameterConstraints`, `kpis` (English names),
@@ -57,8 +59,9 @@ image's packages (`auto` = Marlin; `torch`, `marlin`, `exllama`, `conch` out, se
 manifest).
 
 **Steps:**
-- `baseline`: the customer's compose. `gpu_memory_utilization` 0.90, `max_num_seqs` 64 and
-  `max_num_batched_tokens` 2048 (vLLM's default) are rendered; the other 10 parameters are in
+- `baseline`: the customer's compose. `gpu_memory_utilization` 0.90 and `max_num_seqs` 64 are
+  rendered; the other 11 parameters (`max_num_batched_tokens` among them: unset, vLLM raises it
+  to 2496 for Gemma 4's images, while an explicit 2048 stops the engine) are in
   `doNotRenderParameters` (decided with the user 2026-10-09), so Akamas writes them empty and
   `render_statefulset.sh` passes no flag: vLLM picks its own default, as with the compose. They
   have no value in the step: Akamas 4.1 refuses a parameter both in `values` and in

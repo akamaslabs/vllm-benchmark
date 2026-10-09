@@ -35,7 +35,7 @@ CONFIG=${SMOKE_CONFIG:-compose} LEN_LOG=${SMOKE_LEN_LOG:-$OUT/length_run.log}
 # compose = the study baseline: empty lines = not rendered = vLLM's defaults (its
 # doNotRenderParameters); large = the "kv fp8 large batch" preset, every value written.
 case $CONFIG in
-  compose) GMU=0.90 SEQS=64 MNBT=2048 KV="" MODE="" OPT="" POL="" ASYNC="" CG="" BS="" LB="" SM="" ST="" ;;
+  compose) GMU=0.90 SEQS=64 MNBT="" KV="" MODE="" OPT="" POL="" ASYNC="" CG="" BS="" LB="" SM="" ST="" ;;
   large)   GMU=0.94 SEQS=512 MNBT=8192 KV=fp8 MODE=throughput OPT=2 POL=fcfs ASYNC=true CG=512 BS=16 LB=auto SM=none ST=0 ;;
   *) echo "SMOKE_CONFIG '$CONFIG' is not compose or large" >&2; exit 2 ;;
 esac

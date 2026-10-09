@@ -1,0 +1,17 @@
+12:33:41 run_eval: baseline-a: apply_config (GPU_MEMORY_UTILIZATION=0.92 MAX_NUM_SEQS=256 MAX_NUM_BATCHED_TOKENS=2048 KV_CACHE_DTYPE=auto PERFORMANCE_MODE=balanced OPTIMIZATION_LEVEL=2 ENFORCE_EAGER=false SCHEDULING_POLICY=fcfs ASYNC_SCHEDULING=true MAX_CUDAGRAPH_CAPTURE_SIZE=512 BLOCK_SIZE=16 LINEAR_BACKEND=auto SPEC_METHOD=none SPEC_TOKENS=0 )
+12:38:40 run_eval: baseline-a: lm-eval Job started (greedy card)
+12:58:52 run_eval: baseline-a: done -> /Users/stefano/akamas/offline/vllm-benchmark/studies/30-l40s-gemma4-26b-tps/eval/results/baseline-a
+12:58:52 run_eval: best: apply_config (GPU_MEMORY_UTILIZATION=0.94 MAX_NUM_SEQS=451 MAX_NUM_BATCHED_TOKENS=16384 KV_CACHE_DTYPE=fp8 PERFORMANCE_MODE=balanced OPTIMIZATION_LEVEL=1 ENFORCE_EAGER=false SCHEDULING_POLICY=fcfs ASYNC_SCHEDULING=true MAX_CUDAGRAPH_CAPTURE_SIZE=179 BLOCK_SIZE=16 LINEAR_BACKEND=torch SPEC_METHOD=mtp SPEC_TOKENS=3 )
+13:03:52 run_eval: best: lm-eval Job started (greedy)
+13:09:01 run_eval: best: done -> /Users/stefano/akamas/offline/vllm-benchmark/studies/30-l40s-gemma4-26b-tps/eval/results/best
+13:09:01 run_eval: best-kv-auto: apply_config (GPU_MEMORY_UTILIZATION=0.94 MAX_NUM_SEQS=451 MAX_NUM_BATCHED_TOKENS=16384 KV_CACHE_DTYPE=auto PERFORMANCE_MODE=balanced OPTIMIZATION_LEVEL=1 ENFORCE_EAGER=false SCHEDULING_POLICY=fcfs ASYNC_SCHEDULING=true MAX_CUDAGRAPH_CAPTURE_SIZE=179 BLOCK_SIZE=16 LINEAR_BACKEND=torch SPEC_METHOD=mtp SPEC_TOKENS=3 )
+13:14:23 run_eval: best-kv-auto: lm-eval Job started (greedy)
+13:19:53 run_eval: best-kv-auto: done -> /Users/stefano/akamas/offline/vllm-benchmark/studies/30-l40s-gemma4-26b-tps/eval/results/best-kv-auto
+13:19:53 run_eval: best-no-mtp: apply_config (GPU_MEMORY_UTILIZATION=0.94 MAX_NUM_SEQS=451 MAX_NUM_BATCHED_TOKENS=16384 KV_CACHE_DTYPE=fp8 PERFORMANCE_MODE=balanced OPTIMIZATION_LEVEL=1 ENFORCE_EAGER=false SCHEDULING_POLICY=fcfs ASYNC_SCHEDULING=true MAX_CUDAGRAPH_CAPTURE_SIZE=179 BLOCK_SIZE=16 LINEAR_BACKEND=torch SPEC_METHOD=none SPEC_TOKENS=0 )
+13:24:32 run_eval: best-no-mtp: lm-eval Job started (greedy)
+13:33:55 run_eval: best-no-mtp: done -> /Users/stefano/akamas/offline/vllm-benchmark/studies/30-l40s-gemma4-26b-tps/eval/results/best-no-mtp
+13:33:55 run_eval: baseline-b: apply_config (GPU_MEMORY_UTILIZATION=0.92 MAX_NUM_SEQS=256 MAX_NUM_BATCHED_TOKENS=2048 KV_CACHE_DTYPE=auto PERFORMANCE_MODE=balanced OPTIMIZATION_LEVEL=2 ENFORCE_EAGER=false SCHEDULING_POLICY=fcfs ASYNC_SCHEDULING=true MAX_CUDAGRAPH_CAPTURE_SIZE=512 BLOCK_SIZE=16 LINEAR_BACKEND=auto SPEC_METHOD=none SPEC_TOKENS=0 )
+13:38:56 run_eval: baseline-b: lm-eval Job started (greedy)
+13:49:06 run_eval: baseline-b: done -> /Users/stefano/akamas/offline/vllm-benchmark/studies/30-l40s-gemma4-26b-tps/eval/results/baseline-b
+13:49:07 run_eval: vLLM scaled to 0
+exit=0

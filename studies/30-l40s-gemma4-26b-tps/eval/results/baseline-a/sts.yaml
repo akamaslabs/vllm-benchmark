@@ -1,0 +1,131 @@
+# vLLM serving for 30-l40s-gemma4-26b-tps. Rendered by render_statefulset.sh (called by
+# apply_config.sh), NOT by the Akamas FileConfigurator. Not valid YAML until rendered: the
+# line holding the TUNED_ARGS token (between two at-signs) is replaced by one "- --flag"
+# item per tuned parameter.
+#
+# One replica, one whole NVIDIA L40S (node group llm-serving-l40s-1xl, g6e.xlarge). A
+# StatefulSet rather than a Deployment for the stable pod name vllm-0: the Akamas components,
+# the watchdog and the warm-up all address it by name (study 28's layout, minus the MIG
+# neighbour).
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vllm
+  namespace: llm-l40s
+spec:
+  serviceName: vllm-headless
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app: vllm
+  template:
+    metadata:
+      labels:
+        app: vllm
+    spec:
+      # Kubernetes would otherwise inject VLLM_PORT=tcp://... from the Service, which
+      # collides with vLLM's own VLLM_PORT variable and crashes it at startup.
+      enableServiceLinks: false
+      nodeSelector:
+        node-role: llm-serving-l40s-1xl
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:v0.29.0
+          args:
+            # google/gemma-4-26B-A4B-it in bf16 is 48.07 GiB of safetensors: it does not fit
+            # the L40S's 48 GB. RedHat's FP8-dynamic checkpoint (26.67 GiB, ungated, apache-2.0)
+            # quantizes the transformer blocks' linear layers to FP8 (per-channel weights,
+            # per-token dynamic activations; vision tower, embeddings, lm_head and MoE router
+            # kept in bf16). FP8 tensor cores exist on Ada (SM 8.9).
+            - "--model=RedHatAI/gemma-4-26B-A4B-it-FP8-dynamic"
+            # A name no other study's telemetry filters on.
+            - "--served-model-name=gemma4-26b-l40s"
+            - "--port=8000"
+            - "--host=0.0.0.0"
+            # Text-only traffic: all multimodal limits to 0, so the vision tower is not
+            # profiled and its memory goes to the KV cache.
+            - "--language-model-only"
+            # Repo convention since study 1 (ShareGPT replay, no shared prefixes worth caching).
+            - "--no-enable-prefix-caching"
+            # ShareGPT replay, as studies 26/28; also bounds the KV a single request can hold.
+            - "--max-model-len=4096"
+            # Gemma 4's chat template defaults enable_thinking to false; pinned anyway so a
+            # template change cannot turn every ShareGPT reply into a reasoning trace.
+            - "--default-chat-template-kwargs"
+            - '{"enable_thinking": false}'
+            # --- Tuned (parametersSelection), one item per parameter ---
+            - "--gpu-memory-utilization=0.92"
+            - "--max-num-seqs=256"
+            - "--max-num-batched-tokens=2048"
+            - "--kv-cache-dtype=auto"
+            - "--performance-mode=balanced"
+            - "--optimization-level=2"
+            - "--no-enforce-eager"
+            - "--scheduling-policy=fcfs"
+            - "--async-scheduling"
+            - "--max-cudagraph-capture-size=512"
+            - "--block-size=16"
+          env:
+            - name: HF_HOME
+              value: /hf-cache
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+                  optional: true
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          # Not tuned in this study. Sized for g6e.xlarge (the only L40S size with capacity on
+          # 2026-10-06): the node allocates 3920m CPU and 29.9 GiB (measured), the DaemonSets
+          # on it request ~280m and ~230 MiB (aws-node, kube-proxy, ebs-csi, dcgm-exporter).
+          # CPU: a request only, no limit, so the CFS quota never throttles vLLM's
+          # busy-looping engine core or the API server; nothing else runs here. Memory:
+          # request == limit; the model files (~27 GB) go through the page cache, which the
+          # kernel reclaims under the limit (vLLM's own RSS ~5 GiB, study 28).
+          resources:
+            requests:
+              nvidia.com/gpu: "1"
+              cpu: 3500m
+              memory: 28Gi
+            limits:
+              nvidia.com/gpu: "1"
+              memory: 28Gi
+          volumeMounts:
+            - name: hf-cache
+              mountPath: /hf-cache
+            - name: shm
+              mountPath: /dev/shm
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 180   # 30 min: cold image pull (~10 GB) + 27 GiB download + compile
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        # hostPath, not a PVC (study 26/28's choice): the node group spans three AZs and an
+        # EBS volume would pin it to one. A node scaled up from 0 starts empty: the first
+        # start downloads the model (~27 GiB), every later start reads it from the node.
+        - name: hf-cache
+          hostPath:
+            path: /var/lib/hf-cache-study30
+            type: DirectoryOrCreate
+        # Memory-backed, counts against the memory limit; TP 1 uses little shared memory.
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi

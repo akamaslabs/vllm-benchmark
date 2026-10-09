@@ -1,0 +1,110 @@
+# lm-eval Job for study 30's accuracy check (eval/README.md). Rendered by
+# render_eval_job.sh (tokens RUN, PROTOCOLS, LIMIT between at-signs).
+#
+# lm-evaluation-harness 0.4.13, local-chat-completions against the deployed vllm-0 (every
+# tuned flag in effect): GSM8K Platinum and IFEval, 0-shot, chat template, under each
+# protocol (greedy: the comparisons; card: RedHat's sampling, the anchor). Around each task
+# it snapshots vLLM's request_success_total by finished_reason ("length" = truncated).
+# Writes /benchmarks/eval/<run>/, touches DONE, then sleeps so run_eval.sh can copy it.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: lmeval-l40s
+  namespace: llm-l40s
+  labels:
+    app: lmeval-l40s
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 7200
+  template:
+    metadata:
+      labels:
+        app: lmeval-l40s
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node-role: system-m8a
+      initContainers:
+        - name: wait-for-vllm
+          image: alpine:3
+          command:
+            - sh
+            - -c
+            - |
+              until wget -qO- http://vllm-0.vllm-headless.llm-l40s.svc.cluster.local:8000/health >/dev/null 2>&1; do
+                echo "$(date -u +%T) waiting for vllm-0..."
+                sleep 10
+              done
+              echo "vllm-0 is ready."
+      containers:
+        - name: lmeval
+          image: python:3.12-slim
+          command: ["bash", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              RUN=baseline-b
+              PROTOCOLS="greedy"
+              LIMIT=""
+              URL=http://vllm-0.vllm-headless.llm-l40s.svc.cluster.local:8000
+              OUT=/benchmarks/eval/$RUN
+              rm -rf "$OUT"; mkdir -p "$OUT"
+              pip install --quiet --root-user-action=ignore "lm_eval[api,ifeval]==0.4.13"
+              cat > /tmp/finished.py <<'EOF'
+              import json, re, sys, urllib.request
+              text = urllib.request.urlopen(sys.argv[1] + "/metrics").read().decode()
+              counts = {}
+              for m in re.finditer(r'^vllm:request_success_total\{[^}]*finished_reason="(\w+)"[^}]*\} (\S+)$', text, re.M):
+                  counts[m.group(1)] = counts.get(m.group(1), 0) + float(m.group(2))
+              print(json.dumps(counts))
+              EOF
+              MODEL_ARGS="model=gemma4-26b-l40s,base_url=$URL/v1/chat/completions,num_concurrent=32,max_retries=3,tokenized_requests=False,tokenizer_backend=None,timeout=1200,max_length=4096"
+              LIMIT_ARGS=()
+              [ -z "$LIMIT" ] || LIMIT_ARGS=(--limit "$LIMIT")
+              for P in $PROTOCOLS; do
+                case $P in
+                  greedy) GEN="do_sample=false,temperature=0,max_gen_toks=2048" ;;
+                  card) GEN="do_sample=true,temperature=1.0,top_p=0.95,top_k=64,max_gen_toks=2048,seed=1234" ;;
+                  *) echo "unknown protocol $P" >&2; exit 2 ;;
+                esac
+                for TASK in gsm8k_platinum_cot_llama ifeval; do
+                  D=$OUT/$P/$TASK; mkdir -p "$D"
+                  echo "$(date -u +%T) $RUN: $P $TASK"
+                  python3 /tmp/finished.py "$URL" > "$D/finished_before.json"
+                  lm_eval run --model local-chat-completions --model_args "$MODEL_ARGS" \
+                    --tasks "$TASK" --num_fewshot 0 --apply_chat_template \
+                    --gen_kwargs "$GEN" --seed 1234 --log_samples --output_path "$D" \
+                    "${LIMIT_ARGS[@]}" 2>&1 | tee "$D/lm_eval.log"
+                  python3 /tmp/finished.py "$URL" > "$D/finished_after.json"
+                done
+              done
+              touch "$OUT/DONE"
+              echo "$(date -u +%T) $RUN: DONE, waiting for the copy"
+              sleep 1800
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+                  optional: true
+            - name: HF_HOME
+              value: /hf-cache
+            - name: NLTK_DATA
+              value: /hf-cache/nltk
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 2Gi
+          volumeMounts:
+            - name: results
+              mountPath: /benchmarks
+            - name: hf-cache
+              mountPath: /hf-cache
+      volumes:
+        - name: results
+          persistentVolumeClaim:
+            claimName: aiperf-results
+        - name: hf-cache
+          persistentVolumeClaim:
+            claimName: hf-cache

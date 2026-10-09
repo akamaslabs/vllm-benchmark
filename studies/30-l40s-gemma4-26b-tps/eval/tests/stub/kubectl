@@ -1,0 +1,23 @@
+#!/bin/bash
+# Stub kubectl for test_run_eval.sh: logs every call to $STUB_LOG and answers run_eval.sh's
+# calls. STUB_AIPERF=1: an aiperf-l40s Job exists; STUB_GET_FAILS=1: `get job` fails (logged
+# out); STUB_FAILED: the lmeval Job's .status.failed; STUB_NOT_DONE=1: no DONE marker ever.
+echo "kubectl $*" >> "$STUB_LOG"
+args="$*"
+case "$args" in
+  *"get job -l app=aiperf-l40s"*)
+    [ "${STUB_GET_FAILS:-0}" = 1 ] && exit 1
+    [ "${STUB_AIPERF:-0}" = 1 ] && echo "job.batch/aiperf-l40s" ;;
+  *"get job lmeval-l40s"*failed*) echo "${STUB_FAILED:-}" ;;
+  *"get pods -l app=lmeval-l40s"*) echo "lmeval-l40s-x1" ;;
+  *" exec "*"test -f"*) [ "${STUB_NOT_DONE:-0}" = 1 ] && exit 1 ;;
+  *"apply -f "*)
+    f=${args##*-f }
+    echo "applied-job $(grep -m1 'RUN=' "$f" | sed 's/.*RUN=//') $(grep -m1 'PROTOCOLS=' "$f" | sed 's/.*PROTOCOLS=//') $(grep -m1 'LIMIT=' "$f" | sed 's/.*LIMIT=//')" >> "$STUB_LOG" ;;
+  *" cp "*)
+    dst=${args##* }; mkdir -p "$dst/greedy/ifeval/gemma4-26b-l40s"
+    echo '{}' > "$dst/greedy/ifeval/gemma4-26b-l40s/samples_ifeval_x.jsonl" ;;
+  *" logs "*) echo "lm-eval log" ;;
+  *) : ;;
+esac
+exit 0

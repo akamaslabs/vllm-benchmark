@@ -393,6 +393,14 @@ Hypotheses, not measurements (the MTP line updated after the probe, 2026-10-06):
   4. follow-up: run the watchdog inside the AIPerf Job pod, so a toolbox restart cannot leave
      the ramp running past saturation.
 
+- **Accuracy check (2026-10-08, after the study was stopped at 31 experiments):** best =
+  exp 28 (8418.1 tok/s; fp8 KV, MTP K=3, `linear_backend=torch`). lm-eval 0.4.13 against the
+  deployed vLLM, GSM8K Platinum + IFEval, greedy, paired by item, with a repeated baseline
+  and fp8-KV / MTP ablations: **no degradation** (GSM8K 95.86 vs 95.20, IFEval prompt-strict
+  89.65 vs 88.72, within the baseline's own restart noise). Baseline under the card's sampling
+  reproduces RedHat's FP8 column (95.37 / 89.28 vs 95.37 / 89.34). Details:
+  `eval/README.md`.
+
 ## Results
 
 <Filled in by the study-recap skill once the study finishes.>

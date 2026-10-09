@@ -134,16 +134,19 @@ parameterConstraints:
   - name: speculative decoding on requires a real spec_tokens
     formula: vllm.spec_method == "none" || vllm.spec_tokens > 0
 
-# At most 8 (an Akamas 3.7 limit; study 30's 8 were accepted on 4.1).
+# At most 8 (an Akamas 3.7 limit; study 30's 8 were accepted on 4.1). English names since
+# 2026-10-09 (local only): the study running on Akamas 4.1 was created with the Italian ones
+# (Throughput totale, Accettazione MTP, Richieste completate, KV cache in uso, Richieste in
+# esecuzione) and keeps them.
 kpis:
-  - name: Throughput totale
+  - name: Total throughput
     formula: vllm.total_token_throughput
     direction: maximize
   # 0 with spec_method none (the telemetry query falls back to 0).
-  - name: Accettazione MTP
+  - name: MTP acceptance
     formula: vllm.spec_decode_acceptance_rate
     direction: maximize
-  - name: Richieste completate
+  - name: Completed requests
     formula: vllm.request_success_rate
     direction: maximize
   - name: TTFT P95 150s
@@ -154,7 +157,7 @@ kpis:
     formula: vllm.inter_token_latency_p95
     direction: minimize
     aggregation: max
-  - name: KV cache in uso
+  - name: KV cache usage
     formula: vllm.kv_cache_usage_avg
     direction: minimize
   - name: Preemption
@@ -162,7 +165,7 @@ kpis:
     direction: minimize
   # Concurrency reached: the requests in flight at the scored window (Little's law: rate x
   # time in the system), the "concurrent users" the configuration holds within the SLA.
-  - name: Richieste in esecuzione
+  - name: Running requests
     formula: vllm.num_requests_running
     direction: maximize
     aggregation: max

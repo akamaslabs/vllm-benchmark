@@ -124,9 +124,11 @@ throughput mode), `kv fp8 mtp2` (fp8 + MTP K=2), then one step study 30 does not
 K=3, gmu 0.94, 451 seqs, 16384 batched tokens, optimization level 1, cudagraph capture 179,
 `linear_backend` torch; added 2026-10-08 after study 30 stopped, decided with the user: how
 much the best configuration without thinking is worth once the model reasons), and
-`optimize` (AKAMAS, 0 init, 60 experiments, `maxFailedExperiments` 20). **KPIs (8, Italian names as the repo convention):** Throughput
-totale, Accettazione MTP, Richieste completate, TTFT P95 150s, ITL P95 150s, KV cache in uso,
-Preemption, Richieste in esecuzione. Generated tokens per request (the length of the
+`optimize` (AKAMAS, 0 init, 60 experiments, `maxFailedExperiments` 20). **KPIs (8):** Total
+throughput, MTP acceptance, Completed requests, TTFT P95 150s, ITL P95 150s, KV cache usage,
+Preemption, Running requests (English names in the repo since 2026-10-09; the study running
+on Akamas was created with the Italian ones: Throughput totale, Accettazione MTP, Richieste
+completate, KV cache in uso, Richieste in esecuzione). Generated tokens per request (the length of the
 workload at the window) is not a KPI (8 is the limit): it is `decode_token_throughput /
 request_success_rate` from the telemetry, to compute at recap time.
 
@@ -161,7 +163,7 @@ Hypotheses, not measurements:
   tokens per request at the scored window (above) shows whether a configuration's load moved.
 - **The score counts reasoning tokens:** tokens/s at the knee measures GPU capacity, as in
   study 30; a configuration that made the model reason longer would serve fewer req/s at the
-  same tokens/s. Read "Richieste completate" next to the score.
+  same tokens/s. Read "Completed requests" next to the score.
 - **Host CPU (4 vCPU):** the reasoning parser runs per token in the API server. Study 30's
   smoke had vLLM's container at <= 0.54 cores at ~3900 tokens/s; the smoke run checks it again
   (`cpu_vllm` in `smoke_analyze.py`).
@@ -192,7 +194,7 @@ Hypotheses, not measurements:
 4. **Decide, with the user:** `--max-model-len` from the length run (it lives in three places:
    `k8s/01-statefulset_template.yaml`, the `15300` threshold of the `LENGTHS` check in
    `k8s/05-job_template.yaml` (max_model_len - 1024 prompt tokens - template), and `k8s/tests/test_render_statefulset.sh`); K from the ramp
-   (low bound: "Richieste completate" of the scored window; high bound: the rate at the
+   (low bound: "Completed requests" of the scored window; high bound: the rate at the
    `watchdog: over` line, `R_smoke x (t_over - t_start) / 1800`; K = midpoint), then R = 4 K
    and D = 6000 s.
    Edit `k8s/run_test.sh` (default), `akamas/31-L40S-Gemma4-TPS-Thinking-Workflow.yaml`

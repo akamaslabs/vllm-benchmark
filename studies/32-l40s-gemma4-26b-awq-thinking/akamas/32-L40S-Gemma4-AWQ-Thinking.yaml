@@ -192,20 +192,11 @@ steps:
       vllm.gpu_memory_utilization: 0.90
       vllm.max_num_seqs: 64
       vllm.max_num_batched_tokens: 2048
-      vllm.kv_cache_dtype: auto
-      vllm.performance_mode: balanced
-      vllm.optimization_level: 2
-      vllm.scheduling_policy: fcfs
-      vllm.async_scheduling: "true"
-      vllm.max_cudagraph_capture_size: 128
-      vllm.block_size: "16"
-      vllm.linear_backend: auto
-      vllm.spec_method: none
-      vllm.spec_tokens: 0
     # The compose passes none of these: not rendered = no flag = vLLM's own default (an empty
-    # line in params.env, render_statefulset.sh). The values only record that default for
-    # Akamas (vLLM 0.29.0's config classes; max_cudagraph_capture_size = min(2 x 64, 512) =
-    # 128); the probe's B-compose start prints the resolved capture size.
+    # line in params.env, render_statefulset.sh). Akamas 4.1 refuses a parameter both in
+    # values and here (create, 2026-10-09), so they have no value: vLLM 0.29.0's config classes
+    # give auto, balanced, O2, fcfs, async on, capture size min(2 x 64, 512) = 128, block 16,
+    # auto, no speculative decoding, the values baseline repeat writes out.
     doNotRenderParameters:
       - vllm.kv_cache_dtype
       - vllm.performance_mode

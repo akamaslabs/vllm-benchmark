@@ -60,9 +60,10 @@ manifest).
 - `baseline`: the customer's compose. `gpu_memory_utilization` 0.90, `max_num_seqs` 64 and
   `max_num_batched_tokens` 2048 (vLLM's default) are rendered; the other 10 parameters are in
   `doNotRenderParameters` (decided with the user 2026-10-09), so Akamas writes them empty and
-  `render_statefulset.sh` passes no flag: vLLM picks its own default, as with the compose. Its
-  `values` only record those defaults (`max_cudagraph_capture_size` 128 = vLLM's min(2 x 64,
-  512)). Cost (study 27): this step never reaches the optimizer engine.
+  `render_statefulset.sh` passes no flag: vLLM picks its own default, as with the compose. They
+  have no value in the step: Akamas 4.1 refuses a parameter both in `values` and in
+  `doNotRenderParameters` (first create, 2026-10-09). Cost (study 27): this step never reaches
+  the optimizer engine.
 - `baseline repeat`: the same values, every one rendered (the user's choice), so it reaches
   the optimizer.
 - Presets, every parameter rendered: `kv fp8` (compose + fp8 KV), `kv fp8 mtp2` (+ MTP K=2),

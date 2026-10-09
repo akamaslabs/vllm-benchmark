@@ -1,11 +1,11 @@
 # 32-l40s-gemma4-26b-awq-thinking
 
-**Status:** to be created and started on Akamas 4.1 on 2026-10-09, **without the probe and the
-smoke run** (decided by the user, once study 31 was stopped): `linear_backend`'s domain comes
+**Status:** RUNNING on Akamas 4.1 (`32-L40S-Gemma4-AWQ-Thinking`, started 2026-10-09 15:35 UTC),
+**without the probe and the smoke run** (decided by the user, once study 31 was stopped): `linear_backend`'s domain comes
 from vLLM's source, the ramp (0 -> 2 req/s over 6000 s) and the load profile are the
 pre-smoke estimates, and the baseline's not-rendered defaults come from vLLM's config classes.
 The first experiments check them ("Runbook" steps 3-5 become checks on experiments 1-2).
-**Dates:** scaffolded 2026-10-09.
+**Dates:** scaffolded, created and started on Akamas 4.1 2026-10-09.
 
 ## Objective
 
@@ -282,6 +282,15 @@ Not run yet.
   pass, `python3 akamas/check_offline.py` 0 failures, `bash k8s/tests/dry_run_multiturn.sh`
   passes (AIPerf 0.11.0 against the mock: no `max_tokens`, one shared system prompt, history
   with reasoning, input lengths reported, the ramp followed).
+
+- 2026-10-09: created on Akamas 4.1 from the toolbox (commit 1fb98da). The first create was
+  refused: a parameter cannot be both in a step's `values` and in its `doNotRenderParameters`
+  (the baseline now has only its three rendered values; `check_offline.py` checks it). The server
+  lists the 9 steps; started 15:35:39 UTC, experiment 1 (baseline) RUNNING. First trial checked:
+  `params.env` has the 10 not-rendered keys empty (Akamas 4.1 renders them empty, as 3.7), and
+  vLLM started with the compose's flags only (`--gpu-memory-utilization=0.90000
+  --max-num-seqs=64 --max-num-batched-tokens=2048 --no-enforce-eager` besides the fixed ones),
+  downloading the AWQ checkpoint.
 
 ## Results
 

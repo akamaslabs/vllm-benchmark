@@ -3,8 +3,8 @@
 **Created:** 2026-10-09, with the `akamas-study-manager` plugin (0.3.0, modify mode), from
 study 31's resources (`../../31-l40s-gemma4-26b-tps-thinking/akamas/`) as they were accepted by
 the Akamas 4.1 server on 2026-10-08. **Target: Akamas Studio 4.1** (`akamas41.lab.akamas.io`,
-namespace `akamas-41`). **Not created on the server yet:** the probe and the smoke run come
-first (`../README.md`, "Runbook"), and nothing is created before the user's go-ahead.
+namespace `akamas-41`). Created and started on the server 2026-10-09 (15:35 UTC), without the
+probe and the smoke run (the user's decision).
 
 ## What it optimizes
 
@@ -92,7 +92,9 @@ in a signed percentage), and three for the not-rendered baseline: a step's
 them; every entry is a selected parameter and no step combines it with `from`; `baseline repeat`
 has the baseline's values and leaves out no more than the baseline does. Mutation-tested:
 `baseline repeat` with another value, `gpu_memory_utilization` left unrendered, an unsigned
-relative percentage and a relative constraint without a `baseline` step are all reported. **Server:** not created yet.
+relative percentage and a relative constraint without a `baseline` step are all reported. **Server:** every resource created on Akamas 4.1 on 2026-10-09 with the commands below; the
+first study create was refused (a parameter in both `values` and `doNotRenderParameters`), fixed
+in commit 1fb98da; `akamas describe study` lists the 9 steps.
 
 ## Setup & run
 

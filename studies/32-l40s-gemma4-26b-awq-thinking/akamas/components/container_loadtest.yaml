@@ -1,0 +1,11 @@
+kind: component
+system: vLLM_Benchmark_32_L40S_Gemma4_AWQ_Thinking
+
+name: container_loadtest
+description: >-
+  The AIPerf Job's container (aiperf-l40s, namespace llm-l40s, on the system-m8a node), so a
+  starved client shows up as such instead of as a slower server.
+componentType: Kubernetes Container
+properties:
+  prometheus:
+    pod: ^aiperf-l40s-.*

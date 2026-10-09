@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_32_L40S_Gemma4_AWQ_Thinking
+
+name: container
+description: >-
+  The vLLM container of pod vllm-0 (cAdvisor / kube-state-metrics): CPU and memory actually
+  used against the fixed 3500m CPU request (no CPU limit) and 28 GiB on the g6e.xlarge, where
+  the host CPU could bind. Not tuned in this study.
+componentType: Kubernetes Container
+properties:
+  prometheus:
+    pod: ^vllm-0$

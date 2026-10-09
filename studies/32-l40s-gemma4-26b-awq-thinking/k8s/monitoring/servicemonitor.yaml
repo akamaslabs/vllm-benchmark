@@ -1,0 +1,24 @@
+# Study 30's ServiceMonitor (the same object: same namespace and Service, studies 31 and 32 run after it).
+# Scrapes this study's vLLM pod (namespace llm-l40s) through the `vllm` Service. Additive:
+# a new ServiceMonitor next to the other studies' ones, not a change to them. This study's
+# telemetry filters on its own served model_name (gemma4-26b-awq-think), which no other study
+# serves.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vllm-l40s
+  namespace: monitoring
+  labels:
+    app: vllm
+spec:
+  namespaceSelector:
+    matchNames:
+      - llm-l40s
+  selector:
+    matchLabels:
+      app: vllm
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 5s
+      scrapeTimeout: 4s

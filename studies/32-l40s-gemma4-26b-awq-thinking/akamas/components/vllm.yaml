@@ -1,0 +1,13 @@
+kind: component
+system: vLLM_Benchmark_32_L40S_Gemma4_AWQ_Thinking
+
+name: vllm
+description: >-
+  The vLLM server (StatefulSet vllm, pod vllm-0, namespace llm-l40s),
+  cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit rev 0ef577a served as gemma4-26b-awq-think. Carries every tuned
+  vLLM parameter and the goal, constraint and windowing metrics.
+componentType: vLLM
+properties:
+  prometheus:
+    pod: ^vllm-0$
+    model: gemma4-26b-awq-think

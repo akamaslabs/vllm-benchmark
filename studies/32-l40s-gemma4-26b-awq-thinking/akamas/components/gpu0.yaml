@@ -1,0 +1,13 @@
+kind: component
+system: vLLM_Benchmark_32_L40S_Gemma4_AWQ_Thinking
+
+name: gpu0
+description: >-
+  The single physical NVIDIA L40S (48 GB, Ada SM 8.9) of the g6e.xlarge. Queries filter on
+  the GPU model and gpu index, never on pod (the shared dcgm-exporter also scrapes other GPU
+  node groups when they are up).
+componentType: GPU
+properties:
+  prometheus:
+    gpu: "0"
+    gpumodel: .*L40S.*

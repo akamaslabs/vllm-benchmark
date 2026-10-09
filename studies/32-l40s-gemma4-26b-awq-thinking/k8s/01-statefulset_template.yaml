@@ -1,0 +1,161 @@
+# vLLM serving for 32-l40s-gemma4-26b-awq-thinking. Rendered by render_statefulset.sh (called by
+# apply_config.sh), NOT by the Akamas FileConfigurator. Not valid YAML until rendered: the
+# line holding the TUNED_ARGS token (between two at-signs) is replaced by one "- --flag"
+# item per tuned parameter.
+#
+# A customer's Docker Compose setup (vLLM 0.25.1 there, 0.29.0 here: they move to it) on study
+# 31's StatefulSet: their checkpoint and revision, --max-model-len 96000, tool calling and the
+# gemma4 reasoning parser, the vision tower loaded and prefix caching at vLLM's default (their
+# compose passes neither --language-model-only nor a prefix-caching flag), and their two
+# environment variables. Two deviations, neither touching performance: thinking is on
+# server-wide (their clients would send enable_thinking per request; same prompt), and a
+# served model name our scripts and AIPerf's cache key on.
+#
+# One replica, one whole NVIDIA L40S (node group llm-serving-l40s-1xl, g6e.xlarge). A
+# StatefulSet rather than a Deployment for the stable pod name vllm-0: the Akamas components,
+# the watchdog and the warm-up all address it by name (study 28's layout, minus the MIG
+# neighbour). Same namespace, node group and pod name as studies 30/31, which run before it.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vllm
+  namespace: llm-l40s
+spec:
+  serviceName: vllm-headless
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app: vllm
+  template:
+    metadata:
+      labels:
+        app: vllm
+    spec:
+      # Kubernetes would otherwise inject VLLM_PORT=tcp://... from the Service, which
+      # collides with vLLM's own VLLM_PORT variable and crashes it at startup.
+      enableServiceLinks: false
+      nodeSelector:
+        node-role: llm-serving-l40s-1xl
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:v0.29.0
+          args:
+            # The customer's checkpoint at their revision, verbatim from their compose (0ef577a =
+            # commit 0ef577a5710035bd2d3a3f27e4f5cb2e86a9a9ba, 2026-07-21): a community AWQ
+            # quantization of google/gemma-4-26B-A4B-it in compressed-tensors format
+            # (pack-quantized), W4A16 = int4 weights in groups of 32,
+            # symmetric, bf16 activations; 16.04 GiB, ungated, apache-2.0. Left in bf16: the
+            # dense MLP and the MoE router of every layer, the vision tower, lm_head. No KV cache
+            # scales (kv_cache_scheme null), as RedHat's FP8 checkpoint of studies 30/31. On SM
+            # 8.9 the int4 linear layers run on mixed-precision kernels (Marlin by default), not
+            # on the FP8 tensor cores.
+            - "--model=cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit"
+            - "--revision=0ef577a"
+            # Not in their compose (their API serves the checkpoint id). A name no other study's
+            # telemetry filters on (studies 30/31 serve other names on the same pod name vllm-0),
+            # without the "/" of the checkpoint id, which would break the Job's cache paths.
+            - "--served-model-name=gemma4-26b-awq-think"
+            - "--port=8000"
+            - "--host=0.0.0.0"
+            # No --language-model-only and no prefix-caching flag, as their compose: the vision
+            # tower is loaded and profiled (its memory does not go to the KV cache), and prefix
+            # caching stays at vLLM's default (on when the model supports it; the engine's
+            # config line in the startup log says which). Unlike studies 30/31 the load reuses
+            # prefixes: a system prompt shared by every conversation and each conversation's
+            # history (05-job_template.yaml).
+            # Their value. The requests carry no max_tokens (thinking runs to its end), so vLLM
+            # caps each one at max_model_len - prompt; V1 allocates KV pages on demand, so the
+            # cap reserves no memory, it only lets a runaway trace hold its slot longer (the
+            # LENGTHS check of the Job counts requests near it).
+            - "--max-model-len=96000"
+            # Their tool calling (vLLM 0.29.0 tool_parsers: "gemma4" -> Gemma4EngineToolParser).
+            # The load sends no tools, so it only parses each reply for a tool call.
+            - "--enable-auto-tool-choice"
+            - "--tool-call-parser=gemma4"
+            # Gemma 4's chat template defaults enable_thinking to false (chat_template.jinja:
+            # `enable_thinking | default(false)`), so it must be set: true puts <|think|> at the
+            # top of a system turn and opens the model's thought channel. Server-wide, so the
+            # AIPerf payloads stay as AIPerf writes them (their clients would send it per request).
+            - "--default-chat-template-kwargs"
+            - '{"enable_thinking": true}'
+            # vLLM 0.29.0's Gemma 4 parser (vllm/reasoning: "gemma4" -> Gemma4ParserReasoningAdapter):
+            # the trace goes to the `reasoning` field of each delta, the answer to `content`, as
+            # a customer deployment would serve it. AIPerf 0.11.0 reads reasoning_content or
+            # reasoning, so it counts reasoning tokens apart and measures the time to the first
+            # answer token (time_to_first_output_token). vLLM's own TTFT histogram, which the SLA
+            # and the watchdog read, still times the first generated token: a reasoning token.
+            - "--reasoning-parser=gemma4"
+            # --- Tuned (parametersSelection), one item per parameter ---
+            @TUNED_ARGS@
+          env:
+            # Their compose's two variables. The allocator one changes how PyTorch grows its
+            # memory pool; the Ray one is inert at tensor parallel 1.
+            - name: PYTORCH_CUDA_ALLOC_CONF
+              value: expandable_segments:True
+            - name: RAY_DISABLE_NODE_DISCOVERY
+              value: "1"
+            - name: HF_HOME
+              value: /hf-cache
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+                  optional: true
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          # Not tuned in this study. Sized for g6e.xlarge (the only L40S size with capacity on
+          # 2026-10-06): the node allocates 3920m CPU and 29.9 GiB (measured), the DaemonSets
+          # on it request ~280m and ~230 MiB (aws-node, kube-proxy, ebs-csi, dcgm-exporter).
+          # CPU: a request only, no limit, so the CFS quota never throttles vLLM's
+          # busy-looping engine core or the API server; nothing else runs here. Memory:
+          # request == limit; the model files (~16 GB) go through the page cache, which the
+          # kernel reclaims under the limit (vLLM's own RSS ~5 GiB, study 28).
+          resources:
+            requests:
+              nvidia.com/gpu: "1"
+              cpu: 3500m
+              memory: 28Gi
+            limits:
+              nvidia.com/gpu: "1"
+              memory: 28Gi
+          volumeMounts:
+            - name: hf-cache
+              mountPath: /hf-cache
+            - name: shm
+              mountPath: /dev/shm
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 180   # 30 min: cold image pull (~10 GB) + 16 GiB download + compile
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        # hostPath, not a PVC (study 26/28's choice): the node group spans three AZs and an
+        # EBS volume would pin it to one. A node scaled up from 0 starts empty: the first
+        # start downloads the model (~16 GiB), every later start reads it from the node.
+        # Study 30's path on purpose: same node group and drafter files, so a node still up
+        # from studies 30/31 skips the drafter download (the AWQ checkpoint is new there).
+        - name: hf-cache
+          hostPath:
+            path: /var/lib/hf-cache-study30
+            type: DirectoryOrCreate
+        # Memory-backed, counts against the memory limit; TP 1 uses little shared memory.
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi

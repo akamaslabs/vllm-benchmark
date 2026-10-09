@@ -1,0 +1,168 @@
+# AIPerf Job for 32-l40s-gemma4-26b-awq-thinking. Rendered by render_job.sh (tokens LOAD_ARGS
+# and ENTRIES between at-signs).
+#
+# Synthetic MULTI-TURN chat shaped on a customer's figures (input per request: median ~3000
+# tokens, p90 ~6000, conversation history included), OPEN LOOP with study 27's generator: a
+# linear rate ramp 0 -> R over D s (--request-rate R --request-rate-ramp-duration D), gamma
+# arrivals (smoothness 4), fixed seed. AIPERF_TIMING_RATE_RAMP_UPDATE_INTERVAL=10: without it
+# AIPerf 0.11.0 draws the first wait at ~0 req/s and the ramp sends nothing for minutes (study
+# 27, smoke run 1).
+#
+# Studies 30/31 replayed ShareGPT through inputs_json, which sends each turn on its own: their
+# prompts averaged 81 tokens (study 31's vLLM histogram, 2026-10-09). Here AIPerf's synthetic
+# mode keeps each conversation's history (its default context mode deltas_without_responses):
+# turn k carries the shared system prompt, the previous user messages and the model's previous
+# replies, plus a new user message. A reply in the history is its reasoning AND its answer:
+# AIPerf 0.11.0's build_assistant_turn (endpoints/base_endpoint.py) takes each streamed chunk's
+# content, or its reasoning when the chunk has no content, so the reasoning chunks are kept
+# (k8s/tests/dry_run_multiturn.sh shows it). A Gemma chat client would drop the reasoning; the
+# profile is calibrated on the token counts that result. Profile (PROMPT and TURNS below):
+#   - a system prompt of 1000 tokens shared by every conversation (instructions, tool
+#     definitions): a prefix every request repeats;
+#   - a new user message of 300 +- 150 tokens per turn;
+#   - 3 +- 1 turns per conversation, 15 +- 5 s of think time between a reply and the next turn.
+# With study 31's reply lengths (reasoning + answer, mean 1501 tokens) the input per request
+# comes out at median ~3150 and p90 ~6340 tokens, mean ~3440 (simulated, study README "Load");
+# the LENGTHS lines below print the measured distribution (input_sequence_length).
+# The rate counts requests, not conversations: at each arrival AIPerf sends a queued next turn
+# of an open conversation if there is one (they have priority), else starts a new conversation
+# (aiperf 0.11.0 timing/strategies/request_rate.py). Conversations come from a pool of
+# @ENTRIES@ generated from the seed, drawn without replacement (synthetic default: shuffle), sized
+# by render_job.sh above the run's conversation count so none repeats; --num-dataset-entries,
+# not --conversation-num, which would also stop the run after that many conversations.
+# No --output-tokens-mean, so no max_tokens: each request reasons and answers until it stops,
+# capped by vLLM at max_model_len - prompt (study 31's choice). The warm-up checks it on the
+# wire (inputs.json).
+#
+# Before the measured run: 8 single-turn requests (system prompt + one message) at concurrency 4,
+# discarded; a count, not a duration (study 31: a reasoning request can outlive a 60 s window and
+# AIPerf then exits non-zero). The marker line "MEASURED RUN START" arms run_test.sh's watchdog.
+# At the end of a run that completes (not one the watchdog stops), the Job prints the
+# distribution of input, reasoning and answer tokens and TTFT / time to the first answer token
+# from profile_export.jsonl ("LENGTHS" lines), and how many requests came near max_model_len.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aiperf-l40s
+  namespace: llm-l40s
+  labels:
+    app: aiperf-l40s
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: aiperf-l40s
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node-role: system-m8a
+      initContainers:
+        - name: wait-for-vllm
+          image: alpine:3
+          command:
+            - sh
+            - -c
+            - |
+              until wget -qO- http://vllm-0.vllm-headless.llm-l40s.svc.cluster.local:8000/health >/dev/null 2>&1; do
+                echo "$(date -u +%T) waiting for vllm-0..."
+                sleep 10
+              done
+              echo "vllm-0 is ready."
+      containers:
+        - name: aiperf
+          image: python:3.12-slim
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              pip install --quiet aiperf==0.11.0
+              MODEL_NAME=gemma4-26b-awq-think
+              # The served checkpoint at the served revision (its tokenizer.json is byte-identical
+              # to RedHat's and Google's: same counts, but nobody has to check that again).
+              TOKENIZER=cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit
+              TOKENIZER_REV=0ef577a
+              URL=http://vllm-0.vllm-headless.llm-l40s.svc.cluster.local:8000
+              OUT=/benchmarks/study32
+              rm -rf "$OUT"; mkdir -p "$OUT"
+              COMMON="--model $MODEL_NAME --tokenizer $TOKENIZER --tokenizer-revision $TOKENIZER_REV --url $URL --endpoint-type chat --streaming --ui simple"
+              PROMPT="--shared-system-prompt-length 1000 --synthetic-input-tokens-mean 300 --synthetic-input-tokens-stddev 150"
+              TURNS="--conversation-turn-mean 3 --conversation-turn-stddev 1 --conversation-turn-delay-mean 15000 --conversation-turn-delay-stddev 5000"
+              echo "$(date -u +%T) warm-up: 8 single-turn requests at concurrency 4 (discarded)"
+              aiperf profile $COMMON $PROMPT --conversation-turn-mean 1 \
+                --num-dataset-entries 8 --concurrency 4 --request-count 8 --random-seed 31 \
+                --output-artifact-dir /tmp/warmup > /tmp/warmup.log 2>&1 \
+                || { tail -50 /tmp/warmup.log; exit 1; }
+              if grep -qE '"max_(completion_)?tokens"' /tmp/warmup/inputs.json; then
+                echo "ERROR: the synthetic payloads carry max_tokens (thinking would be cut)" >&2; exit 1
+              fi
+              echo "$(date -u +%T) MEASURED RUN START: @LOAD_ARGS@"
+              RUN_DIR=$OUT/aiperf-$(date +%s)
+              aiperf profile $COMMON $PROMPT $TURNS --num-dataset-entries @ENTRIES@ \
+                @LOAD_ARGS@ \
+                --goodput "time_to_first_token:1500 inter_token_latency:300" \
+                --output-artifact-dir "$RUN_DIR"
+              python3 - "$RUN_DIR/profile_export.jsonl" <<'EOF' || true
+              import json, sys
+              cols = {"input_sequence_length": [], "reasoning_token_count": [], "output_token_count": [],
+                      "output_sequence_length": [], "time_to_first_token": [], "time_to_first_output_token": []}
+              total = []
+              errors = 0
+              for line in open(sys.argv[1]):
+                  r = json.loads(line)
+                  if r.get("error"):
+                      errors += 1
+                      continue
+                  m = r.get("metrics", {})
+                  for k, v in cols.items():
+                      if m.get(k) is not None and m[k].get("value") is not None:
+                          v.append(float(m[k]["value"]))
+                  isl, osl = m.get("input_sequence_length"), m.get("output_sequence_length")
+                  if isl and osl and isl.get("value") is not None and osl.get("value") is not None:
+                      total.append(float(isl["value"]) + float(osl["value"]))
+              def pct(v, q):
+                  v = sorted(v)
+                  return v[min(len(v) - 1, int(q * len(v)))]
+              print("LENGTHS: %d requests ok, %d errors" % (len(cols["output_sequence_length"]), errors))
+              for k, v in cols.items():
+                  if v:
+                      print("LENGTHS %-28s n=%5d mean=%9.1f p50=%9.1f p90=%9.1f p99=%9.1f max=%9.1f"
+                            % (k, len(v), sum(v) / len(v), pct(v, .5), pct(v, .9), pct(v, .99), max(v)))
+                  else:
+                      print("LENGTHS %-28s no values" % k)
+              # Prompt + output within ~1000 tokens of --max-model-len 96000 (chat template included
+              # in vLLM's count, not in AIPerf's): the request may have been cut by the cap.
+              if total:
+                  print("LENGTHS input + output >= 95000 tokens (may have hit max_model_len 96000): %d of %d"
+                        % (sum(t >= 95000 for t in total), len(total)))
+              EOF
+          env:
+            - name: AIPERF_TIMING_RATE_RAMP_UPDATE_INTERVAL
+              value: "10"
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+                  optional: true
+            - name: HF_HOME
+              value: /hf-cache
+          resources:
+            # Study 30's request, kept: the ramp tops out at a few req/s, but AIPerf now generates
+            # the synthetic pool and tokenizes ~3000-token prompts and long streams; study 26
+            # measured ~1.3 cores at ~20 req/s. system-m8a has 3.92 allocatable, ~0.3 requested.
+            requests:
+              cpu: 2000m
+              memory: 3Gi
+          volumeMounts:
+            - name: results
+              mountPath: /benchmarks
+            - name: hf-cache
+              mountPath: /hf-cache
+      volumes:
+        - name: results
+          persistentVolumeClaim:
+            claimName: aiperf-results
+        - name: hf-cache
+          persistentVolumeClaim:
+            claimName: hf-cache

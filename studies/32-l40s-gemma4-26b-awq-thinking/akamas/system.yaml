@@ -1,0 +1,12 @@
+kind: system
+
+name: vLLM_Benchmark_32_L40S_Gemma4_AWQ_Thinking
+description: >-
+  Study 32: a customer's Docker Compose setup on one NVIDIA L40S 48 GB (g6e.xlarge, node group
+  llm-serving-l40s-1xl), thinking on. Base vLLM configuration tuning (single GPU, no
+  parallelism) of cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit rev 0ef577a (W4A16 int4;
+  vllm/vllm-openai:v0.29.0, served as gemma4-26b-awq-think with max_model_len 96000, tool
+  calling, the gemma4 reasoning parser and enable_thinking true). Goal: total tokens/s (prompt +
+  generation) under TTFT p95 <= 1.5 s and ITL p95 <= 300 ms, with study 27's open-loop AIPerf
+  rate ramp of synthetic multi-turn chat. Requires vLLM pack 1.12.0, GPU pack, Kubernetes pack.
+  Created 2026-10-09.

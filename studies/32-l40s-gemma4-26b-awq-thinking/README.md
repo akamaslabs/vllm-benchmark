@@ -305,7 +305,20 @@ Not run yet.
   `render_statefulset.sh` omits the flag when it is empty, the domain starts at 2496, and the
   repeat and the presets that had 2048 use 2496. The baseline's start was then checked by hand
   with `k8s/apply_config.sh` before the study was recreated (the domain change needs a new
-  study; the failed one held no data).
+  study; the failed one held no data): ready in 521 s (the first start downloads the
+  checkpoint), "Raising max_num_batched_tokens from 2048 to 2496", `MarlinLinearKernel` for the
+  int4 linear layers (`CompressedTensorsWNA16MoEMethod` for the experts), model 16.39 GiB, **KV
+  cache 22.01 GiB** (study 31's FP8 checkpoint: 13.47 GiB at 0.92, +63 %), 708,768 tokens,
+  7.38x concurrency at 96,000 tokens per request, `enable_prefix_caching=True`,
+  `max_cudagraph_capture_size` 128 (the value the repeat writes out), warm-up 0.6-1.9 s. The
+  `kv fp8 mtp2` preset (every value rendered, MTP on the int4 target) checked the same way:
+  server up in ~6.5 min (the checkpoint cached), model + drafter 17.17 GiB, fp8 KV 19.6 GiB =
+  1,262,011 tokens (13.15x at 96,000 per request), capture size 384 as rendered, the drafter on
+  text-only inputs (no image embeddings); two performance warnings only ("max_num_scheduled_tokens
+  is set to 2496 based on the speculative decoding settings", consider more batched tokens for
+  the draft tokens). apply_config.sh reported it not Ready only because the workstation slept
+  during its wait (3401 s of wall time against a 2400 s budget; vLLM was Ready from 20:25):
+  run manual checks under `caffeinate -i`.
 
 ## Results
 

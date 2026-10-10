@@ -319,6 +319,17 @@ Not run yet.
   the draft tokens). apply_config.sh reported it not Ready only because the workstation slept
   during its wait (3401 s of wall time against a 2400 s budget; vLLM was Ready from 20:25):
   run manual checks under `caffeinate -i`.
+- 2026-10-10 05:20: the failed study deleted and recreated (domain change), started 05:22 UTC;
+  experiment 1 (baseline) with the compose's flags only (`params.env`: 11 keys empty), AIPerf
+  warm-up passed and the measured run started 05:29:15. **First load signals** (05:31-05:37,
+  ~5 requests running): prompt tokens mean 3222, p50 ~2500, p90 ~6500 (vLLM histogram buckets)
+  against the customer's ~3000 / ~6000; generated tokens per request 1667 (study 31: 1501);
+  prefix cache hit rate 0.56; TTFT p95 0.24 s; **e2e p95 27.7 s already at this load** (1667
+  tokens at ~16 ms). With stability windowing Akamas scores the best window that meets the
+  constraints (ROADMAP C, 2026-08-25), so the score is the completed req/s while the e2e p95
+  stays under 30 s, i.e. near the start of the ramp; configurations that lower the per-token
+  time (MTP) should widen that region. The watchdog still waits for TTFT > 3 s / ITL > 600 ms,
+  so each trial runs past the 30 s point (time, not validity).
 
 ## Results
 

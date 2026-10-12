@@ -1,0 +1,14 @@
+# Hugging Face cache for the AIPerf pod (the served checkpoint's tokenizer, downloaded on the
+# first run). The model itself is never loaded here.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hf-cache
+  namespace: llm-l40s
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3-ephemeral
+  resources:
+    requests:
+      storage: 5Gi

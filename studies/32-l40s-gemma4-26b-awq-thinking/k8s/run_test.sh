@@ -14,6 +14,9 @@
 # queue only grows, so every later window would be invalid anyway, and Akamas scores the
 # best valid window before it. Armed RT_WD_ARM_DELAY_S after the measured run starts, so
 # the warm-up is out of its 150 s view.
+# RT_STOP_AIPERF=0 (the workflow): the Job is left running, on failure too, for the workflow's
+# Stop AIPerf task (stop_aiperf.sh: graceful stop, records saved on the toolbox); 1 (default: the
+# smoke run, by hand): deleted here, as before.
 set -euo pipefail
 K8S=${K8S:-/work/vllm-benchmark/studies/32-l40s-gemma4-26b-awq-thinking/k8s}
 NS=llm-l40s
@@ -28,11 +31,20 @@ WD_TTFT_MS=${RT_WD_TTFT_MS:-3000}; WD_ITL_MS=${RT_WD_ITL_MS:-600}
 WD_HOLD_S=${RT_WD_HOLD_S:-120}; WD_ARM_DELAY_S=${RT_WD_ARM_DELAY_S:-150}
 POLL_S=${RT_POLL_S:-15}; STALL_S=${RT_STALL_S:-900}; FIRST_OK_S=${RT_FIRST_OK_S:-1500}
 PROGRESS_EVERY_S=${RT_PROGRESS_EVERY_S:-60}
+STOP_AIPERF=${RT_STOP_AIPERF:-1}
 PROM=${RT_PROM:-http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090}
 TMP=$(mktemp -d /tmp/run-test-32-XXXXXX)
 JOB=aiperf-l40s
 # shellcheck source=lib_watchdog.sh
 source "$K8S/lib_watchdog.sh"
+
+stop_job() {
+  if [ "$STOP_AIPERF" = 0 ]; then
+    echo "job/$JOB left running for the Stop AIPerf task (RT_STOP_AIPERF=0)"
+  else
+    kubectl -n "$NS" delete job -l app=aiperf-l40s --ignore-not-found --wait=false || true
+  fi
+}
 
 pod_state() {  # "name:uid:restarts" of the vLLM pod
   kubectl get pods -n "$NS" -l app=vllm \
@@ -129,11 +141,11 @@ if [ -n "$FAIL_REASON" ]; then
   kubectl get pods -n "$NS" -l app=vllm -o wide || true
   kubectl logs -n "$NS" vllm-0 --tail=200 || true
   kubectl logs -n "$NS" vllm-0 --tail=200 --previous 2>/dev/null || true
-  kubectl -n "$NS" delete job -l app=aiperf-l40s --ignore-not-found --wait=false || true
+  stop_job
   rm -rf "$TMP"; exit 1
 fi
 if [ -n "$WATCHDOG" ]; then  # logs dumped: now stop the load
-  kubectl -n "$NS" delete job -l app=aiperf-l40s --ignore-not-found --wait=false || true
+  stop_job
 fi
 rm -rf "$TMP"
 exit 0

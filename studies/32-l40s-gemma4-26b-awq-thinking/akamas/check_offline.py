@@ -91,6 +91,14 @@ for wp in glob.glob(os.path.join(HERE, '*.yaml')):
             for x in paths:
                 if '/studies/' in x and '/studies/%s/' % os.path.basename(STUDY) not in x:
                     fails.append('workflow %s, task %s: %s is not this study folder' % (w['name'], t['name'], x))
+        # RT_STOP_AIPERF=0 leaves the AIPerf Job running: a later alwaysRun task must stop it, or a
+        # failed trial keeps loading vllm-0 until the next RunTest.
+        for i, t in enumerate(w['tasks']):
+            if 'RT_STOP_AIPERF=0' in t['arguments'].get('command', '') and not any(
+                    u.get('alwaysRun') and 'stop_aiperf.sh' in u['arguments'].get('command', '')
+                    for u in w['tasks'][i + 1:]):
+                fails.append('workflow %s, task %s: RT_STOP_AIPERF=0 but no later alwaysRun task runs stop_aiperf.sh'
+                             % (w['name'], t['name']))
 sts = open(os.path.join(STUDY, 'k8s', '01-statefulset_template.yaml')).read()
 served = re.search(r'--served-model-name=([^"\s]+)', sts).group(1)
 if components['vllm']['properties']['prometheus'].get('model') != served:

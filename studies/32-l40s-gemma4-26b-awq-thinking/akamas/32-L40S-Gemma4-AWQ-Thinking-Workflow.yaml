@@ -5,7 +5,7 @@ name: 32-L40S-Gemma4-AWQ-Thinking-Workflow
 # scaled to ~3.4k-token prompts and the compose's 64 sequences; the smoke run sets R so that both
 # the baseline and the "kv fp8 large batch" preset reach their knee. The RunTest timeout stays
 # above RT_RAMP_S + 1500 s; once this workflow is created, a change means delete and recreate.
-# All three tasks run on the toolbox host over SSH with the toolbox's own key
+# All four tasks run on the toolbox host over SSH with the toolbox's own key
 # (/home/akamas/.ssh/id_rsa, mounted from the toolbox-keys secret; the path must exist on
 # the toolbox when `akamas create workflow` runs, so run it from the toolbox).
 tasks:
@@ -49,4 +49,25 @@ tasks:
         hostname: toolbox
         username: akamas
         key: /home/akamas/.ssh/id_rsa
-      command: RT_RATE=2 RT_RAMP_S=6000 bash /work/vllm-benchmark/studies/32-l40s-gemma4-26b-awq-thinking/k8s/run_test.sh
+      # RT_STOP_AIPERF=0: the AIPerf Job is left running for Stop AIPerf, on failure too.
+      command: RT_RATE=2 RT_RAMP_S=6000 RT_STOP_AIPERF=0 bash /work/vllm-benchmark/studies/32-l40s-gemma4-26b-awq-thinking/k8s/run_test.sh
+  # Stops AIPerf with a SIGINT (it cancels the requests in flight and writes its files, which a
+  # plain Job delete loses), deletes the Job and saves the measured run's per-request records
+  # (profile_export.jsonl) on the toolbox as
+  # /work/aiperf-exports/32-l40s-gemma4-26b-awq-thinking/<epoch>.jsonl (<epoch>: the measured
+  # run's start). alwaysRun: it also runs after a failed RunTest, so the load always stops.
+  # critical: false: a record that could not be saved does not fail the trial.
+  - name: Stop AIPerf
+    operator: Executor
+    alwaysRun: true
+    critical: false
+    arguments:
+      retries: 0
+      # stop_aiperf.sh: up to 300 s for AIPerf to exit, 180 s for the Job delete, 300 s for the
+      # export pod, then the copy (tens of MB, seconds).
+      timeout: 20m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/vllm-benchmark/studies/32-l40s-gemma4-26b-awq-thinking/k8s/stop_aiperf.sh

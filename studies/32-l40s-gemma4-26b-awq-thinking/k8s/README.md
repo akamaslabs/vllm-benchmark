@@ -21,6 +21,8 @@ What differs from study 31:
   summary.
 - `run_test.sh`: ramp 0 -> 2 req/s over 6000 s, provisional until the smoke run.
 - `apply_config.sh`: the startup summary also prints the linear kernel and prefix caching.
+- `stop_aiperf.sh` (2026-10-12): the workflow's `Stop AIPerf` task; `run_test.sh` leaves the Job
+  to it with `RT_STOP_AIPERF=0`.
 
 | File | What |
 |---|---|
@@ -28,7 +30,8 @@ What differs from study 31:
 | `render_statefulset.sh` | Validates `params.env` and writes the vLLM flags into `01-statefulset_template.yaml` (booleans as `--x` / `--no-x`; no flag for an empty value, nor for a backend absent or `auto`). |
 | `apply_config.sh` | Apply config task: validate, free the GPU, start `vllm-0`, wait (fail fast on a crash loop), 8 warm-up requests, health check, full logs. |
 | `run_test.sh`, `render_job.sh`, `05-job_template.yaml`, `lib_watchdog.sh` | RunTest task: synthetic multi-turn chat without `max_tokens` with study 27's open-loop linear rate ramp (`RT_RATE`, `RT_RAMP_S`), watchdog past 2x the SLA, fail-fast guards, full logs. `render_job.sh --closed C N` renders the smoke run's closed-loop length run. |
+| `stop_aiperf.sh` | Stop AIPerf task (after RunTest, `alwaysRun`): SIGINT to the aiperf process (graceful: it writes its files), Job deleted, the measured run's `profile_export.jsonl` read from the results PVC by a short-lived pod and saved on the toolbox as `/work/aiperf-exports/32-l40s-gemma4-26b-awq-thinking/<epoch>.jsonl` (`SA_DEST`; skipped below `SA_MIN_FREE_MB` = 150 MB free). |
 | `lib_health.sh` | The post-warm-up health decision. |
 | `00-pvc.yaml`, `06-hf-cache-pvc.yaml`, `02-service.yaml`, `03-hf-secret.yaml` | AIPerf results, AIPerf HF cache (tokenizer), Services (`vllm`, `vllm-headless`), optional HF token template (never commit a real token). |
 | `monitoring/` | ServiceMonitor `vllm-l40s`, the dcgm-exporter values with this node role added, counters and kube-prometheus values as deployed. |
-| `tests/` | `bash tests/test_*.sh` (yq v4 needed): renderers, guards, watchdog, run_test with a stub kubectl. `bash tests/dry_run_multiturn.sh` (network, ~8 min): the rendered Job script, under dash, with real AIPerf 0.11.0 against `mock_openai.py` streaming reasoning then content: no request carries `max_tokens`, every measured request shares one system prompt, later turns carry the history (reasoning included, as AIPerf 0.11.0 keeps it), `LENGTHS` reports the input length; then the ramp exactly as `render_job.sh` writes it (shorter), with the requests following it. |
+| `tests/` | `bash tests/test_*.sh` (yq v4 needed): renderers, guards, watchdog, run_test and stop_aiperf with a stub kubectl (`tests/stub/`, `tests/stub-stop/`). `bash tests/dry_run_multiturn.sh` (network, ~8 min): the rendered Job script, under dash, with real AIPerf 0.11.0 against `mock_openai.py` streaming reasoning then content: no request carries `max_tokens`, every measured request shares one system prompt, later turns carry the history (reasoning included, as AIPerf 0.11.0 keeps it), `LENGTHS` reports the input length; then the ramp exactly as `render_job.sh` writes it (shorter), with the requests following it. |

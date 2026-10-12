@@ -1,0 +1,54 @@
+experiment,step,akamas_score,goal_state,e2e30,e2e30_warmup,e2e60,e2e60_warmup,e2e120,e2e120_warmup,ttft3,ttft3_warmup,noqueue,noqueue_warmup,gpu_memory_utilization,max_num_seqs,max_num_batched_tokens,kv_cache_dtype,performance_mode,optimization_level,scheduling_policy,async_scheduling,max_cudagraph_capture_size,block_size,linear_backend,spec_method,spec_tokens
+1,baseline,0.166666666666667,VALID,0.167,False,0.353,False,0.593,False,0.593,False,0.593,False,0.9,64,2048,auto,balanced,2,fcfs,true,256,16,auto,none,0
+2,baseline repeat,0.146666666666667,VALID,0.147,False,0.313,False,0.527,False,0.587,False,0.56,False,0.9,64,2496,auto,balanced,2,fcfs,true,128,16,auto,none,0
+3,kv fp8,0.24,VALID,0.24,False,0.313,False,0.573,False,0.573,False,0.573,False,0.9,64,2496,fp8,balanced,2,fcfs,true,128,16,auto,none,0
+4,kv fp8 mtp2,0.3,VALID,0.3,False,0.82,False,0.867,False,0.86,False,0.86,False,0.9,64,2496,fp8,balanced,2,fcfs,true,384,16,auto,mtp,2
+5,vllm defaults,0.28,VALID,0.28,False,0.387,False,0.527,False,0.7,False,0.7,False,0.92,256,2496,auto,balanced,2,fcfs,true,512,16,auto,none,0
+6,kv fp8 large batch,0.146666666666667,VALID,0.147,False,0.34,False,0.607,False,0.933,False,0.933,False,0.94,512,8192,fp8,throughput,2,fcfs,true,512,16,auto,none,0
+7,study 30 best,0.426666666666667,VALID,0.427,False,0.527,False,1.133,False,1.147,False,1.147,False,0.94,451,16384,fp8,balanced,1,fcfs,true,179,16,auto,mtp,3
+8,study 31 best,0.193333333333333,VALID,0.193,False,0.46,False,1.173,False,1.207,False,1.187,False,0.94,502,16384,fp8,throughput,1,fcfs,true,189,16,auto,mtp,3
+9,optimize,0.286666666666667,VALID,0.287,False,0.433,False,1.073,False,1.073,False,1.073,False,0.9393467182613888,451,16361,fp8,interactivity,1,fcfs,true,179,16,humming,mtp,3
+10,optimize,0.633333333333333,VALID,0.633,False,0.76,False,1.347,False,1.347,False,1.307,False,0.9381004625528021,408,2496,fp8,balanced,1,fcfs,false,512,16,humming,mtp,3
+11,optimize,0.266666666666667,VALID,0.267,False,0.76,False,1.04,False,1.153,False,1.14,False,0.9314466568859008,512,16302,fp8,balanced,1,priority,false,512,16,humming,mtp,4
+12,optimize,0.14,VALID,0.14,False,0.487,False,1.233,False,1.233,False,1.233,False,0.8798463909775802,378,2496,fp8,balanced,1,fcfs,false,84,32,triton,mtp,2
+13,optimize,0.34,VALID,0.34,False,0.913,False,1.167,False,1.207,False,1.167,False,0.9379519226796823,410,2496,fp8,balanced,1,fcfs,true,512,16,triton,mtp,3
+14,optimize,0.22,VALID,0.22,False,0.367,False,0.573,False,0.56,False,0.56,False,0.8563369113349871,35,16384,auto,balanced,1,priority,false,24,96,auto,mtp,3
+15,optimize,0.286666666666667,VALID,0.287,False,0.6,False,1.12,False,1.173,False,1.173,False,0.9383382281592797,405,2496,fp8,interactivity,1,priority,false,510,128,humming,mtp,3
+16,optimize,0.233333333333333,VALID,0.233,False,0.46,False,0.787,False,0.733,False,0.733,False,0.9175644730484716,53,3985,fp8,interactivity,2,fcfs,false,183,128,humming,mtp,2
+17,optimize,0.26,VALID,0.26,False,0.673,False,1.293,False,1.307,False,1.307,False,0.9252633845808289,408,2496,fp8,balanced,1,fcfs,false,512,16,humming,mtp,3
+18,optimize,0.32,VALID,0.32,False,0.473,False,0.473,False,0.46,False,0.46,False,0.94,16,2496,fp8,balanced,1,fcfs,false,512,16,humming,mtp,4
+19,optimize,0.286666666666667,VALID,0.287,False,0.44,False,0.953,False,0.94,False,0.94,False,0.9393978613469287,263,2496,auto,balanced,1,priority,false,512,16,humming,mtp,2
+20,optimize,0.273333333333333,VALID,0.273,False,0.567,False,0.567,False,0.467,False,0.433,False,0.9356780859275984,16,16384,auto,balanced,3,priority,false,16,64,humming,mtp,3
+21,optimize,0.273333333333333,VALID,0.273,False,0.447,False,0.793,False,0.78,False,0.78,False,0.8872382747125338,416,11695,auto,interactivity,2,fcfs,false,389,64,auto,mtp,3
+22,optimize,0.1,VALID,0.1,False,0.333,False,0.82,False,0.82,False,0.82,False,0.94,380,16384,auto,throughput,1,fcfs,false,16,16,humming,mtp,2
+23,optimize,0.226666666666667,VALID,0.227,False,0.5,False,0.613,False,0.553,False,0.54,False,0.8057730448620724,56,13428,fp8,interactivity,1,priority,false,190,80,humming,mtp,4
+24,optimize,0.0845382222222222,VALID,0.085,True,0.733,False,0.827,False,0.78,False,0.827,False,0.9382331436573201,376,2496,fp8,balanced,1,fcfs,false,512,16,humming,mtp,3
+25,optimize,0.286666666666667,VALID,0.287,False,0.533,False,0.753,False,0.693,False,0.693,False,0.9382417718744511,407,2496,fp8,balanced,1,fcfs,false,512,16,humming,mtp,3
+26,optimize,0.22,VALID,0.22,False,0.56,False,0.64,False,0.533,False,0.533,False,0.9297048556085408,434,2832,auto,throughput,1,priority,false,28,80,triton,mtp,3
+27,optimize,0.266666666666667,VALID,0.267,False,0.54,False,1.307,False,1.307,False,1.307,False,0.9283660320896479,230,2496,fp8,balanced,1,priority,true,473,32,humming,mtp,3
+28,optimize,0.453333333333333,VALID,0.453,False,0.613,False,0.813,False,0.92,False,0.92,False,0.9372996469062123,413,2496,auto,throughput,1,priority,false,509,32,auto,mtp,3
+29,optimize,0.34,VALID,0.34,False,0.493,False,0.707,False,0.707,False,0.707,False,0.933716201426519,412,6090,auto,throughput,1,fcfs,true,172,64,auto,mtp,3
+30,optimize,0.253333333333333,VALID,0.253,False,0.533,False,1.16,False,1.2,False,1.2,False,0.9336691502186037,414,6133,fp8,interactivity,1,priority,false,173,128,triton,mtp,3
+31,optimize,0.286666666666667,VALID,0.287,False,0.387,False,0.6,False,0.6,False,0.6,False,0.8778488784775669,466,3767,auto,interactivity,1,fcfs,false,230,32,triton,mtp,3
+32,optimize,0.333333333333333,VALID,0.333,False,0.513,False,0.513,False,0.513,False,0.513,False,0.94,423,7685,auto,balanced,1,priority,false,368,80,humming,mtp,3
+33,optimize,0.26,VALID,0.26,False,0.54,False,0.993,False,1.027,False,1.027,False,0.8903823843859764,229,5854,fp8,balanced,1,priority,false,218,128,auto,mtp,2
+34,optimize,0.573333333333333,VALID,0.573,False,0.793,False,1.047,False,1.08,False,1.08,False,0.800844405552261,169,9896,fp8,throughput,3,priority,true,498,32,auto,mtp,1
+35,optimize,0.0884186666666667,VALID,0.088,True,0.42,False,1.18,False,1.12,False,1.12,False,0.800844405552261,169,9896,fp8,throughput,3,priority,true,498,32,auto,mtp,1
+36,optimize,0.153333333333333,VALID,0.153,False,0.573,False,1.013,False,1.04,False,1.04,False,0.9071037297063365,409,15857,fp8,balanced,2,priority,true,462,16,humming,mtp,4
+37,optimize,0.3,VALID,0.3,False,0.447,False,0.687,False,0.633,False,0.607,False,0.9389662874107063,410,2496,auto,throughput,1,priority,true,510,48,humming,mtp,3
+38,optimize,0.186666666666667,VALID,0.187,False,0.473,False,0.98,False,0.94,False,0.94,False,0.8075839353402863,149,4553,fp8,balanced,3,priority,false,122,48,humming,mtp,1
+39,optimize,0.286666666666667,VALID,0.287,False,0.373,False,0.58,False,0.547,False,0.547,False,0.8580962731128395,264,15257,auto,throughput,3,fcfs,true,332,32,triton,mtp,4
+40,optimize,0.3,VALID,0.3,False,0.533,False,0.573,False,0.533,False,0.533,False,0.8061613122943907,196,4396,fp8,throughput,3,priority,true,273,112,humming,mtp,1
+41,optimize,0.273333333333333,VALID,0.273,False,0.853,False,1.213,False,1.287,False,1.287,False,0.9366514117504943,468,3328,fp8,throughput,1,priority,true,503,16,auto,mtp,3
+42,optimize,0.533333333333333,VALID,0.533,False,0.633,False,1.093,False,0.92,False,0.92,False,0.8225913960145597,294,14552,fp8,balanced,1,fcfs,true,466,32,auto,mtp,4
+43,optimize,0.0133333333333333,VALID,,,0.2,False,0.467,False,0.507,False,0.493,False,0.9390142775646686,400,8938,auto,throughput,2,fcfs,false,346,128,triton,none,0
+44,optimize,0.0864577777777778,VALID,0.086,True,0.287,False,0.627,False,0.633,False,0.58,False,0.8625559385392487,51,8157,auto,throughput,3,priority,false,21,96,humming,none,0
+45,optimize,0.173333333333333,VALID,0.173,False,0.313,False,0.313,False,0.293,False,0.293,False,0.8000000000000197,16,16384,auto,interactivity,1,fcfs,true,512,96,auto,mtp,4
+46,optimize,0.326666666666667,VALID,0.327,False,0.427,False,0.807,False,1.007,False,0.993,False,0.94,512,8192,fp8,throughput,2,fcfs,true,512,16,auto,none,0
+47,optimize,0.0933333333333333,VALID,0.073,True,0.353,False,0.6,False,0.66,False,0.66,False,0.92,256,2496,auto,balanced,2,fcfs,true,512,16,auto,none,0
+48,optimize,0.153333333333333,VALID,0.153,False,0.333,False,0.647,False,0.907,False,0.907,False,0.9039742102475953,333,7787,fp8,throughput,2,fcfs,false,19,16,auto,none,0
+49,optimize,1.10666666666667,CONSTRAINTS_VIOLATED,,,0.333,False,0.88,False,1.067,False,1.067,False,0.94,512,8229,fp8,balanced,2,priority,false,512,16,triton,none,0
+50,optimize,0.0333333333333333,VALID,,,0.18,False,0.54,False,0.48,False,0.467,False,0.8,512,16384,auto,interactivity,3,priority,false,512,32,triton,none,0
+51,optimize,0.16,VALID,0.16,False,0.46,False,0.913,False,0.913,False,0.893,False,0.8155352207766619,196,14584,fp8,balanced,2,priority,false,16,16,triton,mtp,1
+52,optimize,0.0333333333333333,VALID,,,0.313,False,0.633,False,0.767,False,0.767,False,0.8000234439070847,511,15641,fp8,balanced,3,priority,false,512,32,auto,none,0
+53,optimize,0.173333333333333,VALID,0.173,False,0.293,False,0.473,False,0.447,False,0.447,False,0.819775937900033,26,16310,fp8,interactivity,2,priority,false,470,96,triton,mtp,4

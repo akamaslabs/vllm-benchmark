@@ -43,7 +43,7 @@ prompts (`../k8s/05-job_template.yaml`). Inside it: the baselines, the presets a
 | `components/container.yaml` | `container` (Kubernetes Container, pod `vllm-0`) |
 | `components/cluster.yaml`, `cluster_loadtest.yaml`, `container_loadtest.yaml` | node and load-generator views (Kubernetes pack) |
 | `telemetry/prometheus.yaml` | `Prometheus_32_L40S_Gemma4_AWQ_Thinking`: study 31's metrics unchanged (the model filter comes from the `vllm` component); `prefix_cache_hit_rate` now reads a live value |
-| `32-L40S-Gemma4-AWQ-Thinking-Workflow.yaml` | `Write config` -> `Apply config` (45 m) -> `RunTest` (130 m, `RT_RATE=2 RT_RAMP_S=6000`, provisional until the smoke run), scripts in `../k8s/` |
+| `32-L40S-Gemma4-AWQ-Thinking-Workflow.yaml` | `Write config` -> `Apply config` (45 m) -> `RunTest` (130 m, `RT_RATE=2 RT_RAMP_S=6000`, provisional until the smoke run; `RT_STOP_AIPERF=0`) -> `Stop AIPerf` (20 m, `alwaysRun`, `critical: false`; added 2026-10-12, not on the server: "Setup & run"), scripts in `../k8s/` |
 | `32-L40S-Gemma4-AWQ-Thinking.yaml` | study `32-L40S-Gemma4-AWQ-Thinking` |
 | `check_offline.py` | offline checks against the repo rules and the local pack checkouts |
 
@@ -95,7 +95,9 @@ in a signed percentage), and three for the not-rendered baseline: a step's
 them; every entry is a selected parameter and no step combines it with `from`; `baseline repeat`
 has the baseline's values and leaves out no more than the baseline does. Mutation-tested:
 `baseline repeat` with another value, `gpu_memory_utilization` left unrendered, an unsigned
-relative percentage and a relative constraint without a `baseline` step are all reported. **Server:** every resource created on Akamas 4.1 on 2026-10-09 with the commands below; the
+relative percentage and a relative constraint without a `baseline` step are all reported. 2026-10-12: one more check, a
+RunTest that leaves the AIPerf Job running (`RT_STOP_AIPERF=0`) needs a later `alwaysRun` task
+that runs `stop_aiperf.sh` (mutation-tested: `alwaysRun: false` is reported). **Server:** every resource created on Akamas 4.1 on 2026-10-09 with the commands below; the
 first study create was refused (a parameter in both `values` and `doNotRenderParameters`), fixed
 in commit 1fb98da; `akamas describe study` lists the 9 steps.
 
@@ -142,6 +144,45 @@ above RT_RAMP_S + 1500 s), push, pull, then `akamas delete workflow
 32-L40S-Gemma4-AWQ-Thinking-Workflow` and create it again before creating the study (no
 `update workflow` verb). If a start leaves the study RUNNING with no experiment after ~5 min,
 delete it, create it again, wait a minute and start it again.
+
+**`Stop AIPerf` task (added 2026-10-12, local only: not pushed, not on the server).** After
+RunTest, `../k8s/stop_aiperf.sh` sends AIPerf a SIGINT (it cancels the requests in flight and
+writes its files; a plain Job delete SIGKILLs it and loses the last partial batch of records and
+the summary json), deletes the Job, and saves the measured run's per-request records
+(`profile_export.jsonl`) on the toolbox as
+`/work/aiperf-exports/32-l40s-gemma4-26b-awq-thinking/<epoch>.jsonl`, `<epoch>` being the
+measured run's start (the `aiperf-<epoch>` folder; Executor commands have no experiment-id
+placeholder, so a file is matched to its experiment by the trial start times). `alwaysRun`: it
+also runs after a failed RunTest, which then leaves the Job to it (`RT_STOP_AIPERF=0`);
+`critical: false`: a record that could not be saved never fails the trial.
+- **It does not reach the study created on 2026-10-10**, which keeps the three-task workflow:
+  Akamas 4.1 has no `update workflow` (`akamas update --help` on the 4.1 toolbox, 2026-10-12:
+  experiment, password, study, trial, user, workspace only). A `git pull` on the toolbox does
+  not change that study either: its RunTest command does not set `RT_STOP_AIPERF`, and
+  `run_test.sh`'s default (1) deletes the Job as before. `../results/grab_aiperf.sh` keeps
+  copying the records from the workstation meanwhile.
+- **To use it:** a new workflow and a new study, after the user's go-ahead (push, `git pull` on
+  the toolbox), once the current study is finished and exported (command below): `akamas delete
+  study "32-L40S-Gemma4-AWQ-Thinking"` (the manifest keeps its name, so the create is refused
+  while it exists; the 2026-10-10 recreation did the same), `akamas delete workflow
+  32-L40S-Gemma4-AWQ-Thinking-Workflow`, `akamas create -f
+  $A/32-L40S-Gemma4-AWQ-Thinking-Workflow.yaml`, `akamas create -f
+  $A/32-L40S-Gemma4-AWQ-Thinking.yaml`, `sleep 120`, `akamas start study
+  "32-L40S-Gemma4-AWQ-Thinking"`. To keep the old study on the server instead, give the
+  workflow and the study new names (and the study's `workflow:` field).
+- **Trial timeline:** past the knee the load now runs a little longer (RunTest's log dump and the
+  task handoff come before the SIGINT, tens of seconds); the scored window is before the knee,
+  so the score does not move. First real run: the export pod mounts the results volume seconds
+  after the Job's pod released it (300 s budget; if it times out, the step prints the pod's
+  `describe` tail). The toolbox's kubeconfig can create pods, exec and delete Jobs in
+  `llm-l40s` (`kubectl auth can-i`, 2026-10-12).
+- **Room:** the toolbox's `/work` is a 1 GiB volume (778 MB free on 2026-10-12) that the Write
+  config task also writes to; the records of one run are 10-26 MB (watchdog-shortened runs of
+  2026-10-12), more for a full ramp. `stop_aiperf.sh` saves nothing below 150 MB free
+  (`SA_MIN_FREE_MB`). Copy them to the workstation and delete them from the toolbox as they
+  accumulate: `kubectl -n akamas-41 exec deploy/toolbox -c toolbox -- tar -C
+  /work/aiperf-exports/32-l40s-gemma4-26b-awq-thinking -cf - . | tar -C
+  studies/32-l40s-gemma4-26b-awq-thinking/results/aiperf_runs -xf -`.
 
 Monitoring: `akamas list experiment "32-L40S-Gemma4-AWQ-Thinking"`,
 `akamas log --dump -s "32-L40S-Gemma4-AWQ-Thinking" -e <n> -l ERROR,WARN` (never `-d`: it

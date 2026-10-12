@@ -331,6 +331,16 @@ Not run yet.
   time (MTP) should widen that region. The watchdog still waits for TTFT > 3 s / ITL > 600 ms,
   so each trial runs past the 30 s point (time, not validity).
 
+- 2026-10-12 (local only, not pushed): a fourth workflow task, `Stop AIPerf`
+  (`k8s/stop_aiperf.sh`, `alwaysRun`, `critical: false`): SIGINT to AIPerf (graceful: the last
+  partial batch of records and `profile_export_aiperf.json` are written, checked locally with
+  AIPerf 0.11.0 against the mock), the Job deleted, the measured run's `profile_export.jsonl`
+  saved on the toolbox as `/work/aiperf-exports/32-l40s-gemma4-26b-awq-thinking/<epoch>.jsonl`;
+  `run_test.sh` leaves the Job to it with `RT_STOP_AIPERF=0`. The running study (at experiment
+  63 on 2026-10-12, of 68 nominal) keeps the three-task workflow: Akamas 4.1 has no `update
+  workflow`, so the task reaches only a recreated workflow and study (`akamas/README.md`, "Setup
+  & run").
+
 ## Results
 
 <Filled in by the study-recap skill once the study finishes.>

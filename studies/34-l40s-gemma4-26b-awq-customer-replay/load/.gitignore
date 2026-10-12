@@ -1,0 +1,3 @@
+# The customer's dataset template and anything rendered from it: never in git.
+*.jsonl
+*.jsonl.gz

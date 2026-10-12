@@ -1,0 +1,75 @@
+kind: workflow
+name: 34-L40S-Gemma4-AWQ-Replay-Workflow
+# Study 33's workflow (four tasks, Stop AIPerf included) for study 34: the customer's AIPerf
+# replay, users ramping 1 -> 100 over 6000 s (RT_USERS, RT_RAMP_S). PROVISIONAL (README "Load"):
+# with thinking on a user sends ~0.03 req/s, so study 32's knees (compose ~0.59, best ~1.3 req/s)
+# fall near ~20 and ~45 users. RunTest reads the dataset template from the toolbox
+# (/work/customer-data/34-l40s-gemma4-26b-awq-customer-replay/, not in git: ../load/README.md).
+# The RunTest timeout stays above RT_RAMP_S + 1500 s; once this workflow is created, a change
+# means delete and recreate.
+# All four tasks run on the toolbox host over SSH with the toolbox's own key
+# (/home/akamas/.ssh/id_rsa, mounted from the toolbox-keys secret; the path must exist on
+# the toolbox when `akamas create workflow` runs, so run it from the toolbox).
+tasks:
+  # The parameters are rendered into an env file, not into a manifest: render_statefulset.sh
+  # validates them and writes the vLLM flags (booleans as --x / --no-x, which a plain
+  # ${vllm.param} token in the manifest could not do). ignoreUnsubstitutedTokens false: every
+  # token must resolve.
+  - name: Write config
+    operator: FileConfigurator
+    arguments:
+      ignoreUnsubstitutedTokens: false
+      source:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/vllm-benchmark/studies/34-l40s-gemma4-26b-awq-customer-replay/k8s/params.env.template
+      target:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/vllm-benchmark/studies/34-l40s-gemma4-26b-awq-customer-replay/k8s/params.env
+  - name: Apply config
+    operator: Executor
+    arguments:
+      retries: 0
+      # apply_config.sh's rollout wait (2400 s: cold node = image pull + 16 GiB model
+      # download) plus the warm-up and the log dump.
+      timeout: 45m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/vllm-benchmark/studies/34-l40s-gemma4-26b-awq-customer-replay/k8s/apply_config.sh
+  - name: RunTest
+    operator: Executor
+    arguments:
+      retries: 0
+      # Above run_test.sh's own deadline (RT_RAMP_S + 1500 s), so its log dump always runs.
+      timeout: 130m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      # RT_STOP_AIPERF=0: the AIPerf Job is left running for Stop AIPerf, on failure too.
+      command: RT_USERS=100 RT_RAMP_S=6000 RT_STOP_AIPERF=0 bash /work/vllm-benchmark/studies/34-l40s-gemma4-26b-awq-customer-replay/k8s/run_test.sh
+  # Stops AIPerf with a SIGINT (it cancels the requests in flight and writes its files, which a
+  # plain Job delete loses), deletes the Job and saves the measured run's per-request records
+  # (profile_export.jsonl) on the toolbox as
+  # /work/aiperf-exports/34-l40s-gemma4-26b-awq-customer-replay/<epoch>.jsonl (<epoch>: the measured
+  # run's start). alwaysRun: it also runs after a failed RunTest, so the load always stops.
+  # critical: false: a record that could not be saved does not fail the trial.
+  - name: Stop AIPerf
+    operator: Executor
+    alwaysRun: true
+    critical: false
+    arguments:
+      retries: 0
+      # stop_aiperf.sh: up to 300 s for AIPerf to exit, 180 s for the Job delete, 300 s for the
+      # export pod, then the copy (tens of MB, seconds).
+      timeout: 20m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/vllm-benchmark/studies/34-l40s-gemma4-26b-awq-customer-replay/k8s/stop_aiperf.sh

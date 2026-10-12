@@ -1,0 +1,138 @@
+# AIPerf Job for 34-l40s-gemma4-26b-awq-customer-replay. Rendered by render_job.sh (tokens USERS,
+# RAMP_S and USERS_RENDERED between at-signs).
+#
+# Runs the customer's run_benchmark.sh UNCHANGED (k8s/run_benchmark.sh, byte-identical to what
+# they sent on 2026-10-12; tests/test_render_job.sh checks its sha256), from the ConfigMap
+# aiperf-replay that run_test.sh creates. Around it, only what their script expects to find: its
+# folder with benchmark.env (our values) and ../llm-coding-benchmark/.venv with AIPerf 0.11.0,
+# and their dataset rendered from the template (render_dataset.py). Before it, the marker line
+# "MEASURED RUN START" that arms run_test.sh's watchdog; after it, the LENGTHS lines from
+# profile_export.jsonl of a run that completes.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aiperf-l40s
+  namespace: llm-l40s
+  labels:
+    app: aiperf-l40s
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: aiperf-l40s
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node-role: system-m8a
+      initContainers:
+        - name: wait-for-vllm
+          image: alpine:3
+          command:
+            - sh
+            - -c
+            - |
+              until wget -qO- http://vllm-0.vllm-headless.llm-l40s.svc.cluster.local:8000/health >/dev/null 2>&1; do
+                echo "$(date -u +%T) waiting for vllm-0..."
+                sleep 10
+              done
+              echo "vllm-0 is ready."
+      containers:
+        - name: aiperf
+          image: python:3.12-slim
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              B=/benchmarks/study34
+              REPLAY=/replay
+              rm -rf "$B"; mkdir -p "$B/replay-benchmark" "$B/llm-coding-benchmark"
+              python3 -m venv /opt/aiperf-venv
+              /opt/aiperf-venv/bin/pip install --quiet aiperf==0.11.0
+              ln -sfn /opt/aiperf-venv "$B/llm-coding-benchmark/.venv"
+              cp "$REPLAY/run_benchmark.sh" "$B/replay-benchmark/run_benchmark.sh"
+              CORPUS=$(/opt/aiperf-venv/bin/python -c "import aiperf, os; print(os.path.join(os.path.dirname(aiperf.__file__), 'dataset', 'generator', 'assets', 'shakespeare.txt'))")
+              echo "$(date -u +%T) rendering the dataset: @USERS_RENDERED@ users"
+              python3 "$REPLAY/render_dataset.py" "$REPLAY/template.jsonl.gz" "$CORPUS" @USERS_RENDERED@ "$B/dataset.jsonl" 42
+              cat > "$B/replay-benchmark/benchmark.env" <<'ENV'
+              ENDPOINT=http://vllm-0.vllm-headless.llm-l40s.svc.cluster.local:8000
+              MODEL=aiservices_gemma
+              TOKENIZER=cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit
+              DATASET=/benchmarks/study34/dataset.jsonl
+              USERS=@USERS@
+              RAMP=@RAMP_S@
+              DURATION=@RAMP_S@
+              CAP=60
+              GRACE=60
+              NAME=study34
+              ENV
+              echo "$(date -u +%T) MEASURED RUN START: USERS=@USERS@ RAMP=@RAMP_S@ DURATION=@RAMP_S@"
+              bash "$B/replay-benchmark/run_benchmark.sh" NAME=$(date +%s)
+              RUN_DIR=$(ls -d "$B"/replay-benchmark/data/results/run_* | sort | tail -1)
+              python3 - "$RUN_DIR/profile_export.jsonl" <<'EOF' || true
+              import json, sys
+              cols = {"input_sequence_length": [], "reasoning_token_count": [], "output_token_count": [],
+                      "output_sequence_length": [], "time_to_first_token": [], "time_to_first_output_token": []}
+              total = []
+              errors = 0
+              for line in open(sys.argv[1]):
+                  r = json.loads(line)
+                  if r.get("error"):
+                      errors += 1
+                      continue
+                  m = r.get("metrics", {})
+                  for k, v in cols.items():
+                      if m.get(k) is not None and m[k].get("value") is not None:
+                          v.append(float(m[k]["value"]))
+                  isl, osl = m.get("input_sequence_length"), m.get("output_sequence_length")
+                  if isl and osl and isl.get("value") is not None and osl.get("value") is not None:
+                      total.append(float(isl["value"]) + float(osl["value"]))
+              def pct(v, q):
+                  v = sorted(v)
+                  return v[min(len(v) - 1, int(q * len(v)))]
+              print("LENGTHS: %d requests ok, %d errors" % (len(cols["output_sequence_length"]), errors))
+              for k, v in cols.items():
+                  if v:
+                      print("LENGTHS %-28s n=%5d mean=%9.1f p50=%9.1f p90=%9.1f p99=%9.1f max=%9.1f"
+                            % (k, len(v), sum(v) / len(v), pct(v, .5), pct(v, .9), pct(v, .99), max(v)))
+                  else:
+                      print("LENGTHS %-28s no values" % k)
+              # Prompt + output within ~1000 tokens of --max-model-len 96000 (chat template included
+              # in vLLM's count, not in AIPerf's): the request may have been cut by the cap.
+              if total:
+                  print("LENGTHS input + output >= 95000 tokens (may have hit max_model_len 96000): %d of %d"
+                        % (sum(t >= 95000 for t in total), len(total)))
+              EOF
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+                  optional: true
+            - name: HF_HOME
+              value: /hf-cache
+          resources:
+            # Study 30's CPU request. Memory: the rendered dataset (~2.6 MB per user, ~310 MB at
+            # 120 users) on the results volume, loaded by AIPerf; system-m8a has ~30 GiB.
+            requests:
+              cpu: 2000m
+              memory: 4Gi
+          volumeMounts:
+            - name: results
+              mountPath: /benchmarks
+            - name: hf-cache
+              mountPath: /hf-cache
+            - name: replay
+              mountPath: /replay
+              readOnly: true
+      volumes:
+        - name: results
+          persistentVolumeClaim:
+            claimName: aiperf-results
+        - name: hf-cache
+          persistentVolumeClaim:
+            claimName: hf-cache
+        - name: replay
+          configMap:
+            name: aiperf-replay

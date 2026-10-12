@@ -1,7 +1,7 @@
 # 33-l40s-gemma4-26b-awq-no-thinking
 
-**Status:** DESIGNED, local only (not pushed, not created on Akamas). Waits for study 32 to
-finish (same node, namespace, pod and Job name).
+**Status:** RUNNING on Akamas 4.1 since 2026-10-12 (created and started after study 32 finished:
+same node, namespace, pod and Job name).
 **Dates:** scaffolded 2026-10-12 as a copy of study 32.
 
 ## Objective
@@ -185,6 +185,12 @@ Offline checks: `bash k8s/tests/test_*.sh` (7 suites), `python3 akamas/check_off
 
 ## Running notes
 
+- 2026-10-12: created and started on Akamas 4.1 (commit 854d7f9) after study 32 finished (61
+  experiments, best 0.633 req/s = the `study 32 best` preset). Experiment 1 (baseline):
+  `params.env` with the 11 not-rendered keys empty; vllm-0 started with
+  `default_chat_template_kwargs {'enable_thinking': False}`, served as gemma4-26b-awq-nothink,
+  prefix caching on, KV cache 22.01 GiB = 708,768 tokens (gmu 0.90), ready in ~3.5 min
+  (compile 83 s); the AIPerf Job started right after the warm-up.
 - 2026-10-12: scaffolded from study 32 (`akamas/`, `k8s/` with `stop_aiperf.sh`, `smoke/`,
   `infra/`; not `probe/`, not `results/`). Thinking off, the e2e constraint averaged, the ramp
   to 6 req/s, a `study 32 best` preset. NCCL settings not added (one GPU). Offline: `python3

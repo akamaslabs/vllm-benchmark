@@ -3,8 +3,8 @@
 **Created:** 2026-10-12, with the `akamas-study-manager` plugin (0.3.0, modify mode on a copy),
 from study 32's resources (`../../32-l40s-gemma4-26b-awq-thinking/akamas/`, as accepted by the
 Akamas 4.1 server on 2026-10-10, plus its local four-task workflow of 2026-10-12). **Target:
-Akamas Studio 4.1** (`akamas41.lab.akamas.io`, namespace `akamas-41`). **Not created on the
-server yet** (local only, waiting for the user's go-ahead).
+Akamas Studio 4.1** (`akamas41.lab.akamas.io`, namespace `akamas-41`). **Created on the
+server and started on 2026-10-12** (commit 854d7f9, after study 32 finished).
 
 ## What it optimizes
 

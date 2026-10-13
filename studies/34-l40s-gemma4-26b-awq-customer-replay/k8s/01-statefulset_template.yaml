@@ -3,18 +3,19 @@
 # line holding the TUNED_ARGS token (between two at-signs) is replaced by one "- --flag"
 # item per tuned parameter.
 #
-# A customer's Docker Compose setup (vLLM 0.25.1 there, 0.29.0 here: they move to it) on study
-# 31's StatefulSet: their checkpoint and revision, --max-model-len 96000, tool calling and the
-# gemma4 reasoning parser, the vision tower loaded and prefix caching at vLLM's default (their
-# compose passes neither --language-model-only nor a prefix-caching flag), and their two
-# environment variables. Study 34 = study 32's manifest (thinking ON server-wide, as the customer
-# asked on 2026-10-12: "in production reasoning cannot be disabled"), served under the model name
-# their replay payloads carry (aiservices_gemma: AIPerf sends their payloads verbatim).
+# The customer's Docker Compose setup (vLLM 0.25.1 there, 0.29.0 here: they move to it) verbatim:
+# their checkpoint and revision, --max-model-len 96000, --max-num-seqs 64 and gpu_memory_utilization
+# 0.90 (rendered by the baseline), tool calling and the gemma4 reasoning parser, the vision tower
+# loaded and prefix caching at vLLM's default (their compose passes neither --language-model-only
+# nor a prefix-caching flag), thinking off by default, and their two environment variables. Served
+# under the model name their replay payloads carry (aiservices_gemma: AIPerf sends their payloads
+# verbatim; in production Kong maps that name to the checkpoint).
 #
-# One replica, one whole NVIDIA L40S (node group llm-serving-l40s-1xl, g6e.xlarge). A
+# One replica, one whole NVIDIA L40S (g6e.xlarge, node group llm-serving-l40s-1xl of the vllm-bench
+# cluster, label node-role=llm-serving-l40s-1xl: studies 30-33's node). A
 # StatefulSet rather than a Deployment for the stable pod name vllm-0: the Akamas components,
 # the watchdog and the warm-up all address it by name (study 28's layout, minus the MIG
-# neighbour). Same namespace, node group and pod name as studies 30-33, which run before it.
+# neighbour).
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -79,17 +80,10 @@ spec:
             # The load sends no tools, so it only parses each reply for a tool call.
             - "--enable-auto-tool-choice"
             - "--tool-call-parser=gemma4"
-            # Study 34: thinking ON, server-wide (study 32's setting; the customer, 2026-10-12:
-            # their replay's calls do not ask for reasoning, but production keeps it on for other
-            # use cases). Gemma 4's chat template defaults enable_thinking to false; their payloads
-            # carry no `reasoning` field, and vLLM 0.29.0's /v1/responses turns thinking on only
-            # for a request with reasoning.effort or through this server default
-            # (entrypoints/openai/responses/protocol.py build_chat_params, serving.py
-            # _effective_chat_template_kwargs). OPEN: whether their 0.29.0 deployment passes this
-            # flag; without it, their calls do not think in production and this line should say
-            # false (study 33's setting).
-            - "--default-chat-template-kwargs"
-            - '{"enable_thinking": true}'
+            # Thinking: OFF by default, as their compose (no --default-chat-template-kwargs; Gemma 4's
+            # chat template defaults enable_thinking to false). A client that wants reasoning asks for
+            # it per request (reasoning.effort on /v1/responses); their replay's payloads do not, so
+            # the replayed calls do not think (the customer, 2026-10-13).
             # vLLM 0.29.0's Gemma 4 parser (vllm/reasoning: "gemma4" -> Gemma4ParserReasoningAdapter),
             # as their compose: on /v1/responses the trace streams as response.reasoning_text.delta
             # and the answer as response.output_text.delta, which AIPerf 0.11.0 counts apart
@@ -150,11 +144,8 @@ spec:
             periodSeconds: 10
             failureThreshold: 3
       volumes:
-        # hostPath, not a PVC (study 26/28's choice): the node group spans three AZs and an
-        # EBS volume would pin it to one. A node scaled up from 0 starts empty: the first
-        # start downloads the model (~16 GiB), every later start reads it from the node.
-        # Study 30's path on purpose: same node group and drafter files, so a node still up
-        # from studies 30/31 skips the drafter download (the AWQ checkpoint is new there).
+        # hostPath, not a PVC (studies 30-33's): the checkpoint (~16 GiB) is already on the
+        # llm-serving-l40s-1xl node from them; a new node starts empty and downloads it once.
         - name: hf-cache
           hostPath:
             path: /var/lib/hf-cache-study30

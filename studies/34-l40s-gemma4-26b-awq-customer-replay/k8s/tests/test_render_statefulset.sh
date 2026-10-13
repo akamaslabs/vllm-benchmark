@@ -20,6 +20,14 @@ SCHEDULING_POLICY=fcfs
 ASYNC_SCHEDULING=true
 MAX_CUDAGRAPH_CAPTURE_SIZE=512
 BLOCK_SIZE=16
+LINEAR_BACKEND=
+MOE_BACKEND=
+SPEC_METHOD=
+SPEC_TOKENS=
+LONG_PREFILL_TOKEN_THRESHOLD=
+WATERMARK=
+SCHEDULER_RESERVE_FULL_ISL=
+STREAM_INTERVAL=
 P
   local kv
   for kv in "$@"; do
@@ -51,15 +59,13 @@ if render; then
   env_of() { yq "$C.env[] | select(.name==\"$1\") | .value" "$TMP/out.yaml"; }
   [ "$(env_of PYTORCH_CUDA_ALLOC_CONF)" = expandable_segments:True ] && ok "compose env PYTORCH_CUDA_ALLOC_CONF" || ko "compose env PYTORCH_CUDA_ALLOC_CONF"
   [ "$(env_of RAY_DISABLE_NODE_DISCOVERY)" = 1 ] && ok "compose env RAY_DISABLE_NODE_DISCOVERY" || ko "compose env RAY_DISABLE_NODE_DISCOVERY"
-  # Study 34, thinking on (study 32's): the chat-template kwargs flag is followed by enable_thinking true.
-  args | grep -A1 -x -- --default-chat-template-kwargs | tail -1 | grep -qx '{"enable_thinking": true}' \
-    && ok "enable_thinking true" || ko "enable_thinking true"
-  args | grep -q 'enable_thinking": false' && ko "no enable_thinking false" || ok "no enable_thinking false"
+  # Study 35, the compose: no server-wide thinking default (a client asks for it per request).
+  args | grep -q -- '--default-chat-template-kwargs' && ko "no server-wide chat-template kwargs" || ok "no server-wide chat-template kwargs"
   args | grep -qx -- '--served-model-name=aiservices_gemma' && ok "served as aiservices_gemma" || ko "served as aiservices_gemma"
   args | grep -q -- '--attention-backend\|--linear-backend' && ko "no backend flag by default" || ok "no backend flag by default"
   args | grep -q -- '=true\|=false' && ko "no =true/=false" || ok "no =true/=false"
   [ "$(yq "$C.resources.requests.\"nvidia.com/gpu\"" "$TMP/out.yaml")" = 1 ] && ok "one GPU" || ko "one GPU"
-  [ "$(yq '.spec.template.spec.nodeSelector."node-role"' "$TMP/out.yaml")" = llm-serving-l40s-1xl ] && ok "node selector" || ko "node selector"
+  [ "$(yq '.spec.template.spec.nodeSelector."node-role"' "$TMP/out.yaml")" = llm-serving-l40s-1xl ] && ok "node selector node-role=llm-serving-l40s-1xl" || ko "node selector"
   grep -q '@[A-Z_]*@' "$TMP/out.yaml" && ko "no token left" || ok "no token left"
 else
   ko "baseline renders"
@@ -143,5 +149,20 @@ RENDER_ALLOW_FA_FP8=1 bash "$R" "$TMP/params.env" "$T" "$TMP/out.yaml" >/dev/nul
 # Every token of params.env.template is a parameter the renderer reads.
 for k in $(grep -o '^[A-Z_]*=\${' "$K8S/params.env.template" | cut -d= -f1); do
   grep -q "\b$k\b" "$R" && ok "template key $k is read" || ko "template key $k is read"
+done
+# Study 35's scheduler and MoE parameters.
+params MOE_BACKEND=humming LONG_PREFILL_TOKEN_THRESHOLD=2048 WATERMARK=0.05 SCHEDULER_RESERVE_FULL_ISL=false STREAM_INTERVAL=4
+if render; then
+  for a in --moe-backend=humming --long-prefill-token-threshold=2048 --watermark=0.05 --no-scheduler-reserve-full-isl --stream-interval=4; do
+    args | grep -qx -- "$a" && ok "renders $a" || ko "renders $a"
+  done
+else ko "study 35 parameters render"; fi
+params MOE_BACKEND=auto LONG_PREFILL_TOKEN_THRESHOLD=0 SCHEDULER_RESERVE_FULL_ISL=true
+if render; then
+  args | grep -q -- '--moe-backend\|--long-prefill-token-threshold' && ko "auto / 0: no flag" || ok "auto / 0: no flag"
+  args | grep -qx -- --scheduler-reserve-full-isl && ok "reserve full isl true: --scheduler-reserve-full-isl" || ko "reserve full isl true"
+else ko "auto / 0 renders"; fi
+for bad in WATERMARK=1.5 STREAM_INTERVAL=0 LONG_PREFILL_TOKEN_THRESHOLD=100000 SCHEDULER_RESERVE_FULL_ISL=yes; do
+  params "$bad"; render && ko "rejects $bad" || ok "rejects $bad"
 done
 echo "$FAILS failure(s)"; [ $FAILS = 0 ]

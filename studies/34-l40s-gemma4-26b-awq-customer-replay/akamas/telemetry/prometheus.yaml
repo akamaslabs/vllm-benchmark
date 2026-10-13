@@ -1,38 +1,21 @@
-# Prometheus telemetry for 34-l40s-gemma4-26b-awq-customer-replay: study 32's file with new names
-# (system, instance) and the served model name aiservices_gemma (component vllm), nothing
-# else (study 33's file; study 34 runs thinking on again, as study 32: vLLM's TTFT counts the
-# first reasoning token, the time to the first answer token is AIPerf's, client side only).
-# Study 32's notes follow.
-# e2e_request_latency_p95 takes a [150s] window, as the TTFT / ITL p95s below: the study's
-# absolute constraint reads it (study 33: averaged over the scored window; study 32: :max), and at
-# < 1 req/s a 30 s window holds too few requests for a p95 (study 32 change, 2026-10-09).
-# prefix_cache_hit_rate, unused by studies 30/31 (prefix caching off), now reads a live value:
-# the shared system prompt and the conversation history. Study 31's notes follow (the knee and
-# window counts are study 30's; with ~3.4k-token prompts and thinking the knee is expected
-# below 1 req/s, so a 150 s p95 holds ~100 TTFT samples or fewer).
-# Study 30: study 28's catalog (itself studies
-# 25/26's), with two changes: active_gpus reads namespace llm-l40s and node role
-# llm-serving-l40s-1xl (1 for the single replica on the whole L40S), and this header.
-# Rules carried over:
-#   - placeholder keys have NO underscore ($GPUMODEL$, $NODEROLE$): Akamas 3.7 does not
-#     substitute keys such as gpu_model / node_role;
-#   - GPU queries filter on modelName and gpu, never on pod (the shared dcgm-exporter
-#     scrapes every GPU node group that is up, see k8s/monitoring/dcgm-exporter-values.yaml);
-#   - vLLM queries sum over the pods matched by $POD$ (only vllm-0 here) and take p95s from
-#     the merged histograms.
-# time_to_first_token_p95 and inter_token_latency_p95 use a [150s] rate window instead of
-# [$DURATION$] (study 28, the same reason as study 27's _150s metrics): vLLM pack 1.12.0
-# declares time_to_first_token_p95_150s / inter_token_latency_p95_150s only on the
-# vLLM_PD_Topology component type, not on vLLM. At the knee (~10-20 req/s expected) a 150 s
-# p95 holds ~1500-3000 requests; the constraints read it with :max over the 6-sample (3 min)
-# window. The watchdog in k8s/run_test.sh computes the same 150 s p95.
-# spec_decode_* (5 metrics at the end): MTP speculative decoding, 0 when it is off.
-# total_token_throughput (the goal and the windowing metric) = rate of vllm:prompt_tokens +
-# vllm:generation_tokens over $DURATION$ (30 s) = prefill_token_throughput +
-# decode_token_throughput.
+# Prometheus telemetry for 34-l40s-gemma4-26b-awq-customer-replay: study 35's file (itself this
+# study's earlier catalog, study 32's) back on the vllm-bench cluster: the in-cluster Prometheus
+# (Akamas runs on this cluster), namespace llm-l40s, node role llm-serving-l40s-1xl in active_gpus.
+# Server-side diagnostics only: the goal and the constraint are client side (AIPerf records through
+# the CSV File instance, aiperf-csv.yaml).
+# Rules carried over (study 32's notes):
+#   - placeholder keys have NO underscore ($GPUMODEL$, $NODEROLE$): Akamas does not substitute
+#     keys such as gpu_model / node_role;
+#   - GPU queries filter on modelName and gpu, never on pod;
+#   - vLLM queries sum over the pods matched by $POD$ (only vllm-0 here) and take quantiles from
+#     the merged histograms; e2e_request_latency_p95, time_to_first_token_p95 and
+#     inter_token_latency_p95 use a [150s] window;
+#   - prefix_cache_hit_rate reads a live value (prefix caching on, the template's repeated
+#     instructions and each conversation's history);
+#   - total_token_throughput = rate of vllm:prompt_tokens + vllm:generation_tokens over 30 s.
 kind: telemetry-instance
-system: vLLM_Benchmark_34_L40S_Gemma4_AWQ_Replay
-name: Prometheus_34_L40S_Gemma4_AWQ_Replay
+system: vLLM_Benchmark_34_L40S_Gemma4_AWQ_Replay_Users
+name: Prometheus_34_L40S_Gemma4_AWQ_Replay_Users
 provider: Prometheus
 config:
   address: kube-prometheus-stack-prometheus.monitoring.svc.cluster.local

@@ -1,135 +1,98 @@
 # 34-l40s-gemma4-26b-awq-customer-replay
 
-**Status:** DESIGNED, local only (not pushed, not created on Akamas). Waits for study 33 to
-finish or be stopped (same node, namespace, pod and Job name) and for the dataset template on
-the toolbox (`load/README.md`).
-**Dates:** scaffolded 2026-10-12 as a copy of study 33, the day the customer sent their load.
+**Status:** DESIGNED (2026-10-13), not created on Akamas yet. Needs the output caps calibrated once
+on the toolbox (`k8s/calibrate_caps.sh`, "Load") and the GPU node free (study 33 stopped
+2026-10-13).
+**Dates:** scaffolded 2026-10-12 from study 33 (thinking on, Shakespeare texts); redesigned
+2026-10-13 as **study 35 with every output capped**, on studies 30-33's node.
 
 ## Objective
 
-**Study 32's setup (thinking on) under the customer's own load: how many requests per second
-does one L40S complete with their Docker Compose setup of Gemma 4 26B-A4B when their users'
-sessions are replayed with their own AIPerf command, and which vLLM configuration beats their
-compose?** The rehearsal of the PoC's optimization, with the script and the dataset they will
-run on site (there with the full dataset, 100 users with real texts; here with its anonymized
-template, rendered).
+**Study 35's question (how many users can one L40S serve with the customer's Docker Compose setup
+of Gemma 4 26B-A4B while the typical request's end-to-end latency stays within 3 s, and which vLLM
+configuration serves the most?) under a load that repeats exactly from trial to trial.**
 
-On 2026-10-12 the customer sent `run_benchmark.sh` (their AIPerf command) and
-`dataset_u000.template.jsonl` (their replay dataset with every text replaced by its length), and
-wrote that their dataset's calls do not ask for reasoning but that they would keep it on, since
-production cannot disable it (other use cases need it); the user chose thinking on.
+Study 35 (`../35-l40s-gemma4-26b-awq-replay-users/`, run on the vllm-bench-gatling cluster) keeps
+the outputs natural: the model decides each reply's length, so two runs of the same configuration
+ask for different work (this study's load determinism test, "Load": 18 % fewer output tokens in a
+second run). Here every request asks for **the output length the compose produced for it in a
+calibration run** (`max_output_tokens`) **with `ignore_eos`**: the same requests, the same tokens,
+in every trial; the only thing that changes between trials is the configuration. Run side by side,
+the two studies say whether capping changes the ranking and how much of study 35's spread was the
+load's.
 
-## What changes from study 33
+Everything else is study 35's: their model and compose flags (thinking off by default), their
+`run_benchmark.sh` unchanged on their template rendered with Italian texts, users ramping in a
+closed loop, **score = users** (`aiperf.aiperf_active_sessions`) with **e2e median over 150 s <= 3
+s** (`aiperf.aiperf_e2e_request_latency_p50_150s`), both client side from AIPerf's records, 17
+parameters, three baselines, six presets, 60 AKAMAS experiments.
 
-| Item | Study 33 | Study 34 | Where |
-|---|---|---|---|
-| Thinking | off (`enable_thinking` false) | **on** (`enable_thinking` true, study 32's) | `k8s/01-statefulset_template.yaml` |
-| Served model name | `gemma4-26b-awq-nothink` | **`aiservices_gemma`** (the name their payloads carry; AIPerf sends them verbatim) | StatefulSet, Job, `run_test.sh`, `akamas/components/vllm.yaml` |
-| API | `/v1/chat/completions` | **`/v1/responses`** (their `--endpoint-type responses`) | `k8s/05-job_template.yaml` |
-| Load | AIPerf synthetic multi-turn chat, open-loop rate ramp 0 -> 6 req/s | **their `run_benchmark.sh`, unchanged**: `mooncake_trace` payloads, `--concurrency` users ramping 1 -> 100 over 6000 s, closed loop, sticky user sessions, think times capped at 60 s, seed 42; our values in its `benchmark.env` | `k8s/run_benchmark.sh`, `05-job_template.yaml`, `render_job.sh`, `run_test.sh` |
-| Dataset | AIPerf's synthetic pool | **their template rendered** into 120 users (`k8s/render_dataset.py`), template on the toolbox, not in git | `load/`, `k8s/render_dataset.py` |
-| Job warm-up | 8 synthetic chat requests | none (Apply config's warm-up stays) | `k8s/05-job_template.yaml` |
-| Goal, constraint, parameters, steps | | unchanged (constraint provisional, "Open") | `akamas/34-L40S-Gemma4-AWQ-Replay.yaml` |
+## What changes from study 35
 
-**What vLLM 0.29.0 does with their payloads** (read in the image, 2026-10-12): on `/v1/responses`
-Gemma 4 thinks only for a request with `reasoning.effort` or through the server default
-`--default-chat-template-kwargs '{"enable_thinking": true}'`
-(`entrypoints/openai/responses/protocol.py` `build_chat_params`, `serving.py`
-`_effective_chat_template_kwargs`; the CLI flag reaches the Responses handler,
-`entrypoints/generate/api_router.py`); their payloads carry no `reasoning`, so with their 0.25.1
-compose (reasoning parser only) their calls do not think. Thinking on here assumes their 0.29.0
-deployment sets that default ("Open"). The trace streams as `response.reasoning_text.delta`,
-the answer as `response.output_text.delta`; AIPerf 0.11.0 counts them apart (reasoning tokens,
-time to the first output token).
+| Item | Study 35 | Study 34 |
+|---|---|---|
+| Output length | natural (the model stops at its EOS) | **`max_output_tokens` = the request's calibrated length, `ignore_eos`** (`k8s/caps.py apply` in the Job, after the render; requests the calibration did not reach: their task's median) |
+| Calibration | (the probe's, for the texts) | + **`k8s/calibrate_caps.sh`**, once before the study: vLLM with the compose's numerics, every request the ramp can reach sent uncapped, output tokens per request -> `caps.json.gz` on the toolbox |
+| Cluster | `vllm-bench-gatling`, node groups `llm-serving-l40s` / `-ab`, namespace `llm-replay`, context `gatling`, Prometheus through an NLB | **`vllm-bench`**, node group **`llm-serving-l40s-1xl`** (studies 30-33's g6e.xlarge, checkpoint cached in `/var/lib/hf-cache-study30`), namespace **`llm-l40s`**, context `default`, Prometheus in-cluster; AIPerf on `system-m8a` |
+| Akamas names | `..._35_...`, `35-...` | `..._34_...`, `34-...`; toolbox folders `/work/aiperf-{exports,csv}/34-l40s-gemma4-26b-awq-customer-replay` |
+
+Goal, constraint, windowing, KPIs, the 17 parameters and their constraints, the steps and the
+watchdog are study 35's, unchanged (`akamas/34-L40S-Gemma4-AWQ-Replay-Users.yaml`; rationale in
+study 35's README, "Parameters tuned" and "Goal and scoring").
 
 ## Stack & versions
 
-- **Akamas version:** Studio 4.1.0 (`akamas41.lab.akamas.io`, namespace `akamas-41`).
-- **Optimization packs:** vLLM **1.12.0** (component type `vLLM`; installed on the 4.1 server,
-  `akamas list optimization-pack` 2026-10-12), GPU 1.4.0, Kubernetes 1.9.0 (metrics only).
-- **Workload under test:** `vllm/vllm-openai:v0.29.0` serving
-  `cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit` rev `0ef577a` as `aiservices_gemma`, StatefulSet
-  `vllm` (pod `vllm-0`) in namespace `llm-l40s`. Fixed flags: `--max-model-len=96000`,
-  `--enable-auto-tool-choice`, `--tool-call-parser=gemma4`, `--reasoning-parser=gemma4`,
-  `--default-chat-template-kwargs '{"enable_thinking": true}'`. Sampling: their payloads'
-  temperature 0.1 (9 requests 0) and top_p 1; top_k from the checkpoint's
-  `generation_config.json` (64). Pod: CPU request 3500m, no CPU limit, memory 28 GiB. The
-  customer moved to vLLM 0.29.0 on their L40S on 2026-10-12 (their email), the version here.
-- **Cluster / hardware:** shared EKS cluster `vllm-bench` (us-east-2), node group
-  `llm-serving-l40s-1xl`, one **g6e.xlarge** (1x NVIDIA L40S 48 GB, 4 vCPU / 32 GiB).
-  Provisioning: `infra/` (study 30's, unchanged).
-- **Load generator:** AIPerf 0.11.0 on the `system-m8a` node with the customer's flags ("Load").
-  Their AIPerf version is not known (their script runs it from their own venv).
-- **Telemetry:** Prometheus, 30 s samples, ServiceMonitor `vllm-l40s` (shared, already
-  deployed), dcgm-exporter.
-- **Model and KV cache (study 32's measurement on this checkpoint):** model 16.39 GiB, KV cache
-  22.01 GiB = 708,768 tokens at `gpu_memory_utilization` 0.90 in bf16; 1,262,011 tokens in fp8
-  with the MTP drafter.
-
-## Parameters tuned
-
-Study 32's 13, same domains: `gpu_memory_utilization` 0.80-0.94, `max_num_seqs` 16-512,
-`max_num_batched_tokens` 2496-16384 (vision tower loaded), `kv_cache_dtype` {auto, fp8},
-`performance_mode`, `optimization_level` 1-3, `scheduling_policy`, `async_scheduling`,
-`max_cudagraph_capture_size` 16-512, `block_size` 16-128 (ordinal), `linear_backend` {auto,
-triton, humming}, `spec_method` {none, mtp}, `spec_tokens` 0-4 (rationale: study 32's README,
-"Parameters tuned"). **parameterConstraints:** `max_num_batched_tokens >= max_num_seqs`;
-`spec_method != "none" || spec_tokens == 0`; `spec_method == "none" || spec_tokens > 0`.
-**Not tuned:** as study 33 (`max_model_len`, prefix caching, the vision tower, tool calling,
-`enforce_eager` false, no NCCL settings on one GPU). The vision tower stays loaded: the customer
-reports a few image requests in production (not in the dataset).
+- **Akamas:** Studio 4.1.0 (`akamas41.lab.akamas.io`, namespace `akamas-41`, toolbox there).
+- **Packs (installed on the 4.1 server, checked 2026-10-13):** vLLM **1.13.0**, **AIPerf 1.0.0**,
+  GPU 1.4.0, Kubernetes 1.9.0. Providers: Prometheus, CSV File (READY).
+- **Workload:** `vllm/vllm-openai:v0.29.0` serving `cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit` rev
+  `0ef577a` as `aiservices_gemma`, StatefulSet `vllm` (pod `vllm-0`), namespace `llm-l40s`; the
+  compose's flags (`max_model_len` 96000, tool calling, `gemma4` reasoning parser, thinking off by
+  default, vision tower loaded). Pod: 3500m CPU request, no limit, 28 GiB.
+- **Hardware:** one g6e.xlarge (1x L40S 48 GB, 4 vCPU / 32 GiB), node group `llm-serving-l40s-1xl`
+  of the shared EKS cluster `vllm-bench` (us-east-2, `infra/`, study 30's); AIPerf 0.11.0 on the
+  `system-m8a` node.
+- **Telemetry:** Prometheus (server side; `akamas/telemetry/prometheus.yaml`, ServiceMonitor
+  `vllm-l40s`, dcgm-exporter) and CSV File (client side, AIPerf; `akamas/telemetry/aiperf-csv.yaml`).
 
 ## Load
 
-**Their command**: `k8s/run_benchmark.sh` is their script byte for byte (sha256 checked by
-`k8s/tests/test_render_job.sh`); the Job gives it what it expects (its `benchmark.env`, AIPerf
-0.11.0 in `../llm-coding-benchmark/.venv`) and runs it with `NAME=<epoch>`. It runs
-`aiperf profile --endpoint-type responses --input-file <dataset> --custom-dataset-type
-mooncake_trace --concurrency USERS --concurrency-ramp-duration RAMP --benchmark-duration DURATION
---benchmark-grace-period GRACE --inter-turn-delay-cap-seconds CAP --random-seed 42
---connection-reuse-strategy sticky-user-sessions --use-server-token-count --streaming
---export-level records --ui simple`, `--tokenizer` from TOKENIZER (no revision flag in it: the
-tokenizer comes from the checkpoint's main branch; token counts are vLLM's anyway). Their
-`benchmark.env` was not sent; ours: ENDPOINT vllm-0, MODEL `aiservices_gemma`, USERS 100 (their
-full dataset's users), RAMP = DURATION 6000 s, CAP 60 s (their dataset is capped there
-already), GRACE 60 s.
+Study 35's ("Load" in its README): their `run_benchmark.sh` byte for byte (AIPerf 0.11.0,
+`/v1/responses`, `mooncake_trace` payloads sent verbatim, `--concurrency` users ramping 1 -> 200
+over 6000 s, sticky user sessions, think times capped at 60 s, seed 42); their template rendered
+with Italian texts (`k8s/render_dataset_it.py`, corpus from `k8s/build_corpus.py`, task mix
+calibrated on their production output lengths: p50 43 against their 38, p90 224 against 242, p99
+2518 against 2035); 240 users rendered for 200 (68,352 requests).
 
-**What it does** (AIPerf 0.11.0 source, checked 2026-10-12): the mooncake `payload` is sent
-verbatim (`workers/inference_client.py`), so `--model` names only the tokenizer and the
-model in the payloads (`aiservices_gemma`) is what vLLM must serve. `--concurrency` counts
-sessions: a user holds its slot for its whole session (`timing/concurrency.py`), sends a request,
-waits for the whole reply, then the trace's `delay`, then the next request
-(`timing/strategies/request_rate.py` `handle_credit_return`, used by the concurrency phase): a
-closed loop, the users of the SLA. Trace sessions are taken in order (`base_trace_loader.py`:
-sequential); a finished session gives its slot to the next.
+**The output caps (this study's change).** AIPerf sends the payloads verbatim, so the caps are
+written into them: after the render, the Job runs `k8s/caps.py apply`, which adds
+`max_output_tokens` (the request's calibrated length) and `ignore_eos: true` to every payload and
+prints a `CAPS:` line. The customer's script is untouched (sha256 still checked); the payloads are
+theirs plus these two fields.
 
-**Their dataset** (`load/README.md`): 10 users (`user_0000`-`0009`) of their 100, each ~1 h of
-activity, 212-416 requests (mean 285), think times median 0.5 s (chains of calls) with 12 % at
-the 60 s cap, mean 13 s. Per request median ~1,500 tokens, mean ~2,300, p99 ~13,000, max
-~27,000 (characters / 4, an estimate); 54 % carry `instructions` and the conversation history.
-
-**The render** (`k8s/render_dataset.py`, in the Job every trial, seed 42): each placeholder gets
-text of its length from AIPerf's `shakespeare.txt` (the corpus of studies 32-33's synthetic
-prompts). Instructions of one length are the same text for every user (their "many repeated
-prompts", a guess: the template does not say which texts are equal); user, assistant and input
-texts are per user, the same within a user, so a conversation's history repeats as in
-production. User k replays template session k mod 10 with its own texts: 120 users for 100
-concurrent, so no session repeats. `text` (an output format, 71 requests) is dropped. Measured
-locally: 120 users = 34,176 requests, 311 MB, rendered in ~1 s; AIPerf sent its first request
-~8 s after the start (`k8s/tests/dry_run_replay.sh` on their template, 100 users).
-
-**Ramp sizing, PROVISIONAL.** With thinking on, a reply is ~1,500 tokens and ~20 s at low load
-(study 32), so a user cycles in ~20 s + 13 s: ~0.03 req/s. Study 32's knees (compose ~0.59
-req/s, best ~1.3) then fall near ~20 and ~45 users: inside a ramp to 100 (~1 user a minute),
-the compose's at ~1/5 of it, the best near its middle. Experiment 1 checks it.
-
-**Not like production:**
-- The texts are Shakespeare, not their prompts: the model reasons and answers about them, so
-  reply lengths are the model's on filler text (study 32: ~1,500 tokens with reasoning), not
-  theirs (their history's answers, thinking off: median ~80 tokens).
-- Which texts repeat is guessed (above); prefix-cache hits can differ from production either way.
-- 10 template sessions behind 120 users: the same think-time patterns, 12 times over (with
-  different texts, started at different times by the ramp).
+- **Where the lengths come from:** `k8s/calibrate_caps.sh`, once, by hand, before the study (~1.5-3
+  h of GPU). It starts vLLM with `k8s/calibration.params.env` (the compose's numerics: bf16 KV, no
+  MTP, vLLM's kernels; `max_num_seqs` 128 and `max_num_batched_tokens` 8192 instead of 64 / 2496 to
+  go faster: batch shapes only), renders the dataset exactly as the Job does (same corpus on the
+  results volume, 240 users, seed 42, mix), and `caps.py measure` sends **every request the ramp can
+  reach** (user k starts at 30k s, its requests at their delays, latency left out: 47,794 of
+  68,352; best effort, it assumes AIPerf opens the k-th slot no earlier than a linear ramp would) uncapped and not streamed, 128 at a time, recording `usage.output_tokens` per
+  `<session>/<turn>`. Output: `/work/customer-data/34-l40s-gemma4-26b-awq-customer-replay/caps.json.gz`
+  (~200 KB), with each task's median for the requests it did not reach.
+- **Why calibrated lengths and not one fixed cap:** the test below capped every reply at 128 tokens:
+  the load came out ~3x lighter than the natural one (e2e ~1.2 s against ~5 s), and `ignore_eos`
+  made the model write past its EOS, which MTP drafts badly (acceptance 0.41 against 0.60-0.71). A
+  cap equal to the length the model chose leaves few tokens after an EOS; the length distribution is
+  the calibrated one (the customer's).
+- **Guard:** `caps.json.gz` holds the sha256 of the dataset it was measured on; `caps.py apply`
+  refuses (exit 2, the trial fails) a render that differs (another template, corpus, mix, seed or
+  user count): recalibrate then. The render is deterministic (two renders of 240 users: same
+  sha256, 2026-10-13) and the corpus is built once on the results volume and kept.
+- **What still varies between trials:** the server's own timing (the closed loop sends a user's
+  next request when the reply ends) and, slightly, whether a configuration that numerically differs
+  from the compose (fp8 KV, MTP) would have stopped earlier: it now writes past its EOS up to the
+  same count. Measured with natural outputs: ~3-5 % on e2e mean and p90 between two runs ("Load
+  determinism test", below).
 
 ### Load determinism test (2026-10-13, manual, outside Akamas)
 
@@ -182,82 +145,87 @@ study, ~1 h each, do not wrap.)
 - AIPerf refuses `--benchmark-grace-period` without `--benchmark-duration` (so not with a fixed
   schedule alone).
 
-**If the study needs a repeatable load (not adopted yet):** a per-request `max_output_tokens`
-close to the natural length (from the reply the next request of the session carries in its
-history, the customer's real one; with thinking on, to be sized separately), so that few tokens
-follow the EOS and MTP acceptance stays realistic; `timestamp`s with a realistic gap between
-turns; the users at the SLA measured afterwards with their closed-loop replay on the best
-configurations. `VLLM_BATCH_INVARIANT=1` was ruled out: it changes the system being tuned (slower
+**What the study adopted (2026-10-13, "Load" above):** per-request `max_output_tokens` equal to
+the length the compose produced for that request in a calibration run, with `ignore_eos`, so that
+few tokens follow an EOS and MTP acceptance stays close to real text's; the closed loop and the
+users score kept (no fixed schedule: it would change the question to the latency at a fixed load).
+Lengths from the template's history were the first idea, dropped: study 35's Italian render makes
+the model's lengths follow the customer's distribution, and half the requests (the task shape) have
+no history. `VLLM_BATCH_INVARIANT=1` was ruled out: it changes the system being tuned (slower
 kernels the customer will not run) and fixes only the reply contents, not the closed loop or the
 duration cut.
 
-## Steps
+## Goal and scoring
 
-As study 33: `baseline` (the compose: `gpu_memory_utilization` 0.90, `max_num_seqs` 64; the other
-11 not rendered), `baseline repeat`, presets `kv fp8`, `kv fp8 mtp2`, `vllm defaults`, `kv fp8
-large batch`, `study 30 best`, `study 31 best`, `study 32 best` (study 32's experiment 10, still
-its best valid when it ended at 61 experiments: 0.633 completed req/s, +280 %, thinking on as
-here), `optimize` (AKAMAS, 0 init, 60 experiments, `maxFailedExperiments` 20).
-
-**KPIs (8):** as study 32 (Total throughput, MTP acceptance, Completed requests, TTFT P95 150s,
-ITL P95 150s, KV cache usage, Preemption, Running requests).
-
-**Goal:** maximize `vllm.request_success_rate` with `vllm.e2e_request_latency_p95 <= 30000`
-averaged over the scored window (study 33's). Provisional: completed requests/s stands for the
-users served (it grows with them until the GPU saturates), and the customer's SLA ("e2e <= 2-3 s
-at Kong") cannot be an e2e with thinking on (~20 s per reply at low load).
-
-## Expected results (written before the start)
-
-- Completed requests/s near study 32's at the knee (thinking on, inputs of a similar size: mean
-  ~2,300 tokens here, ~3,400 there), with more prefix-cache hits (shared instructions, history).
-- `study 32 best` (fp8 KV, MTP K=3, `humming`, 408 sequences) at or near the top again.
-- Users at the knee: ~20 for the compose, ~45 or more for the best (provisional sizing above).
+Study 35's: maximize `aiperf.aiperf_active_sessions` with
+`aiperf.aiperf_e2e_request_latency_p50_150s <= 3000`, `stability` windowing on the users, 6 samples,
+`when: max` (the last valid window before the median passes 3 s); 8 KPIs (users, completed req/s,
+e2e p50 and p95 over 150 s, client TTFT p95, prefix cache hit rate, MTP acceptance, KV cache usage).
+With the caps the window's mix of reply lengths no longer changes between trials, which removes the
+part of study 35's p95 noise that came from which replies fell in the window; the median stays the
+constraint, for comparability.
 
 ## Risks
 
-- **Thinking on may not be their production.** If their 0.29.0 deployment does not set
-  `enable_thinking` true, their calls do not think and this study measures ~1,400 tokens per
-  reply that production never generates: the flag is one line in
-  `k8s/01-statefulset_template.yaml` (false = study 33's), but changing it means a new study.
-- `/v1/responses` on vLLM 0.29.0 was exercised against the mock only: experiment 1 is its first
-  real run (first-trial checks, `akamas/README.md`).
-- The reply lengths come from filler text ("Load"): a configuration's ranking can still hold,
-  the absolute users cannot be quoted as theirs.
-- The closed loop never builds an unbounded queue: past the knee latency rises with the users
-  instead; the watchdog (TTFT p95 > 3 s or ITL p95 > 600 ms for 120 s, study 32's) ends the run.
+- **The caps are the compose's lengths:** a configuration whose numerics differ (fp8 KV, MTP,
+  another kernel) would have written slightly different replies; it now writes the compose's count,
+  past its EOS when it would have stopped earlier. Fine for comparing configurations on the same
+  work; MTP's acceptance on those extra tokens is lower than on real text (the test: 0.41 on
+  128-token caps), so MTP presets may score a little worse here than in study 35.
+- **Coverage of the calibration is best effort:** a request it did not reach (if AIPerf's ramp
+  opens slots earlier than a linear one) or that failed in it gets its task's median. The
+  guarantee is the fixed file: every trial asks for the same tokens whatever the coverage.
+- **Tokens past an EOS and the reasoning parser:** with `ignore_eos` the model may write turn or
+  thinking markers after its EOS, which `--reasoning-parser=gemma4` could count as reasoning: a
+  non-zero `aiperf_reasoning_token_count_avg` or an odd time to the first output token is not, by
+  itself, thinking switched on (study 35's "no reasoning tokens" check does not apply as is).
+- **`/work` on the toolbox is shared with study 35** (356 MB free on 2026-10-13, 1 GiB volume):
+  each trial of either study saves 25-60 MB of records there, and AIPerf to CSV (critical) fails
+  when it fills. Move the records off before experiment ~4 and then every few experiments
+  (`akamas/README.md`, "Room on the toolbox").
+- **A recalibration is needed** whenever the template, `render_dataset_it.py`, `build_corpus.py`,
+  `mix.json`, the seed or `RT_USERS` change (the guard stops the trial otherwise), and if the
+  results volume loses the corpus (rebuilt from Hugging Face, it may differ).
+- **The 4-vCPU g6e.xlarge** may bind before the GPU (API server, tokenization): watch the
+  `container` component's CPU.
+- **Prefix-cache reuse is guessed** from the template's lengths, as in study 35.
 
-## Open (to ask the customer)
+## Steps
 
-1. The vLLM 0.29.0 command line of their L40S deployment: `--default-chat-template-kwargs`
-   with `enable_thinking` true or not (decides thinking on or off here).
-2. The other 90 users' templates (no text in them): no rendered user would repeat a session.
-3. An id in each placeholder for identical texts: the renderer would reproduce their repeated
-   prompts instead of guessing them from the length.
-4. Output tokens per request (`usage.output_tokens`) and the 71 `text` schemas; their
-   `benchmark.env` (USERS, DURATION, RAMP, CAP, GRACE) and AIPerf version; how `delay` was
-   measured (from the end of the previous reply, as AIPerf replays it, or between starts).
-5. The SLA: first token or full reply, which percentile, per request or per user action (a
-   chain of 2-4 calls).
+Study 35's: `baseline` (the compose: two values rendered, the rest not), `baseline repeat 1` and `2`
+(values written out), presets `kv fp8`, `mtp3`, `kv fp8 mtp3`, `kv fp8 long prefill cap`, `kv fp8
+large batch`, `study 32 best`, then `optimize` (AKAMAS, 0 init, 60 experiments, 20 failures). With
+the load fixed, the three baselines measure the server's own noise only.
 
 ## Runbook
 
-1. Study 33 finished or stopped (the user decides; `akamas finish study
-   "33-L40S-Gemma4-AWQ-NoThinking" --workspace default`), exported, its Job deleted.
-2. The template on the toolbox (`load/README.md`, "On the toolbox").
+1. GPU node free: no other study on `llm-serving-l40s-1xl`, no AIPerf Job in `llm-l40s`; `AlwaysOn`
+   tags on the node and its ASG if a run crosses 17:00 UTC.
+2. Template on the toolbox (`load/README.md`).
 3. Commit, push, `git pull` in `/work/vllm-benchmark` on the toolbox.
-4. `akamas/README.md` "Setup & run": create in dependency order, wait 120 s, start.
-5. Experiment 1 checks (`akamas/README.md`): the render line, `/v1/responses` 200s, thinking
-   on, the knee inside the ramp.
+4. **Calibrate:** `bash studies/34-l40s-gemma4-26b-awq-customer-replay/k8s/calibrate_caps.sh` on the
+   toolbox, **inside `tmux`** (1.5-3 h; its log: the render line, progress every minute, the
+   measured lengths' percentiles, `0 with reasoning tokens`; then `caps: N measured of 47794
+   reachable`). Tag the GPU node `AlwaysOn` if it crosses 17:00 UTC. If the session drops, the pod
+   keeps going and writes `/benchmarks/caps/caps.json.gz` on the `aiperf-results` volume, then
+   sleeps 1 h after `CALIBRATION DONE`: copy it with `kubectl -n llm-l40s cp
+   aiperf-calibration:/benchmarks/caps/caps.json.gz <D>/caps.json.gz -c calibration` while it
+   sleeps, or later from any pod that mounts the volume.
+5. Create and start: `akamas/README.md`, "Setup & run".
+6. Experiment 1 checks: the `CAPS:` line in RunTest's log, the `LENGTHS output_sequence_length`
+   equal to the caps' distribution, `/v1/responses` 200s, the CSV rows inside the trial window, the
+   knee inside the ramp (study 35's checks otherwise).
 
-**Offline checks (2026-10-12):** `python3 akamas/check_offline.py` 0 failures; `bash
-k8s/tests/test_*.sh` 0 failures (8 suites; `test_render_dataset.sh` with `CORPUS=` AIPerf's
-`shakespeare.txt`); `bash k8s/tests/dry_run_replay.sh` 0 failures, on the fixture (6 users over
-60 s) and on their template (100 users over 120 s: 528 requests, every payload rendered, model
-`aiservices_gemma`, 12 reasoning tokens per mock reply counted, time to the first answer token
-after TTFT); then again on the fixture after the switch to their unchanged script (their run
-folder written, `run.log` and records in it). Not testable here: `stop_aiperf.sh`'s process
-scan reads `/proc` (Linux), so experiment 1 checks it (`akamas/README.md`).
+## Offline checks (2026-10-13)
+
+`python3 akamas/check_offline.py --packs <packs' develop branches>` 0 failures (vLLM 1.13.0, AIPerf
+1.0.0); `bash k8s/tests/test_*.sh` 8 suites 0 failures, `test_caps.sh` new (measure on the
+reachable set against a non-streaming mock, apply, refusal of another dataset) and `test_run_test.sh`
+extended (caps in the ConfigMap, exit 2 without them); `DRY_CORPUS=<corpus> bash
+k8s/tests/dry_run_replay.sh` 0 failures (the Job's script with real AIPerf 0.11.0 against the mock:
+the Job's render accepted by `caps.py apply`, every request with `max_output_tokens` and
+`ignore_eos`); `caps.py apply` on the real 240-user render: 3 s, 1.3 GB. Not run here: the
+calibration itself (needs the GPU).
 
 ## Running notes
 
@@ -269,6 +237,12 @@ scan reads `/proc` (Linux), so experiment 1 checks it (`akamas/README.md`).
   req/s on `vllm-0`) and was deleted. Load determinism test by hand on the free GPU ("Load
   determinism test" above); the test pod `aiperf-determinism-test` deleted afterwards, its records
   with it (the numbers above are all that was kept).
+- 2026-10-13: redesigned as study 35 (Cereda's, pushed the same day: thinking off, Italian
+  texts, users under an e2e median SLA, client-side AIPerf metrics) with per-request output caps
+  calibrated on the compose plus `ignore_eos` (the user's choice after the determinism test), on
+  this cluster and node while study 35 runs on vllm-bench-gatling. The first design's files
+  (`render_dataset.py`, its test, the old study and workflow YAML) removed; none had been created
+  on Akamas.
 
 ## Results
 

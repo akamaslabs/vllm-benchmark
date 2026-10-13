@@ -1,11 +1,11 @@
 kind: system
 
-name: vLLM_Benchmark_34_L40S_Gemma4_AWQ_Replay
+name: vLLM_Benchmark_34_L40S_Gemma4_AWQ_Replay_Users
 description: >-
-  Study 34: a customer's Docker Compose setup on one NVIDIA L40S 48 GB (g6e.xlarge, node group
-  llm-serving-l40s-1xl), thinking on (enable_thinking true, as study 32). Base vLLM
-  configuration tuning (single GPU, no parallelism) of cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit rev
-  0ef577a (W4A16 int4; vllm/vllm-openai:v0.29.0, served as aiservices_gemma with
-  max_model_len 96000, tool calling, the gemma4 reasoning parser). Goal: completed requests/s
-  with the e2e p95 <= 30 s (provisional), under the customer's own AIPerf replay (/v1/responses,
-  their dataset, users ramping in a closed loop). Requires vLLM pack 1.12.0, GPU pack, Kubernetes pack. Created 2026-10-12.
+  Study 34 (study 35 with every output capped at its calibrated length): a customer's Docker Compose setup of Gemma 4 26B-A4B (cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit
+  rev 0ef577a, W4A16; vllm/vllm-openai:v0.29.0, served as aiservices_gemma, max_model_len 96000,
+  tool calling, gemma4 reasoning parser, thinking off by default) on one NVIDIA L40S 48 GB
+  (g6e.xlarge, cluster vllm-bench), under the customer's own AIPerf replay of their
+  dataset template rendered with Italian texts, users ramping in a closed loop. Goal: the most
+  users (AIPerf sessions) with the client-side e2e median (150 s) at most 3 s. Requires the vLLM
+  pack 1.13.0, the AIPerf pack 1.0.0, the GPU and Kubernetes packs. Created 2026-10-13.

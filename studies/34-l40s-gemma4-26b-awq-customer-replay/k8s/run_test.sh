@@ -4,41 +4,45 @@
 # One AIPerf Job against vllm-0: the customer's replay (05-job_template.yaml), users ramping from
 # 1 to RT_USERS over RT_RAMP_S s (closed loop: each user waits for its reply, then its think
 # time). Their dataset template is not in git: RT_TEMPLATE on the toolbox (../load/README.md);
-# it goes, gzipped, into the ConfigMap aiperf-replay with render_dataset.py and their
-# run_benchmark.sh, which the Job mounts: it renders the dataset and runs their script.
-# Defaults RT_USERS=100 (the users of their full dataset), RT_RAMP_S=6000, as the workflow
-# command. PROVISIONAL (study README "Load"): study 32's knees (thinking on, synthetic load:
-# compose ~0.59 req/s, best ~1.3) over a user's request rate with thinking on (~20 s per reply
-# plus ~13 s of mean think time: ~0.03 req/s) put the compose's knee near ~20 users and the best
-# near ~45: inside a ramp to 100.
+# it goes, gzipped, into the ConfigMap aiperf-replay with the Italian renderer, the corpus builder,
+# the task mix and their run_benchmark.sh, which the Job mounts.
+# PROVISIONAL (study README "Load"): RT_USERS=200, RT_RAMP_S=6000 (one user every 30 s), sized from
+# the calibration run; experiment 1 checks that the knee falls inside the ramp.
 # The trial FAILS (exit 1) if the Job fails, the vLLM pod restarts or is replaced, vllm-0
-# completes nothing for RT_STALL_S, or the deadline passes (study 27/28 guards). The
-# watchdog ENDS the test with SUCCESS (exit 0) once vllm-0's TTFT p95 (150 s) > RT_WD_TTFT_MS
-# or ITL p95 (150 s) > RT_WD_ITL_MS for RT_WD_HOLD_S: past the capacity of an open loop the
-# queue only grows, so every later window would be invalid anyway, and Akamas scores the
-# best valid window before it. Armed RT_WD_ARM_DELAY_S after the measured run starts, so
-# Apply config's warm-up is out of its 150 s view.
+# completes nothing for RT_STALL_S, or the deadline passes. The watchdog ENDS the test with
+# SUCCESS (exit 0) once vllm-0's e2e p50 over 150 s (vLLM's histogram, from Prometheus) stays above
+# RT_WD_E2E_MS (default 2x the study's 3 s constraint) for RT_WD_HOLD_S: in a closed loop past the
+# knee latency only grows with the users, so every later window is invalid anyway, and Akamas
+# scores the best valid window before it. Armed RT_WD_ARM_DELAY_S after the measured run starts.
+# The score itself is client side (AIPerf's records -> CSV, the study's aiperf component); the
+# watchdog only needs to know the run is past the knee.
 # RT_STOP_AIPERF=0 (the workflow): the Job is left running, on failure too, for the workflow's
 # Stop AIPerf task (stop_aiperf.sh: graceful stop, records saved on the toolbox); 1 (default: the
-# script run by hand): deleted here, as before.
+# script run by hand): deleted here.
+# Cluster: vllm-bench through the toolbox's `default` context (KUBE_CONTEXT, in-cluster); Prometheus
+# in-cluster (RT_PROM), the address of the study's Prometheus telemetry instance.
 set -euo pipefail
 K8S=${K8S:-/work/vllm-benchmark/studies/34-l40s-gemma4-26b-awq-customer-replay/k8s}
 NS=llm-l40s
+KUBE_CONTEXT=${KUBE_CONTEXT:-default}
+kubectl() { command kubectl --context "$KUBE_CONTEXT" "$@"; }
 MODEL=aiservices_gemma
-USERS=${RT_USERS:-100}
+USERS=${RT_USERS:-200}
 RAMP_S=${RT_RAMP_S:-6000}
 TEMPLATE=${RT_TEMPLATE:-/work/customer-data/34-l40s-gemma4-26b-awq-customer-replay/dataset_u000.template.jsonl}
+# The per-request output caps (calibrate_caps.sh, once, before the study; caps.py apply in the Job).
+CAPS=${RT_CAPS:-/work/customer-data/34-l40s-gemma4-26b-awq-customer-replay/caps.json.gz}
 # pip (~2 min) + the dataset render and AIPerf's load of it (~1-3 min) + the ramp + grace. The workflow's RunTest timeout must stay above it, or Akamas kills the task
 # before the log dump.
 DEADLINE_S=${RT_DEADLINE_S:-$((RAMP_S + 1500))}
-WD_TTFT_MS=${RT_WD_TTFT_MS:-3000}; WD_ITL_MS=${RT_WD_ITL_MS:-600}
+WD_E2E_MS=${RT_WD_E2E_MS:-6000}
 WD_HOLD_S=${RT_WD_HOLD_S:-120}; WD_ARM_DELAY_S=${RT_WD_ARM_DELAY_S:-150}
 POLL_S=${RT_POLL_S:-15}; STALL_S=${RT_STALL_S:-900}; FIRST_OK_S=${RT_FIRST_OK_S:-1500}
 PROGRESS_EVERY_S=${RT_PROGRESS_EVERY_S:-60}
 STOP_AIPERF=${RT_STOP_AIPERF:-1}
 PROM=${RT_PROM:-http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090}
 TMP=$(mktemp -d /tmp/run-test-34-XXXXXX)
-JOB=aiperf-l40s
+JOB=aiperf-replay
 # shellcheck source=lib_watchdog.sh
 source "$K8S/lib_watchdog.sh"
 
@@ -46,7 +50,7 @@ stop_job() {
   if [ "$STOP_AIPERF" = 0 ]; then
     echo "job/$JOB left running for the Stop AIPerf task (RT_STOP_AIPERF=0)"
   else
-    kubectl -n "$NS" delete job -l app=aiperf-l40s --ignore-not-found --wait=false || true
+    kubectl -n "$NS" delete job -l app=aiperf-replay --ignore-not-found --wait=false || true
   fi
 }
 
@@ -58,12 +62,12 @@ successes() {  # requests vllm-0 completed so far (empty if unreadable)
   kubectl exec -n "$NS" vllm-0 -c vllm -- python3 -c \
     "import urllib.request;print(int(sum(float(l.split()[-1]) for l in urllib.request.urlopen('http://127.0.0.1:8000/metrics',timeout=5).read().decode().splitlines() if l.startswith('vllm:request_success_total'))))" 2>/dev/null || true
 }
-p95_ms() {  # $1 vLLM histogram name: vllm-0's p95 over 150 s in ms (empty if no data)
-  python3 - "$PROM" "$1" "$MODEL" <<'EOF' 2>/dev/null || true
+quantile_ms() {  # $1 quantile, $2 vLLM histogram name: vllm-0's quantile over 150 s in ms (empty if no data)
+  python3 - "$PROM" "$1" "$2" "$MODEL" <<'EOF' 2>/dev/null || true
 import json, sys, urllib.parse, urllib.request
-prom, h, model = sys.argv[1:4]
-q = ('histogram_quantile(0.95, sum by(le)(rate(vllm:%s_bucket{model_name="%s",pod="vllm-0"}[150s])))*1000'
-     % (h, model))
+prom, qq, h, model = sys.argv[1:5]
+q = ('histogram_quantile(%s, sum by(le)(rate(vllm:%s_bucket{model_name="%s",pod="vllm-0"}[150s])))*1000'
+     % (qq, h, model))
 r = json.load(urllib.request.urlopen(prom + '/api/v1/query?' + urllib.parse.urlencode({'query': q}), timeout=10))
 v = r['data']['result']
 if v and v[0]['value'][1] not in ('NaN', '+Inf'):
@@ -78,14 +82,17 @@ if [ "${READY:-0}" != 1 ]; then
 fi
 STATE_BEFORE=$(pod_state)
 echo "vLLM pod before the test: $STATE_BEFORE"
-echo "users 1 -> $USERS over $RAMP_S s; watchdog: TTFT p95 > $WD_TTFT_MS ms or ITL p95 > $WD_ITL_MS ms for $WD_HOLD_S s, armed $WD_ARM_DELAY_S s after the measured run starts; deadline $DEADLINE_S s"
+echo "users 1 -> $USERS over $RAMP_S s; watchdog: e2e p50 (150 s) > $WD_E2E_MS ms for $WD_HOLD_S s, armed $WD_ARM_DELAY_S s after the measured run starts; deadline $DEADLINE_S s"
 
 # A Job left over from a stopped study would keep loading vLLM (study 29, exp 16).
-kubectl -n "$NS" delete job -l app=aiperf-l40s --ignore-not-found --wait=true
+kubectl -n "$NS" delete job -l app=aiperf-replay --ignore-not-found --wait=true
 [ -s "$TEMPLATE" ] || { echo "error: dataset template $TEMPLATE missing on the toolbox (../load/README.md)" >&2; exit 2; }
+[ -s "$CAPS" ] || { echo "error: output caps $CAPS missing on the toolbox: run calibrate_caps.sh first (../README.md)" >&2; exit 2; }
 gzip -c "$TEMPLATE" > "$TMP/template.jsonl.gz"
 kubectl -n "$NS" create configmap aiperf-replay --from-file=template.jsonl.gz="$TMP/template.jsonl.gz" \
-  --from-file=render_dataset.py="$K8S/render_dataset.py" --from-file=run_benchmark.sh="$K8S/run_benchmark.sh" \
+  --from-file=render_dataset_it.py="$K8S/render_dataset_it.py" --from-file=build_corpus.py="$K8S/build_corpus.py" \
+  --from-file=mix.json="$K8S/mix.json" --from-file=run_benchmark.sh="$K8S/run_benchmark.sh" \
+  --from-file=caps.py="$K8S/caps.py" --from-file=caps.json.gz="$CAPS" \
   --dry-run=client -o yaml | kubectl apply -f -
 bash "$K8S/render_job.sh" "$USERS" "$RAMP_S" "$TMP/job.yaml"
 kubectl apply -f "$TMP/job.yaml"
@@ -121,14 +128,14 @@ while true; do
     echo "$(date -u +%T) measured run started; watchdog armed in $WD_ARM_DELAY_S s"
   fi
   if wd_ready "$SECONDS" "$MARKER_AT"; then
-    TT=$(p95_ms time_to_first_token_seconds); IT=$(p95_ms inter_token_latency_seconds)
-    if wd_over "$TT" "$IT"; then NOW_OVER=0; else NOW_OVER=1; fi
+    E2E=$(quantile_ms 0.5 e2e_request_latency_seconds)
+    if wd_over "$E2E"; then NOW_OVER=0; else NOW_OVER=1; fi
     NEW_SINCE=$(wd_next_since "$SECONDS" "$OVER_SINCE" "$NOW_OVER")
-    if [ -z "$OVER_SINCE" ] && [ -n "$NEW_SINCE" ]; then echo "$(date -u +%T) watchdog: over (TTFT p95 ${TT:-n/a} ms, ITL p95 ${IT:-n/a} ms)"; fi
-    if [ -n "$OVER_SINCE" ] && [ -z "$NEW_SINCE" ]; then echo "$(date -u +%T) watchdog: back under (TTFT p95 ${TT:-n/a} ms, ITL p95 ${IT:-n/a} ms)"; fi
+    if [ -z "$OVER_SINCE" ] && [ -n "$NEW_SINCE" ]; then echo "$(date -u +%T) watchdog: over (e2e p50 ${E2E:-n/a} ms)"; fi
+    if [ -n "$OVER_SINCE" ] && [ -z "$NEW_SINCE" ]; then echo "$(date -u +%T) watchdog: back under (e2e p50 ${E2E:-n/a} ms)"; fi
     OVER_SINCE=$NEW_SINCE
     if wd_fired "$SECONDS" "$OVER_SINCE"; then
-      WATCHDOG="TTFT p95 ${TT:-n/a} ms, ITL p95 ${IT:-n/a} ms for $((SECONDS - OVER_SINCE)) s"; break
+      WATCHDOG="e2e p50 ${E2E:-n/a} ms for $((SECONDS - OVER_SINCE)) s"; break
     fi
   fi
   if [ $((SECONDS - T0)) -ge "$DEADLINE_S" ]; then FAIL_REASON="test timeout (${DEADLINE_S} s)"; break; fi

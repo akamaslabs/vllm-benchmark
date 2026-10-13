@@ -8,7 +8,7 @@
 echo "kubectl $*" >> "$STUB_LOG"
 args="$*"
 case "$args" in
-  *"get pods -l app=aiperf-l40s"*) echo "${STUB_POD:-}" ;;
+  *"get pods -l app=aiperf-replay"*) echo "${STUB_POD:-}" ;;
   *"get pod "*".status.phase"*) [ -f "$STUB_DIR/sigint" ] && echo Succeeded || echo "${STUB_PHASE:-Running}" ;;
   *"exec "*" -c aiperf -- python3 -c "*SIGINT*) touch "$STUB_DIR/sigint"; echo 106 ;;
   *" logs "*) echo "BENCHMARK CANCELLED" ;;

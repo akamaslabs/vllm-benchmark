@@ -1,6 +1,7 @@
-"""Offline checks of study 34's Akamas YAML (study 33's checks, from study 32's, from studies 31, 30 and 28) against the repo rules and the local pack checkouts.
+"""Offline checks of study 35's Akamas YAML (study 34's checks, from studies 33, 32, 31, 30 and 28) against the repo rules and the local pack checkouts.
 
-Usage: python3 akamas/check_offline.py [--packs ~/akamas/offline/optimization-packs]
+Usage: python3 akamas/check_offline.py [--packs ~/workspace/akamas/optimization-packs]
+(the vLLM pack 1.13.0 and the AIPerf pack 1.0.0 checkouts)
 Exit 0 if every check passes; prints one line per failure otherwise.
 """
 import glob
@@ -15,7 +16,7 @@ import yaml
 HERE = os.path.dirname(os.path.abspath(__file__))
 STUDY = os.path.dirname(HERE)
 PACKS = os.path.expanduser(sys.argv[sys.argv.index('--packs') + 1] if '--packs' in sys.argv
-                           else '~/akamas/offline/optimization-packs')
+                           else '~/workspace/akamas/optimization-packs')
 fails = []
 
 
@@ -40,7 +41,8 @@ for p in glob.glob(os.path.join(PACKS, '*', 'component-types', '*.yaml')):
         if t:
             conftpl[(d['name'], x['name'])] = t
 
-tel = open(os.path.join(HERE, 'telemetry', 'prometheus.yaml')).read()
+# Every telemetry instance of the study (Prometheus for vLLM, GPU, Kubernetes; CSV File for AIPerf).
+tel = '\n'.join(open(p).read() for p in sorted(glob.glob(os.path.join(HERE, 'telemetry', '*.yaml'))))
 TOKEN = r'\$\{([a-z0-9_]+\.[a-z0-9_]+)\}'
 env_template = open(os.path.join(STUDY, 'k8s', 'params.env.template')).read()
 tokens = set(re.findall(TOKEN, '\n'.join(l for l in env_template.splitlines() if not l.lstrip().startswith('#'))))
@@ -77,9 +79,10 @@ system_name = load(os.path.join(HERE, 'system.yaml'))['name']
 for name, c in components.items():
     if c.get('system') != system_name:
         fails.append('component %s: system %s, not %s' % (name, c.get('system'), system_name))
-tel_doc = load(os.path.join(HERE, 'telemetry', 'prometheus.yaml'))
-if tel_doc.get('system') != system_name:
-    fails.append('telemetry instance: system %s, not %s' % (tel_doc.get('system'), system_name))
+for tp in glob.glob(os.path.join(HERE, 'telemetry', '*.yaml')):
+    tel_doc = load(tp)
+    if tel_doc.get('system') != system_name:
+        fails.append('telemetry instance %s: system %s, not %s' % (os.path.basename(tp), tel_doc.get('system'), system_name))
 workflows = {}
 for wp in glob.glob(os.path.join(HERE, '*.yaml')):
     w = load(wp)
@@ -194,13 +197,13 @@ for sp in glob.glob(os.path.join(HERE, '34-*.yaml')):
     # parameters the baseline leaves unrendered (the user's choice, 2026-10-09: the repeat writes
     # every value out, the defaults vLLM resolves, so it reaches the optimizer engine).
     by_name = {st['name']: st for st in s.get('steps', [])}
-    b, r = by_name.get('baseline'), by_name.get('baseline repeat')
-    if b and r:
+    b = by_name.get('baseline')
+    for r in [st for n, st in by_name.items() if n.startswith('baseline repeat')]:
         bv, rv = b.get('values', {}), r.get('values', {})
         bd = set(b.get('doNotRenderParameters', []))
         if ({k: rv.get(k) for k in bv} != bv or not set(rv) - set(bv) <= bd
                 or not set(r.get('doNotRenderParameters', [])) <= bd):
-            fails.append('%s: baseline repeat is not the baseline (values differ, or it leaves out more)' % s['name'])
+            fails.append('%s: %s is not the baseline (values differ, or it leaves out more)' % (s['name'], r['name']))
     if len(s.get('kpis', [])) > 8:
         fails.append('%s: %d KPIs (max 8)' % (s['name'], len(s['kpis'])))
     fa = 'FLASH_ATTN' in map(str, sel.get('vllm.attention_backend', {}).get('categories', []))

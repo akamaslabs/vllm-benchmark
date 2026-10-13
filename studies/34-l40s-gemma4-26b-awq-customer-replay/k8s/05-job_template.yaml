@@ -5,22 +5,24 @@
 # they sent on 2026-10-12; tests/test_render_job.sh checks its sha256), from the ConfigMap
 # aiperf-replay that run_test.sh creates. Around it, only what their script expects to find: its
 # folder with benchmark.env (our values) and ../llm-coding-benchmark/.venv with AIPerf 0.11.0,
-# and their dataset rendered from the template (render_dataset.py). Before it, the marker line
+# and their dataset rendered from the template with Italian texts (render_dataset_it.py, corpus
+# from build_corpus.py, task mix from mix.json), then capped (caps.py apply: max_output_tokens =
+# each request's calibrated output length, ignore_eos; study 34's one change from study 35). Before it, the marker line
 # "MEASURED RUN START" that arms run_test.sh's watchdog; after it, the LENGTHS lines from
 # profile_export.jsonl of a run that completes.
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: aiperf-l40s
+  name: aiperf-replay
   namespace: llm-l40s
   labels:
-    app: aiperf-l40s
+    app: aiperf-replay
 spec:
   backoffLimit: 0
   template:
     metadata:
       labels:
-        app: aiperf-l40s
+        app: aiperf-replay
     spec:
       restartPolicy: Never
       nodeSelector:
@@ -51,9 +53,25 @@ spec:
               /opt/aiperf-venv/bin/pip install --quiet aiperf==0.11.0
               ln -sfn /opt/aiperf-venv "$B/llm-coding-benchmark/.venv"
               cp "$REPLAY/run_benchmark.sh" "$B/replay-benchmark/run_benchmark.sh"
-              CORPUS=$(/opt/aiperf-venv/bin/python -c "import aiperf, os; print(os.path.join(os.path.dirname(aiperf.__file__), 'dataset', 'generator', 'assets', 'shakespeare.txt'))")
+              # The Italian corpus (../README.md "Load"): built once from three Hugging Face datasets and
+              # kept on the results volume, outside $B (which every run deletes).
+              C=/benchmarks/corpus
+              if [ ! -s "$C/corpus_it.json.gz" ]; then
+                echo "$(date -u +%T) building the corpus (first run on this volume)"
+                mkdir -p "$C"
+                /opt/aiperf-venv/bin/pip install --quiet pyarrow
+                for d in crux82/squad_it:squad_it ARTeLab/ilpost:ilpost ARTeLab/fanpage:fanpage; do
+                  python3 -c "import sys,urllib.request; urllib.request.urlretrieve('https://huggingface.co/datasets/%s/resolve/refs%%2Fconvert%%2Fparquet/default/train/0000.parquet' % sys.argv[1], sys.argv[2])" "${d%%:*}" "$C/${d##*:}_train.parquet"
+                done
+                /opt/aiperf-venv/bin/python "$REPLAY/build_corpus.py" "$C" "$C/corpus_it.json.gz.tmp"
+                mv "$C/corpus_it.json.gz.tmp" "$C/corpus_it.json.gz"
+                rm -f "$C"/*.parquet
+              fi
               echo "$(date -u +%T) rendering the dataset: @USERS_RENDERED@ users"
-              python3 "$REPLAY/render_dataset.py" "$REPLAY/template.jsonl.gz" "$CORPUS" @USERS_RENDERED@ "$B/dataset.jsonl" 42
+              python3 "$REPLAY/render_dataset_it.py" "$REPLAY/template.jsonl.gz" "$C/corpus_it.json.gz" @USERS_RENDERED@ "$B/dataset.jsonl" --seed 42 --mix "$REPLAY/mix.json"
+              # Study 34: every request capped at its calibrated output length, with ignore_eos
+              # (caps.py; refuses a dataset that is not the calibrated one).
+              python3 "$REPLAY/caps.py" apply "$B/dataset.jsonl" "$REPLAY/caps.json.gz"
               cat > "$B/replay-benchmark/benchmark.env" <<'ENV'
               ENDPOINT=http://vllm-0.vllm-headless.llm-l40s.svc.cluster.local:8000
               MODEL=aiservices_gemma
@@ -113,11 +131,12 @@ spec:
             - name: HF_HOME
               value: /hf-cache
           resources:
-            # Study 30's CPU request. Memory: the rendered dataset (~2.6 MB per user, ~310 MB at
-            # 120 users) on the results volume, loaded by AIPerf; system-m8a has ~30 GiB.
+            # Memory: the rendered dataset (~2.7 MB per user, ~650 MB at 240 users) on the results
+            # volume, loaded by AIPerf (caps.py apply: 1.3 GB peak); the system-m8a node (m8a.xlarge)
+            # has 14.1 GiB allocatable, ~0.4 GiB requested by the rest (2026-10-13).
             requests:
               cpu: 2000m
-              memory: 4Gi
+              memory: 6Gi
           volumeMounts:
             - name: results
               mountPath: /benchmarks

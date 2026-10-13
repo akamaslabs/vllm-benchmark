@@ -1,11 +1,10 @@
 # Pure watchdog helpers for run_test.sh (sourced; no kubectl, no network).
-# The caller sets WD_TTFT_MS, WD_ITL_MS (ms), WD_HOLD_S and WD_ARM_DELAY_S (s).
+# The caller sets WD_E2E_MS (ms), WD_HOLD_S and WD_ARM_DELAY_S (s).
 # shellcheck shell=bash
 WD_MARKER="MEASURED RUN START"
 
-wd_over() {  # $1 TTFT p95 ms, $2 ITL p95 ms (empty or non-integer = no data). 0 if either is over.
-  { [[ "${1:-}" =~ ^[0-9]+$ ]] && [ "$1" -gt "$WD_TTFT_MS" ]; } || \
-  { [[ "${2:-}" =~ ^[0-9]+$ ]] && [ "$2" -gt "$WD_ITL_MS" ]; }
+wd_over() {  # $1 e2e p50 ms (empty or non-integer = no data). 0 if over.
+  [[ "${1:-}" =~ ^[0-9]+$ ]] && [ "$1" -gt "$WD_E2E_MS" ]
 }
 
 wd_next_since() {  # $1 now, $2 current over-since ("" = under), $3 0 if over now. Prints the new over-since.

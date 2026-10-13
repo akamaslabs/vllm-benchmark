@@ -41,7 +41,10 @@ kubectl -n akamas-41 exec -i deploy/toolbox -c toolbox -- \
 ```
 
 `run_test.sh` reads it from there (`RT_TEMPLATE`), gzips it (28 KB) into the ConfigMap
-`aiperf-replay` with `../k8s/render_dataset.py`, and the Job renders it.
+`aiperf-replay` with `../k8s/render_dataset_it.py` (Italian texts, since 2026-10-13: study 35's
+render), and the Job renders it. `../k8s/calibrate_caps.sh` writes the per-request output caps next
+to it, `caps.json.gz` (~200 KB, lengths only, no text), which `run_test.sh` ships too (`RT_CAPS`):
+recalibrate whenever this template changes.
 
 ## Open (to ask the customer)
 

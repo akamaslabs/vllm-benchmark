@@ -17,11 +17,11 @@ run() {  # env assignments for the stub, then stop_aiperf.sh
     SA_DEST="$DEST" SA_POLL_S=0 "$@" bash "$K8S/stop_aiperf.sh" > "$TMP/out.txt" 2>&1
 }
 # A. RunTest left the Job running (watchdog): SIGINT, Job deleted, records saved.
-run STUB_POD=aiperf-l40s-x STUB_PHASE=Running STUB_RUN_DIR=/benchmarks/study34/replay-benchmark/data/results/run_202610122359_1791815986; rc=$?
+run STUB_POD=aiperf-replay-x STUB_PHASE=Running STUB_RUN_DIR=/benchmarks/study34/replay-benchmark/data/results/run_202610122359_1791815986; rc=$?
 [ $rc = 0 ] && ok "running: exit 0" || ko "running: exit $rc ($(tail -3 "$TMP/out.txt"))"
-grep -q 'exec aiperf-l40s-x -c aiperf -- python3 -c' "$TMP/kubectl.log" && ok "running: SIGINT sent to aiperf" || ko "running: SIGINT sent"
-grep -q 'logs aiperf-l40s-x -c aiperf --since=' "$TMP/out.txt" "$TMP/kubectl.log" && ok "running: logs since the SIGINT dumped" || ko "running: logs dumped"
-grep -q 'delete job -l app=aiperf-l40s --ignore-not-found --cascade=foreground --wait=true' "$TMP/kubectl.log" \
+grep -q 'exec aiperf-replay-x -c aiperf -- python3 -c' "$TMP/kubectl.log" && ok "running: SIGINT sent to aiperf" || ko "running: SIGINT sent"
+grep -q 'logs aiperf-replay-x -c aiperf --since=' "$TMP/out.txt" "$TMP/kubectl.log" && ok "running: logs since the SIGINT dumped" || ko "running: logs dumped"
+grep -q 'delete job -l app=aiperf-replay --ignore-not-found --cascade=foreground --wait=true' "$TMP/kubectl.log" \
   && ok "Job deleted, foreground" || ko "Job deleted, foreground"
 s=$(grep -n 'SIGINT\|python3 -c' "$TMP/kubectl.log" | head -1 | cut -d: -f1); d=$(grep -n 'delete job' "$TMP/kubectl.log" | head -1 | cut -d: -f1)
 [ -n "$s" ] && [ -n "$d" ] && [ "$s" -lt "$d" ] && ok "SIGINT before the Job delete" || ko "SIGINT before the Job delete"
@@ -38,7 +38,7 @@ grep -q -- '-- gzip -c ' "$TMP/kubectl.log" && ko "again: not copied twice" || o
 grep -q 'python3 -c' "$TMP/kubectl.log" && ko "no pod: no SIGINT" || ok "no pod: no SIGINT"
 rm -rf "$DEST"
 # C. The ramp completed (pod Succeeded): no SIGINT, records saved.
-run STUB_POD=aiperf-l40s-x STUB_PHASE=Succeeded STUB_RUN_DIR=/benchmarks/study34/replay-benchmark/data/results/run_202610122359_1791815986; rc=$?
+run STUB_POD=aiperf-replay-x STUB_PHASE=Succeeded STUB_RUN_DIR=/benchmarks/study34/replay-benchmark/data/results/run_202610122359_1791815986; rc=$?
 [ $rc = 0 ] && ok "completed: exit 0" || ko "completed: exit $rc"
 grep -q 'python3 -c' "$TMP/kubectl.log" && ko "completed: no SIGINT" || ok "completed: no SIGINT"
 cmp -s "$OUT" "$TMP/src.jsonl" && ok "completed: saved" || ko "completed: saved"

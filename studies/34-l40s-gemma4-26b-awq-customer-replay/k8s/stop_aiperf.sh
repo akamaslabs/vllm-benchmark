@@ -28,7 +28,10 @@
 # false, so either way the trial's result stands.
 set -euo pipefail
 NS=llm-l40s
-JOB=aiperf-l40s
+# vllm-bench through the toolbox's `default` context (in-cluster: Akamas's own cluster).
+KUBE_CONTEXT=${KUBE_CONTEXT:-default}
+kubectl() { command kubectl --context "$KUBE_CONTEXT" "$@"; }
+JOB=aiperf-replay
 HELPER=aiperf-export
 RESULTS=/benchmarks/study34
 DEST=${SA_DEST:-/work/aiperf-exports/34-l40s-gemma4-26b-awq-customer-replay}

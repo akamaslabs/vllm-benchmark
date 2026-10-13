@@ -1,9 +1,9 @@
 kind: component
-system: vLLM_Benchmark_34_L40S_Gemma4_AWQ_Replay
+system: vLLM_Benchmark_34_L40S_Gemma4_AWQ_Replay_Users
 
 name: cluster_loadtest
 description: >-
-  The CPU node running the load generator (node group system-2b, label
+  The CPU node running the load generator (node group system-2b of the vllm-bench cluster, label
   node-role=system-m8a, m8a.xlarge).
 componentType: Kubernetes Cluster
 properties:

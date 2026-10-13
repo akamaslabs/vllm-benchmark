@@ -1,11 +1,11 @@
 kind: component
-system: vLLM_Benchmark_34_L40S_Gemma4_AWQ_Replay
+system: vLLM_Benchmark_34_L40S_Gemma4_AWQ_Replay_Users
 
 name: vllm
 description: >-
-  The vLLM server (StatefulSet vllm, pod vllm-0, namespace llm-l40s),
-  cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit rev 0ef577a served as aiservices_gemma, thinking
-  on. Carries every tuned vLLM parameter and the goal, constraint and windowing metrics.
+  The vLLM server (StatefulSet vllm, pod vllm-0, namespace llm-l40s, cluster vllm-bench),
+  cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit rev 0ef577a served as aiservices_gemma,
+  thinking off by default (the compose). Carries every tuned vLLM parameter and the server-side diagnostics (the goal and the constraint are client side, component aiperf).
 componentType: vLLM
 properties:
   prometheus:

@@ -1,0 +1,11 @@
+kind: component
+system: vLLM_Benchmark_34_L40S_Gemma4_AWQ_Replay_Users
+
+name: aiperf
+description: >-
+  The clients of the customer's AIPerf replay, as they see the server: per-request records
+  (profile_export.jsonl) turned into 30 s rows by k8s/aiperf_csv.sh and read by the CSV File
+  telemetry instance (telemetry/aiperf-csv.yaml). Carries the goal (aiperf_active_sessions: the
+  users holding a slot) and the constraint (aiperf_e2e_request_latency_p50_150s, exact over the
+  requests). Metrics only. Requires the AIPerf optimization pack 1.0.0.
+componentType: AIPerf

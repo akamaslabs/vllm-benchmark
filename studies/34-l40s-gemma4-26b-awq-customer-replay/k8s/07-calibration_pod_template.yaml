@@ -1,0 +1,74 @@
+# Output-length calibration pod for 34-l40s-gemma4-26b-awq-customer-replay. Rendered by
+# calibrate_caps.sh (tokens USERS, RAMP_S, USERS_RENDERED and CONCURRENCY between at-signs), run
+# once before the study, by hand, on vLLM started with calibration.params.env.
+#
+# Builds the corpus and renders the dataset exactly as the AIPerf Job does (05-job_template.yaml:
+# same ConfigMap files, same users, seed and mix, the same corpus on the results volume), then
+# caps.py measure sends every request the study's ramp can reach, uncapped and not streamed, and
+# writes /benchmarks/caps/caps.json.gz (the per-request output lengths and the dataset's sha256,
+# which caps.py apply checks in every trial). It then prints "CALIBRATION DONE" and sleeps, so
+# calibrate_caps.sh can copy the file out (kubectl cp) before deleting the pod.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: aiperf-calibration
+  namespace: llm-l40s
+  labels:
+    app: aiperf-calibration
+spec:
+  restartPolicy: Never
+  nodeSelector:
+    node-role: system-m8a
+  containers:
+    - name: calibration
+      image: python:3.12-slim
+      command: ["sh", "-c"]
+      args:
+        - |
+          set -e
+          B=/benchmarks/caps
+          REPLAY=/replay
+          rm -rf "$B"; mkdir -p "$B"
+          until python3 -c "import urllib.request; urllib.request.urlopen('http://vllm-0.vllm-headless.llm-l40s.svc.cluster.local:8000/health', timeout=5)" 2>/dev/null; do
+            echo "$(date -u +%T) waiting for vllm-0..."; sleep 10
+          done
+          # The Italian corpus, as in the AIPerf Job: built once, kept on the results volume.
+          C=/benchmarks/corpus
+          if [ ! -s "$C/corpus_it.json.gz" ]; then
+            echo "$(date -u +%T) building the corpus (first run on this volume)"
+            mkdir -p "$C"
+            python3 -m venv /opt/venv
+            /opt/venv/bin/pip install --quiet pyarrow
+            for d in crux82/squad_it:squad_it ARTeLab/ilpost:ilpost ARTeLab/fanpage:fanpage; do
+              python3 -c "import sys,urllib.request; urllib.request.urlretrieve('https://huggingface.co/datasets/%s/resolve/refs%%2Fconvert%%2Fparquet/default/train/0000.parquet' % sys.argv[1], sys.argv[2])" "${d%%:*}" "$C/${d##*:}_train.parquet"
+            done
+            /opt/venv/bin/python "$REPLAY/build_corpus.py" "$C" "$C/corpus_it.json.gz.tmp"
+            mv "$C/corpus_it.json.gz.tmp" "$C/corpus_it.json.gz"
+            rm -f "$C"/*.parquet
+          fi
+          echo "$(date -u +%T) rendering the dataset: @USERS_RENDERED@ users"
+          python3 "$REPLAY/render_dataset_it.py" "$REPLAY/template.jsonl.gz" "$C/corpus_it.json.gz" @USERS_RENDERED@ "$B/dataset.jsonl" --seed 42 --mix "$REPLAY/mix.json"
+          echo "$(date -u +%T) measuring: users @USERS@ over @RAMP_S@ s, concurrency @CONCURRENCY@"
+          python3 "$REPLAY/caps.py" measure "$B/dataset.jsonl" http://vllm-0.vllm-headless.llm-l40s.svc.cluster.local:8000 \
+            "$B/caps.json.gz" --users @USERS@ --ramp-s @RAMP_S@ --concurrency @CONCURRENCY@
+          rm -f "$B/dataset.jsonl" "$B/dataset.jsonl.meta.jsonl"
+          echo "$(date -u +%T) CALIBRATION DONE: $B/caps.json.gz"
+          sleep 3600
+      resources:
+        # The rendered dataset (~650 MB at 240 users) is held in memory by caps.py.
+        requests:
+          cpu: 2000m
+          memory: 6Gi
+      volumeMounts:
+        - name: results
+          mountPath: /benchmarks
+        - name: replay
+          mountPath: /replay
+          readOnly: true
+  volumes:
+    - name: results
+      persistentVolumeClaim:
+        claimName: aiperf-results
+    - name: replay
+      configMap:
+        name: aiperf-calibration

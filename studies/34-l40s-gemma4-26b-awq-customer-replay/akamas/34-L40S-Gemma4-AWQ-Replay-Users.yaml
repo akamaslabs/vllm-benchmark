@@ -1,0 +1,315 @@
+kind: study
+name: 34-L40S-Gemma4-AWQ-Replay-Users
+description: >-
+  Study 34: study 35 with every output capped. The customer's Docker Compose setup of Gemma 4 26B-A4B (cyankiwi AWQ W4A16 rev 0ef577a,
+  vLLM 0.29.0, served as aiservices_gemma, max_model_len 96000, tool calling, gemma4 reasoning
+  parser, vision tower loaded, prefix caching at its default, thinking off by default) on one
+  NVIDIA L40S (g6e.xlarge, cluster vllm-bench), under the customer's own AIPerf replay
+  (their run_benchmark.sh unchanged: /v1/responses, mooncake_trace payloads, sticky user sessions,
+  think times capped at 60 s) of their dataset template rendered with Italian texts (output
+  lengths calibrated against theirs), every request capped at the output length the compose
+  produced for it in a calibration run (max_output_tokens + ignore_eos: the same tokens every trial), users ramping 1 -> 200 over 6000 s in a closed loop.
+  Goal: the most users (AIPerf sessions) with the client-side e2e median over 150 s at most 3 s
+  (exact, from AIPerf's per-request records through a CSV File telemetry instance). 17 vLLM
+  parameters; baseline = the compose, run three times; six presets; 60 AKAMAS experiments. Needs
+  vLLM pack 1.13.0 and AIPerf pack 1.0.0.
+system: vLLM_Benchmark_34_L40S_Gemma4_AWQ_Replay_Users
+workflow: 34-L40S-Gemma4-AWQ-Replay-Users-Workflow
+# Goal and constraint are client side (component aiperf, CSV File telemetry): what the customer
+# measures with their own AIPerf command. aiperf_active_sessions = the users holding a slot in the
+# 30 s bucket; with the users ramping, the best valid window is the last one before the e2e median
+# breaks 3 s, so the score is the users served within the SLA. The median, not the p95: the
+# customer's outputs run from 13 (p10) to 2035 (p99) tokens, and over a 3-minute window the p95
+# moves by ~30 % from which replies fall in it, the median by ~5 % (study README, "Goal").
+goal:
+  objective: maximize
+  function:
+    formula: aiperf.aiperf_active_sessions
+    unit: users
+  constraints:
+    absolute:
+      - name: E2E P50 150s at most 3 s
+        formula: aiperf.aiperf_e2e_request_latency_p50_150s <= 3000
+windowing:
+  type: stability
+  stability:
+    metric: aiperf.aiperf_active_sessions
+    width: 6
+    maxStdDev: 300000000
+    when:
+      metric: aiperf.aiperf_active_sessions
+      is: max
+numberOfTrials: 1
+parametersSelection:
+  - name: vllm.gpu_memory_utilization
+    domain: [0.80, 0.94]
+  - name: vllm.max_num_seqs
+    domain: [16, 512]
+  # >= 2496: with the vision tower loaded vLLM 0.29.0 needs one image (2496 tokens) per batch.
+  - name: vllm.max_num_batched_tokens
+    domain: [2496, 16384]
+  - name: vllm.kv_cache_dtype
+    categories: [auto, fp8]
+  - name: vllm.performance_mode
+    categories: [balanced, interactivity, throughput]
+  - name: vllm.optimization_level
+    domain: [1, 3]
+  - name: vllm.async_scheduling
+    categories: ["true", "false"]
+  - name: vllm.max_cudagraph_capture_size
+    domain: [16, 512]
+  - name: vllm.block_size
+    categories: ["16", "32", "48", "64", "80", "96", "112", "128"]
+  # W4A16 kernels that start on SM 8.9 and are not far behind (W4A16 probe, 2026-10-09): Marlin
+  # (auto) and Humming; triton is out (-49 % linear, -41 % MoE even tuned).
+  - name: vllm.linear_backend
+    categories: [auto, humming]
+  - name: vllm.moe_backend
+    categories: [auto, humming]
+  - name: vllm.spec_method
+    categories: [none, mtp]
+  - name: vllm.spec_tokens
+    domain: [0, 4]
+  # 0 = off (vLLM's default). Long prompts (p99 ~13k tokens) stall every decode for a whole chunk.
+  - name: vllm.long_prefill_token_threshold
+    domain: [0, 8192]
+  - name: vllm.watermark
+    domain: [0.0, 0.10]
+  - name: vllm.scheduler_reserve_full_isl
+    categories: ["true", "false"]
+  # Only 1/4 of their calls stream; batching tokens cuts the API server's per-token work on 4 vCPU.
+  - name: vllm.stream_interval
+    domain: [1, 16]
+parameterConstraints:
+  - name: max_num_batched_tokens must be at least max_num_seqs
+    formula: vllm.max_num_batched_tokens >= vllm.max_num_seqs
+  - name: speculative decoding off forces spec_tokens to its off sentinel
+    formula: vllm.spec_method != "none" || vllm.spec_tokens == 0
+  - name: speculative decoding on requires a real spec_tokens
+    formula: vllm.spec_method == "none" || vllm.spec_tokens > 0
+kpis:
+  - name: Users
+    formula: aiperf.aiperf_active_sessions
+    direction: maximize
+  - name: Completed requests
+    formula: aiperf.aiperf_request_success_rate
+    direction: maximize
+  - name: E2E P50 150s
+    formula: aiperf.aiperf_e2e_request_latency_p50_150s
+    direction: minimize
+  - name: E2E P95 150s
+    formula: aiperf.aiperf_e2e_request_latency_p95_150s
+    direction: minimize
+  - name: TTFT P95 150s
+    formula: aiperf.aiperf_time_to_first_token_p95_150s
+    direction: minimize
+  - name: Prefix cache hit rate
+    formula: vllm.prefix_cache_hit_rate
+    direction: maximize
+  - name: MTP acceptance
+    formula: vllm.spec_decode_acceptance_rate
+    direction: maximize
+  - name: KV cache usage
+    formula: vllm.kv_cache_usage_avg
+    direction: minimize
+steps:
+  # The compose: only its two flags rendered, every other parameter at vLLM 0.29.0's default.
+  - name: baseline
+    type: baseline
+    numberOfTrials: 1
+    values:
+      vllm.gpu_memory_utilization: 0.90
+      vllm.max_num_seqs: 64
+    doNotRenderParameters:
+      - vllm.max_num_batched_tokens
+      - vllm.kv_cache_dtype
+      - vllm.performance_mode
+      - vllm.optimization_level
+      - vllm.async_scheduling
+      - vllm.max_cudagraph_capture_size
+      - vllm.block_size
+      - vllm.linear_backend
+      - vllm.moe_backend
+      - vllm.spec_method
+      - vllm.spec_tokens
+      - vllm.long_prefill_token_threshold
+      - vllm.watermark
+      - vllm.scheduler_reserve_full_isl
+      - vllm.stream_interval
+  # The compose twice more with every value written out (vLLM 0.29.0's resolved defaults: 2496
+  # batched tokens with the vision tower, capture size 128 = 2 x max_num_seqs): the noise of the
+  # setup, measured before any comparison, and points the optimizer can use.
+  # The compose, values written out.
+  - name: baseline repeat 1
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.9
+      vllm.max_num_seqs: 64
+      vllm.max_num_batched_tokens: 2496
+      vllm.kv_cache_dtype: auto
+      vllm.performance_mode: balanced
+      vllm.optimization_level: 2
+      vllm.async_scheduling: "true"
+      vllm.max_cudagraph_capture_size: 128
+      vllm.block_size: "16"
+      vllm.linear_backend: auto
+      vllm.moe_backend: auto
+      vllm.spec_method: none
+      vllm.spec_tokens: 0
+      vllm.long_prefill_token_threshold: 0
+      vllm.watermark: 0.0
+      vllm.scheduler_reserve_full_isl: "true"
+      vllm.stream_interval: 1
+  # The compose, values written out, again.
+  - name: baseline repeat 2
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.9
+      vllm.max_num_seqs: 64
+      vllm.max_num_batched_tokens: 2496
+      vllm.kv_cache_dtype: auto
+      vllm.performance_mode: balanced
+      vllm.optimization_level: 2
+      vllm.async_scheduling: "true"
+      vllm.max_cudagraph_capture_size: 128
+      vllm.block_size: "16"
+      vllm.linear_backend: auto
+      vllm.moe_backend: auto
+      vllm.spec_method: none
+      vllm.spec_tokens: 0
+      vllm.long_prefill_token_threshold: 0
+      vllm.watermark: 0.0
+      vllm.scheduler_reserve_full_isl: "true"
+      vllm.stream_interval: 1
+  # Twice the KV tokens, the most consistent lever of studies 0-32.
+  - name: kv fp8
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.9
+      vllm.max_num_seqs: 64
+      vllm.max_num_batched_tokens: 2496
+      vllm.kv_cache_dtype: fp8
+      vllm.performance_mode: balanced
+      vllm.optimization_level: 2
+      vllm.async_scheduling: "true"
+      vllm.max_cudagraph_capture_size: 128
+      vllm.block_size: "16"
+      vllm.linear_backend: auto
+      vllm.moe_backend: auto
+      vllm.spec_method: none
+      vllm.spec_tokens: 0
+      vllm.long_prefill_token_threshold: 0
+      vllm.watermark: 0.0
+      vllm.scheduler_reserve_full_isl: "true"
+      vllm.stream_interval: 1
+  # MTP K=3 on the compose: faster decode, but the W4A16 probe saw 0 prefix-cache hits with MTP.
+  - name: mtp3
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.9
+      vllm.max_num_seqs: 64
+      vllm.max_num_batched_tokens: 2496
+      vllm.kv_cache_dtype: auto
+      vllm.performance_mode: balanced
+      vllm.optimization_level: 2
+      vllm.async_scheduling: "true"
+      vllm.max_cudagraph_capture_size: 384
+      vllm.block_size: "16"
+      vllm.linear_backend: auto
+      vllm.moe_backend: auto
+      vllm.spec_method: mtp
+      vllm.spec_tokens: 3
+      vllm.long_prefill_token_threshold: 0
+      vllm.watermark: 0.0
+      vllm.scheduler_reserve_full_isl: "true"
+      vllm.stream_interval: 1
+  # Both levers together (study 32 best's pair).
+  - name: kv fp8 mtp3
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.9
+      vllm.max_num_seqs: 64
+      vllm.max_num_batched_tokens: 2496
+      vllm.kv_cache_dtype: fp8
+      vllm.performance_mode: balanced
+      vllm.optimization_level: 2
+      vllm.async_scheduling: "true"
+      vllm.max_cudagraph_capture_size: 384
+      vllm.block_size: "16"
+      vllm.linear_backend: auto
+      vllm.moe_backend: auto
+      vllm.spec_method: mtp
+      vllm.spec_tokens: 3
+      vllm.long_prefill_token_threshold: 0
+      vllm.watermark: 0.0
+      vllm.scheduler_reserve_full_isl: "true"
+      vllm.stream_interval: 1
+  # Long prompts capped at 2048 tokens per step, so they cannot stall the decode of the others.
+  - name: kv fp8 long prefill cap
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.9
+      vllm.max_num_seqs: 64
+      vllm.max_num_batched_tokens: 8192
+      vllm.kv_cache_dtype: fp8
+      vllm.performance_mode: balanced
+      vllm.optimization_level: 2
+      vllm.async_scheduling: "true"
+      vllm.max_cudagraph_capture_size: 128
+      vllm.block_size: "16"
+      vllm.linear_backend: auto
+      vllm.moe_backend: auto
+      vllm.spec_method: none
+      vllm.spec_tokens: 0
+      vllm.long_prefill_token_threshold: 2048
+      vllm.watermark: 0.0
+      vllm.scheduler_reserve_full_isl: "true"
+      vllm.stream_interval: 1
+  # More sequences and KV: the high-concurrency corner.
+  - name: kv fp8 large batch
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.94
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 8192
+      vllm.kv_cache_dtype: fp8
+      vllm.performance_mode: throughput
+      vllm.optimization_level: 2
+      vllm.async_scheduling: "true"
+      vllm.max_cudagraph_capture_size: 512
+      vllm.block_size: "16"
+      vllm.linear_backend: auto
+      vllm.moe_backend: auto
+      vllm.spec_method: none
+      vllm.spec_tokens: 0
+      vllm.long_prefill_token_threshold: 0
+      vllm.watermark: 0.0
+      vllm.scheduler_reserve_full_isl: "true"
+      vllm.stream_interval: 1
+  # Study 32's best (same checkpoint, thinking on there), the new parameters at their defaults.
+  - name: study 32 best
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.9381004625528021
+      vllm.max_num_seqs: 408
+      vllm.max_num_batched_tokens: 2496
+      vllm.kv_cache_dtype: fp8
+      vllm.performance_mode: balanced
+      vllm.optimization_level: 1
+      vllm.async_scheduling: "false"
+      vllm.max_cudagraph_capture_size: 512
+      vllm.block_size: "16"
+      vllm.linear_backend: humming
+      vllm.moe_backend: auto
+      vllm.spec_method: mtp
+      vllm.spec_tokens: 3
+      vllm.long_prefill_token_threshold: 0
+      vllm.watermark: 0.0
+      vllm.scheduler_reserve_full_isl: "true"
+      vllm.stream_interval: 1
+  - name: optimize
+    type: optimize
+    optimizer: AKAMAS
+    numberOfInitExperiments: 0
+    numberOfExperiments: 60
+    maxFailedExperiments: 20

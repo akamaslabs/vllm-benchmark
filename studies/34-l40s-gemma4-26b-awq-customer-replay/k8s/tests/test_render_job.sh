@@ -21,7 +21,7 @@ done
 bash "$R" 100 6000 "$TMP/j.yaml" >/dev/null 2>&1 || ko "renders"
 if [ -f "$TMP/j.yaml" ]; then
   [ "$(yq '.kind' "$TMP/j.yaml")" = Job ] && ok "valid YAML" || ko "valid YAML"
-  [ "$(yq '.metadata.name' "$TMP/j.yaml")" = aiperf-l40s ] && ok "name" || ko "name"
+  [ "$(yq '.metadata.name' "$TMP/j.yaml")" = aiperf-replay ] && ok "name" || ko "name"
   grep -q '@[A-Z_]*@' "$TMP/j.yaml" && ko "no token left" || ok "no token left"
   S=$(yq '.spec.template.spec.containers[0].args[0]' "$TMP/j.yaml")
   # benchmark.env, what their script sources: our values.
@@ -36,13 +36,13 @@ if [ -f "$TMP/j.yaml" ]; then
   echo "$S" | grep -qF 'bash "$B/replay-benchmark/run_benchmark.sh" NAME=$(date +%s)' && ok "their script run, NAME = epoch" || ko "their script run"
   echo "$S" | grep -n 'MEASURED RUN START\|run_benchmark.sh" NAME' | awk -F: 'NR==1{a=$1} NR==2{b=$1} END{exit !(a<b)}' \
     && ok "marker before their script" || ko "marker before their script"
-  echo "$S" | grep -qF '"$REPLAY/template.jsonl.gz" "$CORPUS" 120 "$B/dataset.jsonl" 42' && ok "renders 120 users" || ko "renders 120 users"
+  echo "$S" | grep -qF '"$REPLAY/template.jsonl.gz" "$C/corpus_it.json.gz" 120 "$B/dataset.jsonl" --seed 42 --mix "$REPLAY/mix.json"' && ok "renders 120 users" || ko "renders 120 users"
   [ "$(yq '.spec.template.spec.volumes[] | select(.name=="replay") | .configMap.name' "$TMP/j.yaml")" = aiperf-replay ] \
     && ok "ConfigMap volume aiperf-replay" || ko "ConfigMap volume aiperf-replay"
   # No AIPerf command of our own: only theirs.
   echo "$S" | grep -q 'aiperf profile' && ko "no aiperf profile of our own" || ok "no aiperf profile of our own"
 fi
-bash "$R" 20 600 "$TMP/s.yaml" >/dev/null 2>&1 && has "$TMP/s.yaml" '"$CORPUS" 30 "$B' \
+bash "$R" 20 600 "$TMP/s.yaml" >/dev/null 2>&1 && has "$TMP/s.yaml" 'corpus_it.json.gz" 30 "$B' \
   && ok "small runs render at least 10 more users" || ko "small runs render at least 10 more users"
 reject() {
   local name=$1; shift; rm -f "$TMP/x.yaml"

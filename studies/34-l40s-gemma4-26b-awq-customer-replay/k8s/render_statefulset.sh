@@ -36,7 +36,8 @@ PARAMS=$1 TEMPLATE=$2 OUT=$3
 if grep -q '\${' "$PARAMS"; then
   die "params.env still has unsubstituted tokens (a parameter is missing from parametersSelection): $(grep '\${' "$PARAMS" | tr '\n' ' ')"
 fi
-LINEAR_BACKEND="" ATTENTION_BACKEND="" SPEC_METHOD="" SPEC_TOKENS=""
+LINEAR_BACKEND="" ATTENTION_BACKEND="" MOE_BACKEND="" SPEC_METHOD="" SPEC_TOKENS=""
+LONG_PREFILL_TOKEN_THRESHOLD="" WATERMARK="" SCHEDULER_RESERVE_FULL_ISL="" STREAM_INTERVAL=""
 MAX_NUM_BATCHED_TOKENS="" KV_CACHE_DTYPE="" PERFORMANCE_MODE="" OPTIMIZATION_LEVEL="" SCHEDULING_POLICY="" ASYNC_SCHEDULING=""
 MAX_CUDAGRAPH_CAPTURE_SIZE="" BLOCK_SIZE=""
 # shellcheck disable=SC1090
@@ -46,13 +47,14 @@ for v in $REQUIRED; do
   [ -n "${!v:-}" ] || die "$v is empty in params.env (it is always rendered: never in doNotRenderParameters)"
 done
 DEFAULTABLE="MAX_NUM_BATCHED_TOKENS KV_CACHE_DTYPE PERFORMANCE_MODE OPTIMIZATION_LEVEL SCHEDULING_POLICY ASYNC_SCHEDULING
-MAX_CUDAGRAPH_CAPTURE_SIZE BLOCK_SIZE"
+MAX_CUDAGRAPH_CAPTURE_SIZE BLOCK_SIZE LINEAR_BACKEND MOE_BACKEND SPEC_METHOD SPEC_TOKENS LONG_PREFILL_TOKEN_THRESHOLD WATERMARK
+SCHEDULER_RESERVE_FULL_ISL STREAM_INTERVAL"
 for v in $DEFAULTABLE; do
   grep -q "^$v=" "$PARAMS" || die "$v has no line in params.env (empty means vLLM's default, absent means a broken template)"
 done
 
 [[ "$GPU_MEMORY_UTILIZATION" =~ ^0\.[0-9]+$ ]] || die "gpu_memory_utilization '$GPU_MEMORY_UTILIZATION' is not a fraction"
-for v in MAX_NUM_SEQS MAX_NUM_BATCHED_TOKENS MAX_CUDAGRAPH_CAPTURE_SIZE BLOCK_SIZE OPTIMIZATION_LEVEL; do
+for v in MAX_NUM_SEQS MAX_NUM_BATCHED_TOKENS MAX_CUDAGRAPH_CAPTURE_SIZE BLOCK_SIZE OPTIMIZATION_LEVEL LONG_PREFILL_TOKEN_THRESHOLD STREAM_INTERVAL; do
   [ -z "${!v}" ] || [[ "${!v}" =~ ^[0-9]+$ ]] || die "$v='${!v}' is not an integer"
 done
 [ -z "$OPTIMIZATION_LEVEL" ] || [ "$OPTIMIZATION_LEVEL" -le 3 ] || die "optimization_level '$OPTIMIZATION_LEVEL' is not 0-3"
@@ -66,6 +68,12 @@ done
 [[ "$ENFORCE_EAGER" =~ ^(true|false)$ ]] || die "ENFORCE_EAGER='$ENFORCE_EAGER' is not true or false"
 [ -z "$ASYNC_SCHEDULING" ] || [[ "$ASYNC_SCHEDULING" =~ ^(true|false)$ ]] || die "ASYNC_SCHEDULING='$ASYNC_SCHEDULING' is not true or false"
 [ -z "$LINEAR_BACKEND" ] || [[ "$LINEAR_BACKEND" =~ ^[a-z0-9_]+$ ]] || die "linear_backend '$LINEAR_BACKEND' is not a backend name"
+[ -z "$MOE_BACKEND" ] || [[ "$MOE_BACKEND" =~ ^[a-z0-9_]+$ ]] || die "moe_backend '$MOE_BACKEND' is not a backend name"
+[ -z "$WATERMARK" ] || [[ "$WATERMARK" =~ ^0(\.[0-9]+)?$ ]] || die "watermark '$WATERMARK' is not a fraction in [0, 1)"
+[ -z "$SCHEDULER_RESERVE_FULL_ISL" ] || [[ "$SCHEDULER_RESERVE_FULL_ISL" =~ ^(true|false)$ ]] || die "SCHEDULER_RESERVE_FULL_ISL='$SCHEDULER_RESERVE_FULL_ISL' is not true or false"
+[ -z "$STREAM_INTERVAL" ] || [ "$STREAM_INTERVAL" -ge 1 ] || die "stream_interval '$STREAM_INTERVAL' is below 1"
+# vLLM 0.29.0 config/scheduler.py: the threshold cannot exceed max_model_len (96000, fixed here).
+[ -z "$LONG_PREFILL_TOKEN_THRESHOLD" ] || [ "$LONG_PREFILL_TOKEN_THRESHOLD" -le 96000 ] || die "long_prefill_token_threshold $LONG_PREFILL_TOKEN_THRESHOLD > max_model_len 96000"
 [ -z "$ATTENTION_BACKEND" ] || [[ "$ATTENTION_BACKEND" =~ ^(auto|FLASHINFER|FLASH_ATTN|TRITON_ATTN)$ ]] \
   || die "attention_backend '$ATTENTION_BACKEND' is not auto, FLASHINFER, FLASH_ATTN or TRITON_ATTN"
 # Speculative decoding: method and token count come together (both empty = not rendered, no
@@ -101,6 +109,12 @@ ARGS=(
 [ -z "$BLOCK_SIZE" ] || ARGS+=("--block-size=$BLOCK_SIZE")
 [ -n "$LINEAR_BACKEND" ] && [ "$LINEAR_BACKEND" != auto ] && ARGS+=("--linear-backend=$LINEAR_BACKEND")
 [ -n "$ATTENTION_BACKEND" ] && [ "$ATTENTION_BACKEND" != auto ] && ARGS+=("--attention-backend=$ATTENTION_BACKEND")
+[ -n "$MOE_BACKEND" ] && [ "$MOE_BACKEND" != auto ] && ARGS+=("--moe-backend=$MOE_BACKEND")
+# 0 is vLLM's own "off": no flag, as the compose.
+[ -z "$LONG_PREFILL_TOKEN_THRESHOLD" ] || [ "$LONG_PREFILL_TOKEN_THRESHOLD" = 0 ] || ARGS+=("--long-prefill-token-threshold=$LONG_PREFILL_TOKEN_THRESHOLD")
+[ -z "$WATERMARK" ] || ARGS+=("--watermark=$WATERMARK")
+[ -z "$SCHEDULER_RESERVE_FULL_ISL" ] || ARGS+=("$(flag scheduler-reserve-full-isl "$SCHEDULER_RESERVE_FULL_ISL")")
+[ -z "$STREAM_INTERVAL" ] || ARGS+=("--stream-interval=$STREAM_INTERVAL")
 if [ "$SPEC_METHOD" = mtp ]; then
   ARGS+=("--spec-method=mtp" "--spec-model=google/gemma-4-26B-A4B-it-assistant" "--spec-tokens=$SPEC_TOKENS")
 fi

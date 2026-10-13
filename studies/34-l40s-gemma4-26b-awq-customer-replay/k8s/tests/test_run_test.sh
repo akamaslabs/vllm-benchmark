@@ -4,6 +4,7 @@ set -u
 HERE=$(cd "$(dirname "$0")" && pwd); K8S=$(dirname "$HERE"); export K8S
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 echo '{"session_id": "u", "payload": {"input": "{{input: 5 chars}}"}}' > "$TMP/template.jsonl"
+echo 'caps' | gzip > "$TMP/caps.json.gz"   # study 34: run_test.sh only checks it exists and ships it
 FAILS=0
 ok() { echo "ok   $1"; }
 ko() { echo "FAIL $1"; FAILS=$((FAILS + 1)); }
@@ -11,18 +12,25 @@ run() {  # $1 ready replicas, then env assignments
   : > "$TMP/kubectl.log"
   local ready=$1; shift
   env PATH="$HERE/stub:$PATH" STUB_LOG="$TMP/kubectl.log" STUB_READY=$ready \
-    RT_POLL_S=0 RT_PROM=http://127.0.0.1:9 RT_TEMPLATE="$TMP/template.jsonl" "$@" bash "$K8S/run_test.sh" > "$TMP/out.txt" 2>&1
+    RT_POLL_S=0 RT_PROM=http://127.0.0.1:9 RT_TEMPLATE="$TMP/template.jsonl" RT_CAPS="$TMP/caps.json.gz" "$@" bash "$K8S/run_test.sh" > "$TMP/out.txt" 2>&1
 }
-deletes() { grep -c 'delete job -l app=aiperf-l40s' "$TMP/kubectl.log"; }
+deletes() { grep -c 'delete job -l app=aiperf-replay' "$TMP/kubectl.log"; }
 run 1; rc=$?
 [ $rc = 0 ] && ok "ready: exit 0" || ko "ready: exit $rc ($(tail -3 "$TMP/out.txt"))"
-grep -q '^applied aiperf-l40s$' "$TMP/kubectl.log" && ok "ready: Job applied" || ko "ready: Job applied"
-grep -q 'delete job -l app=aiperf-l40s' "$TMP/kubectl.log" && ok "leftover Job deleted first" || ko "leftover Job deleted first"
-grep -q 'users 1 -> 100 over 6000 s' "$TMP/out.txt" && ok "default ramp 100 users / 6000 s (provisional)" || ko "default ramp"
-grep -q 'create configmap aiperf-replay --from-file=template.jsonl.gz=.*--from-file=render_dataset.py=' "$TMP/kubectl.log" \
-  && grep -q -- "--from-file=run_benchmark.sh=" "$TMP/kubectl.log" && ok "ConfigMap aiperf-replay: template, renderer, their script" || ko "ConfigMap aiperf-replay"
+grep -q '^applied aiperf-replay$' "$TMP/kubectl.log" && ok "ready: Job applied" || ko "ready: Job applied"
+grep -q 'delete job -l app=aiperf-replay' "$TMP/kubectl.log" && ok "leftover Job deleted first" || ko "leftover Job deleted first"
+grep -q 'users 1 -> 200 over 6000 s' "$TMP/out.txt" && ok "default ramp 200 users / 6000 s (provisional)" || ko "default ramp"
+grep -q 'create configmap aiperf-replay --from-file=template.jsonl.gz=.*--from-file=render_dataset_it.py=.*--from-file=build_corpus.py=' "$TMP/kubectl.log" \
+  && grep -q -- "--from-file=mix.json=.*--from-file=run_benchmark.sh=" "$TMP/kubectl.log" \
+  && grep -q -- "--from-file=caps.py=.*--from-file=caps.json.gz=$TMP/caps.json.gz" "$TMP/kubectl.log" \
+  && ok "ConfigMap aiperf-replay: template, Italian renderer, corpus builder, mix, their script, caps" || ko "ConfigMap aiperf-replay"
+grep -q -- '--context default' "$TMP/kubectl.log" && ! grep '^kubectl ' "$TMP/kubectl.log" | grep -v -- '--context default' | grep -q . \
+  && ok "every kubectl call on the default context" || ko "every kubectl call on the default context"
 run 1 RT_TEMPLATE=/nonexistent; rc=$?
-[ $rc = 2 ] && ! grep -q '^applied aiperf-l40s$' "$TMP/kubectl.log" && ok "no template: exit 2, no Job" || ko "no template: exit $rc"
+[ $rc = 2 ] && ! grep -q '^applied aiperf-replay$' "$TMP/kubectl.log" && ok "no template: exit 2, no Job" || ko "no template: exit $rc"
+run 1 RT_CAPS=/nonexistent; rc=$?
+[ $rc = 2 ] && grep -q 'run calibrate_caps.sh first' "$TMP/out.txt" && ! grep -q '^applied aiperf-replay$' "$TMP/kubectl.log" \
+  && ok "no caps: exit 2, no Job" || ko "no caps: exit $rc"
 run 0; rc=$?
 [ $rc = 2 ] && ok "not ready: exit 2" || ko "not ready: exit $rc"
 grep -q '^applied ' "$TMP/kubectl.log" && ko "not ready: no Job" || ok "not ready: no Job"

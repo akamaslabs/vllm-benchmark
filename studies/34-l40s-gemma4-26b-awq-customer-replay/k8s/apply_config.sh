@@ -12,7 +12,11 @@ set -euo pipefail
 
 STUDY_DIR=${STUDY_DIR:-/work/vllm-benchmark/studies/34-l40s-gemma4-26b-awq-customer-replay}   # overridable for manual tests
 NS=llm-l40s
-NODE_ROLE=llm-serving-l40s-1xl
+NODE_LABEL=node-role=llm-serving-l40s-1xl
+# Explicit cluster, never the current context: the vllm-bench cluster (Akamas's own), the toolbox's
+# `default` context (in-cluster); study 35 runs the same scripts on vllm-bench-gatling (`gatling`).
+KUBE_CONTEXT=${KUBE_CONTEXT:-default}
+kubectl() { command kubectl --context "$KUBE_CONTEXT" "$@"; }
 MODEL=aiservices_gemma
 PARAMS=${PARAMS:-$STUDY_DIR/k8s/params.env}
 TEMPLATE=$STUDY_DIR/k8s/01-statefulset_template.yaml
@@ -32,8 +36,8 @@ bash "$RENDER" "$PARAMS" "$TEMPLATE" "$RENDERED" || die "invalid parameters in $
 t "parameters: $(grep -v '^#' "$PARAMS" | grep . | tr '\n' ' ')"
 t "vLLM flags: $(grep -E '^ +- "--' "$RENDERED" | sed -e 's/^ *- "//' -e 's/"$//' | tr '\n' ' ')"
 
-NODE=$(kubectl get nodes -l node-role=$NODE_ROLE -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
-[ -n "$NODE" ] || die "no node with node-role=$NODE_ROLE (node group scaled to 0?)" 3
+NODE=$(kubectl get nodes -l $NODE_LABEL -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+[ -n "$NODE" ] || die "no node with $NODE_LABEL (node group llm-serving-l40s-1xl scaled to 0?)" 3
 
 # --- 1. Free the GPU -----------------------------------------------------------------
 t "1/3 scaling vLLM to 0"

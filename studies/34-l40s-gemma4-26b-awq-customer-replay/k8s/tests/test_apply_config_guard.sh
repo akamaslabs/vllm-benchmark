@@ -17,7 +17,15 @@ ENFORCE_EAGER=false
 SCHEDULING_POLICY=fcfs
 ASYNC_SCHEDULING=true
 MAX_CUDAGRAPH_CAPTURE_SIZE=512
-BLOCK_SIZE=16'
+BLOCK_SIZE=16
+LINEAR_BACKEND=auto
+MOE_BACKEND=auto
+SPEC_METHOD=none
+SPEC_TOKENS=0
+LONG_PREFILL_TOKEN_THRESHOLD=0
+WATERMARK=0.0
+SCHEDULER_RESERVE_FULL_ISL=true
+STREAM_INTERVAL=1'
 run_with() {  # $1 params.env content; sets RC
   printf '%s\n' "$1" > "$TMP/params.env"; : > "$TMP/kubectl.log"
   PATH="$HERE/stub:$PATH" STUB_LOG="$TMP/kubectl.log" STUDY_DIR="$STUDY" PARAMS="$TMP/params.env" \
@@ -38,8 +46,8 @@ run_with "$GOOD"
 grep -q '^applied vllm$' "$TMP/kubectl.log" && ok "valid params: StatefulSet applied" || ko "valid params: StatefulSet applied"
 grep -q 'scale sts vllm --replicas=0' "$TMP/kubectl.log" && ok "valid params: GPU freed first" || ko "valid params: GPU freed first"
 # The baseline steps' doNotRenderParameters: empty values, applied with vLLM's defaults.
-run_with "$(printf '%s\n' "$GOOD" | sed -E 's/^(MAX_NUM_BATCHED_TOKENS|KV_CACHE_DTYPE|PERFORMANCE_MODE|OPTIMIZATION_LEVEL|SCHEDULING_POLICY|ASYNC_SCHEDULING|MAX_CUDAGRAPH_CAPTURE_SIZE|BLOCK_SIZE)=.*/\1=/')"
+run_with "$(printf '%s\n' "$GOOD" | sed -E 's/^(MAX_NUM_BATCHED_TOKENS|KV_CACHE_DTYPE|PERFORMANCE_MODE|OPTIMIZATION_LEVEL|SCHEDULING_POLICY|ASYNC_SCHEDULING|MAX_CUDAGRAPH_CAPTURE_SIZE|BLOCK_SIZE|LINEAR_BACKEND|MOE_BACKEND|SPEC_METHOD|SPEC_TOKENS|LONG_PREFILL_TOKEN_THRESHOLD|WATERMARK|SCHEDULER_RESERVE_FULL_ISL|STREAM_INTERVAL)=.*/\1=/')"
 grep -q '^BLOCK_SIZE=$' "$TMP/params.env" && ok "not-rendered values: params.env has empty values" || ko "not-rendered values: params.env has empty values"
 [ $RC = 0 ] && grep -q '^applied vllm$' "$TMP/kubectl.log" && ok "not-rendered values: applied" || ko "not-rendered values: rc=$RC"
-grep -q -- '--block-size\|--kv-cache-dtype\|--max-num-batched-tokens' "$TMP/sts.yaml" && ko "not-rendered values: no flag for them" || ok "not-rendered values: no flag for them"
+grep -q -- '--block-size\|--kv-cache-dtype\|--max-num-batched-tokens\|--watermark\|--stream-interval\|--scheduler-reserve' "$TMP/sts.yaml" && ko "not-rendered values: no flag for them" || ok "not-rendered values: no flag for them"
 echo "$FAILS failure(s)"; [ $FAILS = 0 ]

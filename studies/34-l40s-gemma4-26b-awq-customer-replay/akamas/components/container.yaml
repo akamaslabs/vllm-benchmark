@@ -1,5 +1,5 @@
 kind: component
-system: vLLM_Benchmark_34_L40S_Gemma4_AWQ_Replay
+system: vLLM_Benchmark_34_L40S_Gemma4_AWQ_Replay_Users
 
 name: container
 description: >-

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Stub kubectl for the apply_config.sh / run_test.sh tests. Logs every call to $STUB_LOG and
 # answers the calls those scripts make. STUB_READY: what `get sts vllm` reports ready;
-# STUB_FAILED: what `get job aiperf-l40s` reports failed (empty: none).
+# STUB_FAILED: what `get job aiperf-replay` reports failed (empty: none).
 echo "kubectl $*" >> "$STUB_LOG"
 args="$*"
 case "$args" in
@@ -10,8 +10,8 @@ case "$args" in
   *"get pod vllm-0"*restartCount*) echo 0 ;;
   *"get pods"*"app=vllm"*uid*) echo "vllm-0:uid0:0" ;;
   *"get pods"*"app=vllm"*"-o name"*) : ;;
-  *"get job aiperf-l40s"*succeeded*) echo 1 ;;
-  *"get job aiperf-l40s"*failed*) echo "${STUB_FAILED:-}" ;;
+  *"get job aiperf-replay"*succeeded*) echo 1 ;;
+  *"get job aiperf-replay"*failed*) echo "${STUB_FAILED:-}" ;;
   *"apply -f "*) f=${args##*-f }; echo "applied $(grep -m1 '^  name: ' "$f" | awk '{print $2}')" >> "$STUB_LOG" ;;
   logs*|*" logs "*) echo "MEASURED RUN START" ;;
   exec*|*" exec "*) echo 5 ;;

@@ -1,0 +1,45 @@
+# One-off pod for tune_moe_int4.py on the L40S (W4A16 kernel probe). Needs the GPU to itself: scale
+# StatefulSet vllm-w4a16 to 0 first. Result read back with kubectl cp from /out.
+#   kubectl -n llm-serving create configmap moe-tune-int4-script --from-file=kernel-bench/tune_moe_int4.py
+#   kubectl apply -f kernel-bench/tune-pod.yaml
+#   kubectl -n llm-serving logs -f moe-tune-int4          # TUNING-DONE at the end
+apiVersion: v1
+kind: Pod
+metadata:
+  name: moe-tune-int4
+  namespace: llm-serving
+  labels:
+    app: moe-tune-int4
+spec:
+  restartPolicy: Never
+  nodeSelector:
+    gpu: l40s
+  tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule
+  containers:
+    - name: tune
+      image: vllm/vllm-openai:v0.29.0   # same image, Triton and kernel as the serving pod
+      command: ["bash", "-c"]
+      args:
+        - python3 -u /tune/tune_moe_int4.py --save-path /out ${TUNE_ARGS} && echo TUNING-DONE; sleep infinity
+      env:
+        - name: TUNE_ARGS
+          value: ""   # e.g. "--batch-sizes 512 --max-configs 20" for a smoke run
+        - name: TRITON_CACHE_DIR
+          value: /vllm-cache/triton-tune
+      resources:
+        requests: {nvidia.com/gpu: "1", cpu: "3", memory: 16Gi}
+        limits: {nvidia.com/gpu: "1", memory: 24Gi}
+      volumeMounts:
+        - {name: script, mountPath: /tune, readOnly: true}
+        - {name: out, mountPath: /out}
+        - {name: vllm-cache, mountPath: /vllm-cache}
+  volumes:
+    - name: script
+      configMap: {name: moe-tune-int4-script}
+    - name: out
+      emptyDir: {}
+    - name: vllm-cache
+      hostPath: {path: /var/lib/vllm-cache-w4a16probe, type: DirectoryOrCreate}

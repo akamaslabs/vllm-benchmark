@@ -1,0 +1,9 @@
+Available KV cache memory: 20.67 GiB
+Gemma4 model has heterogeneous head dimensions {'sliding_attention': 256, 'full_attention': 512}. FA4 not available, forcing TRITON_ATTN backend.
+GPU KV cache size: 1,411,835 tokens, Maximum concurrency for 96,000 tokens per request: 14.71x
+Model loading took 16.1 GiB memory and 18.754586 seconds
+Overriding draft model max model len from 262144 to 96000
+Using AttentionBackendEnum.TRITON_ATTN backend.
+Using MarlinExperts
+Using MarlinLinearKernel for CompressedTensorsWNA16
+Using 'MARLIN' WNA16 MoE backend.

@@ -1,0 +1,5 @@
+(EngineCore pid=100) ValueError: WNA16 MoE backend 'FLASHINFER_TRTLLM' does not support the deployment configuration since kernel does not support current device cuda.
+Gemma4 model has heterogeneous head dimensions {'sliding_attention': 256, 'full_attention': 512}. FA4 not available, forcing TRITON_ATTN backend.
+Using AttentionBackendEnum.TRITON_ATTN backend.
+Using MarlinLinearKernel for CompressedTensorsWNA16
+ValueError: WNA16 MoE backend 'FLASHINFER_TRTLLM' does not support the deployment configuration since kernel does not support current device cuda.

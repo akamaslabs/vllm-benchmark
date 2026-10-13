@@ -1,0 +1,626 @@
+15:00:24 apply_config: parameters: GPU_MEMORY_UTILIZATION=0.90 MAX_MODEL_LEN=96000 MAX_NUM_SEQS=64 KV_CACHE_DTYPE=auto VLLM_ARGS=--moe-backend=humming KERNEL_ENV=VLLM_HUMMING_USE_F16_ACCUM=1 
+15:00:24 apply_config: vLLM flags: --model=cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit --revision=0ef577a5710035bd2d3a3f27e4f5cb2e86a9a9ba --served-model-name=gemma4-w4a16 --port=8000 --host=0.0.0.0 --tensor-parallel-size=1 --enable-auto-tool-choice --tool-call-parser=gemma4 --reasoning-parser=gemma4 --gpu-memory-utilization=0.90 --max-model-len=96000 --max-num-seqs=64 --kv-cache-dtype=auto --moe-backend=humming 
+15:00:27 apply_config: 1/3 freeing the GPU
+statefulset.apps/vllm-w4a16 scaled
+15:00:34 apply_config: 2/3 starting vLLM on ip-192-168-61-105.us-east-2.compute.internal
+error: vllm-w4a16-0 restarted 1 time(s) during startup, failing now
+15:02:50 apply_config: rollout exit=4 after 132 s
+--- vllm-w4a16-0: startup summary ---
+--- vllm-w4a16-0: full logs ---
+--- vllm-w4a16-0: previous container ---
+WARNING 10-09 15:00:56 [argparse_utils.py:276] With `vllm serve`, you should provide the model as a positional argument or in a config file instead of via the `--model` option. The `--model` option will be removed in a future version.
+(APIServer pid=1) INFO 10-09 15:00:56 [api_utils.py:347] 
+(APIServer pid=1) INFO 10-09 15:00:56 [api_utils.py:347]        █     █     █▄   ▄█
+(APIServer pid=1) INFO 10-09 15:00:56 [api_utils.py:347]  ▄▄ ▄█ █     █     █ ▀▄▀ █  version 0.29.0
+(APIServer pid=1) INFO 10-09 15:00:56 [api_utils.py:347]   █▄█▀ █     █     █     █  model   cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit
+(APIServer pid=1) INFO 10-09 15:00:56 [api_utils.py:347]    ▀▀  ▀▀▀▀▀ ▀▀▀▀▀ ▀     ▀
+(APIServer pid=1) INFO 10-09 15:00:56 [api_utils.py:347] 
+(APIServer pid=1) INFO 10-09 15:00:56 [api_utils.py:286] non-default args: {'model_tag': 'cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit', 'enable_auto_tool_choice': True, 'tool_call_parser': 'gemma4', 'host': '0.0.0.0', 'model': 'cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit', 'revision': '0ef577a5710035bd2d3a3f27e4f5cb2e86a9a9ba', 'max_model_len': 96000, 'served_model_name': ['gemma4-w4a16'], 'reasoning_parser': 'gemma4', 'gpu_memory_utilization': 0.9, 'max_num_seqs': 64, 'moe_backend': 'humming'}
+(APIServer pid=1) INFO 10-09 15:00:57 [model.py:684] Resolved architecture: Gemma4ForConditionalGeneration
+(APIServer pid=1) INFO 10-09 15:00:57 [model.py:2021] Using max model len 96000
+(APIServer pid=1) Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+(APIServer pid=1) [transformers] `SiglipImageProcessorFast` is deprecated. The `Fast` suffix for image processors has been removed; use `SiglipImageProcessor` instead.
+(APIServer pid=1) INFO 10-09 15:01:06 [arg_utils.py:2929] Raising max_num_batched_tokens from 2048 to 2496 to accommodate 'video' input for prefix-LM model cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit.
+(APIServer pid=1) INFO 10-09 15:01:06 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=2496.
+(APIServer pid=1) INFO 10-09 15:01:06 [config.py:252] Gemma4 model has heterogeneous head dimensions {'sliding_attention': 256, 'full_attention': 512}. FA4 not available, forcing TRITON_ATTN backend.
+(APIServer pid=1) Parse safetensors files:   0%|          | 0/4 [00:00<?, ?it/s]Parse safetensors files:  25%|██▌       | 1/4 [00:00<00:01,  2.77it/s]Parse safetensors files:  50%|█████     | 2/4 [00:00<00:00,  4.40it/s]Parse safetensors files: 100%|██████████| 4/4 [00:00<00:00,  6.88it/s]Parse safetensors files: 100%|██████████| 4/4 [00:00<00:00,  5.81it/s]
+(APIServer pid=1) INFO 10-09 15:01:07 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(APIServer pid=1) WARNING 10-09 15:01:07 [cuda.py:327] Forcing --disable_chunked_mm_input for models with multimodal-bidirectional attention.
+(EngineCore pid=101) INFO 10-09 15:01:22 [core.py:123] Initializing a V1 LLM engine (v0.29.0) with config: model='cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit', speculative_config=None, tokenizer='cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit', skip_tokenizer_init=False, tokenizer_mode=auto, revision=0ef577a5710035bd2d3a3f27e4f5cb2e86a9a9ba, tokenizer_revision=0ef577a5710035bd2d3a3f27e4f5cb2e86a9a9ba, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=96000, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=compressed-tensors, quantization_config=None, enforce_eager=False, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='gemma4', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, per_request_spec_decode_metrics='none', kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False, jit_monitor_mode='warn', jit_monitor_verbose=False), seed=0, served_model_name=gemma4-w4a16, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.VLLM_COMPILE: 3>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['none'], 'ir_enable_torch_wrap': True, 'splitting_ops': ['vllm::unified_attention_with_output', 'vllm::unified_mla_attention_with_output', 'vllm::mamba_mixer2', 'vllm::mamba_mixer', 'vllm::short_conv', 'vllm::qwen4_exp_compute_ple_ngram_ids', 'vllm::qwen4_exp_ple_short_conv', 'vllm::qwen4_exp_qsa_with_output', 'vllm::linear_attention', 'vllm::qwen_gdn_attention_core', 'vllm::qwen_gdn_attention_core_fused_norm_packed', 'vllm::gdn_attention_core_xpu', 'vllm::olmo_hybrid_gdn_full_forward', 'vllm::sparse_attn_indexer', 'vllm::rocm_aiter_sparse_attn_indexer', 'vllm::deepseek_v4_attention', 'vllm::hpc_rope_norm_forward', 'vllm::unified_kv_cache_update', 'vllm::unified_mla_kv_cache_update'], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'compile_sizes': [], 'compile_ranges_endpoints': [2496], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 1, 'cudagraph_capture_sizes': [1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 128], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': False, 'fuse_act_quant': False, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': False, 'enable_qk_norm_rope_fusion': False, 'fuse_rope_kvcache_cat_mla': False, 'fuse_act_padding': False, 'fuse_qk_norm_rope_kvcache': False}, 'max_cudagraph_capture_size': 128, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native']), enable_flashinfer_autotune=True, enable_cutedsl_warmup=True, enable_jit_warmup=True, enable_bf16x3_router_gemm=False, moe_backend='humming', linear_backend='auto')
+(EngineCore pid=101) [transformers] `SiglipImageProcessorFast` is deprecated. The `Fast` suffix for image processors has been removed; use `SiglipImageProcessor` instead.
+(EngineCore pid=101) INFO 10-09 15:01:26 [parallel_state.py:1775] world_size=1 rank=0 local_rank=0 distributed_init_method=file:///tmp/vllm_dist_c49ae77f5e5944b7aeaa06cefa64f379 backend=nccl
+(EngineCore pid=101) INFO 10-09 15:01:26 [parallel_state.py:2119] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank 0, EPLB rank N/A
+(EngineCore pid=101) INFO 10-09 15:01:26 [gpu_worker.py:429] Using V2 Model Runner
+(EngineCore pid=101) INFO 10-09 15:01:27 [model_runner.py:382] Loading model from scratch...
+(EngineCore pid=101) Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+(EngineCore pid=101) Parse safetensors files:   0%|          | 0/4 [00:00<?, ?it/s]Parse safetensors files:  25%|██▌       | 1/4 [00:00<00:00,  3.04it/s]Parse safetensors files:  50%|█████     | 2/4 [00:00<00:00,  4.19it/s]Parse safetensors files:  75%|███████▌  | 3/4 [00:00<00:00,  5.58it/s]Parse safetensors files: 100%|██████████| 4/4 [00:00<00:00,  5.77it/s]
+(EngineCore pid=101) INFO 10-09 15:01:28 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(EngineCore pid=101) INFO 10-09 15:01:28 [compressed_tensors_wNa16.py:137] Using MarlinLinearKernel for CompressedTensorsWNA16
+(EngineCore pid=101) INFO 10-09 15:01:28 [cuda.py:432] Using AttentionBackendEnum.TRITON_ATTN backend.
+(EngineCore pid=101) INFO 10-09 15:01:28 [compressed_tensors_moe.py:132] Using CompressedTensorsWNA16MoEMethod
+(EngineCore pid=101) INFO 10-09 15:01:28 [fused_humming_moe.py:118] Using indexed gemm for humming moe
+(EngineCore pid=101) INFO 10-09 15:01:28 [int_wna16.py:254] Using 'HUMMING' WNA16 MoE backend.
+(EngineCore pid=101) INFO 10-09 15:01:28 [cuda.py:432] Using AttentionBackendEnum.TRITON_ATTN backend.
+(EngineCore pid=101) INFO 10-09 15:01:29 [weight_utils.py:863] Filesystem type for checkpoints: XFS. Checkpoint size: 16.01 GiB. Available RAM: 25.03 GiB.
+(EngineCore pid=101) INFO 10-09 15:01:29 [weight_utils.py:886] Auto-prefetch is disabled because the filesystem (XFS) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+(EngineCore pid=101) Loading safetensors checkpoint shards:   0% Completed | 0/4 [00:00<?, ?it/s]
+(EngineCore pid=101) Loading safetensors checkpoint shards:  25% Completed | 1/4 [00:03<00:09,  3.29s/it]
+(EngineCore pid=101) Loading safetensors checkpoint shards:  50% Completed | 2/4 [00:06<00:06,  3.28s/it]
+(EngineCore pid=101) Loading safetensors checkpoint shards:  75% Completed | 3/4 [00:09<00:03,  3.30s/it]
+(EngineCore pid=101) Loading safetensors checkpoint shards: 100% Completed | 4/4 [00:10<00:00,  2.19s/it]
+(EngineCore pid=101) Loading safetensors checkpoint shards: 100% Completed | 4/4 [00:10<00:00,  2.59s/it]
+(EngineCore pid=101) 
+(EngineCore pid=101) INFO 10-09 15:01:39 [default_loader.py:430] Loading weights took 10.39 seconds
+(EngineCore pid=101) INFO 10-09 15:01:40 [int_wna16.py:408] Using MoEPrepareAndFinalizeNoDPEPModular
+(EngineCore pid=101) INFO 10-09 15:01:40 [int_wna16.py:409] Using HummingIndexedExperts
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:134] Attempting to override humming GEMM config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': (16, 64, 256), 'warp_shape': (16, 64, 32), 'use_stream_k': True, 'use_f16_accum': True, 'num_sms': 88, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] Overridden humming GEMM config. Current config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] : {'block_shape': [16, 64, 128], 'warp_shape': (16, 64, 32), 'use_stream_k': True, 'use_f16_accum': True, 'num_sms': 88, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': (16, 64, 256), 'warp_shape': (16, 64, 32), 'use_stream_k': True, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] Overridden humming GEMM config. Current config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] : {'block_shape': [16, 64, 128], 'warp_shape': (16, 64, 32), 'use_stream_k': True, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': (16, 128, 128), 'warp_shape': (16, 64, 32), 'use_stream_k': True, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] Overridden humming GEMM config. Current config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] : {'block_shape': (16, 128, 128), 'warp_shape': (16, 64, 32), 'use_stream_k': True, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': (16, 256, 64), 'warp_shape': (16, 64, 32), 'use_stream_k': True, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] Overridden humming GEMM config. Current config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] : {'block_shape': (16, 256, 64), 'warp_shape': (16, 64, 32), 'use_stream_k': True, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': (16, 256, 128), 'warp_shape': (16, 64, 64), 'use_stream_k': True, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] Overridden humming GEMM config. Current config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] : {'block_shape': (16, 256, 128), 'warp_shape': (16, 64, 64), 'use_stream_k': True, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': (32, 256, 64), 'warp_shape': (16, 64, 64), 'use_stream_k': True, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] Overridden humming GEMM config. Current config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] : {'block_shape': (32, 256, 64), 'warp_shape': (16, 64, 64), 'use_stream_k': True, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': (48, 256, 128), 'warp_shape': (48, 64, 64), 'use_stream_k': True, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] Overridden humming GEMM config. Current config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] : {'block_shape': (48, 256, 128), 'warp_shape': (48, 64, 64), 'use_stream_k': True, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': (64, 256, 64), 'warp_shape': (32, 64, 64), 'use_stream_k': True, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] Overridden humming GEMM config. Current config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] : {'block_shape': (64, 256, 64), 'warp_shape': (32, 64, 64), 'use_stream_k': True, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': (96, 256, 64), 'warp_shape': (48, 64, 64), 'use_stream_k': True, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] Overridden humming GEMM config. Current config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] : {'block_shape': (96, 256, 64), 'warp_shape': (48, 64, 64), 'use_stream_k': True, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': (128, 256, 64), 'warp_shape': (64, 64, 64), 'use_stream_k': True, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] Overridden humming GEMM config. Current config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] : {'block_shape': (128, 256, 64), 'warp_shape': (64, 64, 64), 'use_stream_k': True, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': (16, 64, 256), 'warp_shape': (16, 64, 32), 'use_stream_k': False, 'use_f16_accum': True, 'num_sms': 44, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] Overridden humming GEMM config. Current config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] : {'block_shape': [16, 64, 128], 'warp_shape': (16, 64, 32), 'use_stream_k': False, 'use_f16_accum': True, 'num_sms': 44, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': (16, 64, 256), 'warp_shape': (16, 64, 32), 'use_stream_k': False, 'use_f16_accum': True, 'num_sms': 88, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] Overridden humming GEMM config. Current config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] : {'block_shape': [16, 64, 128], 'warp_shape': (16, 64, 32), 'use_stream_k': False, 'use_f16_accum': True, 'num_sms': 88, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': (16, 128, 128), 'warp_shape': (16, 64, 32), 'use_stream_k': False, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] Overridden humming GEMM config. Current config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] : {'block_shape': (16, 128, 128), 'warp_shape': (16, 64, 32), 'use_stream_k': False, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': (16, 256, 64), 'warp_shape': (16, 64, 32), 'use_stream_k': False, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] Overridden humming GEMM config. Current config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] : {'block_shape': (16, 256, 64), 'warp_shape': (16, 64, 32), 'use_stream_k': False, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': (16, 256, 128), 'warp_shape': (16, 64, 64), 'use_stream_k': False, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] Overridden humming GEMM config. Current config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] : {'block_shape': (16, 256, 128), 'warp_shape': (16, 64, 64), 'use_stream_k': False, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': (32, 256, 64), 'warp_shape': (16, 64, 64), 'use_stream_k': False, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] Overridden humming GEMM config. Current config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] : {'block_shape': (32, 256, 64), 'warp_shape': (16, 64, 64), 'use_stream_k': False, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': (48, 256, 128), 'warp_shape': (48, 64, 64), 'use_stream_k': False, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] Overridden humming GEMM config. Current config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] : {'block_shape': (48, 256, 128), 'warp_shape': (48, 64, 64), 'use_stream_k': False, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': (64, 256, 64), 'warp_shape': (32, 64, 64), 'use_stream_k': False, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] Overridden humming GEMM config. Current config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] : {'block_shape': (64, 256, 64), 'warp_shape': (32, 64, 64), 'use_stream_k': False, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': (96, 256, 64), 'warp_shape': (48, 64, 64), 'use_stream_k': False, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] Overridden humming GEMM config. Current config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] : {'block_shape': (96, 256, 64), 'warp_shape': (48, 64, 64), 'use_stream_k': False, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': (128, 256, 64), 'warp_shape': (64, 64, 64), 'use_stream_k': False, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] Overridden humming GEMM config. Current config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:150] : {'block_shape': (128, 256, 64), 'warp_shape': (64, 64, 64), 'use_stream_k': False, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': [16, 64, 128], 'warp_shape': (16, 64, 32), 'use_stream_k': True, 'use_f16_accum': True, 'num_sms': 88, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': [16, 64, 128], 'warp_shape': (16, 64, 32), 'use_stream_k': True, 'use_f16_accum': True, 'num_sms': 142, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': [16, 64, 128], 'warp_shape': (16, 64, 32), 'use_stream_k': False, 'use_f16_accum': True, 'num_sms': 44, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] Overriding humming GEMM config. Previous config
+(EngineCore pid=101) INFO 10-09 15:01:44 [fused_humming_moe.py:142] : {'block_shape': [16, 64, 128], 'warp_shape': (16, 64, 32), 'use_stream_k': False, 'use_f16_accum': True, 'num_sms': 88, 'num_stages': 3, 'num_ctas_per_sm': 1, 'num_write_splits': 1}
+(EngineCore pid=101) INFO 10-09 15:01:45 [model_runner.py:404] Model loading took 17.48 GiB memory and 18.881008 seconds
+(EngineCore pid=101) INFO 10-09 15:01:45 [topk_topp_sampler.py:62] Using FlashInfer for top-p & top-k sampling.
+(EngineCore pid=101) INFO 10-09 15:01:45 [utils.py:306] Using LBNHC KV cache layout.
+(EngineCore pid=101) INFO 10-09 15:02:08 [encoder_runner.py:131] Encoder cache will be initialized with a budget of 2496 tokens, and profiled with 1 video items of the maximum feature size.
+(EngineCore pid=101) INFO 10-09 15:02:20 [backends.py:1094] Using cache directory: /vllm-cache/torch_compile_cache/c7db2ec0e9/rank_0_0/backbone for vLLM's torch.compile
+(EngineCore pid=101) INFO 10-09 15:02:20 [backends.py:1155] Dynamo bytecode transform time: 10.85 s
+(EngineCore pid=101) INFO 10-09 15:02:36 [backends.py:393] Compiling a graph for compile range (1, 2496) takes 14.96 s
+(EngineCore pid=101) INFO 10-09 15:02:42 [backends.py:920] collected artifacts: 31 entries, 6 artifacts, 19250032 bytes total
+(EngineCore pid=101) INFO 10-09 15:02:42 [decorators.py:719] saved AOT compiled function to /vllm-cache/torch_compile_cache/torch_aot_compile/e6fc7d69dc1b2b4b4c7dd89c06513ef62e9808434dc2e6779fe33fac0e49032c/rank_0_0/model
+(EngineCore pid=101) INFO 10-09 15:02:42 [monitor.py:53] torch.compile took 32.27 s in total
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374] EngineCore failed to start.
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374] Traceback (most recent call last):
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core.py", line 1336, in run_engine_core
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     engine_core = EngineCoreProc(*args, engine_index=dp_rank, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return func(*args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core.py", line 1093, in __init__
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     super().__init__(
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core.py", line 145, in __init__
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     kv_cache_config = self._initialize_kv_caches(vllm_config)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return func(*args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core.py", line 308, in _initialize_kv_caches
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     available_gpu_memory = self.model_executor.determine_available_memory()
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/abstract.py", line 149, in determine_available_memory
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return self.collective_rpc("determine_available_memory")
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/uniproc_executor.py", line 103, in collective_rpc
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     result = run_method(self.driver_worker, method, args, kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/serial_utils.py", line 510, in run_method
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return func(*args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(EngineCore pid=101) Process EngineCore:
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return func(*args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_worker.py", line 557, in determine_available_memory
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     self.model_runner.profile_run()
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return func(*args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/model_runner.py", line 868, in profile_run
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     hidden_states, sample_hidden_states = self._dummy_run(
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]                                           ^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return func(*args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/eplb_utils.py", line 27, in wrapper
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     result = fn(self, *args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]              ^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/model_runner.py", line 754, in _dummy_run
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     self.execute_model(
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return func(*args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/model_runner.py", line 1776, in execute_model
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     model_output = self.model(**model_inputs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return self._call_impl(*args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return forward_call(*args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/gemma4_mm.py", line 2115, in forward
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     hidden_states = self.language_model.model(
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/compilation/decorators.py", line 681, in __call__
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     output = self.aot_compiled_fn(self, *args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/torch/_dynamo/aot_compile.py", line 244, in __call__
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return self.fn(*args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/gemma4.py", line 1292, in forward
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     def forward(
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/compilation/caching.py", line 225, in __call__
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return self.optimized_call(*args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "<string>", line 164, in execution_fn
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/compilation/cuda_graph.py", line 254, in __call__
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return self.runnable(*args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/compilation/piecewise_backend.py", line 380, in __call__
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return range_entry.runnable(*args)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/torch/_inductor/standalone_compile.py", line 321, in __call__
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return self.inner_fn(*args)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/torch/_dynamo/aot_compile_types.py", line 221, in __call__
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return self.compiled_fn(*args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/torch/_dynamo/eval_frame.py", line 1446, in _fn
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return fn(*args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/torch/_functorch/aot_autograd.py", line 1277, in forward
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return compiled_fn(full_args)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 1141, in runtime_wrapper
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     result = _codegen_runtime_wrapper(
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]              ^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/torch/_functorch/_aot_autograd/subclass_codegen.py:codegen(runtime_wrapper_orchestration)", line 8, in _runtime_wrapper
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 2548, in __call__
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return self.compiled_fn(*args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/torch/_inductor/output_code.py", line 763, in __call__
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return self.current_callable(inputs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/vllm-cache/torch_compile_cache/torch_aot_compile/e6fc7d69dc1b2b4b4c7dd89c06513ef62e9808434dc2e6779fe33fac0e49032c/inductor_cache/c2/cc2okddrkpfpu5cljvczzfrqeefhksl2fngsvzmqxhwjn6e5n7z3.py", line 1762, in call
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     buf8 = torch.ops.vllm.moe_forward.default(buf7, buf6, None, None, arg18_1, 0)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/torch/_ops.py", line 875, in __call__
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return self._op(*args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/torch/_compile.py", line 54, in inner
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return disable_fn(*args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/torch/_dynamo/eval_frame.py", line 1446, in _fn
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return fn(*args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 432, in __torch_dispatch__
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     res = func(*args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]           ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/torch/_ops.py", line 875, in __call__
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return self._op(*args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/runner/moe_runner.py", line 127, in _moe_forward
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     layer._forward_impl(
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/runner/moe_runner.py", line 913, in _forward_impl
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     shared_output, hidden_states = self._apply_quant_method(
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/runner/moe_runner.py", line 630, in _apply_quant_method
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     fused_out = self.routed_experts.forward_modular(
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/routed_experts.py", line 1252, in forward_modular
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return self.quant_method.apply(
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/compressed_tensors/compressed_tensors_moe/compressed_tensors_moe_wna16.py", line 664, in apply
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return self.moe_kernel.apply(
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/modular_kernel.py", line 1732, in apply
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return self.impl.apply(
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/modular_kernel.py", line 1501, in apply
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     fused_out = self._fused_experts(
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]                 ^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/modular_kernel.py", line 1349, in _fused_experts
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     self.fused_experts.apply(
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/experts/fused_humming_moe.py", line 871, in apply
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     self.humming_forward(
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/experts/fused_humming_moe.py", line 242, in humming_forward
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return humming_forward(
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/humming/forward.py", line 113, in humming_forward
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return ops.humming_gemm(
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/torch/_ops.py", line 1279, in __call__
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return self._op(*args, **kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/humming/ops/__init__.py", line 97, in humming_gemm
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     configs = HummingKernel.prepare_kernels(layer_config, compute_config, tuning_config)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/humming/kernel/humming.py", line 538, in prepare_kernels
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     for config, kernel, num_sms in executor.map(prepare_kernel, tuning_config_obj):
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/lib/python3.12/concurrent/futures/_base.py", line 619, in result_iterator
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     yield _result_or_cancel(fs.pop())
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/lib/python3.12/concurrent/futures/_base.py", line 317, in _result_or_cancel
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return fut.result(timeout)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     return self.__get_result()
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     raise self._exception
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     result = self.fn(*self.args, **self.kwargs)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/humming/kernel/humming.py", line 527, in prepare_kernel
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     kernel = HummingKernel(**kernel_config)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "<string>", line 51, in __init__
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/humming/kernel/humming.py", line 114, in __post_init__
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     KernelRuntime.__post_init__(self)
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/humming/jit/runtime.py", line 42, in __post_init__
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     self.init_kernel()
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/humming/kernel/humming.py", line 118, in init_kernel
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     self.check_dtype()
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]   File "/usr/local/lib/python3.12/dist-packages/humming/kernel/humming.py", line 404, in check_dtype
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]     assert self.a_dtype == dtypes.float16
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) ERROR 10-09 15:02:42 [core.py:1374] AssertionError
+(EngineCore pid=101) Traceback (most recent call last):
+(EngineCore pid=101)   File "/usr/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+(EngineCore pid=101)     self.run()
+(EngineCore pid=101)   File "/usr/lib/python3.12/multiprocessing/process.py", line 108, in run
+(EngineCore pid=101)     self._target(*self._args, **self._kwargs)
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core.py", line 1378, in run_engine_core
+(EngineCore pid=101)     raise e
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core.py", line 1336, in run_engine_core
+(EngineCore pid=101)     engine_core = EngineCoreProc(*args, engine_index=dp_rank, **kwargs)
+(EngineCore pid=101)                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(EngineCore pid=101)     return func(*args, **kwargs)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core.py", line 1093, in __init__
+(EngineCore pid=101)     super().__init__(
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core.py", line 145, in __init__
+(EngineCore pid=101)     kv_cache_config = self._initialize_kv_caches(vllm_config)
+(EngineCore pid=101)                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(EngineCore pid=101)     return func(*args, **kwargs)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core.py", line 308, in _initialize_kv_caches
+(EngineCore pid=101)     available_gpu_memory = self.model_executor.determine_available_memory()
+(EngineCore pid=101)                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/abstract.py", line 149, in determine_available_memory
+(EngineCore pid=101)     return self.collective_rpc("determine_available_memory")
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/uniproc_executor.py", line 103, in collective_rpc
+(EngineCore pid=101)     result = run_method(self.driver_worker, method, args, kwargs)
+(EngineCore pid=101)              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/serial_utils.py", line 510, in run_method
+(EngineCore pid=101)     return func(*args, **kwargs)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(EngineCore pid=101)     return func(*args, **kwargs)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_worker.py", line 557, in determine_available_memory
+(EngineCore pid=101)     self.model_runner.profile_run()
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(EngineCore pid=101)     return func(*args, **kwargs)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/model_runner.py", line 868, in profile_run
+(EngineCore pid=101)     hidden_states, sample_hidden_states = self._dummy_run(
+(EngineCore pid=101)                                           ^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(EngineCore pid=101)     return func(*args, **kwargs)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/eplb_utils.py", line 27, in wrapper
+(EngineCore pid=101)     result = fn(self, *args, **kwargs)
+(EngineCore pid=101)              ^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/model_runner.py", line 754, in _dummy_run
+(EngineCore pid=101)     self.execute_model(
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(EngineCore pid=101)     return func(*args, **kwargs)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/model_runner.py", line 1776, in execute_model
+(EngineCore pid=101)     model_output = self.model(**model_inputs)
+(EngineCore pid=101)                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(EngineCore pid=101)     return self._call_impl(*args, **kwargs)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(EngineCore pid=101)     return forward_call(*args, **kwargs)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/gemma4_mm.py", line 2115, in forward
+(EngineCore pid=101)     hidden_states = self.language_model.model(
+(EngineCore pid=101)                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/compilation/decorators.py", line 681, in __call__
+(EngineCore pid=101)     output = self.aot_compiled_fn(self, *args, **kwargs)
+(EngineCore pid=101)              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/torch/_dynamo/aot_compile.py", line 244, in __call__
+(EngineCore pid=101)     return self.fn(*args, **kwargs)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/gemma4.py", line 1292, in forward
+(EngineCore pid=101)     def forward(
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/compilation/caching.py", line 225, in __call__
+(EngineCore pid=101)     return self.optimized_call(*args, **kwargs)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "<string>", line 164, in execution_fn
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/compilation/cuda_graph.py", line 254, in __call__
+(EngineCore pid=101)     return self.runnable(*args, **kwargs)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/compilation/piecewise_backend.py", line 380, in __call__
+(EngineCore pid=101)     return range_entry.runnable(*args)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/torch/_inductor/standalone_compile.py", line 321, in __call__
+(EngineCore pid=101)     return self.inner_fn(*args)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/torch/_dynamo/aot_compile_types.py", line 221, in __call__
+(EngineCore pid=101)     return self.compiled_fn(*args, **kwargs)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/torch/_dynamo/eval_frame.py", line 1446, in _fn
+(EngineCore pid=101)     return fn(*args, **kwargs)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/torch/_functorch/aot_autograd.py", line 1277, in forward
+(EngineCore pid=101)     return compiled_fn(full_args)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 1141, in runtime_wrapper
+(EngineCore pid=101)     result = _codegen_runtime_wrapper(
+(EngineCore pid=101)              ^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/torch/_functorch/_aot_autograd/subclass_codegen.py:codegen(runtime_wrapper_orchestration)", line 8, in _runtime_wrapper
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 2548, in __call__
+(EngineCore pid=101)     return self.compiled_fn(*args, **kwargs)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/torch/_inductor/output_code.py", line 763, in __call__
+(EngineCore pid=101)     return self.current_callable(inputs)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/vllm-cache/torch_compile_cache/torch_aot_compile/e6fc7d69dc1b2b4b4c7dd89c06513ef62e9808434dc2e6779fe33fac0e49032c/inductor_cache/c2/cc2okddrkpfpu5cljvczzfrqeefhksl2fngsvzmqxhwjn6e5n7z3.py", line 1762, in call
+(EngineCore pid=101)     buf8 = torch.ops.vllm.moe_forward.default(buf7, buf6, None, None, arg18_1, 0)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/torch/_ops.py", line 875, in __call__
+(EngineCore pid=101)     return self._op(*args, **kwargs)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/torch/_compile.py", line 54, in inner
+(EngineCore pid=101)     return disable_fn(*args, **kwargs)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/torch/_dynamo/eval_frame.py", line 1446, in _fn
+(EngineCore pid=101)     return fn(*args, **kwargs)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 432, in __torch_dispatch__
+(EngineCore pid=101)     res = func(*args, **kwargs)
+(EngineCore pid=101)           ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/torch/_ops.py", line 875, in __call__
+(EngineCore pid=101)     return self._op(*args, **kwargs)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/runner/moe_runner.py", line 127, in _moe_forward
+(EngineCore pid=101)     layer._forward_impl(
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/runner/moe_runner.py", line 913, in _forward_impl
+(EngineCore pid=101)     shared_output, hidden_states = self._apply_quant_method(
+(EngineCore pid=101)                                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/runner/moe_runner.py", line 630, in _apply_quant_method
+(EngineCore pid=101)     fused_out = self.routed_experts.forward_modular(
+(EngineCore pid=101)                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/routed_experts.py", line 1252, in forward_modular
+(EngineCore pid=101)     return self.quant_method.apply(
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/compressed_tensors/compressed_tensors_moe/compressed_tensors_moe_wna16.py", line 664, in apply
+(EngineCore pid=101)     return self.moe_kernel.apply(
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/modular_kernel.py", line 1732, in apply
+(EngineCore pid=101)     return self.impl.apply(
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/modular_kernel.py", line 1501, in apply
+(EngineCore pid=101)     fused_out = self._fused_experts(
+(EngineCore pid=101)                 ^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/modular_kernel.py", line 1349, in _fused_experts
+(EngineCore pid=101)     self.fused_experts.apply(
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/experts/fused_humming_moe.py", line 871, in apply
+(EngineCore pid=101)     self.humming_forward(
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/experts/fused_humming_moe.py", line 242, in humming_forward
+(EngineCore pid=101)     return humming_forward(
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/humming/forward.py", line 113, in humming_forward
+(EngineCore pid=101)     return ops.humming_gemm(
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/torch/_ops.py", line 1279, in __call__
+(EngineCore pid=101)     return self._op(*args, **kwargs)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/humming/ops/__init__.py", line 97, in humming_gemm
+(EngineCore pid=101)     configs = HummingKernel.prepare_kernels(layer_config, compute_config, tuning_config)
+(EngineCore pid=101)               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/humming/kernel/humming.py", line 538, in prepare_kernels
+(EngineCore pid=101)     for config, kernel, num_sms in executor.map(prepare_kernel, tuning_config_obj):
+(EngineCore pid=101)   File "/usr/lib/python3.12/concurrent/futures/_base.py", line 619, in result_iterator
+(EngineCore pid=101)     yield _result_or_cancel(fs.pop())
+(EngineCore pid=101)           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/lib/python3.12/concurrent/futures/_base.py", line 317, in _result_or_cancel
+(EngineCore pid=101)     return fut.result(timeout)
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+(EngineCore pid=101)     return self.__get_result()
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+(EngineCore pid=101)     raise self._exception
+(EngineCore pid=101)   File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+(EngineCore pid=101)     result = self.fn(*self.args, **self.kwargs)
+(EngineCore pid=101)              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/humming/kernel/humming.py", line 527, in prepare_kernel
+(EngineCore pid=101)     kernel = HummingKernel(**kernel_config)
+(EngineCore pid=101)              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101)   File "<string>", line 51, in __init__
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/humming/kernel/humming.py", line 114, in __post_init__
+(EngineCore pid=101)     KernelRuntime.__post_init__(self)
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/humming/jit/runtime.py", line 42, in __post_init__
+(EngineCore pid=101)     self.init_kernel()
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/humming/kernel/humming.py", line 118, in init_kernel
+(EngineCore pid=101)     self.check_dtype()
+(EngineCore pid=101)   File "/usr/local/lib/python3.12/dist-packages/humming/kernel/humming.py", line 404, in check_dtype
+(EngineCore pid=101)     assert self.a_dtype == dtypes.float16
+(EngineCore pid=101)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=101) AssertionError
+[rank0]:[W1009 15:02:43.363845617 ProcessGroupNCCL.cpp:1624] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+(APIServer pid=1) INFO 10-09 15:02:45 [utils.py:620] [shutdown] Process manager: send sigterm to process EngineCore
+(APIServer pid=1) Traceback (most recent call last):
+(APIServer pid=1)   File "/usr/local/bin/vllm", line 10, in <module>
+(APIServer pid=1)     sys.exit(main())
+(APIServer pid=1)              ^^^^^^
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/cli/main.py", line 97, in main
+(APIServer pid=1)     args.dispatch_function(args)
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/cli/serve.py", line 153, in cmd
+(APIServer pid=1)     uvloop.run(run_server(args))
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/uvloop/__init__.py", line 96, in run
+(APIServer pid=1)     return __asyncio.run(
+(APIServer pid=1)            ^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+(APIServer pid=1)     return runner.run(main)
+(APIServer pid=1)            ^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+(APIServer pid=1)     return self._loop.run_until_complete(task)
+(APIServer pid=1)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "uvloop/loop.pyx", line 1518, in uvloop.loop.Loop.run_until_complete
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/uvloop/__init__.py", line 48, in wrapper
+(APIServer pid=1)     return await main
+(APIServer pid=1)            ^^^^^^^^^^
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/launchers/api_server/entry.py", line 176, in run_server
+(APIServer pid=1)     await run_server_worker(listen_address, sock, args, **uvicorn_kwargs)
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/launchers/api_server/entry.py", line 190, in run_server_worker
+(APIServer pid=1)     async with build_async_engine_client(
+(APIServer pid=1)   File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+(APIServer pid=1)     return await anext(self.gen)
+(APIServer pid=1)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/launchers/api_server/entry.py", line 58, in build_async_engine_client
+(APIServer pid=1)     async with build_async_engine_client_from_engine_args(
+(APIServer pid=1)   File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+(APIServer pid=1)     return await anext(self.gen)
+(APIServer pid=1)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/launchers/api_server/entry.py", line 94, in build_async_engine_client_from_engine_args
+(APIServer pid=1)     async_llm = AsyncLLM.from_vllm_config(
+(APIServer pid=1)                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/async_llm.py", line 227, in from_vllm_config
+(APIServer pid=1)     return cls(
+(APIServer pid=1)            ^^^^
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/async_llm.py", line 156, in __init__
+(APIServer pid=1)     self.engine_core = EngineCoreClient.make_async_mp_client(
+(APIServer pid=1)                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(APIServer pid=1)     return func(*args, **kwargs)
+(APIServer pid=1)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core_client.py", line 139, in make_async_mp_client
+(APIServer pid=1)     return AsyncMPClient(*client_args)
+(APIServer pid=1)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(APIServer pid=1)     return func(*args, **kwargs)
+(APIServer pid=1)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core_client.py", line 991, in __init__
+(APIServer pid=1)     super().__init__(
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core_client.py", line 609, in __init__
+(APIServer pid=1)     with launch_core_engines(
+(APIServer pid=1)   File "/usr/lib/python3.12/contextlib.py", line 144, in __exit__
+(APIServer pid=1)     next(self.gen)
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/utils.py", line 1240, in launch_core_engines
+(APIServer pid=1)     wait_for_engine_startup(
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/utils.py", line 1320, in wait_for_engine_startup
+(APIServer pid=1)     raise RuntimeError(
+(APIServer pid=1) RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {}
+    Type:          HostPath (bare host directory volume)
+    Path:          /var/lib/vllm-cache-study32
+    HostPathType:  DirectoryOrCreate
+  shm:
+    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:     Memory
+    SizeLimit:  2Gi
+  moe-tuned-configs:
+    Type:      ConfigMap (a volume populated by a ConfigMap)
+    Name:      moe-tuned-configs-w4a16
+    Optional:  true
+  kube-api-access-jr2km:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    Optional:                false
+    DownwardAPI:             true
+QoS Class:                   Burstable
+Node-Selectors:              gpu=l40s
+Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+                             nvidia.com/gpu:NoSchedule op=Exists
+Events:
+  Type     Reason     Age                  From               Message
+  ----     ------     ----                 ----               -------
+  Normal   Scheduled  2m21s                default-scheduler  Successfully assigned llm-serving/vllm-w4a16-0 to ip-192-168-61-105.us-east-2.compute.internal
+  Normal   Pulled     9s (x2 over 2m20s)   kubelet            spec.containers{vllm}: Container image "vllm/vllm-openai:v0.29.0" already present on machine and can be accessed by the pod
+  Normal   Created    9s (x2 over 2m20s)   kubelet            spec.containers{vllm}: Container created
+  Normal   Started    9s (x2 over 2m20s)   kubelet            spec.containers{vllm}: Container started
+  Warning  Unhealthy  1s (x14 over 2m11s)  kubelet            spec.containers{vllm}: Startup probe failed: Get "http://192.168.53.4:8000/health": dial tcp 192.168.53.4:8000: connect: connection refused

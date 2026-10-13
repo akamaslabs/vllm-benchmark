@@ -1,0 +1,10 @@
+device NVIDIA L40S, 1440 configs -> E=128,N=704,device_name=NVIDIA_L40S,dtype=int4_w4a16.json
+M=128: {'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 32, 'GROUP_SIZE_M': 1, 'num_warps': 4, 'num_stages': 3, 'SPLIT_K': 1} 1440.5 us, default {'BLOCK_SIZE_M': 64, 'GROUP_SIZE_M': 1, 'SPLIT_K': 1} 2401.7 us (-40.0 %), 1110 configs ran (2532 s)
+M=256: {'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 32, 'GROUP_SIZE_M': 1, 'num_warps': 4, 'num_stages': 3, 'SPLIT_K': 1} 1498.1 us, default {'BLOCK_SIZE_M': 64, 'GROUP_SIZE_M': 1, 'SPLIT_K': 1} 2426.8 us (-38.3 %), 1110 configs ran (536 s)
+M=512: {'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 32, 'GROUP_SIZE_M': 1, 'num_warps': 4, 'num_stages': 3, 'SPLIT_K': 1} 1561.8 us, default {'BLOCK_SIZE_M': 64, 'GROUP_SIZE_M': 1, 'SPLIT_K': 1} 2530.3 us (-38.3 %), 1110 configs ran (594 s)
+M=1024: {'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 32, 'GROUP_SIZE_M': 1, 'num_warps': 4, 'num_stages': 3, 'SPLIT_K': 1} 1878.6 us, default {'BLOCK_SIZE_M': 64, 'GROUP_SIZE_M': 1, 'SPLIT_K': 1} 3672.9 us (-48.9 %), 576 configs ran (469 s)
+M=2048: {'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 32, 'GROUP_SIZE_M': 16, 'num_warps': 4, 'num_stages': 3, 'SPLIT_K': 1} 2941.9 us, default {'BLOCK_SIZE_M': 64, 'GROUP_SIZE_M': 1, 'SPLIT_K': 1} 6149.5 us (-52.2 %), 576 configs ran (582 s)
+M=4096: {'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 32, 'GROUP_SIZE_M': 1, 'num_warps': 4, 'num_stages': 3, 'SPLIT_K': 1} 4986.8 us, default {'BLOCK_SIZE_M': 64, 'GROUP_SIZE_M': 1, 'SPLIT_K': 1} 11139.1 us (-55.2 %), 576 configs ran (945 s)
+M=8192: {'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 32, 'GROUP_SIZE_M': 64, 'num_warps': 4, 'num_stages': 3, 'SPLIT_K': 1} 9082.5 us, default {'BLOCK_SIZE_M': 64, 'GROUP_SIZE_M': 1, 'SPLIT_K': 1} 21004.5 us (-56.8 %), 576 configs ran (1670 s)
+done in 7327 s: /out/E=128,N=704,device_name=NVIDIA_L40S,dtype=int4_w4a16.json
+TUNING-DONE

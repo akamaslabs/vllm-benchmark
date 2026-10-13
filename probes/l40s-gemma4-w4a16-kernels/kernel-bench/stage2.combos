@@ -1,0 +1,19 @@
+# Stage 2 of the W4A16 kernel probe: base vLLM levers on the stage-1 kernels (KP_COMBOS="$(grep -v '^#' stage2.combos)").
+# Stage 1 (2026-10-09): Marlin MoE + Marlin linear (vLLM's default) is the best or tied on every
+# measure; activations in fp8 (Marlin W4A8-fp8) +8-11 % prefill and mixed, -2 % decode; int8
+# activations break the model (0/40). vLLM 0.29.0's own max_num_batched_tokens here: 2496.
+# name | extra vLLM flags | extra environment
+B2-default        |                                                                                   |
+S-fp8kv           | --kv-cache-dtype=fp8                                                              |
+S-lmo             | --language-model-only                                                             |
+S-interactivity   | --performance-mode=interactivity                                                  |
+S-batched1024     | --max-num-batched-tokens=1024                                                     |
+S-batched8192     | --max-num-batched-tokens=8192                                                     |
+S-batched8192-lpt | --max-num-batched-tokens=8192 --long-prefill-token-threshold=2048                 |
+S-mtp1            | --spec-method=mtp --spec-model=google/gemma-4-26B-A4B-it-assistant --spec-tokens=1 |
+S-mtp2            | --spec-method=mtp --spec-model=google/gemma-4-26B-A4B-it-assistant --spec-tokens=2 |
+S-mtp3            | --spec-method=mtp --spec-model=google/gemma-4-26B-A4B-it-assistant --spec-tokens=3 |
+S-a8fp8           |                                                                                   | VLLM_MARLIN_INPUT_DTYPE=fp8
+X-triton-tuned    | --moe-backend=triton                                                              | VLLM_TUNED_CONFIG_FOLDER=/moe-tuned-configs
+S-combo           | --kv-cache-dtype=fp8 --language-model-only --spec-method=mtp --spec-model=google/gemma-4-26B-A4B-it-assistant --spec-tokens=2 |
+S-combo-a8fp8     | --kv-cache-dtype=fp8 --language-model-only --spec-method=mtp --spec-model=google/gemma-4-26B-A4B-it-assistant --spec-tokens=2 | VLLM_MARLIN_INPUT_DTYPE=fp8

@@ -1,0 +1,134 @@
+# vLLM serving for study 32 (Gemma 4 26B-A4B W4A16 on one L40S, kernel probe). Rendered by
+# render_statefulset.sh (called by apply_config.sh). Not valid YAML until rendered: the
+# VARIANT_ARGS token line becomes one "- --flag" item per flag of the combination, the
+# VARIANT_ENV token line its environment variables.
+#
+# Fixed flags = the customer's docker compose (vLLM 0.25.1 there, 0.29.0 here: the upgrade is
+# decided), minus --port/--host plumbing. Everything a combination changes comes from params.env.
+# Runs on the vllm-bench-gatling cluster, node group llm-serving-l40s (g6e.xlarge, label
+# gpu=l40s), namespace llm-serving, next to (not instead of) study 2's StatefulSet `vllm`:
+# different name, label and hostPath caches, so neither touches the other's objects.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vllm-w4a16
+  namespace: llm-serving
+spec:
+  serviceName: vllm-w4a16
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app: vllm-w4a16
+  template:
+    metadata:
+      labels:
+        app: vllm-w4a16
+    spec:
+      # Kubernetes would otherwise inject VLLM_PORT=tcp://... from a Service named vllm,
+      # which collides with vLLM's own VLLM_PORT variable and crashes it at startup.
+      enableServiceLinks: false
+      nodeSelector:
+        gpu: l40s
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:v0.29.0
+          args:
+            # The customer's checkpoint: compressed-tensors W4A16 (int4 symmetric, group 32) on the
+            # experts and attention projections; dense MLP, router, embeddings and vision tower bf16.
+            # Revision 0ef577a resolved to its full SHA.
+            - "--model=cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit"
+            - "--revision=0ef577a5710035bd2d3a3f27e4f5cb2e86a9a9ba"
+            - "--served-model-name=gemma4-w4a16"
+            - "--port=8000"
+            - "--host=0.0.0.0"
+            - "--tensor-parallel-size=1"
+            - "--enable-auto-tool-choice"
+            - "--tool-call-parser=gemma4"
+            - "--reasoning-parser=gemma4"
+            # --- Per combination (params.env) ---
+            - "--gpu-memory-utilization=0.90"
+            - "--max-model-len=96000"
+            - "--max-num-seqs=64"
+            - "--kv-cache-dtype=auto"
+            - "--linear-backend=marlin"
+          env:
+            # From the customer's compose.
+            - name: RAY_DISABLE_NODE_DISCOVERY
+              value: "1"
+            - name: PYTORCH_CUDA_ALLOC_CONF
+              value: expandable_segments:True
+            - name: HF_HOME
+              value: /hf-cache
+            # torch.compile and Triton caches on the node: a restart with an already seen
+            # configuration skips most of the compilation.
+            - name: VLLM_CACHE_ROOT
+              value: /vllm-cache
+            - name: TRITON_CACHE_DIR
+              value: /vllm-cache/triton
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          # g6e.xlarge: 3920m CPU / 29.9 GiB allocatable (study 30). CPU request only, no limit
+          # (no CFS throttling of the busy-looping engine core); 16 GiB of model files go
+          # through the reclaimable page cache.
+          resources:
+            requests:
+              nvidia.com/gpu: "1"
+              cpu: 3500m
+              memory: 28Gi
+            limits:
+              nvidia.com/gpu: "1"
+              memory: 28Gi
+          volumeMounts:
+            - name: hf-cache
+              mountPath: /hf-cache
+            - name: vllm-cache
+              mountPath: /vllm-cache
+            - name: shm
+              mountPath: /dev/shm
+            - name: moe-tuned-configs
+              mountPath: /moe-tuned-configs
+              readOnly: true
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 180   # 30 min: cold image pull + 16 GiB download + compile
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        - name: hf-cache
+          hostPath:
+            path: /var/lib/hf-cache-study32
+            type: DirectoryOrCreate
+        - name: vllm-cache
+          hostPath:
+            path: /var/lib/vllm-cache-study32
+            type: DirectoryOrCreate
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi
+        # Tuned Triton WNA16 fused-MoE configs (kernel-bench/tune_moe.py), read only when the
+        # combination sets VLLM_TUNED_CONFIG_FOLDER=/moe-tuned-configs. A ConfigMap key cannot
+        # hold '=' or ',': the key is plain and `items` maps it to vLLM's file name
+        # (fused_moe.get_config_file_name: block_shape [0, 32] has a zero, so no block_shape part).
+        - name: moe-tuned-configs
+          configMap:
+            name: moe-tuned-configs-w4a16
+            optional: true
+            items:
+              - key: moe-e128-n704-l40s-int4.json
+                path: "E=128,N=704,device_name=NVIDIA_L40S,dtype=int4_w4a16.json"

@@ -1,0 +1,1 @@
+{"name":"P-mtp2-nohybrid","args":"--disable-hybrid-kv-cache-manager --spec-method=mtp --spec-model=google/gemma-4-26B-A4B-it-assistant --spec-tokens=2","started":false,"apply_exit":4,"startup_s":125}

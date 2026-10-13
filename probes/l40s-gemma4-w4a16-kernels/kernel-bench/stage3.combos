@@ -1,0 +1,14 @@
+# Stage 3 of the W4A16 kernel probe: prefix-cache hits on the hybrid (sliding-window + full) KV cache.
+# Stage 2 (2026-10-09): a follow-up turn hit 2976 cached tokens or 0, depending on the exact
+# length of the previous turn (3 misses in 8 pairs). Hypothesis: the sliding-window group
+# (1024-token window) frees the blocks the hit would need. Test with the hybrid KV cache
+# manager disabled (every layer keeps full-length KV: less KV capacity) and other block sizes.
+# name | extra vLLM flags | extra environment
+P-nohybrid        | --disable-hybrid-kv-cache-manager    |
+P-block32         | --block-size=32                      |
+P-block64         | --block-size=64                      |
+# Stage 3b (queued 2026-10-09 19:35 UTC): with MTP on, stage 2 saw 0 prefix-cache hits in 24 of 24
+# follow-up turns (prefix caching enabled, "Prefix cache hit rate: 0.0%"). Does the plain KV
+# cache manager bring them back with the drafter?
+P-mtp2-nohybrid   | --disable-hybrid-kv-cache-manager --spec-method=mtp --spec-model=google/gemma-4-26B-A4B-it-assistant --spec-tokens=2 |
+P-combo-a8fp8-nohybrid | --disable-hybrid-kv-cache-manager --kv-cache-dtype=fp8 --language-model-only --spec-method=mtp --spec-model=google/gemma-4-26B-A4B-it-assistant --spec-tokens=2 | VLLM_MARLIN_INPUT_DTYPE=fp8

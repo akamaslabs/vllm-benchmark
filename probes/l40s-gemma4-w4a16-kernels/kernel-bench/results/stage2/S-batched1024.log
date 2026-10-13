@@ -1,0 +1,108 @@
+18:24:00 apply_config: parameters: GPU_MEMORY_UTILIZATION=0.90 MAX_MODEL_LEN=96000 MAX_NUM_SEQS=64 KV_CACHE_DTYPE=auto VLLM_ARGS=--max-num-batched-tokens=1024 KERNEL_ENV='' 
+18:24:00 apply_config: vLLM flags: --model=cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit --revision=0ef577a5710035bd2d3a3f27e4f5cb2e86a9a9ba --served-model-name=gemma4-w4a16 --port=8000 --host=0.0.0.0 --tensor-parallel-size=1 --enable-auto-tool-choice --tool-call-parser=gemma4 --reasoning-parser=gemma4 --gpu-memory-utilization=0.90 --max-model-len=96000 --max-num-seqs=64 --kv-cache-dtype=auto --max-num-batched-tokens=1024 
+18:24:01 apply_config: 1/3 freeing the GPU
+statefulset.apps/vllm-w4a16 scaled
+18:24:06 apply_config: 2/3 starting vLLM on ip-192-168-61-105.us-east-2.compute.internal
+error: vllm-w4a16-0 restarted 1 time(s) during startup, failing now
+18:24:59 apply_config: rollout exit=4 after 45 s
+--- vllm-w4a16-0: startup summary ---
+--- vllm-w4a16-0: full logs ---
+--- vllm-w4a16-0: previous container ---
+WARNING 10-09 18:24:32 [argparse_utils.py:276] With `vllm serve`, you should provide the model as a positional argument or in a config file instead of via the `--model` option. The `--model` option will be removed in a future version.
+(APIServer pid=1) INFO 10-09 18:24:32 [api_utils.py:347] 
+(APIServer pid=1) INFO 10-09 18:24:32 [api_utils.py:347]        █     █     █▄   ▄█
+(APIServer pid=1) INFO 10-09 18:24:32 [api_utils.py:347]  ▄▄ ▄█ █     █     █ ▀▄▀ █  version 0.29.0
+(APIServer pid=1) INFO 10-09 18:24:32 [api_utils.py:347]   █▄█▀ █     █     █     █  model   cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit
+(APIServer pid=1) INFO 10-09 18:24:32 [api_utils.py:347]    ▀▀  ▀▀▀▀▀ ▀▀▀▀▀ ▀     ▀
+(APIServer pid=1) INFO 10-09 18:24:32 [api_utils.py:347] 
+(APIServer pid=1) INFO 10-09 18:24:32 [api_utils.py:286] non-default args: {'model_tag': 'cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit', 'enable_auto_tool_choice': True, 'tool_call_parser': 'gemma4', 'host': '0.0.0.0', 'model': 'cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit', 'revision': '0ef577a5710035bd2d3a3f27e4f5cb2e86a9a9ba', 'max_model_len': 96000, 'served_model_name': ['gemma4-w4a16'], 'reasoning_parser': 'gemma4', 'gpu_memory_utilization': 0.9, 'max_num_batched_tokens': 1024, 'max_num_seqs': 64}
+(APIServer pid=1) INFO 10-09 18:24:33 [model.py:684] Resolved architecture: Gemma4ForConditionalGeneration
+(APIServer pid=1) INFO 10-09 18:24:33 [model.py:2021] Using max model len 96000
+(APIServer pid=1) Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+(APIServer pid=1) [transformers] `SiglipImageProcessorFast` is deprecated. The `Fast` suffix for image processors has been removed; use `SiglipImageProcessor` instead.
+(APIServer pid=1) INFO 10-09 18:24:42 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=1024.
+(APIServer pid=1) INFO 10-09 18:24:42 [config.py:252] Gemma4 model has heterogeneous head dimensions {'sliding_attention': 256, 'full_attention': 512}. FA4 not available, forcing TRITON_ATTN backend.
+(APIServer pid=1) Parse safetensors files:   0%|          | 0/4 [00:00<?, ?it/s]Parse safetensors files:  25%|██▌       | 1/4 [00:00<00:00,  3.42it/s]Parse safetensors files:  50%|█████     | 2/4 [00:00<00:00,  4.90it/s]Parse safetensors files: 100%|██████████| 4/4 [00:00<00:00,  6.81it/s]Parse safetensors files: 100%|██████████| 4/4 [00:00<00:00,  6.05it/s]
+(APIServer pid=1) INFO 10-09 18:24:43 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(APIServer pid=1) WARNING 10-09 18:24:43 [cuda.py:327] Forcing --disable_chunked_mm_input for models with multimodal-bidirectional attention.
+(APIServer pid=1) Traceback (most recent call last):
+(APIServer pid=1)   File "/usr/local/bin/vllm", line 10, in <module>
+(APIServer pid=1)     sys.exit(main())
+(APIServer pid=1)              ^^^^^^
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/cli/main.py", line 97, in main
+(APIServer pid=1)     args.dispatch_function(args)
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/cli/serve.py", line 153, in cmd
+(APIServer pid=1)     uvloop.run(run_server(args))
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/uvloop/__init__.py", line 96, in run
+(APIServer pid=1)     return __asyncio.run(
+(APIServer pid=1)            ^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+(APIServer pid=1)     return runner.run(main)
+(APIServer pid=1)            ^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+(APIServer pid=1)     return self._loop.run_until_complete(task)
+(APIServer pid=1)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "uvloop/loop.pyx", line 1518, in uvloop.loop.Loop.run_until_complete
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/uvloop/__init__.py", line 48, in wrapper
+(APIServer pid=1)     return await main
+(APIServer pid=1)            ^^^^^^^^^^
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/launchers/api_server/entry.py", line 176, in run_server
+(APIServer pid=1)     await run_server_worker(listen_address, sock, args, **uvicorn_kwargs)
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/launchers/api_server/entry.py", line 190, in run_server_worker
+(APIServer pid=1)     async with build_async_engine_client(
+(APIServer pid=1)   File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+(APIServer pid=1)     return await anext(self.gen)
+(APIServer pid=1)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/launchers/api_server/entry.py", line 58, in build_async_engine_client
+(APIServer pid=1)     async with build_async_engine_client_from_engine_args(
+(APIServer pid=1)   File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+(APIServer pid=1)     return await anext(self.gen)
+(APIServer pid=1)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/launchers/api_server/entry.py", line 94, in build_async_engine_client_from_engine_args
+(APIServer pid=1)     async_llm = AsyncLLM.from_vllm_config(
+(APIServer pid=1)                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/async_llm.py", line 227, in from_vllm_config
+(APIServer pid=1)     return cls(
+(APIServer pid=1)            ^^^^
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/async_llm.py", line 145, in __init__
+(APIServer pid=1)     self.input_processor = InputProcessor(self.vllm_config, renderer)
+(APIServer pid=1)                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/input_processor.py", line 63, in __init__
+(APIServer pid=1)     mm_budget = MultiModalBudget(vllm_config, mm_registry)
+(APIServer pid=1)                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/multimodal/encoder_budget.py", line 124, in __init__
+(APIServer pid=1)     encoder_compute_budget, encoder_cache_size = compute_mm_encoder_budget(
+(APIServer pid=1)                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=1)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/core/encoder_cache_manager.py", line 326, in compute_mm_encoder_budget
+(APIServer pid=1)     raise ValueError(
+(APIServer pid=1) ValueError: Chunked MM input disabled but max_tokens_per_mm_item (2496) is larger than max_num_batched_tokens (1024). Please increase max_num_batched_tokens.
+    Type:          HostPath (bare host directory volume)
+    Path:          /var/lib/vllm-cache-study32
+    HostPathType:  DirectoryOrCreate
+  shm:
+    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:     Memory
+    SizeLimit:  2Gi
+  moe-tuned-configs:
+    Type:      ConfigMap (a volume populated by a ConfigMap)
+    Name:      moe-tuned-configs-w4a16
+    Optional:  true
+  kube-api-access-m5b2t:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    Optional:                false
+    DownwardAPI:             true
+QoS Class:                   Burstable
+Node-Selectors:              gpu=l40s
+Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+                             nvidia.com/gpu:NoSchedule op=Exists
+Events:
+  Type     Reason     Age                From               Message
+  ----     ------     ----               ----               -------
+  Normal   Scheduled  54s                default-scheduler  Successfully assigned llm-serving/vllm-w4a16-0 to ip-192-168-61-105.us-east-2.compute.internal
+  Normal   Pulled     14s (x2 over 53s)  kubelet            spec.containers{vllm}: Container image "vllm/vllm-openai:v0.29.0" already present on machine and can be accessed by the pod
+  Normal   Created    14s (x2 over 53s)  kubelet            spec.containers{vllm}: Container created
+  Normal   Started    14s (x2 over 53s)  kubelet            spec.containers{vllm}: Container started
+  Warning  Unhealthy  4s (x4 over 44s)   kubelet            spec.containers{vllm}: Startup probe failed: Get "http://192.168.36.235:8000/health": dial tcp 192.168.36.235:8000: connect: connection refused

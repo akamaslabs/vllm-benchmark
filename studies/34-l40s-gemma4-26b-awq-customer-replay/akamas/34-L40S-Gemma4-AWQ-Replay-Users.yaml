@@ -1,18 +1,16 @@
 kind: study
 name: 34-L40S-Gemma4-AWQ-Replay-Users
 description: >-
-  Study 34: study 35 with every output capped. The customer's Docker Compose setup of Gemma 4 26B-A4B (cyankiwi AWQ W4A16 rev 0ef577a,
-  vLLM 0.29.0, served as aiservices_gemma, max_model_len 96000, tool calling, gemma4 reasoning
-  parser, vision tower loaded, prefix caching at its default, thinking off by default) on one
-  NVIDIA L40S (g6e.xlarge, cluster vllm-bench), under the customer's own AIPerf replay
-  (their run_benchmark.sh unchanged: /v1/responses, mooncake_trace payloads, sticky user sessions,
-  think times capped at 60 s) of their dataset template rendered with Italian texts (output
-  lengths calibrated against theirs), every request capped at the output length the compose
-  produced for it in a calibration run (max_output_tokens + ignore_eos: the same tokens every trial), users ramping 1 -> 200 over 6000 s in a closed loop.
-  Goal: the most users (AIPerf sessions) with the client-side e2e median over 150 s at most 3 s
-  (exact, from AIPerf's per-request records through a CSV File telemetry instance). 17 vLLM
-  parameters; baseline = the compose, run three times; six presets; 60 AKAMAS experiments. Needs
-  vLLM pack 1.13.0 and AIPerf pack 1.0.0.
+  Study 34: study 35 with every output capped. The customer's Docker Compose setup of Gemma 4
+  26B-A4B (cyankiwi AWQ W4A16 rev 0ef577a, vLLM 0.29.0, served as aiservices_gemma, thinking off by
+  default) on one NVIDIA L40S (g6e.xlarge, cluster vllm-bench), under the customer's own AIPerf
+  replay (their run_benchmark.sh unchanged) of their dataset template rendered with Italian texts,
+  every request capped at the output length the compose produced for it in a calibration run
+  (max_output_tokens + ignore_eos: the same tokens every trial), users ramping 1 -> 200 over 6000 s
+  in a closed loop. Goal: the most users (AIPerf sessions) with the client-side e2e median over
+  150 s at most 3 s (CSV File telemetry from AIPerf's records). 17 vLLM parameters; baseline = the
+  compose, run three times; six presets; 60 AKAMAS experiments. Needs vLLM pack 1.13.0 and AIPerf
+  pack 1.0.0.
 system: vLLM_Benchmark_34_L40S_Gemma4_AWQ_Replay_Users
 workflow: 34-L40S-Gemma4-AWQ-Replay-Users-Workflow
 # Goal and constraint are client side (component aiperf, CSV File telemetry): what the customer

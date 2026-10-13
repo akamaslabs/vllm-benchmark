@@ -131,6 +131,66 @@ the compose's at ~1/5 of it, the best near its middle. Experiment 1 checks it.
 - 10 template sessions behind 120 users: the same think-time patterns, 12 times over (with
   different texts, started at different times by the ramp).
 
+### Load determinism test (2026-10-13, manual, outside Akamas)
+
+**Question:** how much does the same load vary between two runs with the same seed, and what makes
+it repeat? AIPerf 0.11.0 source: `--random-seed` already fixes everything AIPerf draws itself
+(`common/random_generator.py`, one derived RNG per component: dataset, samplers, intervals, ramps),
+and the render is seeded too. What still varies comes from the server: the closed loop (a user's
+next request waits for the whole reply), the cut at `--benchmark-duration`, and the reply lengths
+(the payloads carry no output cap).
+
+**Setup:** a test pod in `llm-l40s` (`python:3.12-slim`, AIPerf 0.11.0, the Job's node); vLLM
+0.29.0 still on study 33's last trial (thinking **off**, MTP 4 tokens, served name
+`gemma4-26b-awq-nothink`), not this study's configuration. Their template rendered with
+`k8s/render_dataset.py` (20 users, seed 42), kept to a 300 s window (318 requests; user k starts at
+3k s, each next request 3 s + its `delay` later), the model in the payloads rewritten to the
+served name. Their script's flags (`/v1/responses`, sticky sessions, server token counts,
+streaming, seed 42); closed loop `--concurrency 20 --concurrency-ramp-duration 60
+--benchmark-duration 300`. Three variants, two runs each:
+
+| Variant | Requests (run 1 / 2) | Same output tokens | Send-time diff p90 / max | e2e mean (ms) | e2e p90 (ms) | MTP acceptance | Running seqs (avg) |
+|---|---|---|---|---|---|---|---|
+| natural (their payloads) | 257 / 231, 227 shared | 9 of 227 | 4.4 s / 20.6 s | 5111 / 4893 | 8917 / 8858 | 0.60 / 0.71 | 6.3 / 7.7 |
+| capped: `max_output_tokens` 128 + `ignore_eos`, closed loop | 388 / 387 | 387 of 387 | 1.3 s / 2.3 s | 1191 / 1174 | 1667 / 1553 | 0.41 / 0.42 | 1.4 / 1.4 |
+| capped + `timestamp` per record (`--fixed-schedule`) | 318 / 318 | 318 of 318 | 0.00 s / 0.00 s | 1132 / 1169 | 1525 / 1596 | not read | not read |
+
+(Capped closed-loop runs wrapped the dataset: the 300 s window's sessions ended at ~160 s and
+AIPerf's sequential sampler started them again, ~70 requests a run; the full sessions of the
+study, ~1 h each, do not wrap.)
+
+**Findings:**
+- **Their replay as is does not repeat its load:** run 2 sent 11 % fewer requests and 18 % fewer
+  output tokens; 9 replies in 227 had the same length (temperature 0.1: the model stops at
+  different points), and MTP acceptance moved from 0.60 to 0.71. The e2e looks stable (~4 %) over
+  two different workloads.
+- **`max_output_tokens` + `ignore_eos` work on `/v1/responses`** (vLLM 0.29.0; checked by hand
+  too: `status: incomplete`, `incomplete_details.reason: max_output_tokens`, exactly N output
+  tokens, also at temperature 0.7). `max_output_tokens` alone is only a ceiling (a 10-token reply
+  stays 10). Not checked on their 0.25.1.
+- **With the cap the requests and their tokens repeat exactly; with `--fixed-schedule` the send
+  times repeat too** (0.00 s apart). What is left is the server's own noise: ~3-5 % on e2e mean and
+  p90.
+- **`ignore_eos` lowers MTP acceptance** (0.41 against 0.60-0.71): the tokens after the EOS are
+  hard to draft. The capped runs' lower ITL (~8 ms against ~12.6 ms) comes from the lighter load
+  (1.4 sequences running against 6-8), not from MTP.
+- **A fixed cap of 128 is not their load:** natural replies here were ~420 tokens on average
+  (p50 ~440, p90 ~730), so the capped load was ~3x lighter (e2e ~1.2 s against ~5 s).
+- **`--fixed-schedule` is not a fully open loop** (`timing/strategies/fixed_schedule.py`): first
+  turns go at their timestamps, a later turn at its timestamp only once the previous reply is
+  back. A server slower than the gap between timestamps delays the session again.
+- AIPerf refuses `--benchmark-grace-period` without `--benchmark-duration` (so not with a fixed
+  schedule alone).
+
+**If the study needs a repeatable load (not adopted yet):** a per-request `max_output_tokens`
+close to the natural length (from the reply the next request of the session carries in its
+history, the customer's real one; with thinking on, to be sized separately), so that few tokens
+follow the EOS and MTP acceptance stays realistic; `timestamp`s with a realistic gap between
+turns; the users at the SLA measured afterwards with their closed-loop replay on the best
+configurations. `VLLM_BATCH_INVARIANT=1` was ruled out: it changes the system being tuned (slower
+kernels the customer will not run) and fixes only the reply contents, not the closed loop or the
+duration cut.
+
 ## Steps
 
 As study 33: `baseline` (the compose: `gpu_memory_utilization` 0.90, `max_num_seqs` 64; the other
@@ -205,6 +265,10 @@ scan reads `/proc` (Linux), so experiment 1 checks it (`akamas/README.md`).
   thinking on (the user's choice after their email); `smoke/` and the synthetic dry run dropped.
   First draft rewrote their AIPerf command inside the Job; the user asked to use their script
   as is: the Job now wraps `run_benchmark.sh` unchanged.
+- 2026-10-13: study 33 stopped by the user; its AIPerf Job was still running (rate ramp to 6
+  req/s on `vllm-0`) and was deleted. Load determinism test by hand on the free GPU ("Load
+  determinism test" above); the test pod `aiperf-determinism-test` deleted afterwards, its records
+  with it (the numbers above are all that was kept).
 
 ## Results
 

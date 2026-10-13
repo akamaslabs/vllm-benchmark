@@ -1,0 +1,6 @@
+# Customer data and derived corpora: never in git.
+*.jsonl
+*.jsonl.gz
+*.json.gz
+*.parquet
+results/*.jsonl

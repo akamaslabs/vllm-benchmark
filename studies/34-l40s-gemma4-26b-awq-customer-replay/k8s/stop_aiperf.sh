@@ -18,7 +18,9 @@
 #    /benchmarks/study34/replay-benchmark/data/results/run_<YYYYMMDDHHMM>_<epoch>: the Job passes
 #    NAME=<epoch>). The AIPerf pod
 #    is gone by then, so a short-lived pod reads the results PVC (read-only); the folder stays there
-#    until the next Job's rm -rf.
+#    until the next Job's rm -rf. The file travels gzipped through `kubectl exec` and is checked
+#    against the pod's sha256, up to SA_COPY_TRIES times: a plain `kubectl exec cat` of a 13 MB
+#    export arrived truncated and corrupted mid-line (2026-10-13, study 33's 1791892169.jsonl).
 # The toolbox's /work is a 1 GiB volume that the FileConfigurator task also writes to: the copy is
 # skipped when it would leave less than SA_MIN_FREE_MB free.
 # Exit 1 if the Job could not be deleted, or the records could not be saved (copy failed, no
@@ -34,6 +36,7 @@ MIN_FREE_MB=${SA_MIN_FREE_MB:-150}
 STOP_WAIT_S=${SA_STOP_WAIT_S:-300}
 POD_WAIT_S=${SA_POD_WAIT_S:-300}
 POLL_S=${SA_POLL_S:-5}
+COPY_TRIES=${SA_COPY_TRIES:-3}
 RC=0
 
 # --- 1. Stop AIPerf ---
@@ -149,10 +152,21 @@ if [ $(( (FREE_KB * 1024 - SIZE) / 1048576 )) -lt "$MIN_FREE_MB" ]; then
   df -h "$DEST" || true
   exit 1
 fi
-kubectl -n "$NS" exec "$HELPER" -- cat "$RUN_DIR/profile_export.jsonl" > "$OUT.tmp" || true
-GOT=$(wc -c < "$OUT.tmp" | tr -d ' ')
-if [ "$GOT" -ne "$SIZE" ]; then
-  echo "error: copied $GOT of $SIZE bytes: records not saved"
+WANT=$(kubectl -n "$NS" exec "$HELPER" -- sha256sum "$RUN_DIR/profile_export.jsonl" 2>/dev/null | cut -d' ' -f1 || true)
+if ! [[ "$WANT" =~ ^[0-9a-f]{64}$ ]]; then
+  echo "error: no sha256 of $RUN_DIR/profile_export.jsonl from pod/$HELPER: records not saved"
+  exit 1
+fi
+SAVED=""
+for TRY in $(seq 1 "$COPY_TRIES"); do
+  rm -f "$OUT.tmp"
+  kubectl -n "$NS" exec "$HELPER" -- gzip -c "$RUN_DIR/profile_export.jsonl" 2>/dev/null | gzip -dc > "$OUT.tmp" 2>/dev/null || true
+  GOT=$(sha256sum "$OUT.tmp" | cut -d' ' -f1)
+  if [ "$GOT" = "$WANT" ]; then SAVED=1; break; fi
+  echo "warning: copy $TRY of $COPY_TRIES: $(wc -c < "$OUT.tmp" | tr -d ' ') of $SIZE bytes, sha256 mismatch"
+done
+if [ -z "$SAVED" ]; then
+  echo "error: no intact copy in $COPY_TRIES tries: records not saved"
   rm -f "$OUT.tmp"; exit 1
 fi
 mv "$OUT.tmp" "$OUT"

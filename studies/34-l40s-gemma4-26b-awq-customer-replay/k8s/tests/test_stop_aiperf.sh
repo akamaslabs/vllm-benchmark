@@ -12,7 +12,7 @@ printf '%s\n' '{"metadata":{"was_cancelled":false},"metrics":{}}' \
 DEST=$TMP/dest
 OUT=$DEST/1791815986.jsonl
 run() {  # env assignments for the stub, then stop_aiperf.sh
-  : > "$TMP/kubectl.log"; rm -f "$TMP/sigint"
+  : > "$TMP/kubectl.log"; rm -f "$TMP/sigint" "$TMP/copies"
   env PATH="$HERE/stub-stop:$PATH" STUB_LOG="$TMP/kubectl.log" STUB_DIR="$TMP" STUB_JSONL="$TMP/src.jsonl" \
     SA_DEST="$DEST" SA_POLL_S=0 "$@" bash "$K8S/stop_aiperf.sh" > "$TMP/out.txt" 2>&1
 }
@@ -34,7 +34,7 @@ grep -q 'delete pod aiperf-export --ignore-not-found --wait=false' "$TMP/kubectl
 run STUB_RUN_DIR=/benchmarks/study34/replay-benchmark/data/results/run_202610122359_1791815986; rc=$?
 [ $rc = 0 ] && ok "again: exit 0" || ko "again: exit $rc"
 grep -q 'already saved' "$TMP/out.txt" && ok "again: already saved" || ko "again: already saved"
-grep -q -- '-- cat ' "$TMP/kubectl.log" && ko "again: not copied twice" || ok "again: not copied twice"
+grep -q -- '-- gzip -c ' "$TMP/kubectl.log" && ko "again: not copied twice" || ok "again: not copied twice"
 grep -q 'python3 -c' "$TMP/kubectl.log" && ko "no pod: no SIGINT" || ok "no pod: no SIGINT"
 rm -rf "$DEST"
 # C. The ramp completed (pod Succeeded): no SIGINT, records saved.
@@ -51,4 +51,16 @@ grep -q 'nothing to save' "$TMP/out.txt" && ok "no run: nothing to save" || ko "
 run STUB_RUN_DIR=/benchmarks/study34/replay-benchmark/data/results/run_202610122359_1791815986 SA_MIN_FREE_MB=999999999; rc=$?
 [ $rc = 1 ] && ok "no room: exit 1" || ko "no room: exit $rc"
 [ -e "$OUT" ] || ls "$DEST"/*.tmp >/dev/null 2>&1 && ko "no room: nothing written" || ok "no room: nothing written"
+rm -rf "$DEST"
+# F. The first copy arrives truncated: retried, the second is saved intact.
+run STUB_RUN_DIR=/benchmarks/study34/replay-benchmark/data/results/run_202610122359_1791815986 STUB_BAD_COPIES=1; rc=$?
+[ $rc = 0 ] && ok "truncated once: exit 0" || ko "truncated once: exit $rc ($(tail -3 "$TMP/out.txt"))"
+grep -q 'copy 1 of 3: .* sha256 mismatch' "$TMP/out.txt" && ok "truncated once: mismatch reported" || ko "truncated once: mismatch reported"
+cmp -s "$OUT" "$TMP/src.jsonl" && ok "truncated once: saved intact" || ko "truncated once: saved intact"
+rm -rf "$DEST"
+# G. Every copy arrives truncated: not saved, exit 1.
+run STUB_RUN_DIR=/benchmarks/study34/replay-benchmark/data/results/run_202610122359_1791815986 STUB_BAD_COPIES=9; rc=$?
+[ $rc = 1 ] && ok "always truncated: exit 1" || ko "always truncated: exit $rc"
+[ "$(cat "$TMP/copies")" = 3 ] && ok "always truncated: 3 tries" || ko "always truncated: $(cat "$TMP/copies") tries"
+[ -e "$OUT" ] || ls "$DEST"/*.tmp >/dev/null 2>&1 && ko "always truncated: nothing written" || ok "always truncated: nothing written"
 echo "$FAILS failure(s)"; [ $FAILS = 0 ]

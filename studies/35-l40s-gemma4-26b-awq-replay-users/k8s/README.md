@@ -10,7 +10,7 @@ that cluster), namespace `llm-replay`, GPU node `gpu=l40s`, AIPerf on `node-role
 | `01-statefulset_template.yaml`, `render_statefulset.sh`, `params.env.template`, `apply_config.sh`, `lib_health.sh` | Apply config task: the customer's compose (thinking off by default) plus the 17 tuned flags; empty value = no flag = vLLM's default; refuses to start while another vLLM holds the GPU |
 | `run_test.sh`, `render_job.sh`, `05-job_template.yaml`, `run_benchmark.sh`, `lib_watchdog.sh` | RunTest task: their `run_benchmark.sh` unchanged (sha256 checked), users 1 -> `RT_USERS` over `RT_RAMP_S`, watchdog on vLLM's e2e p50 (150 s) > 6 s for 120 s, fail-fast guards |
 | `render_dataset_it.py`, `build_corpus.py`, `mix.json` | The template rendered with Italian texts in the Job (`../README.md` "Load"); the corpus is built once on the results volume; `mix.json` overrides the task weights (empty: the calibrated defaults) |
-| `stop_aiperf.sh` | Stop AIPerf task: SIGINT to AIPerf, Job deleted, records saved on the toolbox as `/work/aiperf-exports/<study>/<epoch>.jsonl` (sha256-checked copy) |
+| `stop_aiperf.sh` | Stop AIPerf task: SIGINT to AIPerf, Job deleted, records saved on the toolbox as `/work/aiperf-exports/<study>/<epoch>.jsonl.gz` (sha256-checked copy) |
 | `aiperf_csv.sh`, `aiperf_to_csv.py` | AIPerf to CSV task: the newest records (written in the last 30 min) -> `/work/aiperf-csv/<study>/<epoch>.csv` for the CSV File telemetry; `aiperf_to_csv.py` is the AIPerf pack 1.0.0's `tools/` script, byte for byte |
 | `tests/` | `test_*.sh` (stub kubectl; yq v4 for the render tests), `dry_run_replay.sh` (the Job script with real AIPerf 0.11.0 against `mock_openai.py`) |
 

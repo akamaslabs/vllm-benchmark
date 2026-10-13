@@ -89,11 +89,13 @@ kubectl -n "$NS" delete job -l app=aiperf-replay --ignore-not-found --wait=true
 [ -s "$TEMPLATE" ] || { echo "error: dataset template $TEMPLATE missing on the toolbox (../load/README.md)" >&2; exit 2; }
 [ -s "$CAPS" ] || { echo "error: output caps $CAPS missing on the toolbox: run calibrate_caps.sh first (../README.md)" >&2; exit 2; }
 gzip -c "$TEMPLATE" > "$TMP/template.jsonl.gz"
+# Server-side apply: a client-side one copies the ConfigMap into its last-applied-configuration
+# annotation, capped at 256 KiB, which caps.json.gz alone (~190 KB, ~255 KB in base64) exceeds.
 kubectl -n "$NS" create configmap aiperf-replay --from-file=template.jsonl.gz="$TMP/template.jsonl.gz" \
   --from-file=render_dataset_it.py="$K8S/render_dataset_it.py" --from-file=build_corpus.py="$K8S/build_corpus.py" \
   --from-file=mix.json="$K8S/mix.json" --from-file=run_benchmark.sh="$K8S/run_benchmark.sh" \
   --from-file=caps.py="$K8S/caps.py" --from-file=caps.json.gz="$CAPS" \
-  --dry-run=client -o yaml | kubectl apply -f -
+  --dry-run=client -o yaml | kubectl apply --server-side --force-conflicts -f -
 bash "$K8S/render_job.sh" "$USERS" "$RAMP_S" "$TMP/job.yaml"
 kubectl apply -f "$TMP/job.yaml"
 

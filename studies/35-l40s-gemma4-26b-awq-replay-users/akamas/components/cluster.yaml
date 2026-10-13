@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_35_L40S_Gemma4_AWQ_Replay_Users
+
+name: cluster
+description: >-
+  The GPU node of the vllm-bench-gatling cluster (node group llm-serving-l40s or
+  llm-serving-l40s-ab, label node-role=llm-serving, one g6e.xlarge, 4 vCPU / 32 GiB) for node-level
+  CPU/memory/pressure counters; $NODEROLE$ resolves from noderole.
+componentType: Kubernetes Cluster
+properties:
+  prometheus:
+    noderole: llm-serving

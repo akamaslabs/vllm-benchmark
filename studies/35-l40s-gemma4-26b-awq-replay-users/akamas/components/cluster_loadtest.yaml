@@ -1,0 +1,11 @@
+kind: component
+system: vLLM_Benchmark_35_L40S_Gemma4_AWQ_Replay_Users
+
+name: cluster_loadtest
+description: >-
+  The CPU node running the load generator, Prometheus and Grafana (node group system of the
+  vllm-bench-gatling cluster, label node-role=system, m6i.2xlarge).
+componentType: Kubernetes Cluster
+properties:
+  prometheus:
+    noderole: system

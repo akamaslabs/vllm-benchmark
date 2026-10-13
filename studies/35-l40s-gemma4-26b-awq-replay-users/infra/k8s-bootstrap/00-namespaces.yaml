@@ -1,0 +1,9 @@
+# Namespace for 35-l40s-gemma4-26b-awq-replay-users on the vllm-bench-gatling cluster: the vLLM
+# StatefulSet, its Services, the AIPerf Job and its PVCs. Its own namespace, so nothing collides with
+# Gatling study 2's objects in llm-serving (StatefulSet and Service also named vllm there) or with
+# the Gatling generators in llm-benchmark. The toolbox reaches this cluster through its `gatling`
+# kubectl context (cluster-admin), so the workflow scripts need no extra RBAC.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: llm-replay

@@ -813,6 +813,13 @@ minimum MIG slice that satisfies it — the sub-GPU-granularity complement to st
   (same reasoning as study #3 — a specific target, not a sweep).
 
 ## E. Debt / non-study actions
+- [ ] **PACK REQUEST — fp8 activations for W4A16 checkpoints as a vLLM-component parameter**
+      (raised 2026-10-13, study 35; needed by the customer PoC study). vLLM 0.29.0's
+      `VLLM_MARLIN_INPUT_DTYPE=fp8` (Marlin W4A8-fp8, SM 8.9 / 12.x) gave +8-11 % on prefill and on a
+      mixed load in the W4A16 probe (`probes/l40s-gemma4-w4a16-kernels/`), the only kernel lever
+      with a real gain there; `int8` broke the output (0/40). Render it as an environment variable,
+      as `tuned_kernel_configs` does; pair it with an accuracy check (GSM8K + IFEval + tool calls) on
+      the checkpoint before a study searches it.
 - [ ] **PACK REQUEST — NCCL interconnect tunables as vLLM-component parameters** (raised
       2026-09-17, phase 2 of the topology-then-interconnect plan; phase 1 is study #15).
       On a PCIe-only 4x L4 node (no NVLink) the collectives are the suspected ceiling for

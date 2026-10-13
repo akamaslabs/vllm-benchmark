@@ -1,7 +1,6 @@
 # 35-l40s-gemma4-26b-awq-replay-users
 
-**Status:** DESIGNED (2026-10-13). Not created on Akamas yet: needs the AIPerf optimization pack
-1.0.0 installed on the 4.1 server (Administrator) and the dataset template on the toolbox.
+**Status:** RUNNING on Akamas 4.1 (`35-L40S-Gemma4-AWQ-Replay-Users`, started 2026-10-13 14:18 UTC).
 **Dates:** scaffolded 2026-10-13 from study 34 (Quartuccio's design, left untouched).
 
 ## Objective
@@ -160,6 +159,36 @@ presets `kv fp8`, `mtp3`, `kv fp8 mtp3`, `kv fp8 long prefill cap`, `kv fp8 larg
 0 failures (the Job's script under a POSIX shell with real AIPerf 0.11.0 against the mock: their
 script, the Italian render, 198 requests, no placeholder, no cap, no reasoning); `k8s/aiperf_csv.sh`
 on the AIPerf pack's fixture (columns = the telemetry's metrics, stale records refused).
+
+## Running notes
+
+- 2026-10-13 14:18 UTC: created on Akamas 4.1 (every resource accepted; vLLM pack 1.13.0, AIPerf
+  pack 1.0.0) and started. `AlwaysOn` set on the ASGs of `llm-serving-l40s-ab` and `system` and
+  their instances (to remove at the end). Experiment 1 checked: the compose's flags only, vLLM raised
+  `max_num_batched_tokens` to 2496, Marlin, 708,768 KV tokens; the Job built the corpus (16.8 MB, as
+  locally) and rendered 240 users (68,352 requests); the watchdog ended the run at ~106 users; the
+  CSV reached Akamas inside the trial window (the score recomputed from the CSV matches Akamas's).
+- **Noise (three baselines, the compose): 72.5, 72.5, 71.5 users** (+-1.4 %). The points where the
+  client-side e2e median passes 3 / 4 / 6 s differ by 2-3 users between runs, completed req/s in
+  the scored window by ~3 % (3.23 / 3.32), although natural outputs make every run's load different.
+- **Experiment 4, `kv fp8`: 90 users (+24.1 %)**: twice the KV tokens (1,417,301); the baseline's
+  KV filled near ~100 users, and long requests waited for memory before that.
+- Experiment 5, `mtp3` (running): MTP acceptance 0.65, server-side e2e median ~20 % lower than the
+  baseline at ~52 users; prefix-cache hit rate 2.9 % against 7-9 % without MTP (the W4A16 probe's
+  finding, cheap here: the template's chat requests change their `instructions` almost every turn,
+  so there is little to reuse: 94 of 1544 chat requests extend an earlier one exactly).
+- 2026-10-13: Stop AIPerf now keeps the records gzipped (`<epoch>.jsonl.gz`, ~9-12 MB a trial
+  against ~38-40 MB): the toolbox's `/work` is a shared 1 GiB volume. The first three trials'
+  records were gzipped in place.
+- **Decided for the next study (the customer PoC, 2026-10-13): add fp8 activations** (Marlin
+  W4A8-fp8, `VLLM_MARLIN_INPUT_DTYPE=fp8`, which applies to the int4 linear layers and experts on SM
+  8.9): the only kernel lever with a real gain in the W4A16 probe (+8-11 % prefill and mixed load,
+  -2 % decode; this load is prefill-heavy). Not in this study: it is an environment variable, not a
+  vLLM pack parameter, and it changes the numerics (only a 40-problem check so far). Before it:
+  (1) a vLLM pack parameter rendering the variable (as `tuned_kernel_configs`), (2) an accuracy
+  check on this checkpoint (GSM8K + IFEval as study 30's, plus tool calls) with and without it, and
+  with fp8 KV (also unchecked on the AWQ checkpoint). int8 activations are excluded (0/40, broken
+  output).
 
 ## Results
 

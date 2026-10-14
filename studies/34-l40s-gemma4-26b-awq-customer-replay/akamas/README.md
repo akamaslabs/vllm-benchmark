@@ -4,7 +4,7 @@
 themselves study 34's first design, accepted shapes on Akamas 4.1) with new names and the
 vllm-bench cluster (namespace `llm-l40s`, node group `llm-serving-l40s-1xl`, the in-cluster
 Prometheus, the toolbox's `default` kubectl context). The study's one difference from study 35 is in
-the load (`../k8s/caps.py`), not in these files. **Not created on the server yet.**
+the load (`../k8s/caps.py`), not in these files. **Created** on the 4.1 server on 2026-10-13, run 2026-10-13/14, stopped 2026-10-14 (`../README.md` "Results").
 
 **Last modified:** 2026-10-13: replaced study 34's first design (thinking on, Shakespeare texts, vLLM
 completed req/s with e2e p95 <= 30 s, 13 parameters) with study 35's resources; Akamas names changed
@@ -32,7 +32,7 @@ AIPerf 1.0.0, GPU 1.4.0, Kubernetes 1.9.0-dev; the default `~/workspace/akamas/o
 does not exist on every workstation): 0 failures on 2026-10-13 (names, component types, every metric
 the study reads against its component type and a telemetry instance, every parameter domain inside
 the pack's, every baseline / preset rendered through the real `render_statefulset.sh`). Installed on
-the 4.1 server on 2026-10-13: vLLM 1.13.0, AIPerf 1.0.0. **Server:** not created yet; `akamas
+the 4.1 server on 2026-10-13: vLLM 1.13.0, AIPerf 1.0.0. **Server:** every resource accepted by `akamas create` on 2026-10-13 (the study after shortening its description under 1024 characters); `akamas
 create` is the real validation (repo rule).
 
 ## Setup & run

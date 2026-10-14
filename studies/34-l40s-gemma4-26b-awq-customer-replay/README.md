@@ -1,8 +1,8 @@
 # 34-l40s-gemma4-26b-awq-customer-replay
 
-**Status:** DESIGNED (2026-10-13), not created on Akamas yet. Needs the output caps calibrated once
-on the toolbox (`k8s/calibrate_caps.sh`, "Load") and the GPU node free (study 33 stopped
-2026-10-13).
+**Status:** STOPPED (2026-10-14 07:23 UTC, by the user, to free the GPU for study 36) after 8 of 69
+experiments: 3 baselines and 1 preset valid, 3 presets lost to the toolbox's disk, 1 aborted by the
+stop. The optimize step never started. Results below.
 **Dates:** scaffolded 2026-10-12 from study 33 (thinking on, Shakespeare texts); redesigned
 2026-10-13 as **study 35 with every output capped**, on studies 30-33's node.
 
@@ -243,11 +243,85 @@ calibration itself (needs the GPU).
   this cluster and node while study 35 runs on vllm-bench-gatling. The first design's files
   (`render_dataset.py`, its test, the old study and workflow YAML) removed; none had been created
   on Akamas.
+- 2026-10-13: calibration (`k8s/calibrate_caps.sh`, 17:09-20:37 UTC, ~3 h 30 on the GPU): 47,717
+  of 47,794 reachable requests measured, 77 client-side timeouts, 0 with reasoning tokens; output
+  tokens p50 43, p90 177, p99 2314, max 18,947; task medians from 3 (`category`) to 3193
+  (`translate`). The study's start (20:38) failed at once in RunTest: the client-side `kubectl
+  apply` of the replay ConfigMap stored a copy of it in the `last-applied-configuration`
+  annotation, over Kubernetes's 256 KiB limit with `caps.json.gz` (~190 KB, ~255 KB in base64);
+  fixed with a server-side apply (`1c07940`), study restarted at 21:03 (Akamas deleted the failed
+  experiment). First trial: `CAPS: 68352 requests, 47717 capped at their calibrated length, 20635
+  at their task median`, load started 21:09.
+- 2026-10-14: experiments 4-6 lost to the toolbox's disk ("Results"); records gzipped from
+  experiment 7 on. Stopped by the user at 07:23 UTC during experiment 8 to free the GPU for study
+  36; the AIPerf Job and vLLM (StatefulSet scaled to 0) removed by hand.
 
 ## Results
 
-<Filled in by the study-recap skill once the study finishes.>
+Akamas study `34-L40S-Gemma4-AWQ-Replay-Users` (id `a0ff5e97`), 2026-10-13 21:03 -> 2026-10-14
+07:23 UTC. Raw data: `results/export.tar.gz` (Akamas export), `results/trials.csv` (one row per
+trial: step, score, scored window, main parameters and metrics). Every scored trial: 0 request
+errors; scored window = the last 150 s window before the e2e p50 passed 3 s.
+
+| Exp | Step | Users | e2e p50 (150 s) | TTFT p50 | Output tok/s | Output len (avg) | KV usage |
+|---|---|---|---|---|---|---|---|
+| 1 | baseline (the compose) | **93.5** | 2967 ms | 311 ms | 516 | 120.5 | 0.39 |
+| 2 | baseline repeat 1 | **94.5** | 2990 ms | 333 ms | 532 | 121.5 | 0.43 |
+| 3 | baseline repeat 2 | **93.5** | 2964 ms | 322 ms | 519 | 120.6 | 0.42 |
+| 4 | kv fp8 | lost | | | | | |
+| 5 | mtp3 | lost | | | | | |
+| 6 | kv fp8 mtp3 | lost | | | | | |
+| 7 | kv fp8 long prefill cap (fp8 KV, `max_num_batched_tokens` 8192, `long_prefill_token_threshold` 2048) | **104.5 (+11.4 % on the baselines' mean)** | 2932 ms | 289 ms | 607 | 120.2 | 0.25 |
+| 8 | kv fp8 large batch | aborted by the stop | | | | | |
+
+- **Best:** experiment 7, 104.5 users against 93.8 (the three baselines' mean): +11.4 % (Akamas
+  shows +11.76 % against experiment 1 alone). One run, no repeat.
+- **Baseline noise: 93.5 / 94.5 / 93.5 users, 1.1 % between the extremes** (study 35, natural
+  outputs: 72.5 / 72.5 / 71.5, 1.4 %). The mean output length in the scored window stays within
+  1 % (120.2-121.5 tokens) across the four valid trials, against 104.9-113.7 (8 %) in study 35's
+  three baselines: the caps fix the work per request, as designed.
+- **Experiments 4-6 lost (records, not runs):** RunTest succeeded in each (the full ramp ran);
+  Stop AIPerf then refused to copy the records because the copy would have left less than 150 MB
+  free on the toolbox's shared 1 GiB `/work` (this study saved them uncompressed, ~40-60 MB a
+  trial, alongside studies 33 and 35's), so AIPerf to CSV found nothing and the trial failed. Study
+  35 lost its experiment 11 the same way the same night. The AIPerf PVC keeps only the last run,
+  so these records cannot be recovered. Fixed in `34f03ce` (records gzipped, as study 35's
+  `8d595bb`); experiment 7 saved its records (16 MB gzipped) and scored normally.
+- **Not deleted:** experiments 4-6 stay in Akamas as ERROR (the study was stopped before the
+  optimizer could use them).
+- **Side by side with study 35 (same steps, natural outputs, vllm-bench-gatling):**
+
+  | Step | Study 34 (capped) | Study 35 (natural) |
+  |---|---|---|
+  | baselines (mean) | 93.8 | 72.2 |
+  | kv fp8 long prefill cap | 104.5 (+11.4 %) | 84.5 (+17.1 %) |
+
+  Study 34 serves ~30 % more users at the same constraint, with the same input lengths (~2.2-2.3k
+  tokens average in the window) and similar output lengths (120 against 105-114 tokens). Two
+  things differ between the studies, not one: the caps and the node (another L40S, on another
+  cluster). Study 36 (study 35's load, uncapped, on this study's node `llm-serving-l40s-1xl`)
+  separates them: its baseline near 94 users would put the gap on the node, near 72 on the caps.
 
 ## Conclusions
 
-<Filled in by the study-recap skill once the study finishes.>
+- **The capped load does what it was built for:** identical work per trial (output length within
+  1 % across trials) and baselines within 1.1 %. But study 35's natural load is barely noisier at
+  the score (1.4 %): at this goal (users at the knee of a ramp) the natural load's variation
+  averages out, so capping buys little repeatability here. It matters more for metrics read at a
+  fixed load (tokens/s, latency at N users), where the determinism test saw 18 % differences.
+- **Too few experiments for the main question** (does capping change the ranking of
+  configurations?): one preset valid. On that one the ranking agrees with study 35 (fp8 KV with a
+  2048-token long-prefill cap beats the baseline, by +11 % here and +17 % there); the levers that
+  mattered most in study 35 (fp8 KV alone +24 %, fp8 KV + MTP +43 %) were the three experiments
+  lost. MTP under capped outputs is still unmeasured: the determinism test saw lower acceptance on
+  tokens generated past the EOS (0.41 against 0.60-0.71), a bias against MTP this design carries.
+- **The absolute gap with study 35 (+30 % users) is not explained yet:** caps or node. Read study
+  36's baseline before using either study's absolute numbers for the customer.
+- **Operational:** a shared 1 GiB toolbox volume cannot hold several studies' uncompressed
+  per-request records overnight; Stop AIPerf failing (critical: false) still fails the trial
+  through AIPerf to CSV, so a full disk silently turns valid runs into failed experiments.
+  Records are now gzipped (~4x smaller) in studies 33-36; moving them off the toolbox remains a
+  manual step.
+- **Next:** if the ranking question still matters, rerun the capped presets (`kv fp8`, `mtp3`,
+  `kv fp8 mtp3`) as a short preset-only study on the same node, after study 36 and with study
+  36's baseline as the uncapped reference on the same hardware.

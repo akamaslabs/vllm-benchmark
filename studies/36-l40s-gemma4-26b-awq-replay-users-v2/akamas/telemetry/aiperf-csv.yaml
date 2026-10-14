@@ -1,0 +1,89 @@
+# CSV File telemetry for 36-l40s-gemma4-26b-awq-replay-users-v2: the client-side metrics of the AIPerf
+# component (AIPerf optimization pack 1.0.0). The workflow's "AIPerf to CSV" task
+# (../k8s/aiperf_csv.sh) writes one CSV per trial on the toolbox, /work/aiperf-csv/<study>/<epoch>.csv,
+# with aiperf_to_csv.py: TS = the end of a 30 s bucket in UTC (yyyy-MM-dd HH:mm:ss), COMPONENT =
+# aiperf, then one column per pack metric, named as the metric. The provider reads every file of
+# the pattern and keeps the rows inside the trial's window, so earlier trials' files do no harm.
+# Read over SCP from the toolbox with the toolbox's own key (the workflow's host and key; the path
+# must exist on the toolbox when `akamas create telemetry-instance` runs).
+# Open (AIPerf pack README, "Known limits"): the provider's time zone for a zoneless timestampFormat
+# and its handling of an empty cell (a bucket with no completed request) are not documented: check
+# the first trial's samples against its window.
+kind: telemetry-instance
+system: vLLM_Benchmark_36_L40S_Gemma4_AWQ_Replay_Users_v2
+name: AIPerf_CSV_36_L40S_Gemma4_AWQ_Replay_Users_v2
+provider: CSV File
+config:
+  hostname: toolbox
+  username: akamas
+  key: /home/akamas/.ssh/id_rsa
+  protocol: scp
+  remoteFilePattern: /work/aiperf-csv/36-l40s-gemma4-26b-awq-replay-users-v2/*.csv
+  componentColumn: COMPONENT
+  timestampColumn: TS
+  timestampFormat: yyyy-MM-dd HH:mm:ss
+metrics:
+  - metric: aiperf_request_success_rate
+    datasourceMetric: aiperf_request_success_rate
+  - metric: aiperf_request_error_rate
+    datasourceMetric: aiperf_request_error_rate
+  - metric: aiperf_output_token_throughput
+    datasourceMetric: aiperf_output_token_throughput
+  - metric: aiperf_e2e_request_latency_avg
+    datasourceMetric: aiperf_e2e_request_latency_avg
+  - metric: aiperf_e2e_request_latency_p50
+    datasourceMetric: aiperf_e2e_request_latency_p50
+  - metric: aiperf_e2e_request_latency_p95
+    datasourceMetric: aiperf_e2e_request_latency_p95
+  - metric: aiperf_e2e_request_latency_p99
+    datasourceMetric: aiperf_e2e_request_latency_p99
+  - metric: aiperf_e2e_request_latency_p50_150s
+    datasourceMetric: aiperf_e2e_request_latency_p50_150s
+  - metric: aiperf_e2e_request_latency_p95_150s
+    datasourceMetric: aiperf_e2e_request_latency_p95_150s
+  - metric: aiperf_e2e_request_latency_p99_150s
+    datasourceMetric: aiperf_e2e_request_latency_p99_150s
+  - metric: aiperf_time_to_first_token_avg
+    datasourceMetric: aiperf_time_to_first_token_avg
+  - metric: aiperf_time_to_first_token_p50
+    datasourceMetric: aiperf_time_to_first_token_p50
+  - metric: aiperf_time_to_first_token_p95
+    datasourceMetric: aiperf_time_to_first_token_p95
+  - metric: aiperf_time_to_first_token_p50_150s
+    datasourceMetric: aiperf_time_to_first_token_p50_150s
+  - metric: aiperf_time_to_first_token_p95_150s
+    datasourceMetric: aiperf_time_to_first_token_p95_150s
+  - metric: aiperf_time_to_first_output_token_avg
+    datasourceMetric: aiperf_time_to_first_output_token_avg
+  - metric: aiperf_time_to_first_output_token_p50
+    datasourceMetric: aiperf_time_to_first_output_token_p50
+  - metric: aiperf_time_to_first_output_token_p95
+    datasourceMetric: aiperf_time_to_first_output_token_p95
+  - metric: aiperf_time_to_first_output_token_p50_150s
+    datasourceMetric: aiperf_time_to_first_output_token_p50_150s
+  - metric: aiperf_time_to_first_output_token_p95_150s
+    datasourceMetric: aiperf_time_to_first_output_token_p95_150s
+  - metric: aiperf_inter_token_latency_avg
+    datasourceMetric: aiperf_inter_token_latency_avg
+  - metric: aiperf_inter_token_latency_p50
+    datasourceMetric: aiperf_inter_token_latency_p50
+  - metric: aiperf_inter_token_latency_p95
+    datasourceMetric: aiperf_inter_token_latency_p95
+  - metric: aiperf_inter_token_latency_p50_150s
+    datasourceMetric: aiperf_inter_token_latency_p50_150s
+  - metric: aiperf_inter_token_latency_p95_150s
+    datasourceMetric: aiperf_inter_token_latency_p95_150s
+  - metric: aiperf_input_sequence_length_avg
+    datasourceMetric: aiperf_input_sequence_length_avg
+  - metric: aiperf_input_sequence_length_p95
+    datasourceMetric: aiperf_input_sequence_length_p95
+  - metric: aiperf_output_sequence_length_avg
+    datasourceMetric: aiperf_output_sequence_length_avg
+  - metric: aiperf_output_sequence_length_p95
+    datasourceMetric: aiperf_output_sequence_length_p95
+  - metric: aiperf_reasoning_token_count_avg
+    datasourceMetric: aiperf_reasoning_token_count_avg
+  - metric: aiperf_requests_in_flight
+    datasourceMetric: aiperf_requests_in_flight
+  - metric: aiperf_active_sessions
+    datasourceMetric: aiperf_active_sessions

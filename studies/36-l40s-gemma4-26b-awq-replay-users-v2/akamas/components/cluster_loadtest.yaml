@@ -1,0 +1,11 @@
+kind: component
+system: vLLM_Benchmark_36_L40S_Gemma4_AWQ_Replay_Users_v2
+
+name: cluster_loadtest
+description: >-
+  The CPU node running the load generator (node group system-2b of the vllm-bench cluster, label
+  node-role=system-m8a, m8a.xlarge).
+componentType: Kubernetes Cluster
+properties:
+  prometheus:
+    noderole: system-m8a

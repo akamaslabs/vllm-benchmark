@@ -1,0 +1,11 @@
+kind: component
+system: vLLM_Benchmark_36_L40S_Gemma4_AWQ_Replay_Users_v2
+
+name: container_loadtest
+description: >-
+  The AIPerf Job's container (aiperf-replay, namespace llm-l40s, on the system node), so a
+  starved client shows up as such instead of as a slower server.
+componentType: Kubernetes Container
+properties:
+  prometheus:
+    pod: ^aiperf-replay-.*

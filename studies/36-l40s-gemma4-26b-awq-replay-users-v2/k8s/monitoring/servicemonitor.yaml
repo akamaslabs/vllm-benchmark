@@ -1,0 +1,22 @@
+# Scrapes the vLLM pod of namespace llm-l40s through the `vllm` Service, on the vllm-bench cluster:
+# the same object as studies 30-34's ServiceMonitor vllm-l40s (applying it again changes nothing). The telemetry filters on
+# the served model_name (aiservices_gemma) and pod vllm-0.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vllm-l40s
+  namespace: monitoring
+  labels:
+    app: vllm
+spec:
+  namespaceSelector:
+    matchNames:
+      - llm-l40s
+  selector:
+    matchLabels:
+      app: vllm
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 5s
+      scrapeTimeout: 4s

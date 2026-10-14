@@ -190,6 +190,16 @@ on the AIPerf pack's fixture (columns = the telemetry's metrics, stale records r
   been proposed with it in the history). Fix: study 33's records gzipped, study 34's scripts
   compress too, and every parsed record moved off the toolbox to `results/aiperf-records/`
   (local only, not in git; sha256-verified before deletion): `/work` back to 742 MB free.
+- **Decided for the next study (2026-10-14): drop `long_prefill_token_threshold` from the
+  parameters**, leaving vLLM's default (0, off); at most one preset at 8192 to see whether a high cap
+  helps the long tail of their prompts (p99 ~13k, max 95k tokens). This study is the first in the
+  repo to tune it (studies 0-17 pinned it at 0 after study 0's partial-prefill incident, studies
+  30-31 left it out on short ShareGPT prompts), and every value measured so far loses: the 2048
+  preset 84.5 users against `kv fp8` alone 90 (-6 %), experiment 12 (121, with `max_num_seqs` 16)
+  46.5 (-36 %); experiment 13 (407) running. On this load (prompts ~1.5k median, ~6k p90, short
+  replies) splitting each prefill over more steps only adds per-step cost. The domain is also hard
+  to optimize: its "off" is a single point (0) at the edge of [0, 8192], and low values behave the
+  opposite way, so the optimizer spends experiments learning that.
 - **Decided for the next study (the customer PoC, 2026-10-13): add fp8 activations** (Marlin
   W4A8-fp8, `VLLM_MARLIN_INPUT_DTYPE=fp8`, which applies to the int4 linear layers and experts on SM
   8.9): the only kernel lever with a real gain in the W4A16 probe (+8-11 % prefill and mixed load,

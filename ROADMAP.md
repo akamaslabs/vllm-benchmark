@@ -813,6 +813,11 @@ minimum MIG slice that satisfies it — the sub-GPU-granularity complement to st
   (same reasoning as study #3 — a specific target, not a sweep).
 
 ## E. Debt / non-study actions
+- [ ] **Study design note — `long_prefill_token_threshold`: leave it out of the search** (2026-10-14,
+      study 35, the first study to tune it). Every value measured on the customer replay lost
+      (2048 preset -6 % against fp8 alone, 121 -36 %); its domain [0, 8192] with 0 = off makes the
+      "off" a single edge point the optimizer has to learn around. Next studies: vLLM's default (off),
+      at most one preset with a high cap (8192) for loads with a long tail of very long prompts.
 - [ ] **PACK REQUEST — fp8 activations for W4A16 checkpoints as a vLLM-component parameter**
       (raised 2026-10-13, study 35; needed by the customer PoC study). vLLM 0.29.0's
       `VLLM_MARLIN_INPUT_DTYPE=fp8` (Marlin W4A8-fp8, SM 8.9 / 12.x) gave +8-11 % on prefill and on a

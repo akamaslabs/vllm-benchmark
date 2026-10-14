@@ -180,6 +180,16 @@ on the AIPerf pack's fixture (columns = the telemetry's metrics, stale records r
 - 2026-10-13: Stop AIPerf now keeps the records gzipped (`<epoch>.jsonl.gz`, ~9-12 MB a trial
   against ~38-40 MB): the toolbox's `/work` is a shared 1 GiB volume. The first three trials'
   records were gzipped in place.
+- **Overnight 2026-10-13/14:** experiments 6-10 VALID: `kv fp8 mtp3` 103.5 (+42.8 %), `kv fp8 long
+  prefill cap` 84.5 (+16.6 %: the 2048-token cap costs against fp8 alone), `kv fp8 large batch` 88.5
+  (+22.1 %), `study 32 best` 106.5 (+46.9 %), the optimizer's first 106.5 (+46.9 %). **Experiment
+  11 lost to the toolbox's disk:** RunTest succeeded, but Stop AIPerf refused to save the records
+  with ~160 MB left on the shared 1 GiB `/work` (study 34's uncompressed records and study 33's
+  filled it), so AIPerf to CSV failed too; the experiment was **deleted** (2026-10-14, user's
+  call) so the optimizer does not take its configuration as a failure (experiment 12 had already
+  been proposed with it in the history). Fix: study 33's records gzipped, study 34's scripts
+  compress too, and every parsed record moved off the toolbox to `results/aiperf-records/`
+  (local only, not in git; sha256-verified before deletion): `/work` back to 742 MB free.
 - **Decided for the next study (the customer PoC, 2026-10-13): add fp8 activations** (Marlin
   W4A8-fp8, `VLLM_MARLIN_INPUT_DTYPE=fp8`, which applies to the int4 linear layers and experts on SM
   8.9): the only kernel lever with a real gain in the W4A16 probe (+8-11 % prefill and mixed load,

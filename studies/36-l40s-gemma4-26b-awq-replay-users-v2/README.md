@@ -1,8 +1,6 @@
 # 36-l40s-gemma4-26b-awq-replay-users-v2
 
-**Status:** DESIGNED (2026-10-14). Needs the vLLM pack 1.14.0 installed on the 4.1 server
-(`wna16_activation_dtype`; built as `/tmp/vLLM_1-14-0.json` on the toolbox, branch
-`feature/wna16-activation-dtype` of `optimization-packs/vllm`).
+**Status:** RUNNING on Akamas 4.1 (`36-L40S-Gemma4-AWQ-Replay-Users-v2`, started 2026-10-14 07:45 UTC).
 **Dates:** scaffolded 2026-10-14 as a copy of study 35, on the GPU freed by study 34.
 
 ## Objective
@@ -67,6 +65,12 @@ rendered, `auto` / empty render none, other values refused); the StatefulSet wit
 accepted by the vllm-bench API server (dry run).
 
 ## Running notes
+
+- 2026-10-14: vLLM pack 1.14.0 (`wna16_activation_dtype`) merged into `develop` of
+  `optimization-packs/vllm` (MR !11; its CI's `deploy` job fails on the provisioner registry's
+  credentials, as MR !9's did, the build and the pack validation pass) and installed on the 4.1
+  server; study 35 kept running. Created on Akamas 4.1 (every resource accepted) and started 07:45
+  UTC on the vllm-bench L40S (study 34 FINISHED, its StatefulSet already at 0).
 
 ## Results
 

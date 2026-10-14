@@ -74,7 +74,7 @@ $A/34-L40S-Gemma4-AWQ-Replay-Users.yaml`.
 max_num_batched_tokens ... to 2496`, Marlin); RunTest's log (corpus reused from the calibration,
 `rendered 240 users`, **the `CAPS:` line**: about 48k requests at their calibrated length, the rest
 at their task median; a `not the calibrated one` error means the render changed: recalibrate);
-AIPerf starts, the watchdog lines; Stop AIPerf saved `<epoch>.jsonl`; AIPerf to CSV wrote
+AIPerf starts, the watchdog lines; Stop AIPerf saved `<epoch>.jsonl.gz`; AIPerf to CSV wrote
 `<epoch>.csv` with rows covering the run; the `aiperf` component has samples **inside** the trial's
 window (if they are shifted by hours, the CSV provider reads `TS` in another time zone: add the zone
 to the CSV and to `timestampFormat`); the score is a number of users.

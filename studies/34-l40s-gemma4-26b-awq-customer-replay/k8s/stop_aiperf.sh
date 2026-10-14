@@ -13,8 +13,8 @@
 #    SIGINT, 291 records written (the partial batch included), profile_export_aiperf.json too; the
 #    ~50 requests in flight at the SIGINT are not in the records.
 # 2. Deletes the Job (run_test.sh leaves it running when the workflow sets RT_STOP_AIPERF=0).
-# 3. Saves the measured run's per-request records (profile_export.jsonl) on the toolbox as
-#    SA_DEST/<epoch>.jsonl, <epoch> being the measured run's start (their script's folder
+# 3. Saves the measured run's per-request records (profile_export.jsonl) on the toolbox, gzipped, as
+#    SA_DEST/<epoch>.jsonl.gz, <epoch> being the measured run's start (their script's folder
 #    /benchmarks/study34/replay-benchmark/data/results/run_<YYYYMMDDHHMM>_<epoch>: the Job passes
 #    NAME=<epoch>). The AIPerf pod
 #    is gone by then, so a short-lived pod reads the results PVC (read-only); the folder stays there
@@ -143,15 +143,17 @@ if ! [[ "$SIZE" =~ ^[0-9]+$ ]]; then
   echo "error: no $RUN_DIR/profile_export.jsonl: records not saved"
   exit 1
 fi
-OUT="$DEST/${RUN_DIR##*_}.jsonl"
+# Kept gzipped (~4x smaller: ~9 MB against ~38 MB a trial at 200 users): /work is a shared 1 GiB volume.
+OUT="$DEST/${RUN_DIR##*_}.jsonl.gz"
 mkdir -p "$DEST"
-if [ -f "$OUT" ] && [ "$(wc -c < "$OUT" | tr -d ' ')" -ge "$SIZE" ]; then
+if [ -f "$OUT" ] && [ "$(gzip -dc "$OUT" 2>/dev/null | wc -c | tr -d ' ')" -ge "$SIZE" ]; then
   echo "$OUT already saved ($SIZE bytes): the volume still holds the previous run"
   exit "$RC"
 fi
 FREE_KB=$(df -Pk "$DEST" | awk 'NR == 2 {print $4}')
-if [ $(( (FREE_KB * 1024 - SIZE) / 1048576 )) -lt "$MIN_FREE_MB" ]; then
-  echo "error: $SIZE bytes would leave less than $MIN_FREE_MB MB free in $DEST ($((FREE_KB / 1024)) MB free): records not saved"
+# The gzipped copy is ~1/4 of SIZE: count 1/3 to stay on the safe side.
+if [ $(( (FREE_KB * 1024 - SIZE / 3) / 1048576 )) -lt "$MIN_FREE_MB" ]; then
+  echo "error: ~$((SIZE / 3)) gzipped bytes would leave less than $MIN_FREE_MB MB free in $DEST ($((FREE_KB / 1024)) MB free): records not saved"
   df -h "$DEST" || true
   exit 1
 fi
@@ -163,10 +165,11 @@ fi
 SAVED=""
 for TRY in $(seq 1 "$COPY_TRIES"); do
   rm -f "$OUT.tmp"
-  kubectl -n "$NS" exec "$HELPER" -- gzip -c "$RUN_DIR/profile_export.jsonl" 2>/dev/null | gzip -dc > "$OUT.tmp" 2>/dev/null || true
-  GOT=$(sha256sum "$OUT.tmp" | cut -d' ' -f1)
+  kubectl -n "$NS" exec "$HELPER" -- gzip -c "$RUN_DIR/profile_export.jsonl" > "$OUT.tmp" 2>/dev/null || true
+  # Checked on the decompressed content: a truncated stream fails gzip's own check too.
+  GOT=$(gzip -dc "$OUT.tmp" 2>/dev/null | sha256sum | cut -d' ' -f1 || true)  # pipefail: a truncated gzip fails here
   if [ "$GOT" = "$WANT" ]; then SAVED=1; break; fi
-  echo "warning: copy $TRY of $COPY_TRIES: $(wc -c < "$OUT.tmp" | tr -d ' ') of $SIZE bytes, sha256 mismatch"
+  echo "warning: copy $TRY of $COPY_TRIES: $({ gzip -dc "$OUT.tmp" 2>/dev/null || true; } | wc -c | tr -d ' ') of $SIZE bytes, sha256 mismatch"
 done
 if [ -z "$SAVED" ]; then
   echo "error: no intact copy in $COPY_TRIES tries: records not saved"
@@ -174,12 +177,12 @@ if [ -z "$SAVED" ]; then
 fi
 mv "$OUT.tmp" "$OUT"
 python3 - "$OUT" <<'PY' || true
-import json, sys
+import gzip, json, sys
 n = errors = 0
-for line in open(sys.argv[1]):
+for line in gzip.open(sys.argv[1], "rt"):
     n += 1
     errors += bool(json.loads(line).get("error"))
 print("records: %d, with an error: %d" % (n, errors))
 PY
-echo "saved $OUT ($SIZE bytes); $(df -h "$DEST" | awk 'NR == 2 {print $4}') left on the toolbox volume"
+echo "saved $OUT ($SIZE bytes, $(wc -c < "$OUT" | tr -d ' ') gzipped); $(df -h "$DEST" | awk 'NR == 2 {print $4}') left on the toolbox volume"
 exit "$RC"

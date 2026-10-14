@@ -1,5 +1,5 @@
 #!/bin/bash
-# stop_aiperf.sh: graceful stop, Job deleted, records saved once as <epoch>.jsonl (stub kubectl).
+# stop_aiperf.sh: graceful stop, Job deleted, records saved once, gzipped, as <epoch>.jsonl.gz (stub kubectl).
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd); K8S=$(dirname "$HERE")
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
@@ -10,7 +10,8 @@ printf '%s\n' '{"metadata":{"was_cancelled":false},"metrics":{}}' \
   '{"metadata":{"was_cancelled":true},"metrics":{},"error":{"type":"cancelled"}}' \
   '{"metadata":{"was_cancelled":false},"metrics":{}}' > "$TMP/src.jsonl"
 DEST=$TMP/dest
-OUT=$DEST/1791815986.jsonl
+OUT=$DEST/1791815986.jsonl.gz
+same() { cmp -s <(gzip -dc "$OUT" 2>/dev/null) "$TMP/src.jsonl"; }  # the saved gzip holds exactly the records
 run() {  # env assignments for the stub, then stop_aiperf.sh
   : > "$TMP/kubectl.log"; rm -f "$TMP/sigint" "$TMP/copies"
   env PATH="$HERE/stub-stop:$PATH" STUB_LOG="$TMP/kubectl.log" STUB_DIR="$TMP" STUB_JSONL="$TMP/src.jsonl" \
@@ -26,7 +27,7 @@ grep -q 'delete job -l app=aiperf-replay --ignore-not-found --cascade=foreground
 s=$(grep -n 'SIGINT\|python3 -c' "$TMP/kubectl.log" | head -1 | cut -d: -f1); d=$(grep -n 'delete job' "$TMP/kubectl.log" | head -1 | cut -d: -f1)
 [ -n "$s" ] && [ -n "$d" ] && [ "$s" -lt "$d" ] && ok "SIGINT before the Job delete" || ko "SIGINT before the Job delete"
 grep -q '^applied aiperf-export$' "$TMP/kubectl.log" && ok "export pod applied" || ko "export pod applied"
-cmp -s "$OUT" "$TMP/src.jsonl" && ok "saved as <epoch>.jsonl, identical" || ko "saved as <epoch>.jsonl ($(ls "$DEST" 2>&1))"
+same && ok "saved as <epoch>.jsonl.gz, identical" || ko "saved as <epoch>.jsonl.gz ($(ls "$DEST" 2>&1))"
 ls "$DEST"/*.tmp >/dev/null 2>&1 && ko "no .tmp left" || ok "no .tmp left"
 grep -q 'records: 3, with an error: 1' "$TMP/out.txt" && ok "record summary printed" || ko "record summary printed"
 grep -q 'delete pod aiperf-export --ignore-not-found --wait=false' "$TMP/kubectl.log" && ok "export pod deleted at exit" || ko "export pod deleted at exit"
@@ -41,7 +42,7 @@ rm -rf "$DEST"
 run STUB_POD=aiperf-replay-x STUB_PHASE=Succeeded STUB_RUN_DIR=/benchmarks/study34/replay-benchmark/data/results/run_202610122359_1791815986; rc=$?
 [ $rc = 0 ] && ok "completed: exit 0" || ko "completed: exit $rc"
 grep -q 'python3 -c' "$TMP/kubectl.log" && ko "completed: no SIGINT" || ok "completed: no SIGINT"
-cmp -s "$OUT" "$TMP/src.jsonl" && ok "completed: saved" || ko "completed: saved"
+same && ok "completed: saved" || ko "completed: saved"
 rm -rf "$DEST"
 # D. Stopped before the measured run started: nothing to save, exit 0.
 run STUB_RUN_DIR=; rc=$?
@@ -56,7 +57,7 @@ rm -rf "$DEST"
 run STUB_RUN_DIR=/benchmarks/study34/replay-benchmark/data/results/run_202610122359_1791815986 STUB_BAD_COPIES=1; rc=$?
 [ $rc = 0 ] && ok "truncated once: exit 0" || ko "truncated once: exit $rc ($(tail -3 "$TMP/out.txt"))"
 grep -q 'copy 1 of 3: .* sha256 mismatch' "$TMP/out.txt" && ok "truncated once: mismatch reported" || ko "truncated once: mismatch reported"
-cmp -s "$OUT" "$TMP/src.jsonl" && ok "truncated once: saved intact" || ko "truncated once: saved intact"
+same && ok "truncated once: saved intact" || ko "truncated once: saved intact"
 rm -rf "$DEST"
 # G. Every copy arrives truncated: not saved, exit 1.
 run STUB_RUN_DIR=/benchmarks/study34/replay-benchmark/data/results/run_202610122359_1791815986 STUB_BAD_COPIES=9; rc=$?

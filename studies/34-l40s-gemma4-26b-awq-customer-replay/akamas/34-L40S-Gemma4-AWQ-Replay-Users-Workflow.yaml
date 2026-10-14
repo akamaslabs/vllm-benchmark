@@ -59,7 +59,7 @@ tasks:
   # Stops AIPerf with a SIGINT (it cancels the requests in flight and writes its files, which a
   # plain Job delete loses), deletes the Job and saves the measured run's per-request records
   # (profile_export.jsonl) on the toolbox as
-  # /work/aiperf-exports/34-l40s-gemma4-26b-awq-customer-replay/<epoch>.jsonl (<epoch>: the measured
+  # /work/aiperf-exports/34-l40s-gemma4-26b-awq-customer-replay/<epoch>.jsonl.gz (<epoch>: the measured
   # run's start). alwaysRun: it also runs after a failed RunTest, so the load always stops.
   # critical: false: a record that could not be saved does not fail the trial.
   - name: Stop AIPerf

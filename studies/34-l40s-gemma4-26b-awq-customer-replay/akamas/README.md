@@ -82,7 +82,7 @@ to the CSV and to `timestampFormat`); the score is a number of users.
 **Changes after creation:** Akamas 4.1 has no `update workflow`: delete and recreate the workflow
 (and the study, if created). Only the goal can be updated on a study with experiments.
 
-**Room on the toolbox:** `/work` is a 1 GiB volume; each trial adds a records file (~25-60 MB at
+**Room on the toolbox:** `/work` is a 1 GiB volume; each trial adds a gzipped records file (~6-15 MB at
 200 users) under `/work/aiperf-exports/` and a small CSV. Move the records off the toolbox every
 few experiments (`kubectl -n akamas-41 exec deploy/toolbox -c toolbox -- tar -C
 /work/aiperf-exports/34-l40s-gemma4-26b-awq-customer-replay -cf - . | tar -C <local dir> -xf -`, then

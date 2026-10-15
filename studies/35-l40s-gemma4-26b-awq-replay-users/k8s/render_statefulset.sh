@@ -53,6 +53,11 @@ for v in $DEFAULTABLE; do
   grep -q "^$v=" "$PARAMS" || die "$v has no line in params.env (empty means vLLM's default, absent means a broken template)"
 done
 
+# Akamas writes a real parameter in scientific notation when it is tiny (study 35 exp. 23: watermark
+# 7.574440099929406e-17, refused below, so Apply config failed): such a value becomes a plain decimal.
+for v in GPU_MEMORY_UTILIZATION WATERMARK; do
+  if [[ "${!v}" =~ ^[0-9]+(\.[0-9]+)?[eE][-+]?[0-9]+$ ]]; then LC_ALL=C printf -v "$v" '%.6f' "${!v}"; fi
+done
 [[ "$GPU_MEMORY_UTILIZATION" =~ ^0\.[0-9]+$ ]] || die "gpu_memory_utilization '$GPU_MEMORY_UTILIZATION' is not a fraction"
 for v in MAX_NUM_SEQS MAX_NUM_BATCHED_TOKENS MAX_CUDAGRAPH_CAPTURE_SIZE BLOCK_SIZE OPTIMIZATION_LEVEL LONG_PREFILL_TOKEN_THRESHOLD STREAM_INTERVAL; do
   [ -z "${!v}" ] || [[ "${!v}" =~ ^[0-9]+$ ]] || die "$v='${!v}' is not an integer"

@@ -162,6 +162,12 @@ if render; then
   args | grep -q -- '--moe-backend\|--long-prefill-token-threshold' && ko "auto / 0: no flag" || ok "auto / 0: no flag"
   args | grep -qx -- --scheduler-reserve-full-isl && ok "reserve full isl true: --scheduler-reserve-full-isl" || ko "reserve full isl true"
 else ko "auto / 0 renders"; fi
+# Tiny values Akamas writes in scientific notation become plain decimals (study 35 exp. 23).
+params WATERMARK=7.574440099929406e-17 GPU_MEMORY_UTILIZATION=9.0e-1
+if render; then
+  args | grep -qx -- --watermark=0.000000 && ok "watermark 7.57e-17 -> 0.000000" || ko "watermark 7.57e-17 -> 0.000000"
+  args | grep -qx -- --gpu-memory-utilization=0.900000 && ok "gmu 9.0e-1 -> 0.900000" || ko "gmu 9.0e-1 -> 0.900000"
+else ko "scientific notation renders"; fi
 for bad in WATERMARK=1.5 STREAM_INTERVAL=0 LONG_PREFILL_TOKEN_THRESHOLD=100000 SCHEDULER_RESERVE_FULL_ISL=yes; do
   params "$bad"; render && ko "rejects $bad" || ok "rejects $bad"
 done

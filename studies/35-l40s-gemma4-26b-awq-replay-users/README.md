@@ -232,6 +232,15 @@ on the AIPerf pack's fixture (columns = the telemetry's metrics, stale records r
   score on the first breach (the CSV step rewrites the e2e median with its running maximum once it
   passes the limit, or an equivalent), and if only 10 templates are available, break the period in
   the renderer (shuffled profile order, random start offset within the session, fixed seed).
+- **Experiment 23 failed on a render bug (2026-10-14, fixed 2026-10-15).** The optimizer proposed
+  `watermark` 7.6e-17, Akamas wrote it as `7.574440099929406e-17`, and `render_statefulset.sh`
+  accepts only `0.xxx`: Apply config exited 2. **Akamas 4.1 then ran the rest of the workflow
+  anyway** ("Couldn't skip tasks" in the log): RunTest replayed 70 min against experiment 22's
+  configuration, and only then was the trial marked ERROR. Its CSV (`1792011521.csv`) is therefore
+  a free repeat of experiment 22: 104.5 users against 107.5 (-3 %). Fix: the renderer turns a value
+  in scientific notation (`gpu_memory_utilization`, `watermark`) into a plain decimal before
+  validating it (test added; study 36 had the same check and got the same fix). The workflow
+  continuing past a failed critical task is an Akamas behaviour to report.
 
 ## Results
 

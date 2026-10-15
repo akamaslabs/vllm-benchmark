@@ -83,6 +83,8 @@ accepted by the vllm-bench API server (dry run).
   with fp8 activations 89.5 / 93.5 / 93.5 (no clear gain); optimizer experiments 9-18 60-95 (still
   exploring the domain's edges: `max_num_seqs` 16-30 in four, `gpu_memory_utilization` 0.80 in
   four). Read this study's results on the first-breach score.
+- 2026-10-15: `render_statefulset.sh` fixed as study 35's (a tiny `watermark` written in
+  scientific notation failed Apply config there, experiment 23); no experiment of this study hit it.
 
 ## Results
 

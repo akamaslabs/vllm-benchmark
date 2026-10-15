@@ -1,0 +1,23 @@
+# Scrapes this study's vLLM pod (namespace llm-replay) through the `vllm` Service, on the
+# vllm-bench-gatling cluster (its Prometheus selects ServiceMonitors from every namespace, no
+# label needed). Additive: Gatling study 2's monitors stay as they are. The telemetry filters on
+# the served model_name (aiservices_gemma) and pod vllm-0.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vllm-replay
+  namespace: monitoring
+  labels:
+    app: vllm
+spec:
+  namespaceSelector:
+    matchNames:
+      - llm-replay
+  selector:
+    matchLabels:
+      app: vllm
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 5s
+      scrapeTimeout: 4s

@@ -241,6 +241,11 @@ on the AIPerf pack's fixture (columns = the telemetry's metrics, stale records r
   in scientific notation (`gpu_memory_utilization`, `watermark`) into a plain decimal before
   validating it (test added; study 36 had the same check and got the same fix). The workflow
   continuing past a failed critical task is an Akamas behaviour to report.
+- **Stopped 2026-10-15 ~09:00 UTC** (`akamas finish study`; experiment 31 aborted, AIPerf Job
+  deleted, StatefulSet at 0): the score was driven by the load's periodic valleys (note above) and
+  one run's spread (+-7 % on repeated configurations: exps. 27/28 identical, 108.5 / 121.5 on the
+  first breach) covered the differences between the good configurations. Continued as study 38
+  (study 37's manifest, ramp twice as fast).
 
 ## Results
 

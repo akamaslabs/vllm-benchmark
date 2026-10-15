@@ -1,0 +1,25 @@
+#!/bin/bash
+# Stub kubectl for the stop_aiperf.sh test. Logs every call to $STUB_LOG and answers the calls
+# that script makes. STUB_POD: the AIPerf pod (empty: none); STUB_PHASE: its phase until the
+# SIGINT, Succeeded after it; STUB_RUN_DIR: the newest run_<date>_<epoch> folder on the volume (empty:
+# none); STUB_JSONL: the local file standing for its profile_export.jsonl; STUB_DIR: scratch;
+# STUB_BAD_COPIES: how many gzip copies arrive truncated (as a `kubectl exec` stream can) before a
+# good one.
+echo "kubectl $*" >> "$STUB_LOG"
+args="$*"
+case "$args" in
+  *"get pods -l app=aiperf-replay"*) echo "${STUB_POD:-}" ;;
+  *"get pod "*".status.phase"*) [ -f "$STUB_DIR/sigint" ] && echo Succeeded || echo "${STUB_PHASE:-Running}" ;;
+  *"exec "*" -c aiperf -- python3 -c "*SIGINT*) touch "$STUB_DIR/sigint"; echo 106 ;;
+  *" logs "*) echo "BENCHMARK CANCELLED" ;;
+  *"apply -f -"*) echo "applied $(grep -m1 '^  name: ' | awk '{print $2}')" >> "$STUB_LOG" ;;
+  *"exec aiperf-export -- sh -c ls -d"*) echo "${STUB_RUN_DIR:-}" ;;
+  *"exec aiperf-export -- ls -la"*) echo "profile_export.jsonl profile_export_aiperf.json" ;;
+  *"exec aiperf-export -- stat -c %s"*) [ -n "${STUB_RUN_DIR:-}" ] && wc -c < "$STUB_JSONL" | tr -d ' ' ;;
+  *"exec aiperf-export -- sha256sum "*) sha256sum "$STUB_JSONL" | sed "s|$STUB_JSONL|/benchmarks/x|" ;;
+  *"exec aiperf-export -- gzip -c "*)
+    n=$(cat "$STUB_DIR/copies" 2>/dev/null || echo 0); echo $((n + 1)) > "$STUB_DIR/copies"
+    if [ "$n" -lt "${STUB_BAD_COPIES:-0}" ]; then gzip -c "$STUB_JSONL" | head -c 40; else gzip -c "$STUB_JSONL"; fi ;;
+  *) : ;;
+esac
+exit 0

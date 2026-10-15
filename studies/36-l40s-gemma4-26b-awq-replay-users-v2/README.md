@@ -85,6 +85,8 @@ accepted by the vllm-bench API server (dry run).
   four). Read this study's results on the first-breach score.
 - 2026-10-15: `render_statefulset.sh` fixed as study 35's (a tiny `watermark` written in
   scientific notation failed Apply config there, experiment 23); no experiment of this study hit it.
+- **Stopped 2026-10-15 ~09:00 UTC** with study 35 (experiment 21 aborted, AIPerf Job deleted,
+  StatefulSet at 0; the vllm-bench L40S left to Quartuccio): continued as study 38 on Gatling.
 
 ## Results
 

@@ -71,6 +71,18 @@ accepted by the vllm-bench API server (dry run).
   credentials, as MR !9's did, the build and the pack validation pass) and installed on the 4.1
   server; study 35 kept running. Created on Akamas 4.1 (every resource accepted) and started 07:45
   UTC on the vllm-bench L40S (study 34 FINISHED, its StatefulSet already at 0).
+- 2026-10-14: baselines 68.5 and 71.5 users (study 35 on Gatling: 72.5 / 72.5 / 71.5); `kv fp8 mtp3`
+  104.5 and `study 32 best` 104.5 (study 35: 103.5, 106.5).
+- **Load-test issue (2026-10-15): the score is inflated by the load's periodic valleys** (details
+  and data in study 35's running notes, same date). The 10-session template replayed as k mod 10
+  under a deterministic ramp makes the offered load drop 5-10 % at ~102 and ~117 users in every
+  run, and the `when: max` windowing scores the valid window with the most users anywhere in the
+  ramp, also after the e2e median has passed 3 s. Experiment 5 (`study 35 best`) scored 119.5 users
+  while over 3 s from ~93 to 114 users: ~93 on the first breach. Re-scored offline on the first
+  breach: baselines 60.5 / 71.5, `kv fp8 mtp3` 89.5, `study 32 best` 104.5, `study 35 best` 92.5;
+  with fp8 activations 89.5 / 93.5 / 93.5 (no clear gain); optimizer experiments 9-18 60-95 (still
+  exploring the domain's edges: `max_num_seqs` 16-30 in four, `gpu_memory_utilization` 0.80 in
+  four). Read this study's results on the first-breach score.
 
 ## Results
 

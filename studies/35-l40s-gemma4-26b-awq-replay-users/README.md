@@ -109,8 +109,10 @@ caching, the vision tower (their production has a few image requests), fp8 activ
   (212-416 requests per session in the template) and the think time dominates (~90 % of a
   session): req/s barely moves between configurations below the knee. The users are what the
   customer wants to maximize.
-- **Windowing:** `stability` on `aiperf_active_sessions`, 6 samples (3 min), `when: max`: the last
-  valid window before the e2e median passes 3 s.
+- **Windowing:** `stability` on `aiperf_active_sessions`, 6 samples (3 min), `when: max`: the
+  window with the most users among those that meet the constraint, **anywhere in the ramp, also
+  after the e2e median has already passed 3 s** (not the last valid window before it, as written
+  here at design time): see the running note of 2026-10-15 on the load's periodic valleys.
 - **KPIs (8):** users, completed req/s, e2e p50 and p95 (150 s), TTFT p95 (150 s, client), prefix
   cache hit rate, MTP acceptance, KV cache usage.
 
@@ -209,6 +211,27 @@ on the AIPerf pack's fixture (columns = the telemetry's metrics, stale records r
   check on this checkpoint (GSM8K + IFEval as study 30's, plus tool calls) with and without it, and
   with fp8 KV (also unchecked on the AWQ checkpoint). int8 activations are excluded (0/40, broken
   output).
+- **Load-test issue (2026-10-15): the replay has periodic, deterministic valleys, and the scoring
+  rewards them.** The template holds 10 sessions; rendered user k replays session k mod 10 (own
+  texts, same delays, request count and prompt lengths), and the ramp adds one user every 30 s in
+  the same order with the same seed. The offered load therefore follows the same curve in every
+  run, with a sawtooth of period 10 users (300 s; a zero-latency simulation of the template gives
+  -8 to -10 % prompt characters/s every other 150 s window). Measured: the input tokens/s (150 s)
+  drop 5-10 % at ~102 and ~117 users in every experiment, on both nodes (study 36 exp. 5: 12.5 ->
+  11.6 k tokens/s from 114 to 117 users; exp. 8: 12.0 -> 10.8 k; this study's exp. 10: 12.4 -> 11.9
+  k), and the e2e median dips there (study 36 exp. 5: 3.64 s at 114 users, 2.78 s at 117). Since
+  the windowing takes the valid window with the most users anywhere in the ramp, a configuration
+  already over 3 s gets scored at the valley: study 36 exp. 5 (this study's exp. 10, same
+  configuration) scored 119.5 users while over 3 s from ~93 to 114 users. Re-scored offline from the
+  CSVs as **users before the first window over 3 s** (`first breach`), this study's top scores
+  25-27 (120.5 / 119.5 / 123.5) fall to 93.5 / 107.5 / 108.5; exp. 28 holds at 121.5 (no valley
+  involved) and is the only clear step over exps. 9, 10, 18 (106.5-108.5). Read this study's and
+  study 36's results on the first-breach score, not Akamas's. The cause is the 10-session template:
+  with the customer's 100 templates the sawtooth goes away (each profile at most twice in a
+  200-user ramp, 100 users apart), although the curve stays deterministic. For the customer study:
+  score on the first breach (the CSV step rewrites the e2e median with its running maximum once it
+  passes the limit, or an equivalent), and if only 10 templates are available, break the period in
+  the renderer (shuffled profile order, random start offset within the session, fixed seed).
 
 ## Results
 

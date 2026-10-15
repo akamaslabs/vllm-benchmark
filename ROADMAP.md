@@ -820,11 +820,28 @@ minimum MIG slice that satisfies it — the sub-GPU-granularity complement to st
   (same reasoning as study #3 — a specific target, not a sweep).
 
 ## E. Debt / non-study actions
+- [ ] **Load-test design note — customer replay: periodic valleys and a scoring that rewards them**
+      (2026-10-15, studies 35/36; study 34 renders the same template the same way). The template
+      has 10 sessions, replayed as user k -> session k mod 10 under a deterministic ramp (+1 user
+      every 30 s, fixed seed): the offered load follows the same sawtooth (period 10 users) in every
+      run, with 5-10 % less input at ~102 and ~117 users, and the e2e median dips there. The
+      `stability` windowing with `when: max` scores the valid window with the most users anywhere in
+      the ramp, so configurations already over the limit get scored at a valley (study 36 exp. 5:
+      119.5 users, ~93 before its first breach). Next replay studies: (1) score on the first breach
+      (the CSV step keeps the e2e median at its running maximum once it passes the limit, or an
+      equivalent); (2) with only 10 templates, break the period in the renderer (shuffled profile
+      order, random start offset in the session, fixed seed for every experiment); with the
+      customer's 100 templates the period goes away. AIPerf 0.11.0 has no jitter on the ramp entry
+      (`--dataset-sampling-strategy shuffle` might reorder sessions; not checked on mooncake_trace).
 - [ ] **Study design note — `long_prefill_token_threshold`: leave it out of the search** (2026-10-14,
       study 35, the first study to tune it). Every value measured on the customer replay lost
       (2048 preset -6 % against fp8 alone, 121 -36 %); its domain [0, 8192] with 0 = off makes the
       "off" a single edge point the optimizer has to learn around. Next studies: vLLM's default (off),
       at most one preset with a high cap (8192) for loads with a long tail of very long prompts.
+      Correction (2026-10-15): study 35's exp. 18 (cap 791) scored 108.5 users, level with the best
+      uncapped ones (106.5), also on the first-breach score: the losses above are confounded with
+      other changes (huge batched tokens, 16 sequences), and its own effect is unmeasured. The
+      reason to leave it out stands on the domain shape, not on "it always loses".
 - [ ] **PACK REQUEST — fp8 activations for W4A16 checkpoints as a vLLM-component parameter**
       (raised 2026-10-13, study 35; needed by the customer PoC study). vLLM 0.29.0's
       `VLLM_MARLIN_INPUT_DTYPE=fp8` (Marlin W4A8-fp8, SM 8.9 / 12.x) gave +8-11 % on prefill and on a

@@ -1,6 +1,6 @@
 kind: workflow
 name: 39-C8i-Qwen3-06B-CPU-TPS-Smoke-Workflow
-# The smoke run: the same pipeline with a steep ramp, 0 -> 40 req/s over 900 s, to check every task end to end and to locate the baseline's knee, which sets the main workflow's RT_RATE / RT_RAMP_S.
+# The smoke run: the same pipeline with a steeper ramp, 0 -> 4 req/s over 1200 s, to check every task end to end (Akamas scoring included) and to confirm the probe's knee (1-2 req/s) under a ramp.
 # All tasks run on the toolbox host over SSH with the toolbox's own key
 # (/home/akamas/.ssh/id_rsa, mounted from the toolbox-keys secret; the path must exist on
 # the toolbox when `akamas create workflow` runs, so run it from the toolbox). Akamas 4.1 has
@@ -50,4 +50,4 @@ tasks:
         hostname: toolbox
         username: akamas
         key: /home/akamas/.ssh/id_rsa
-      command: RT_RATE=40 RT_RAMP_S=900 RT_FIRST_OK_S=2400 RT_STALL_S=1500 RT_DEADLINE_S=3300 bash /work/vllm-benchmark/studies/39-c8i-qwen3-06b-cpu-tps/k8s/run_test.sh
+      command: RT_RATE=4 RT_RAMP_S=1200 RT_FIRST_OK_S=2400 RT_STALL_S=1500 RT_DEADLINE_S=3300 bash /work/vllm-benchmark/studies/39-c8i-qwen3-06b-cpu-tps/k8s/run_test.sh

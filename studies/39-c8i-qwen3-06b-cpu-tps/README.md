@@ -29,11 +29,9 @@ repo on a CPU node and on a vLLM CPU image: every earlier study ran on NVIDIA GP
 
 - **Akamas version:** Studio 4.1.0 (<https://akamas41.lab.akamas.io>, namespace
   `akamas-41` on `vllm-bench`).
-- **Optimization packs:** vLLM **1.14.0** (component type `vLLM`) and the Kubernetes pack
-  (component types `Kubernetes Container`, `Kubernetes Cluster`; version not confirmed:
-  git and READMEs suggest 1.8.0-dev). **To confirm with `akamas list optimization-pack`
-  after `akamas login` in the `akamas-41` toolbox**: the last attempt returned
-  Unauthorized. The vLLM pack's reference engine is 0.29.0, this study runs 0.31.0 (see
+- **Optimization packs:** vLLM **1.14.0** (component type `vLLM`) and Kubernetes **1.9.0**
+  (component types `Kubernetes Container`, `Kubernetes Cluster`), both INSTALLED on the
+  4.1 instance (`akamas describe optimization-pack`, 2026-10-16). The vLLM pack's reference engine is 0.29.0, this study runs 0.31.0 (see
   "Pack TODOs").
 - **Workload under test:** `vllm/vllm-openai-cpu:v0.31.0` (x86_64) serving
   **`Qwen/Qwen3-0.6B`** (Apache-2.0, ungated, no HF token) as `qwen3-06b`, StatefulSet
@@ -103,7 +101,7 @@ branch: 2048 batched tokens and 128 sequences per world-size unit) except
 
 | Parameter | env key | Domain | Baseline (vLLM 0.31.0 CPU default) | Why |
 |---|---|---|---|---|
-| `vllm.gpu_memory_utilization` | `GPU_MEMORY_UTILIZATION` | 0.15-0.90 (decided 2026-10-16; provisional, to confirm with the probe) | 0.90 (not the vLLM default 0.92) | the KV budget on CPU (fraction of the 48Gi limit, minus RSS); the lower bound must make preemption possible at target load. 0.92 leaves only ~0-0.5 GiB of the 48Gi limit at the KV-allocation check (`k8s/params.env.template`) |
+| `vllm.gpu_memory_utilization` | `GPU_MEMORY_UTILIZATION` | 0.15-0.90 (decided 2026-10-16; every edge starts in the probe) | 0.90 (not the vLLM default 0.92) | the KV budget on CPU (fraction of the 48Gi limit, minus RSS); the lower bound must make preemption possible at target load. 0.92 leaves only ~0-0.5 GiB of the 48Gi limit at the KV-allocation check (`k8s/params.env.template`) |
 | `vllm.max_num_seqs` | `MAX_NUM_SEQS` | 8-256 | 128 | admission cap; on CPU it mainly drives output throughput |
 | `vllm.max_num_batched_tokens` | `MAX_NUM_BATCHED_TOKENS` | 512-8192 | 2048 | prefill budget per step; on CPU it mainly drives TTFT |
 | `vllm.block_size` | `BLOCK_SIZE` | categorical 32, 64, 96, 128 | 128 | the AMX attention path needs a multiple of 32 |
@@ -165,8 +163,8 @@ otherwise).
 Workflow (`39-C8i-Qwen3-06B-CPU-TPS-Workflow`): Write config (FileConfigurator) -> Apply
 config (`k8s/apply_config.sh`: render, roll out, fail at the first container restart, warm-up,
 log dump) -> RunTest (`k8s/run_test.sh`). **Smoke study** `39-C8i-Qwen3-06B-CPU-TPS-Smoke`
-(workflow `...-Smoke-Workflow`): the baseline only, used to calibrate R and D. The main workflow carries placeholder values
-`RT_RATE=20 RT_RAMP_S=3600` until then.
+(workflow `...-Smoke-Workflow`): the baseline only, a steeper ramp (0 -> 4 req/s over 1200 s) that checks the pipeline end to
+end. The main workflow ramps 0 -> 4 req/s over 4000 s (from the probe, see "Probe results").
 
 **KPIs (8):** Total throughput, Completed requests, TTFT P95 150s, TPOT P95 150s, Prefix
 cache hit rate, KV cache usage, Preemptions, Running requests (`akamas/`).
@@ -199,18 +197,45 @@ None of these blocks the study; each is fixed in the StatefulSet for now.
    2 reserved CPUs via `systemReserved` (core 0; `reservedSystemCPUs` is refused next to
    EKS's reserved cgroups), allocatable 46 CPU / ~86 GiB, 1 NUMA node, siblings n / n+24,
    AlwaysOn tagged (`infra/README.md`).
-3. **Run the probe** (`probe/`): record `lscpu`, `numactl -H` (or `/sys` NUMA info), the
-   vLLM-reported KV cache size (tokens and GiB) at the domain corners, the OMP binding
-   lines from the vLLM log (how many OMP threads 44 static CPUs become), and that fp8 KV
-   and block sizes 32/96 start.
-4. **Calibrate `RT_RATE` / `RT_RAMP_S`** from the Smoke study (`39-C8i-Qwen3-06B-CPU-TPS-Smoke`,
-   baseline only). Before `akamas create workflow`, set the Smoke workflow's `RT_RATE` /
-   `RT_RAMP_S` (and `RT_DEADLINE_S` = `RT_RAMP_S` + 2400) from the probe's proposal in
-   `probe/results/summary.txt`. Then find the baseline's knee, then set R well above it so the best
-   configurations are not censored, and D so that a 6-sample window spans a small share of
-   the knee (study 30's rule).
+3. **Run the probe** (`probe/`) — **DONE 2026-10-16**, see "Probe results".
+4. **Smoke study** (`39-C8i-Qwen3-06B-CPU-TPS-Smoke`, baseline only, 0 -> 4 req/s over
+   1200 s): checks the whole pipeline in Akamas, scoring included, and the knee under a ramp.
 5. **Run the main study** `39-C8i-Qwen3-06B-CPU-TPS` once the probe and the smoke run are
    reviewed.
+
+## Probe results (2026-10-16, `probe/results/summary.txt`)
+
+Every startup edge starts (~100-140 s each, the first included: image and model pulled in
+~2 min). OMP: 20 threads on 20 cores (`reserve_cpu_num=2`, 2 of the pod's 22 cores left to the
+API server), 1 NUMA node, no LD_PRELOAD / mempolicy warning.
+
+| Combination | KV tokens | KV GiB | non-KV GiB | peak GiB |
+|---|---|---|---|---|
+| baseline (gmu 0.90) | 377,088 | 40.29 | 2.91 | 46.5 |
+| gmu 0.92 (vLLM default) | 386,432 | 41.28 | 2.88 | 46.1 |
+| gmu 0.15, 256 seqs, 8192 batched | 37,632 | 4.02 | 3.18 | 8.8 |
+| gmu 0.15, fp8 KV | 80,768 | 4.32 | 2.88 | 9.0 |
+| fp8 KV | 754,944 | 40.32 | 2.88 | 45.1 |
+| block 32 / 96 | 377,440 / 376,640 | 40.32 | 2.88 | 45.1 |
+| 256 seqs, 8192 batched, long prefill 4096, prefix off | 374,656 | 40.02 | 3.18 | 45.1 |
+
+Chunked prefill off is refused by `render_statefulset.sh`, as designed. The domain's lower
+bound holds (non-KV RSS <= 3.18 GiB -> f >= 0.103 fits one 16k sequence).
+
+Baseline constant-rate sweep (AIPerf client p95s; 240 s per step):
+
+| req/s | tokens/s | TTFT p95 | TPOT p95 | prefix hit | KV used | running | SLO |
+|---|---|---|---|---|---|---|---|
+| 1.04 | 3117 | 209 ms | 34 ms | 75 % | 6 % | 10 | ok |
+| 1.94 | 5904 | 320 ms | 132 ms | 78 % | 30 % | 55 | TPOT over |
+| 2.45 | 6513 | 38.5 s | 266 ms | 77 % | 54 % | 128 (= max_num_seqs) | over |
+
+The binding constraint is TPOT (decode on 20 cores), the knee is between 1 and 2 req/s, and the
+node saturates at ~2.5 req/s. With the baseline's 40 GiB the KV cache is never short (54 % at
+saturation); KV pressure comes only from the lower part of the `gpu_memory_utilization` domain
+(0.15 = 37.6k tokens, ~10 running sequences of this workload). The probe proposed
+`RT_RATE=2`; the main workflow uses 4 (over 4000 s) so a tuned configuration's knee is not
+capped by the ramp.
 
 ## Risks
 

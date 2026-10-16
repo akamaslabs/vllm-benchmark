@@ -1,6 +1,6 @@
 kind: workflow
 name: 39-C8i-Qwen3-06B-CPU-TPS-Workflow
-# The study: open-loop linear rate ramp 0 -> RT_RATE req/s over RT_RAMP_S. TODO(calibrate): RT_RATE / RT_RAMP_S are placeholders until the Smoke run (or probe/) locates the baseline's knee; set them, then (re)create this workflow before creating the study.
+# The study: open-loop linear rate ramp 0 -> 4 req/s over 4000 s (0.06 req/s per minute), from the probe of 2026-10-16 (/work/probe39/results/summary.txt): the baseline meets the SLO at 1 req/s and breaks TPOT p95 at 2 (132 ms), saturating at ~2.5 req/s (128 running). The probe proposed RT_RATE 2; 4 leaves headroom so a tuned configuration's knee is not capped by the ramp (the watchdog ends the run past the SLO anyway).
 # All tasks run on the toolbox host over SSH with the toolbox's own key
 # (/home/akamas/.ssh/id_rsa, mounted from the toolbox-keys secret; the path must exist on
 # the toolbox when `akamas create workflow` runs, so run it from the toolbox). Akamas 4.1 has
@@ -46,4 +46,4 @@ tasks:
         hostname: toolbox
         username: akamas
         key: /home/akamas/.ssh/id_rsa
-      command: RT_RATE=20 RT_RAMP_S=3600 bash /work/vllm-benchmark/studies/39-c8i-qwen3-06b-cpu-tps/k8s/run_test.sh
+      command: RT_RATE=4 RT_RAMP_S=4000 bash /work/vllm-benchmark/studies/39-c8i-qwen3-06b-cpu-tps/k8s/run_test.sh

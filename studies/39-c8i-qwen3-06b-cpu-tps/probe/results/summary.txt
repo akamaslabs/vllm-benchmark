@@ -1,0 +1,23 @@
+Phase A: startup edges
+name            exit start_s  kv_tokens  kv_GiB   nonkv peakGiB  omp resv  numa    flags  overrides
+B-default          0     138     377088   40.29    2.91    46.5   20    2     1        -  -
+C-nochunk          2       0          -       -       -       -    -    -     -        R  ENABLE_CHUNKED_PREFILL=false
+                 error: invalid parameters in /work/probe39/results/C-nochunk.params.env
+E-corner           0     100     374656   40.02    3.18    45.1   20    2     1        -  MAX_NUM_SEQS=256 MAX_NUM_BATCHED_TOKENS=8192 LONG_PREFILL_TOKEN_THRESHOLD=4096 ENABLE_PREFIX_CACHING=false
+E-gmu-high         0      98     386432   41.28    2.88    46.1   20    2     1        -  GPU_MEMORY_UTILIZATION=0.92
+E-gmu-low-fp8      0     118      80768    4.32    2.88     9.0   20    2     1        -  GPU_MEMORY_UTILIZATION=0.15 KV_CACHE_DTYPE=fp8
+E-gmu-low          0     120      37632    4.02    3.18     8.8   20    2     1        -  GPU_MEMORY_UTILIZATION=0.15 MAX_NUM_SEQS=256 MAX_NUM_BATCHED_TOKENS=8192
+K-fp8              0      97     754944   40.32    2.88    45.1   20    2     1        -  KV_CACHE_DTYPE=fp8
+S-block32          0     119     377440   40.32    2.88    45.1   20    2     1        -  BLOCK_SIZE=32
+S-block96          0     120     376640   40.32    2.88    45.1   20    2     1        -  BLOCK_SIZE=96
+flags: P LD_PRELOAD missing, M mempolicy denied (seccomp/SYS_NICE), R refused by render_statefulset.sh
+gpu_memory_utilization lower bound: engine non-KV RSS up to 3.18 GiB (E-corner) -> f >= 0.103 holds one 16,384-token bf16 sequence; the study domain starts at 0.15.
+
+Phase B: baseline rate sweep (AIPerf client p95s; prom_* = vLLM over 150 s / the step)
+  rate   req/s     tok/s    ttft95    tpot95  p_ttft95  p_tpot95    hit%    kv%   preem    run   SLO
+     1    1.04      3117       209        34       242        48    75.3      6    0.00     10    ok
+     2    1.94      5904       320       132       474       147    78.0     30    0.00     55  over
+     4    2.45      6513     38451       266     70463       295    76.6     54    0.00    128  over
+
+KNEE: 1 req/s (3117 total tok/s, TTFT p95 209 ms, TPOT p95 34 ms)
+PROPOSAL for the Smoke study: RT_RATE=2 RT_RAMP_S=3000

@@ -15,8 +15,8 @@ TPOT p95 <= 100 ms (150 s p95s, read with `:max` over the 6-sample scored window
 | Item | Version |
 |---|---|
 | Akamas | 4.1.x (namespace `akamas-41`) |
-| vLLM optimization pack | 1.14.0 (reference engine vLLM 0.29.0; flags re-checked against 0.31.0) — **to confirm** with `akamas list optimization-pack` after `akamas login` |
-| Kubernetes optimization pack | 1.8.0-dev per earlier studies — **to confirm** the same way |
+| vLLM optimization pack | 1.14.0, INSTALLED (reference engine vLLM 0.29.0; flags re-checked against 0.31.0) |
+| Kubernetes optimization pack | 1.9.0, INSTALLED |
 | vLLM | 0.31.0, image `vllm/vllm-openai-cpu:v0.31.0` |
 | Model | `Qwen/Qwen3-0.6B`, bf16 |
 | Telemetry | Prometheus (kube-prometheus-stack, in-cluster) |
@@ -43,13 +43,12 @@ Steps of the main study: `baseline` (vLLM 0.31.0 CPU defaults), `baseline repeat
 presets `kv fp8`, `no prefix cache`, `small kv budget` (gpu_memory_utilization 0.15), then
 `optimize` (AKAMAS, 0 init experiments, 60 experiments, stop after 20 failures).
 
-## Placeholders to fill before running
+## Calibration (done 2026-10-16)
 
-- **`RT_RATE=20 RT_RAMP_S=3600`** in `39-C8i-Qwen3-06B-CPU-TPS-Workflow.yaml`: placeholders
-  until the Smoke run (or `../probe/`) locates the baseline's knee.
-- **`vllm.gpu_memory_utilization` domain `[0.15, 0.90]` (baseline 0.90)** and the `small kv budget` preset
-  (0.15): provisional; confirm against the KV sizing in `../k8s/params.env.template` and
-  the KV size the probe reads from the vLLM log. Edit `gen_study.py`, then re-run it.
+- Main workflow: `RT_RATE=4 RT_RAMP_S=4000`; Smoke workflow: `RT_RATE=4 RT_RAMP_S=1200`.
+  From the probe (`../probe/results/summary.txt`): baseline knee 1-2 req/s (TPOT binds),
+  saturation ~2.5 req/s.
+- `vllm.gpu_memory_utilization` `[0.15, 0.90]`, baseline 0.90: every edge starts (probe phase A).
 
 ## Checks
 

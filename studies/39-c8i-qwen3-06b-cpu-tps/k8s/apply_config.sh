@@ -89,7 +89,7 @@ while [ $((SECONDS - T0)) -lt "$ROLLOUT_S" ]; do
   SCHED=$(kubectl -n $NS get pod vllm-0 -o jsonpath='{.status.conditions[?(@.type=="PodScheduled")].reason}' 2>/dev/null)
   if [ "$SCHED" = Unschedulable ]; then
     UNSCHED_SINCE=${UNSCHED_SINCE:-$SECONDS}
-    if [ $((SECONDS - UNSCHED_SINCE)) -ge "${UNSCHED_S:-300}" ]; then
+    if [ $((SECONDS - UNSCHED_SINCE)) -ge "${UNSCHED_S:-900}" ]; then
       echo "error: vllm-0 unschedulable for $((SECONDS - UNSCHED_SINCE)) s: $(kubectl -n $NS get pod vllm-0 -o jsonpath='{.status.conditions[?(@.type=="PodScheduled")].message}' 2>/dev/null)" >&2
       ROLLOUT_EXIT=4; break
     fi

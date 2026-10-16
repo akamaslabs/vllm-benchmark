@@ -12,10 +12,16 @@
 # Settings a launch template forbids on create-nodegroup move into it: the disk
 # (BlockDeviceMappings, instead of --disk-size). The instance type stays on the node group.
 #
-# Single subnet: the PRIVATE us-east-2b subnet (the one system-2b uses; egress via the 2b
-# NAT gateway, no public IP). One AZ so an EBS volume bound by the vLLM pod (if k8s/ gives
-# it one) is in the same AZ at every --up. c8i.12xlarge is offered in all three AZs:
-# override with SUBNET_TAG=... if 2b has no capacity (then delete any EBS PVC of the pod).
+# Capacity: SPOT by default (decided 2026-10-16): c8i.12xlarge spot was 0.68-0.81 $/h in
+# us-east-2 against 2.25 $/h on demand; spot placement score 3/10 in 2b and 2c, 1/10 in 2a.
+# An interruption kills the running trial (a failed experiment; a failed baseline puts the
+# study in ERROR) and the ASG brings a replacement node up, which apply_config.sh waits for
+# (UNSCHED_S). CAPACITY_TYPE=ON_DEMAND switches back, but a managed node group's capacity type
+# is fixed at creation: delete the node group first (--down, then aws eks delete-nodegroup).
+#
+# Subnets: the PRIVATE us-east-2b and us-east-2c subnets (egress via the cluster's NAT, no
+# public IP); two AZs give spot two capacity pools. The vLLM pod uses hostPath caches only,
+# so no EBS volume ties it to an AZ. Override with SUBNET_TAGS="tag1 tag2".
 #
 # Created at desiredSize 0. Idempotent: re-running re-applies the taint and, if
 # nodeconfig.yaml changed, creates a new launch template version and rolls the node group
@@ -35,7 +41,8 @@ NG=${NG:-llm-serving-c8i}
 LT=${LT:-$NG}
 INSTANCE_TYPE=${INSTANCE_TYPE:-c8i.12xlarge}
 NODE_ROLE=llm-serving-cpu
-SUBNET_TAG=${SUBNET_TAG:-eksctl-${CLUSTER}-cluster/SubnetPrivateUSEAST2B}
+SUBNET_TAGS=${SUBNET_TAGS:-eksctl-${CLUSTER}-cluster/SubnetPrivateUSEAST2B eksctl-${CLUSTER}-cluster/SubnetPrivateUSEAST2C}
+CAPACITY_TYPE=${CAPACITY_TYPE:-SPOT}
 DISK_GB=${DISK_GB:-100}
 SIBLING_CHECK_IMAGE=${SIBLING_CHECK_IMAGE:-public.ecr.aws/docker/library/busybox:1.36}
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -152,15 +159,19 @@ else
   # Same instance role as the cluster's other node groups.
   ROLE=$(aws eks describe-nodegroup --cluster-name $CLUSTER --region $REGION --nodegroup-name akamas \
     --query 'nodegroup.nodeRole' --output text)
-  SUBNET=$(aws ec2 describe-subnets --region $REGION --filters "Name=tag:Name,Values=$SUBNET_TAG" \
-    --query 'Subnets[0].SubnetId' --output text)
-  if [ -z "$SUBNET" ] || [ "$SUBNET" = None ]; then
-    echo "no subnet tagged Name=$SUBNET_TAG" >&2; exit 1
-  fi
+  SUBNETS=()
+  for tag in $SUBNET_TAGS; do
+    sn=$(aws ec2 describe-subnets --region $REGION --filters "Name=tag:Name,Values=$tag" \
+      --query 'Subnets[0].SubnetId' --output text)
+    if [ -z "$sn" ] || [ "$sn" = None ]; then
+      echo "no subnet tagged Name=$tag" >&2; exit 1
+    fi
+    SUBNETS+=("$sn")
+  done
   aws eks create-nodegroup --cluster-name $CLUSTER --region $REGION --nodegroup-name "$NG" \
-    --node-role "$ROLE" --subnets "$SUBNET" \
+    --node-role "$ROLE" --subnets "${SUBNETS[@]}" \
     --scaling-config minSize=0,maxSize=1,desiredSize=0 \
-    --instance-types "$INSTANCE_TYPE" --capacity-type ON_DEMAND \
+    --instance-types "$INSTANCE_TYPE" --capacity-type "$CAPACITY_TYPE" \
     --ami-type AL2023_x86_64_STANDARD \
     --launch-template "name=$LT,version=$LT_VERSION" \
     --labels node-role=$NODE_ROLE \

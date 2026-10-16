@@ -24,20 +24,18 @@ The cluster itself, its `system-2b` (label `node-role=system-m8a`, where the AIP
 | Setting | Value |
 |---|---|
 | Name | `llm-serving-c8i` |
-| Instance | one c8i.12xlarge: Xeon 6 Granite Rapids with AMX, 48 vCPU = 24 cores x 2 threads, 96 GiB, about 2.25 USD/h On-Demand |
+| Instance | one c8i.12xlarge: Xeon 6 Granite Rapids with AMX, 48 vCPU = 24 cores x 2 threads, 96 GiB; **Spot** (decided 2026-10-16): 0.68-0.81 USD/h in us-east-2 on that day against 2.25 USD/h On-Demand |
 | Scaling | min 0 / desired 0 / max 1 |
 | AMI | AMI type `AL2023_x86_64_STANDARD` |
 | Label | `node-role=llm-serving-cpu` (it differs from the node-group name, per the study contract) |
 | Taint | `workload=cpu-inference:NoSchedule` |
 | Disk | 100 GB gp3, encrypted, set in the launch template |
-| Subnet | one subnet only: the private us-east-2b subnet (`eksctl-vllm-bench-cluster/SubnetPrivateUSEAST2B`, the subnet `system-2b` uses), with egress via the 2b NAT gateway |
+| Capacity | `SPOT` (`CAPACITY_TYPE=ON_DEMAND` to switch; a managed node group's capacity type is fixed at creation, so switching means deleting the node group) |
+| Subnets | the private us-east-2b and us-east-2c subnets (`eksctl-vllm-bench-cluster/SubnetPrivateUSEAST2B` / `...2C`), egress via the cluster's NAT; override with `SUBNET_TAGS` |
 
-**Why one subnet.** An EBS volume bound by the vLLM pod stays in one AZ. With one subnet, that AZ matches the node at every `--up`. Study 30 used three public subnets.
+**Why spot, and what an interruption costs.** On 2026-10-16 the spot placement score for one c8i.12xlarge was 3/10 in 2b and 2c and 1/10 in 2a (`aws ec2 get-spot-placement-scores`), so interruptions are expected now and then over a multi-day study. With 2 minutes' notice the node goes away: the running trial fails (it counts against `maxFailedExperiments` 20; a failed **baseline** puts the study in ERROR, delete and recreate it). The ASG keeps desiredSize 1 and starts a replacement node; `k8s/apply_config.sh` waits up to `UNSCHED_S` (900 s) for it before failing the next trial. If interruptions become frequent, recreate the node group On-Demand.
 
-If 2b has no c8i capacity, re-create the node group in another AZ:
-
-- run with `SUBNET_TAG=eksctl-vllm-bench-cluster/SubnetPrivateUSEAST2A` (or 2C);
-- delete any EBS-backed PVC the vLLM pod uses, because it is in 2b.
+**Why two AZs.** Two spot capacity pools. The vLLM pod uses hostPath caches only, so no EBS volume ties it to an AZ (the PVCs in `k8s/00-pvc.yaml` / `06-hf-cache-pvc.yaml` belong to the AIPerf Job on the system node).
 
 The instance type of a managed node group cannot be changed. Another size gets its own node group: `NG=llm-serving-c8i-8xl INSTANCE_TYPE=c8i.8xlarge ./eks/cpu-nodegroup.sh`. The label stays the same, so do not run two such node groups at the same time.
 
@@ -92,10 +90,10 @@ Never switch an existing node to this policy by hand.
 
 - Tools: `aws` (profile `lab`, account 916205288457), `kubectl`, and `jq` (optional, makes the `--up` checks easier to read).
 - The workstation's default AWS profile points at another account. Always use `AWS_PROFILE=lab` (the scripts default to it) or `--profile lab`.
-- **Quota:** c8i counts against the standard On-Demand vCPU quota ("Running On-Demand Standard (A, C, D, H, I, M, R, T, Z) instances", L-1216C47A). That quota is separate from the G-instance quota of 64 vCPU that held back the GPU studies. In us-east-2 it is 640 vCPU, so 48 more fits. To check:
+- **Quota:** on spot, c8i counts against "All Standard (A, C, D, H, I, M, R, T, Z) Spot Instance Requests" (L-34B43A08, 640 vCPU in us-east-2 on 2026-10-16); On-Demand against L-1216C47A (640 vCPU). Both are separate from the G-instance quota of 64 vCPU that held back the GPU studies. To check:
 
   ```bash
-  aws service-quotas get-service-quota --service-code ec2 --quota-code L-1216C47A --region us-east-2 --profile lab
+  aws service-quotas get-service-quota --service-code ec2 --quota-code L-34B43A08 --region us-east-2 --profile lab
   ```
 
 - **Nightly stop:** a Lambda stops every EC2 instance without the tag `AlwaysOn=true` at 17:00 UTC. Use `--always-on` before any run that goes past that time.

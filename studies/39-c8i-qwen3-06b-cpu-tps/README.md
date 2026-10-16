@@ -55,7 +55,7 @@ repo on a CPU node and on a vLLM CPU image: every earlier study ran on NVIDIA GP
   (Qwen3-1.7B is). Weights: about 1.5 GB of bf16 safetensors (to confirm in the probe log).
 - **Cluster / hardware:** shared EKS cluster `vllm-bench` (us-east-2), new managed node
   group **`llm-serving-c8i`**: one **c8i.12xlarge** (Intel Xeon 6 Granite Rapids, AMX, 48
-  vCPU / 24 cores, 96 GiB, 2.249 USD/h on demand), AL2023, min 0 / desired 0 / max 1,
+  vCPU / 24 cores, 96 GiB; **spot**, 0.68-0.81 USD/h on 2026-10-16 vs 2.249 on demand, private subnets 2b + 2c), AL2023, min 0 / desired 0 / max 1,
   label `node-role=llm-serving-cpu`, taint `workload=cpu-inference:NoSchedule`, kubelet
   `cpuManagerPolicy: static` and `topologyManagerPolicy: single-numa-node`, system CPUs
   reserved, AlwaysOn tagging for the nightly EC2 stop. The NUMA layout is not exposed by

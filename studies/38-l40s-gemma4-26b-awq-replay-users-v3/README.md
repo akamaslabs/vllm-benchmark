@@ -1,6 +1,6 @@
 # 38-l40s-gemma4-26b-awq-replay-users-v3
 
-**Status:** DESIGNED (2026-10-15).
+**Status:** STOPPED (2026-10-16 ~10:45 UTC, by the user, after 26 experiments: 4 presets + 22 optimizer; exp. 27 aborted). Gatling GPU node group scaled to 0, AlwaysOn tags removed.
 **Dates:** scaffolded 2026-10-15 from study 35's folder (Gatling plumbing) with study 36's script
 fixes and study 37's study manifest.
 
@@ -89,8 +89,43 @@ users rendered (+20 %): the simulation uses 200 sessions over 3000 s.
 
 ## Results
 
-<Filled in by the study-recap skill once the study finishes.>
+Raw data: `results/export.tar.gz`, `results/trials.csv` (Akamas score, recomputed score,
+first-breach score: recomputed = Akamas on all 26 runs). Started 2026-10-15 09:34 UTC; ~45-60 min
+per experiment (35: 75-90).
+
+**Akamas score = first-breach score in all 26 runs**: with one user every 15 s the e2e median
+never came back under 3 s once over it, so the valleys of studies 35/36 are gone.
+
+| Experiment | Users | vs baseline | Configuration |
+|---|---|---|---|
+| baseline (1) | 82.8 | | the compose |
+| `kv fp8` (2) | 107.8 | +30 % | fp8 KV only |
+| `kv fp8 mtp3` (3) | 109.2 | +32 % | + MTP K=3 |
+| **`study 35 best` (4)** | **126.0** | **+52 %** | fp8 KV, MTP K=1, 179 seqs, 2496 batched, gmu 0.90, block 32, Humming linear, async off, O2, stream 11 |
+| **9 (optimizer)** | **126.0** | **+52 %** | as 4 with 242 seqs, Humming MoE, fp8 activations, stream 13 |
+| 5 | 122.8 | +48 % | fp8 KV, MTP K=4, 163 seqs, 6763 batched, block 48, Humming, throughput, fp8 activations |
+| 18 | 121.0 | +46 % | as 4 with 187 seqs, block 64, async on, fp8 activations |
+| 15 | 120.0 | +45 % | fp8 KV, MTP K=3, 219 seqs, 11541 batched, block 96, kernels auto, throughput |
+| 25 | 115.0 | +39 % | **near-copy of 4** (208 seqs, capture 292, stream 12) |
+| 21 / 23 | 111.0 / 112.2 | | as 4 with block 112 + fp8 act. / kernels swapped |
+| 10 | 58.5 | -29 % | `max_num_seqs` 16 |
+
+- Optimizer experiments 5-26: 58.5-126, 19 of 22 between 101 and 123; none above the
+  `study 35 best` preset in 22 experiments. No configuration without MTP above 108 (exp. 19: 101).
 
 ## Conclusions
 
-<Filled in by the study-recap skill once the study finishes.>
+- **The 15 s/user ramp removed the load's valleys** (Akamas = first breach in 26 of 26) and halved
+  the time per experiment. The scores run higher than under the 30 s/user ramp (baseline 82.8
+  against ~72): the 150 s median trails the load by more users and more sessions are young. Compare
+  configurations within one ramp, not across.
+- **It did not remove the run-to-run noise:** a near-copy of the best configuration (exp. 25) scored
+  115 against 126; with exps. 21/23 (small changes) at 111-112 the spread of one run is ~+-6 %.
+  The good region (fp8 KV + MTP, ~150-250 seqs, small batched tokens) holds 115-126 users and the
+  optimizer cannot rank inside it with one run each.
+- **Same levers as studies 35/36:** fp8 KV +30 %; MTP plus the batch/kernel settings of
+  `study 35 best` to +52 %; fp8 activations with no visible gain (exp. 9 = exp. 4).
+- **Next:** repeat the baseline and the top 3-4 configurations (4, 9, 5, 15) twice each to measure
+  the noise and pick the winner (proposed, not run); for the customer study (37), plan repeats of
+  its top configurations at the end. Specific to: AWQ Gemma 4 26B-A4B, one L40S, the customer's
+  10-session template, AIPerf 0.11.0 closed-loop replay.

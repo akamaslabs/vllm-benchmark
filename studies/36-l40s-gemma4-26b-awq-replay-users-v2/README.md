@@ -1,6 +1,6 @@
 # 36-l40s-gemma4-26b-awq-replay-users-v2
 
-**Status:** RUNNING on Akamas 4.1 (`36-L40S-Gemma4-AWQ-Replay-Users-v2`, started 2026-10-14 07:45 UTC).
+**Status:** STOPPED (2026-10-15 ~09:00 UTC, by the user, after 20 experiments; exp. 21 aborted). Continued as study 38 on Gatling.
 **Dates:** scaffolded 2026-10-14 as a copy of study 35, on the GPU freed by study 34.
 
 ## Objective
@@ -90,8 +90,31 @@ accepted by the vllm-bench API server (dry run).
 
 ## Results
 
-<Filled in by the study-recap skill once the study finishes.>
+Raw data: `results/export.tar.gz`, `results/trials.csv` (as study 35's: Akamas score, recomputed
+score, first-breach score; recomputed = Akamas on all 20), `results/aiperf-records/` (local only).
+Read on the first-breach score (study 35's results).
+
+| Experiment | Akamas | First breach |
+|---|---|---|
+| baseline x2 (1-2) | 68.5 / 71.5 | 60.5 / 71.5 |
+| `kv fp8 mtp3` (3) | 104.5 | 89.5 |
+| `study 32 best` (4) | 104.5 | **104.5 (+58 % on 66)** |
+| `study 35 best` (5) | 119.5 | 92.5 |
+| `kv fp8 act fp8` (6) | 89.5 | 89.5 |
+| `study 32 best act fp8` (7) | 109.5 | 93.5 |
+| `study 35 best act fp8` (8) | 103.5 | 93.5 |
+| optimizer 9-20 | 60.5-104.5 | 60.5-95.5 (best: 11, 95.5; 19, 93.5) |
+
+- Exp. 5's 119.5 came from a valley at 117-122 users after ~20 users over 3 s.
+- The optimizer spent 4 of its 12 experiments at `max_num_seqs` 16-30 (60-77 users) and 4 at
+  `gpu_memory_utilization` 0.80.
 
 ## Conclusions
 
-<Filled in by the study-recap skill once the study finishes.>
+- **fp8 activations (W4A8-FP8 via `wna16_activation_dtype`) gave no visible gain**: 89-94 first
+  breach with them against 90-104 without, in the same presets.
+- The node's level (baselines 66 on average) was close to study 35's on Gatling (72); the same
+  presets ranked differently on the two nodes (`study 35 best` 106.5 there, 92.5 here), in line
+  with the +-7 % spread of one run.
+- 12 optimizer experiments were not enough to leave the domain's edges; the study was stopped for
+  study 38 rather than for convergence.

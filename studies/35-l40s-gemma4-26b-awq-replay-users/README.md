@@ -1,6 +1,6 @@
 # 35-l40s-gemma4-26b-awq-replay-users
 
-**Status:** RUNNING on Akamas 4.1 (`35-L40S-Gemma4-AWQ-Replay-Users`, started 2026-10-13 14:18 UTC).
+**Status:** STOPPED (2026-10-15 ~09:00 UTC, by the user, after 30 experiments; exp. 11 deleted, exp. 23 ERROR, exp. 31 aborted). Continued as study 38.
 **Dates:** scaffolded 2026-10-13 from study 34 (Quartuccio's design, left untouched).
 
 ## Objective
@@ -249,8 +249,44 @@ on the AIPerf pack's fixture (columns = the telemetry's metrics, stale records r
 
 ## Results
 
-<Filled in by the study-recap skill once the study finishes.>
+Raw data: `results/export.tar.gz` (Akamas export), `results/trials.csv` (each experiment's
+configuration, Akamas score, the score recomputed from the AIPerf CSV and the **first-breach**
+score = users before the first 3-min window over 3 s), `results/aiperf-records/` (per-request
+records, local only). The recomputed score matches Akamas's on all 29 scored runs.
+
+**Read on the first-breach score:** Akamas's windowing scores the valid window with the most users
+anywhere in the ramp, and the load had periodic valleys (running notes, 2026-10-15), so Akamas's
+numbers overstate several runs (exps. 25-27: 120.5 / 119.5 / 123.5 Akamas, 93.5 / 107.5 / 108.5
+first breach).
+
+| Experiment | Akamas | First breach | Configuration |
+|---|---|---|---|
+| baseline x3 (1-3) | 72.5 / 72.5 / 71.5 | 72.5 / 72.5 / 71.5 | the compose |
+| `kv fp8` (4) | 90.0 | 90.0 (+25 %) | fp8 KV only |
+| `kv fp8 mtp3` (6) | 103.5 | 103.5 (+43 %) | + MTP K=3 |
+| 28 (optimizer) | 121.5 | **121.5 (+68 %)** | fp8 KV, MTP K=3, 512 seqs, 16384 batched, gmu 0.94, block 96, Humming linear + MoE, async off, O1, stream 2 |
+| 27 (same config as 28) | 123.5 | 108.5 | identical to 28 |
+| 18 | 108.5 | 108.5 | fp8 KV, MTP K=3, 512 seqs, 4201 batched, block 48, Humming, lpt 791 |
+| 22 | 107.5 | 107.5 | fp8 KV, MTP K=3, 512 seqs, 5152 batched, block 112, kernels auto, lpt 1047 |
+| 10 | 106.5 | 106.5 | fp8 KV, MTP K=1, 179 seqs, 2496 batched, block 32, Humming linear (`study 35 best` in 36/37/38) |
+
+- **Binding constraint:** the e2e median <= 3 s in every run (the goal is the users at that limit).
+- **Noise:** identical configurations 27 and 28 differ by 13 users on the first breach (108.5 /
+  121.5); exp. 23 (a failed apply that replayed exp. 22's configuration) 104.5 against 107.5.
+- **Always lost:** `max_num_seqs` 16-32 (46.5, 58.5); KV `auto` with MTP (74 first breach).
 
 ## Conclusions
 
-<Filled in by the study-recap skill once the study finishes.>
+- **fp8 KV cache (+25 %) and MTP on top of it (to +43 %) are the levers**; beyond them every good
+  configuration (fp8 KV + MTP, 93-121 users) sits inside one run's spread (+-7 %): a single run
+  cannot rank them. Without fp8 KV, MTP gains little (74).
+- **The load's shape, not the configuration, drove part of the score:** 10 template sessions
+  replayed k mod 10 under a 30 s/user ramp made the offered load dip 5-10 % at the same user counts
+  in every run, and `when: max` windowing scored runs at those dips. Fixed in study 38 by a
+  15 s/user ramp (a whole cycle per 150 s window).
+- **`long_prefill_token_threshold`:** its losses were confounded with other changes (exp. 18 with a
+  791 cap is among the best); left out of later studies for its domain shape (0 = off at the edge).
+- **Workflow:** Akamas 4.1 ran RunTest after a failed critical Apply config (exp. 23, "Couldn't
+  skip tasks"); a renderer bug (scientific notation) caused the failure, fixed.
+- Specific to this stack: the AWQ W4A16 Gemma 4 26B-A4B on one L40S, the customer's 10-session
+  template rendered in Italian, AIPerf 0.11.0 closed-loop replay.

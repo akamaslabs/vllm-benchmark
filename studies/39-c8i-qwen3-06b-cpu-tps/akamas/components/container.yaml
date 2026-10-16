@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_39_C8i_Qwen3_06B_CPU_TPS
+
+name: container
+description: >-
+  The vLLM container of pod vllm-0 (namespace llm-cpu): Guaranteed QoS, 44 vCPUs (22 physical
+  cores, both SMT siblings, exclusive cpuset from the static CPU manager) and 48 GiB, fixed.
+  Not tuned in this study; CPU saturation, throttling and memory headroom are read here.
+componentType: Kubernetes Container
+properties:
+  prometheus:
+    pod: ^vllm-0$

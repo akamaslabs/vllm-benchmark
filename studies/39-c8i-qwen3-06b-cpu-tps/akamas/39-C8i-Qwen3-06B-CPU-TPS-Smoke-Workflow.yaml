@@ -1,0 +1,53 @@
+kind: workflow
+name: 39-C8i-Qwen3-06B-CPU-TPS-Smoke-Workflow
+# The smoke run: the same pipeline with a steep ramp, 0 -> 40 req/s over 900 s, to check every task end to end and to locate the baseline's knee, which sets the main workflow's RT_RATE / RT_RAMP_S.
+# All tasks run on the toolbox host over SSH with the toolbox's own key
+# (/home/akamas/.ssh/id_rsa, mounted from the toolbox-keys secret; the path must exist on
+# the toolbox when `akamas create workflow` runs, so run it from the toolbox). Akamas 4.1 has
+# no `update workflow`: a change means delete and recreate.
+tasks:
+  # The parameters are rendered into an env file, not into a manifest: render_statefulset.sh
+  # validates them and writes the vLLM flags (booleans as --x / --no-x). ignoreUnsubstitutedTokens
+  # false: every token must resolve.
+  - name: Write config
+    operator: FileConfigurator
+    arguments:
+      ignoreUnsubstitutedTokens: false
+      source:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/vllm-benchmark/studies/39-c8i-qwen3-06b-cpu-tps/k8s/params.env.template
+      target:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/vllm-benchmark/studies/39-c8i-qwen3-06b-cpu-tps/k8s/params.env
+  - name: Apply config
+    operator: Executor
+    arguments:
+      retries: 0
+      # apply_config.sh's rollout wait (cold node: image pull + model download + CPU
+      # torch.compile warm-up, VLLM_ENGINE_READY_TIMEOUT_S=1800) plus the warm-up and log dump:
+      # worst case ~4100 s plus the logs (budget in apply_config.sh, next to ROLLOUT_S).
+      timeout: 75m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/vllm-benchmark/studies/39-c8i-qwen3-06b-cpu-tps/k8s/apply_config.sh
+  - name: RunTest
+    operator: Executor
+    arguments:
+      retries: 0
+      # First trial: also pays the image pull and the AIPerf pip install; wider guards than the
+      # defaults (as smoke/smoke_manual.sh): first completion 2400 s, stall 1500 s, deadline
+      # RT_RAMP_S + 2400 = 3300 s, below the timeout with room for the log dump. Before
+      # `akamas create workflow`, set RT_RATE / RT_RAMP_S (and RT_DEADLINE_S = RT_RAMP_S + 2400)
+      # from the probe's proposal (probe/results/summary.txt).
+      timeout: 70m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: RT_RATE=40 RT_RAMP_S=900 RT_FIRST_OK_S=2400 RT_STALL_S=1500 RT_DEADLINE_S=3300 bash /work/vllm-benchmark/studies/39-c8i-qwen3-06b-cpu-tps/k8s/run_test.sh

@@ -1,0 +1,10 @@
+kind: system
+
+name: vLLM_Benchmark_39_C8i_Qwen3_06B_CPU_TPS
+description: >-
+  Study 39: vLLM CPU-backend configuration tuning of Qwen/Qwen3-0.6B (bf16, thinking off,
+  vllm/vllm-openai-cpu:v0.31.0, served as qwen3-06b) on one c8i.12xlarge (Xeon 6 Granite
+  Rapids with AMX, 48 vCPU / 24 cores, 96 GiB; node group llm-serving-c8i, pod pinned to 44
+  vCPUs / 48 GiB by the static CPU manager). No GPU. Goal: total tokens/s under TTFT p95 <= 3 s
+  and TPOT p95 <= 100 ms, with an open-loop AIPerf rate ramp of multi-turn sessions sharing
+  a pool of prompt prefixes. Requires vLLM pack 1.14.0 and the Kubernetes pack. Created 2026-10-16.

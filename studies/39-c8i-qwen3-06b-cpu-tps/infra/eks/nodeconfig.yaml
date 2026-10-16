@@ -1,0 +1,38 @@
+# nodeadm NodeConfig part for the llm-serving-c8i launch template (AL2023, EKS-managed AMI).
+#
+# cpu-nodegroup.sh wraps this file into a MIME multipart part with
+# `Content-Type: application/node.eks.aws` and puts it in the launch template's user data.
+# The launch template has NO ImageId, so EKS appends its own NodeConfig (cluster endpoint,
+# CA, service CIDR, clusterDNS, maxPods, kubeReserved, --node-labels, --register-with-taints)
+# after this part and nodeadm merges the two. Only kubelet keys EKS does not set go here.
+# Docs: https://docs.aws.amazon.com/eks/latest/userguide/launch-templates.html
+#       https://awslabs.github.io/amazon-eks-ami/nodeadm/doc/examples/
+#
+# A malformed part is ignored silently (the node joins with the default kubelet config):
+# after `cpu-nodegroup.sh --up`, the script reads the live kubelet config back via configz.
+---
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  kubelet:
+    config:
+      # Exclusive cpusets for Guaranteed pods with integer CPU requests. vLLM's CPU
+      # auto-binding (VLLM_CPU_OMP_THREADS_BIND=auto) reads sched_getaffinity, so without
+      # this the pod would see all 48 vCPUs and be throttled by the CFS quota.
+      cpuManagerPolicy: static
+      # Only whole physical cores (both SMT siblings) are handed to a container; a request
+      # that is not a multiple of 2 is rejected (SMTAlignmentError) instead of splitting a
+      # core. The vLLM pod requests 44 = 22 cores. A guardrail: 44 is already whole cores.
+      cpuManagerPolicyOptions:
+        full-pcpus-only: "true"
+      # All of a pod's CPUs and memory from one NUMA node. c8i.12xlarge is expected to be
+      # a single NUMA node (then this is a no-op); if lscpu shows 2 (sub-NUMA clustering),
+      # a 44-CPU pod fails admission with TopologyAffinityError (see infra/README.md).
+      topologyManagerPolicy: single-numa-node
+      # Kept off the pods' exclusive pool: kubelet, containerd, the DaemonSets.
+      # ASSUMPTION: Nitro Intel layout, vCPU n and n+24 are the two threads of core n
+      # (c8i.12xlarge: 24 cores x 2 threads), so "0,24" is physical core 0. Verified on
+      # the node by `cpu-nodegroup.sh --up` (thread_siblings_list of cpu0); if it differs,
+      # fix it here and re-run the script (new launch template version, node recycled).
+      # This set replaces the CPU part of kubeReserved/systemReserved that EKS computes.
+      reservedSystemCPUs: "0,24"

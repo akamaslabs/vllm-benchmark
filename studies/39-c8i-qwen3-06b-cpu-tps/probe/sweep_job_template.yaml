@@ -1,0 +1,94 @@
+# AIPerf rate sweep for the study 39 probe (calibration). Rendered by render_sweep_job.sh
+# (tokens WORKLOAD_ARGS, MEASURED_ENTRIES, WORKLOAD_SEED, WARMUP_ENTRIES, WARMUP_SEED, RATES,
+# STEP_S, STOP_TTFT_MS, STOP_TPOT_MS between at-signs). The same workload as the study's
+# Job (../k8s/lib_workload.sh), but at a few CONSTANT rates, one AIPerf run per rate in one
+# pod (pip once): each step prints "STEP START <rate> <epoch>" and "STEP_RESULT <rate>
+# <epoch> <one-line AIPerf summary JSON>", which probe.sh parses from the Job log. The sweep
+# stops early once a step's TTFT p95 or TPOT p95 (AIPerf's inter_token_latency, a
+# per-request TPOT) passes 2x the SLO: higher rates would only queue.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aiperf-cpu-sweep
+  namespace: llm-cpu
+  labels:
+    app: aiperf-cpu
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: aiperf-cpu
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node-role: system-m8a
+      containers:
+        - name: aiperf
+          image: python:3.12-slim
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              pip install --quiet aiperf==0.11.0
+              MODEL_NAME=qwen3-06b
+              TOKENIZER=Qwen/Qwen3-0.6B
+              URL=http://vllm-0.vllm-headless.llm-cpu.svc.cluster.local:8000
+              OUT=/benchmarks/study39-sweep-$(date +%s)
+              mkdir -p "$OUT"
+              echo "$(date -u +%T) warm-up: 60 s at concurrency 4 (discarded)"
+              aiperf profile --model "$MODEL_NAME" --tokenizer "$TOKENIZER" --url "$URL" \
+                @WORKLOAD_ARGS@ \
+                --num-dataset-entries @WARMUP_ENTRIES@ --random-seed @WARMUP_SEED@ \
+                --concurrency 4 --benchmark-duration 60 --ui simple \
+                --output-artifact-dir /tmp/warmup > /tmp/warmup.log 2>&1 \
+                || { tail -50 /tmp/warmup.log; exit 1; }
+              # A new seed per step: the synthetic dataset is sampled sequentially, so a
+              # fixed seed would replay the previous step's sessions into a warm prefix cache.
+              I=0
+              for R in @RATES@; do
+                I=$((I + 1))
+                echo "STEP START $R $(date +%s)"
+                set +e
+                aiperf profile --model "$MODEL_NAME" --tokenizer "$TOKENIZER" --url "$URL" \
+                  @WORKLOAD_ARGS@ \
+                  --num-dataset-entries @MEASURED_ENTRIES@ --random-seed $((@WORKLOAD_SEED@ + 100 * I)) \
+                  --request-rate "$R" --arrival-pattern gamma --arrival-smoothness 4 \
+                  --benchmark-duration @STEP_S@ --benchmark-grace-period 30 \
+                  --ui simple --output-artifact-dir "$OUT/rate-$R" > "$OUT/rate-$R.log" 2>&1
+                RC=$?
+                set -e
+                [ $RC -eq 0 ] || { echo "STEP FAILED $R rc=$RC"; tail -20 "$OUT/rate-$R.log"; break; }
+                SUMMARY=$(python3 -c 'import json,sys; print(json.dumps(json.load(open(sys.argv[1])), separators=(",", ":")))' \
+                  "$OUT/rate-$R/profile_export_aiperf.json")
+                echo "STEP_RESULT $R $(date +%s) $SUMMARY"
+                if python3 - "$OUT/rate-$R/profile_export_aiperf.json" @STOP_TTFT_MS@ @STOP_TPOT_MS@ <<'PY'
+              import json, sys
+              j = json.load(open(sys.argv[1]))
+              tt = (j.get('time_to_first_token') or {}).get('p95') or 0
+              tp = (j.get('inter_token_latency') or {}).get('p95') or 0
+              sys.exit(0 if tt > float(sys.argv[2]) or tp > float(sys.argv[3]) else 1)
+              PY
+                then echo "STEP STOP: $R req/s is past 2x the SLO, no higher rate"; break; fi
+                sleep 20
+              done
+              echo "SWEEP DONE"
+          env:
+            - name: HF_HOME
+              value: /hf-cache
+          resources:
+            requests:
+              cpu: 2000m
+              memory: 3Gi
+          volumeMounts:
+            - name: results
+              mountPath: /benchmarks
+            - name: hf-cache
+              mountPath: /hf-cache
+      volumes:
+        - name: results
+          persistentVolumeClaim:
+            claimName: aiperf-results
+        - name: hf-cache
+          persistentVolumeClaim:
+            claimName: hf-cache

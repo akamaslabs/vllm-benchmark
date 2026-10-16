@@ -13,7 +13,7 @@ Every script is idempotent.
 | Path | What it does |
 |---|---|
 | `eks/cpu-nodegroup.sh` | Creates or reconciles node group `llm-serving-c8i` and its launch template. `--up` scales it to 1, waits for the node, then checks the live kubelet config and the CPU topology. `--always-on` tags the ASG and the instance so the 17:00 UTC stop Lambda skips them. `--down` scales to 0 and removes the tag. |
-| `eks/nodeconfig.yaml` | The nodeadm `NodeConfig` that holds the kubelet settings: static CPU manager, `single-numa-node` topology manager, `reservedSystemCPUs`. The script wraps it into the launch template's user data. |
+| `eks/nodeconfig.yaml` | The nodeadm `NodeConfig` that holds the kubelet settings: static CPU manager, `single-numa-node` topology manager, `systemReserved` cpu 1810m (2 reserved CPUs with EKS's kubeReserved). The script wraps it into the launch template's user data. |
 | `provision.sh` | Checks the shared cluster and its StorageClasses, then applies the namespace, the node group (via the script above) and `../k8s/` (`00-pvc.yaml`, `02-service.yaml`, optionally `06-hf-cache-pvc.yaml`, and `monitoring/servicemonitor.yaml`). |
 | `k8s-bootstrap/00-namespaces.yaml` | Namespace `llm-cpu`. |
 
@@ -54,11 +54,11 @@ The instance type of a managed node group cannot be changed. Another size gets i
 
    ```bash
    kubectl get --raw /api/v1/nodes/<node>/proxy/configz \
-     | jq '.kubeletconfig | {cpuManagerPolicy,topologyManagerPolicy,reservedSystemCPUs}'
+     | jq '.kubeletconfig | {cpuManagerPolicy,topologyManagerPolicy,kubeReserved,systemReserved}'
    ```
 
    The script stops with an error if `cpuManagerPolicy` is not `static`. If configz cannot be read, it only warns: the allocatable CPU it prints is the fallback check (46 means the NodeConfig was applied, about `47810m` means it was not). The checks run after the `--always-on` tagging, so a failed check never leaves a running node untagged.
-7. **How to change the config.** Edit `eks/nodeconfig.yaml` and re-run the script. It creates a new launch template version and runs `aws eks update-nodegroup-version`. At desiredSize 0 this only changes the template. At 1 it replaces the node.
+7. **How to change the config.** Edit `eks/nodeconfig.yaml` and re-run the script. It creates a new launch template version and runs `aws eks update-nodegroup-version`. At desiredSize 0 this only changes the template. At 1 it should replace the node, but on 2026-10-16 a node that had never joined the cluster kept running on the old version after a "Successful" update: check `eks.amazonaws.com/sourceLaunchTemplateVersion` on the node, and if it is stale replace the instance with `aws autoscaling terminate-instance-in-auto-scaling-group --instance-id <id> --no-should-decrement-desired-capacity`.
 
 ### Kubelet settings and why
 
@@ -67,11 +67,11 @@ The instance type of a managed node group cannot be changed. Another size gets i
   - Thread count: vLLM's x86 auto-binding uses one thread per physical core, the higher-numbered sibling. So the 44-CPU cpuset becomes about 22 OMP threads, minus `VLLM_CPU_NUM_OF_RESERVED_CPU`.
 - **`topologyManagerPolicy: single-numa-node`.** All of a pod's CPUs come from one NUMA node. c8i.12xlarge is expected to have a single NUMA node, in which case this setting has no effect. The EC2 API does not report the NUMA layout, so `--up` prints it.
   - If the node shows 2 NUMA nodes (sub-NUMA clustering), the 44-CPU pod fails admission with `TopologyAffinityError`. Fix: lower the pod to at most one NUMA node's cores, or drop the topology policy in `nodeconfig.yaml` and re-run.
-- **`reservedSystemCPUs: "0,24"`.** These two vCPUs are kept for the kubelet, containerd and the DaemonSets, and are never given to pods.
-  - **Assumption:** on Intel Nitro instances, Linux lists the first thread of every core, then the second, so vCPU n and n+24 share core n on a 24-core instance. "0,24" is then all of core 0, which `full-pcpus-only` requires. AWS's [CPU options table](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/cpu-options-supported-instances-values.html) confirms 24 cores x 2 threads, but no AWS page gives the vCPU numbering. We have not verified it on a c8i node yet.
-  - **Check:** `--up` prints `/sys/devices/system/cpu/cpu0/topology/thread_siblings_list` from a short pod on the node, and warns if it is not `0,24`. The probe and smoke runs also dump `lscpu`.
-  - **If it differs:** fix the value and re-run, which creates one launch template version.
-- **Allocatable CPU.** When `reservedSystemCPUs` is set, the kubelet replaces the CPU part of the EKS-computed `kubeReserved` / `systemReserved` with the size of this set (it logs a message saying so). Allocatable CPU should then be 48 - 2 = 46, and `--up` prints it. Check it before relying on it.
+- **2 reserved CPUs = core 0 (cpus 0 and 24), via `systemReserved: {cpu: 1810m}`.** Kept for the kubelet, containerd and the DaemonSets, never given to pods.
+  - **Why not `reservedSystemCPUs: "0,24"`** (the first design): EKS's AL2023 kubelet config sets `kubeReservedCgroup: /runtime` and `systemReservedCgroup: /system`, and the kubelet refuses to start with `reservedSystemCPUs` next to either ("can't use reservedSystemCPUs (--reserved-cpus) with systemReservedCgroup ... or kubeReservedCgroup"; the first node, 2026-10-16, never joined).
+  - **How it works:** EKS computes `kubeReserved.cpu` = 190m on 48 vCPUs; 190m + 1810m = 2 CPUs exactly. The static policy reserves that many CPUs topology-aware, from the lowest whole core: core 0 = cpus 0 and 24.
+  - **Verified on the node (2026-10-16):** configz shows static + full-pcpus-only + single-numa-node, kubeReserved cpu 190m, systemReserved cpu 1810m; allocatable cpu 46; cpu0 siblings `0,24`, cpu1 `1,25`; 1 NUMA node (`lscpu`: 1 socket, 24 cores x 2 threads, NUMA node0 = 0-47); allocatable memory ~86 GiB (kubeReserved memory 6745Mi).
+  - **If EKS changes its 190m**, the sum is no longer an integer, the reservation rounds up to 3 CPUs and `--up` shows allocatable != 46 (the 44-CPU pod still fits at 45).
 
 ### The CPU manager state file
 

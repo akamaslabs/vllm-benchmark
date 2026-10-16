@@ -29,10 +29,15 @@ spec:
       # a single NUMA node (then this is a no-op); if lscpu shows 2 (sub-NUMA clustering),
       # a 44-CPU pod fails admission with TopologyAffinityError (see infra/README.md).
       topologyManagerPolicy: single-numa-node
-      # Kept off the pods' exclusive pool: kubelet, containerd, the DaemonSets.
-      # ASSUMPTION: Nitro Intel layout, vCPU n and n+24 are the two threads of core n
-      # (c8i.12xlarge: 24 cores x 2 threads), so "0,24" is physical core 0. Verified on
-      # the node by `cpu-nodegroup.sh --up` (thread_siblings_list of cpu0); if it differs,
-      # fix it here and re-run the script (new launch template version, node recycled).
-      # This set replaces the CPU part of kubeReserved/systemReserved that EKS computes.
-      reservedSystemCPUs: "0,24"
+      # CPUs kept off the pods' exclusive pool (kubelet, containerd, the DaemonSets).
+      # NOT reservedSystemCPUs: EKS's AL2023 kubelet config sets kubeReservedCgroup /runtime
+      # and systemReservedCgroup /system, and the kubelet refuses reservedSystemCPUs with
+      # either ("can't use reservedSystemCPUs ... with systemReservedCgroup or
+      # kubeReservedCgroup", seen on the first node 2026-10-16). Instead: EKS's kubeReserved
+      # cpu is 190m on 48 vCPUs, + 1810m here = exactly 2 CPUs, which the static policy
+      # reserves topology-aware from the lowest whole core, i.e. cpus 0 and 24 (core 0;
+      # siblings verified on the node: cpu0 thread_siblings_list = 0,24, 1 NUMA node).
+      # Allocatable CPU = 46. If EKS changes its 190m, the sum stops being an integer, the
+      # kubelet rounds the reservation up to 3 CPUs and `--up` shows allocatable != 46.
+      systemReserved:
+        cpu: 1810m

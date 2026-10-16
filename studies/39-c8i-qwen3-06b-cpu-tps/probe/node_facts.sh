@@ -22,7 +22,7 @@ fi
 section "SMT siblings"
 FIRST=$(sed -n 's/^Cpus_allowed_list:[[:space:]]*//p' /proc/self/status | cut -d, -f1 | cut -d- -f1)
 echo "cpu$FIRST (first CPU of this cpuset): siblings $(cat /sys/devices/system/cpu/cpu"$FIRST"/topology/thread_siblings_list 2>/dev/null)"
-echo "cpu0: siblings $(cat /sys/devices/system/cpu/cpu0/topology/thread_siblings_list 2>/dev/null) (reservedSystemCPUs should be this pair)"
+echo "cpu0: siblings $(cat /sys/devices/system/cpu/cpu0/topology/thread_siblings_list 2>/dev/null) (the 2 reserved CPUs should be this pair)"
 section "cpuset / affinity of this container"
 grep -E 'Cpus_allowed_list|Mems_allowed_list' /proc/self/status
 echo "cpuset.cpus.effective: $(cat /sys/fs/cgroup/cpuset.cpus.effective 2>/dev/null || echo n/a)"

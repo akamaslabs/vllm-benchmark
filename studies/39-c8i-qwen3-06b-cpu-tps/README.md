@@ -194,11 +194,11 @@ None of these blocks the study; each is fixed in the StatefulSet for now.
 
 1. **Confirm the packs:** `akamas login` in the `akamas-41` toolbox, then `akamas list
    optimization-pack` (vLLM 1.14.0, Kubernetes version).
-2. **Provision the node group** `llm-serving-c8i` (`infra/`): verify how the AL2023
-   managed node group passes the kubelet `cpuManagerPolicy` / `topologyManagerPolicy` /
-   `reservedSystemCPUs` (nodeadm NodeConfig), check the SMT sibling numbering on c8i before
-   picking the reserved CPUs, tag the node group and its ASG `AlwaysOn=true` before long
-   runs.
+2. **Provision the node group** `llm-serving-c8i` (`infra/`) — **DONE 2026-10-16**: spot
+   node in us-east-2b/2c, kubelet static CPU manager + full-pcpus-only + single-numa-node,
+   2 reserved CPUs via `systemReserved` (core 0; `reservedSystemCPUs` is refused next to
+   EKS's reserved cgroups), allocatable 46 CPU / ~86 GiB, 1 NUMA node, siblings n / n+24,
+   AlwaysOn tagged (`infra/README.md`).
 3. **Run the probe** (`probe/`): record `lscpu`, `numactl -H` (or `/sys` NUMA info), the
    vLLM-reported KV cache size (tokens and GiB) at the domain corners, the OMP binding
    lines from the vLLM log (how many OMP threads 44 static CPUs become), and that fp8 KV

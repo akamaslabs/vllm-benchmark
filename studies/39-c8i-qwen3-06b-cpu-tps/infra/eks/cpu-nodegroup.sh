@@ -5,7 +5,7 @@
 # 96 GiB), AL2023, label node-role=llm-serving-cpu, taint workload=cpu-inference:NoSchedule.
 #
 # Kubelet: cpuManagerPolicy static (+ full-pcpus-only), topologyManagerPolicy
-# single-numa-node, reservedSystemCPUs "0,24" (eks/nodeconfig.yaml). On an AL2023 managed
+# single-numa-node, 2 reserved CPUs (EKS kubeReserved 190m + systemReserved 1810m = core 0, eks/nodeconfig.yaml). On an AL2023 managed
 # node group the only way to set these is a nodeadm NodeConfig in the user data of a custom
 # launch template, so this script owns a launch template `llm-serving-c8i` (no ImageId:
 # EKS keeps choosing the AMI from --ami-type and appends its own NodeConfig to ours).
@@ -30,7 +30,7 @@
 # Usage: AWS_PROFILE=lab ./cpu-nodegroup.sh [--up] [--always-on] [--down]
 #   --up         sets desiredSize 1, waits for the node to be Ready, then verifies the live
 #                kubelet config (configz) and the SMT sibling / NUMA layout behind
-#                reservedSystemCPUs
+#                the 2 reserved CPUs
 #   --always-on  tags the node group's ASG AlwaysOn=true (PropagateAtLaunch) and its running
 #                instance, so the lab's 17:00 UTC stop Lambda leaves the node running
 #   --down       sets desiredSize 0 and removes the ASG's AlwaysOn tag
@@ -189,7 +189,7 @@ verify_node() {
   if [ -z "$cfg" ]; then
     echo "WARNING: configz not readable; judge by allocatable cpu below (46 = NodeConfig applied, ~47810m = not)" >&2
   elif command -v jq >/dev/null 2>&1; then
-    echo "$cfg" | jq '.kubeletconfig | {cpuManagerPolicy, cpuManagerPolicyOptions, topologyManagerPolicy, reservedSystemCPUs, kubeReserved, systemReserved}'
+    echo "$cfg" | jq '.kubeletconfig | {cpuManagerPolicy, cpuManagerPolicyOptions, topologyManagerPolicy, kubeReserved, systemReserved}'
     if [ "$(echo "$cfg" | jq -r '.kubeletconfig.cpuManagerPolicy')" != static ]; then
       echo "ERROR: cpuManagerPolicy is not static — the NodeConfig part was not applied" >&2; return 1
     fi
@@ -197,7 +197,7 @@ verify_node() {
     echo "$cfg" | tr ',' '\n' | grep -E 'cpuManagerPolicy|topologyManagerPolicy|reservedSystemCPUs|full-pcpus-only'
   fi
   echo "--- allocatable cpu: $(kubectl get node "$node" -o jsonpath='{.status.allocatable.cpu}') (expected 46)"
-  echo "--- SMT siblings / NUMA (reservedSystemCPUs \"0,24\" assumes cpu0 siblings = 0,24 and 1 NUMA node)"
+  echo "--- SMT siblings / NUMA (the 2 reserved CPUs are core 0 only if cpu0 siblings = 0,24; expected 1 NUMA node)"
   kubectl delete pod -n default cpu-topology-check --ignore-not-found >/dev/null
   kubectl run cpu-topology-check -n default --image="$SIBLING_CHECK_IMAGE" --restart=Never \
     --overrides="{\"spec\":{\"nodeName\":\"$node\",\"tolerations\":[{\"operator\":\"Exists\"}]}}" \
@@ -207,7 +207,7 @@ verify_node() {
   echo "$out"
   kubectl delete pod -n default cpu-topology-check --ignore-not-found >/dev/null
   if ! echo "$out" | grep -q '^cpu0 siblings: 0,24$'; then
-    echo "WARNING: cpu0's sibling set is not 0,24 — fix reservedSystemCPUs in eks/nodeconfig.yaml and re-run" >&2
+    echo "WARNING: cpu0's sibling set is not 0,24 — the reserved CPUs are not one whole core: revisit systemReserved in eks/nodeconfig.yaml" >&2
   fi
   if ! echo "$out" | grep -q '^NUMA nodes online: 0$'; then
     echo "WARNING: more than one NUMA node — a 44-CPU pod fails single-numa-node admission (infra/README.md)" >&2

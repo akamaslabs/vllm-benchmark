@@ -1,8 +1,9 @@
 # 39-c8i-qwen3-06b-cpu-tps
 
-**Status:** DESIGNED 2026-10-16 (files written, nothing provisioned, no Akamas resource
-created, no run yet).
-**Dates:** – (not started)
+**Status:** RUNNING (Akamas 4.1, main study started 2026-10-16 ~14:53 UTC). Smoke study
+(baseline only, 0 -> 4 req/s over 1200 s): 1 experiment, VALID, **5486 tokens/s**, 17 min;
+then deleted.
+**Dates:** 2026-10-16 → (running)
 
 ## Objective
 
@@ -199,9 +200,9 @@ None of these blocks the study; each is fixed in the StatefulSet for now.
    AlwaysOn tagged (`infra/README.md`).
 3. **Run the probe** (`probe/`) — **DONE 2026-10-16**, see "Probe results".
 4. **Smoke study** (`39-C8i-Qwen3-06B-CPU-TPS-Smoke`, baseline only, 0 -> 4 req/s over
-   1200 s): checks the whole pipeline in Akamas, scoring included, and the knee under a ramp.
-5. **Run the main study** `39-C8i-Qwen3-06B-CPU-TPS` once the probe and the smoke run are
-   reviewed.
+   1200 s) — **DONE 2026-10-16**: VALID, 5486 tokens/s (between the probe's 3117 at 1 req/s
+   and 5904 at 1.94 req/s, which broke TPOT); the pipeline works end to end in Akamas.
+5. **Run the main study** `39-C8i-Qwen3-06B-CPU-TPS` — **STARTED 2026-10-16**.
 
 ## Probe results (2026-10-16, `probe/results/summary.txt`)
 

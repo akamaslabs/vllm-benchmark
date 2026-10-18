@@ -412,7 +412,7 @@ of this backlog that isn't one of these two goals has moved to **Section F
 | 35 | [35-l40s-gemma4-26b-awq-replay-users](studies/35-l40s-gemma4-26b-awq-replay-users/README.md) | vLLM (single GPU, base configuration) + AIPerf (client side) | Customer PoC rehearsal (their AWQ Gemma 4 compose, their replay on Italian texts, users under e2e p50 <= 3 s), 17 parameters, 30 s/user ramp | STOPPED 2026-10-15 ([results](studies/35-l40s-gemma4-26b-awq-replay-users/README.md#results)): fp8 KV +25 %, + MTP +43 %, good configurations 93-121 users inside one run's +-7 %; scores inflated by periodic load valleys |
 | 36 | [36-l40s-gemma4-26b-awq-replay-users-v2](studies/36-l40s-gemma4-26b-awq-replay-users-v2/README.md) | vLLM (single GPU, base configuration) + AIPerf (client side) | Study 35 on the vllm-bench L40S, fp8 activations in, long_prefill_token_threshold out | STOPPED 2026-10-15 ([results](studies/36-l40s-gemma4-26b-awq-replay-users-v2/README.md#results)): fp8 activations no visible gain; best 104.5 first breach |
 | 38 | [38-l40s-gemma4-26b-awq-replay-users-v3](studies/38-l40s-gemma4-26b-awq-replay-users-v3/README.md) | vLLM (single GPU, base configuration) + AIPerf (client side) | Study 37's manifest (the customer study) unchanged, 15 s/user ramp | STOPPED 2026-10-16 ([results](studies/38-l40s-gemma4-26b-awq-replay-users-v3/README.md#results)): valleys gone (Akamas = first breach 26/26), baseline 82.8, best 126 (+52 %, `study 35 best` and exp. 9); near-copy of the best 115. Follow-up: repeats of the top configurations |
-| 39 | [39-c8i-qwen3-06b-cpu-tps](studies/39-c8i-qwen3-06b-cpu-tps/README.md) | vLLM (CPU backend, single node, base configuration) | **First CPU-inference study (designed 2026-10-16):** `Qwen/Qwen3-0.6B` bf16, thinking off, on vLLM 0.31.0's CPU image (`vllm/vllm-openai-cpu:v0.31.0`) on one c8i.12xlarge (Xeon 6, AMX; new node group `llm-serving-c8i`, static CPU manager); maximize total tokens/s under TTFT p95 <= 3 s / TPOT p95 <= 100 ms (vLLM Xeon SLOs), AIPerf 0.11.0 open-loop ramp on synthetic multi-turn sessions with shared prefixes; 7 parameters (chunked prefill fixed on, stream_interval fixed 1) incl. the KV budget (`gpu_memory_utilization`, a RAM fraction on CPU), fp8 KV, prefix caching, block size. KV offload to RAM dropped: the native OffloadingConnector refuses the CPU backend in 0.31.0 and the KV cache is already in RAM | RUNNING (Akamas 4.1, started 2026-10-16) |
+| 39 | [39-c8i-qwen3-06b-cpu-tps](studies/39-c8i-qwen3-06b-cpu-tps/README.md) | vLLM (CPU backend, single node, base configuration) | **First CPU-inference study (designed 2026-10-16):** `Qwen/Qwen3-0.6B` bf16, thinking off, on vLLM 0.31.0's CPU image (`vllm/vllm-openai-cpu:v0.31.0`) on one c8i.12xlarge (Xeon 6, AMX; new node group `llm-serving-c8i`, static CPU manager); maximize total tokens/s under TTFT p95 <= 3 s / TPOT p95 <= 100 ms (vLLM Xeon SLOs), AIPerf 0.11.0 open-loop ramp on synthetic multi-turn sessions with shared prefixes; 7 parameters (chunked prefill fixed on, stream_interval fixed 1) incl. the KV budget (`gpu_memory_utilization`, a RAM fraction on CPU), fp8 KV, prefix caching, block size. KV offload to RAM dropped: the native OffloadingConnector refuses the CPU backend in 0.31.0 and the KV cache is already in RAM | DONE 2026-10-18 ([results](studies/39-c8i-qwen3-06b-cpu-tps/README.md#results)): best 7611 tok/s, +29.9 % (fp8 KV + block 96); prefix caching worth ~35-45 %; TPOT-bound |
 Before activating a study: run `/new-study` (reads this roadmap and `knowledge/README.md`
 for you), pick a real name, and let it scaffold `studies/<name>/` from the template.
 Once scaffolded, replace the `<tbd>` row above with the real study name and a link.
@@ -437,6 +437,22 @@ not resolved by this note. Before scoping #3 or #4, either run the original
 need, or revise #3/#4's design to not depend on it.
 
 ## C. Consolidated learnings
+- **On vLLM's CPU backend, fp8 KV pays even when the KV cache is far from full** (study 39,
+  Qwen3-0.6B on a c8i.12xlarge, vLLM 0.31.0): +14-21 % tokens/s at the TPOT-bound knee with the
+  bf16 cache only ~18 % used, i.e. through bandwidth (half the KV bytes per decode step), not
+  capacity as on the GPUs of studies 0/30. It needs prefix caching on (no gain without), and
+  prefix caching itself is worth ~35-45 % on a shared-prefix multi-turn load. `block_size` 96
+  beat 64 by about one load step; 96 vs the CPU default 128 is not settled. The KV budget
+  (`gpu_memory_utilization`, a RAM fraction on CPU) is flat above ~0.22 of a 48 GiB pod.
+- **A fixed-seed open-loop ramp quantizes the knee** (study 39): the load's bursts land at the
+  same times in every run, so SLO breaks cluster on a few discrete steps (~7 % apart there) and
+  the same configuration can land on either. One run resolves configurations only to about one
+  step; repeat the top ones with a different seed or ramp offset before ranking them.
+- **Spot capacity is usable for long CPU studies** (study 39, c8i.12xlarge at 0.68-0.81 $/h vs
+  2.25 on demand): two interruptions over ~50 h, neither cost a trial. On EKS AL2023 reserve CPUs
+  for the static CPU manager with `systemReserved` (summing to whole cores with EKS's
+  `kubeReserved`), not `reservedSystemCPUs`, which the kubelet refuses next to EKS's reserved
+  cgroups.
 - **A closed-loop replay with few sessions needs a ramp matched to the latency window** (studies
   35/36/38, customer replay, 2026-10-15/16). 10 template sessions replayed as user k -> session k mod
   10 under one user every 30 s gave the offered load a 300 s sawtooth (-5 to -10 % input at fixed

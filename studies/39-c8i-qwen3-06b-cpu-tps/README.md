@@ -1,9 +1,9 @@
 # 39-c8i-qwen3-06b-cpu-tps
 
-**Status:** RUNNING (Akamas 4.1, main study started 2026-10-16 ~14:53 UTC). Smoke study
-(baseline only, 0 -> 4 req/s over 1200 s): 1 experiment, VALID, **5486 tokens/s**, 17 min;
-then deleted.
-**Dates:** 2026-10-16 → (running)
+**Status:** DONE — FINISHED on Akamas 4.1, 65/65 experiments VALID, best **7611 tokens/s
+(+29.9 % vs the baseline)**. Node group scaled to 0 on 2026-10-18.
+**Dates:** 2026-10-16 14:53 UTC → 2026-10-18 17:04 UTC (Smoke study the same morning: 1
+experiment, VALID, 5486 tokens/s, then deleted).
 
 ## Objective
 
@@ -137,7 +137,7 @@ otherwise).
 
 - **Open loop, linear rate ramp (as study 30):** `--request-rate R
   --request-rate-ramp-duration D` on the streaming chat endpoint. R and D are the
-  workflow's `RT_RATE` / `RT_RAMP_S` env vars, **TODO values until the Smoke calibration**.
+  workflow's `RT_RATE` / `RT_RAMP_S` env vars: **0 -> 4 req/s over 4000 s** (from the probe).
 - **Synthetic multi-turn with shared prefixes:** the workload is defined once in
   `k8s/lib_workload.sh` (flags checked against the AIPerf 0.11.0 wheel) and rendered by
   `k8s/render_job.sh` into `k8s/05-job_template.yaml`: 16 prefixes of 1536 tokens prepended
@@ -191,8 +191,7 @@ None of these blocks the study; each is fixed in the StatefulSet for now.
 
 ## Next steps
 
-1. **Confirm the packs:** `akamas login` in the `akamas-41` toolbox, then `akamas list
-   optimization-pack` (vLLM 1.14.0, Kubernetes version).
+1. **Confirm the packs** — **DONE 2026-10-16**: vLLM 1.14.0 and Kubernetes 1.9.0 INSTALLED.
 2. **Provision the node group** `llm-serving-c8i` (`infra/`) — **DONE 2026-10-16**: spot
    node in us-east-2b/2c, kubelet static CPU manager + full-pcpus-only + single-numa-node,
    2 reserved CPUs via `systemReserved` (core 0; `reservedSystemCPUs` is refused next to
@@ -202,7 +201,7 @@ None of these blocks the study; each is fixed in the StatefulSet for now.
 4. **Smoke study** (`39-C8i-Qwen3-06B-CPU-TPS-Smoke`, baseline only, 0 -> 4 req/s over
    1200 s) — **DONE 2026-10-16**: VALID, 5486 tokens/s (between the probe's 3117 at 1 req/s
    and 5904 at 1.94 req/s, which broke TPOT); the pipeline works end to end in Akamas.
-5. **Run the main study** `39-C8i-Qwen3-06B-CPU-TPS` — **STARTED 2026-10-16**.
+5. **Run the main study** `39-C8i-Qwen3-06B-CPU-TPS` — **DONE 2026-10-18**, see "Results".
 
 ## Probe results (2026-10-16, `probe/results/summary.txt`)
 
@@ -257,8 +256,121 @@ capped by the ramp.
 
 ## Results
 
-<Filled in by the study-recap skill once the study finishes.>
+Raw data: `results/export.tar.gz` (Akamas export), `results/trials.csv` (one row per
+experiment: parameters, scored-window aggregates, the watchdog's SLO-break time and which SLO
+broke). All 65 experiments FINISHED and VALID; no failed trial.
+
+**Best: experiment 50, 7611 tokens/s, +29.9 % vs experiment 1 (5860), +28.3 % vs the mean of
+the two baselines (5927).**
+
+| Parameter | Baseline (exp 1) | Best (exp 50) |
+|---|---|---|
+| `kv_cache_dtype` | auto (bf16) | **fp8** |
+| `block_size` | 128 | **96** |
+| `max_num_seqs` | 128 | 176 |
+| `max_num_batched_tokens` | 2048 | 512 |
+| `gpu_memory_utilization` | 0.90 | 0.68 |
+| `enable_prefix_caching` | true | true |
+| `long_prefill_token_threshold` | 0 | 0 |
+| **Score (tokens/s)** | **5860** | **7611** |
+| Knee (offered req/s at the window end) | ~1.97 | ~2.40 |
+| TPOT p95 / TTFT p95 in the window (max) | 99 / 407 ms | 99 / 482 ms |
+| Running requests (max) | 36 | 45 |
+| KV cache used / prefix hit rate | 19 % / 0.81 | 15 % / 0.81 |
+
+Steps:
+
+| Exp | Step | Score | vs exp 1 |
+|---|---|---|---|
+| 1 | baseline | 5860 | — |
+| 2 | baseline repeat | 5993 | +2.3 % |
+| 3 | kv fp8 | 6853 | +17.0 % |
+| 4 | no prefix cache | 3958 | −32.4 % |
+| 5 | small kv budget (0.15) | 3866 | −34.0 % |
+| 6-65 | optimize (AKAMAS) | best 7611 (exp 50); 25 runs in 7168-7562 | up to +29.9 % |
+
+Top 5 (all fp8, block 96, prefix caching on):
+
+| Exp | Score | gmu | seqs | batched | long-prefill |
+|---|---|---|---|---|---|
+| 50 | 7611 | 0.68 | 176 | 512 | 0 |
+| 48 | 7562 | 0.72 | 172 | 512 | 0 |
+| 45 | 7502 | 0.69 | 137 | 512 | 0 |
+| 26 | 7465 | 0.22 | 229 | 512 | 4096 |
+| 58 | 7465 | 0.63 | 148 | 512 | 4096 |
+
+**How to read the score.** Every run was ended by the watchdog past the SLO (none reached the
+end of the ramp, 29-64 % of it at the break), and Akamas scored the last valid 6x30 s window
+before the break in 63/65 runs (in the other two a better valid window came earlier, as
+`when: max` intends). The score is therefore the offered load at the knee: score vs the
+window's position in the ramp has r = 0.994. **TPOT p95 was the binding constraint** in 54/64
+runs with logs; TTFT broke first only at `gpu_memory_utilization` 0.15, at `max_num_seqs` <= 14
+and with `long_prefill_token_threshold` 25. The TPOT p95 is read from histogram buckets
+(0.075 / 0.1 / 0.15 s), so "99 ms" means "fewer than 5 % of requests above 100 ms".
+
+**Noise.** The load has a fixed seed, so its bursts land at the same times in every run and
+the knee falls on a few discrete steps: 25 runs broke at 2375-2395 s (mean 7380, sd 1.3 %) and
+21 at 2218-2298 s (mean 6868); nothing broke in between, a 7.5 % gap. The same configuration
+can land on either step (exps 63-65, top-region configurations, all fell to the lower step
+after 45-60 had all made the higher one). The two baselines differ by 2.3 % and probably ran on
+different spot hosts (see "Data notes"). The 25 higher-step configurations, best included, are
+not distinguishable from each other; exp 50 is the only run that broke one 30 s sample later.
+
+**Parameter effects** (matched pairs and group means from `trials.csv`):
+
+- **Prefix caching off: −34 % to −47 %**, the largest effect (5 runs, hit rate 0.80 when on):
+  prefill work grows and TTFT rises (715-2240 ms in the window).
+- **fp8 KV: +14 % to +21 %** over bf16 in every matched pair (exp 3 vs 1/2; 31/32 vs 34; the
+  fp8 neighbours of 52), with the KV cache far from full in both (10 % vs 18 % used at 0.90):
+  not capacity, most likely half the KV bytes the CPU attention kernel reads per decode step.
+  With prefix caching off it gives nothing (exps 4, 29, 53 within 1 %).
+- **`block_size` 96 vs 64: about −4 to −7 % for 64** (all 7 runs at 64 on the lower step,
+  including exps 20/24 between 96-runs on the higher one); **32**: the two runs are the lowest
+  fp8 TPOT-bound scores (suggestive, n=2). **96 vs 128 is not established**: exp 3 (128) sits one
+  step below exps 7/8/17 (96, otherwise near-identical), which the step noise alone can produce;
+  the optimizer picked 96 in 46 of its 60 experiments (64: 7, 128: 5, 32: 2) and fp8 in 57.
+- **`gpu_memory_utilization`: flat above ~0.22**, a drop at 0.15 (37.6k bf16 tokens):
+  preemptions, prefix hit rate 0.48-0.72 and TTFT up to 2.7 s (−17 to −19 % with fp8, −34 % with
+  bf16). Group means for 0.3-0.5 / 0.5-0.7 / 0.7-0.95 are within 1.3 %. With fp8 at 0.90 only
+  ~10 % of the KV cache is used at the knee.
+- **`max_num_seqs`: harmful at <= 14** (the cap binds, TTFT-bound, −30 to −50 %); no effect above
+  ~50 (peak running requests at the knee are 41-53).
+- **`max_num_batched_tokens` and `long_prefill_token_threshold`: no measurable effect on the
+  score** (group means within noise). Low thresholds (89-197) double TTFT p95, which does not
+  bind; 25 trips TTFT (−11 %).
+
+**Data notes.**
+- Experiment 2 ran twice: its first attempt was aborted at 15:37 UTC on 2026-10-16 when the
+  study was stopped (the logs do not say by whom), the study was resumed at 19:03 and the trial
+  ran again on a new spot node (the first one was reclaimed at ~16:45 during the pause). Its
+  scored window lies entirely in the second attempt. Experiments 2-65 all ran on the same
+  node (`ip-192-168-129-65`); experiment 1 on the original one.
+- A second spot interruption (2026-10-18 19:32 UTC) came after the study had finished.
+- Experiment 1's run_test output is missing from the export (its window and score are present).
 
 ## Conclusions
 
-<Filled in by the study-recap skill once the study finishes.>
+- **vLLM's CPU backend serves Qwen3-0.6B at ~7,400-7,600 tokens/s (~2.4 req/s of this
+  multi-turn load) within TTFT p95 <= 3 s / TPOT p95 <= 100 ms on one c8i.12xlarge**
+  (20 OMP threads on 20 cores), against ~5,900 with vLLM's CPU defaults. The limit is decode
+  (TPOT), not memory: the KV cache is never short at any `gpu_memory_utilization` above ~0.22.
+- **The gain comes from two settings: fp8 KV (+14-21 %, the main lever) and, probably,
+  `block_size` 96 (vs 64, and possibly vs the default 128).** Everything else the optimizer
+  touched is flat within noise once `max_num_seqs` >= ~50 and `gpu_memory_utilization` >= ~0.22.
+  Recommended configuration: defaults + `--kv-cache-dtype fp8` + `--block-size 96`, prefix
+  caching on (default).
+- **Prefix caching is worth ~35-45 % on a workload with shared prefixes on CPU**, and fp8 KV's
+  benefit depends on it. On CPU the KV cache already lives in RAM: KV offload was not tested
+  (vLLM 0.31.0's OffloadingConnector refuses the CPU backend).
+- **Generalizable vs stack-specific.** fp8 KV helping when the KV cache is not full is specific
+  to a bandwidth-bound CPU decode (on GPUs in this repo fp8 KV mattered through capacity); the
+  block-size effect is specific to vLLM 0.31.0's CPU attention kernel on AMX and should be
+  re-checked on another CPU or vLLM version. The methodology point generalizes: with a
+  fixed-seed open-loop ramp the knee is quantized by the load's bursts, so one run resolves
+  configurations only to about one step (here ~7 %).
+- **Spot worked**: 0.68-0.81 $/h against 2.25 on demand, two interruptions, neither cost a
+  trial (one hit a paused study, one came after the end).
+- **Next:** confirm 96 vs 128 with repeats (e.g. 3x exp 50 and 3x the same with block 128);
+  vary the load seed or ramp offset between repeats so a configuration is not tied to one
+  step; a cost comparison against a small GPU (tokens/s per $) for this model would say when
+  CPU serving is the cheaper option.

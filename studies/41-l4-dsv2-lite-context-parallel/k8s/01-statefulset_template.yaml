@@ -1,0 +1,120 @@
+# vLLM serving for 41-l4-dsv2-lite-context-parallel. Rendered by render_statefulset.sh (called
+# by apply_config.sh), NOT by the Akamas FileConfigurator. Not valid YAML until rendered: the
+# line holding the TUNED_ARGS token (between two at-signs) is replaced by one "- --flag" item
+# per tuned parameter that has a value (an empty value = no flag = vLLM's default).
+#
+# One replica of vllm/vllm-openai:v0.32.0 holding all four L4s of the g6.12xlarge node (node
+# group llm-serving-l4); every layout (TP / DP / DCP / PCP / EP) runs inside this one pod.
+# StatefulSet for the stable pod name vllm-dsv2-0 (the Akamas components, the watchdog and the
+# warm-up address it by name). Every name here is study-specific (vllm-dsv2*): namespace
+# llm-serving also holds another study's Deployment, Service and ServiceMonitor named `vllm`
+# (label app=vllm), and the model cache PVC below lives in this namespace.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vllm-dsv2
+  namespace: llm-serving
+spec:
+  serviceName: vllm-dsv2-headless
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app: vllm-dsv2
+  template:
+    metadata:
+      labels:
+        app: vllm-dsv2
+    spec:
+      # Kubernetes would otherwise inject VLLM_PORT=tcp://... from a Service, which collides
+      # with vLLM's own VLLM_PORT variable and crashes it at startup.
+      enableServiceLinks: false
+      nodeSelector:
+        node-role: llm-serving-l4
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:v0.32.0
+          # The image's entrypoint is `vllm serve`; the model is the first positional arg
+          # (as in ../smoke/smoke.sh).
+          command: ["vllm", "serve"]
+          args:
+            # Ungated on Hugging Face: no HF token anywhere in this study.
+            - "deepseek-ai/DeepSeek-V2-Lite-Chat"
+            - "--served-model-name=dsv2-lite"
+            # DeepseekV2ForCausalLM is native in vLLM; the flag keeps the HF config/tokenizer
+            # loading identical to the smoke run.
+            - "--trust-remote-code"
+            # YaRN-native 163840; 32768 covers the load (8k prefix + ~9 turns of 2.3k).
+            - "--max-model-len=32768"
+            - "--port=8000"
+            - "--host=0.0.0.0"
+            # usage.prompt_tokens_details.cached_tokens in every response, so AIPerf's own
+            # export carries the prefix-cache hits next to vLLM's prefix_cache_* counters
+            # (vllm/entrypoints/openai/cli_args.py at v0.32.0, enable_prompt_tokens_details).
+            - "--enable-prompt-tokens-details"
+            # --- Tuned (parametersSelection), one item per parameter with a value ---
+            @TUNED_ARGS@
+          env:
+            # HF_HOME is the image default (/root/.cache/huggingface), where the model PVC is
+            # mounted: the weights downloaded by the smoke run are reused.
+            - name: HF_HOME
+              value: /root/.cache/huggingface
+            # vLLM's torch.compile / inductor cache on the model PVC, so a layout already
+            # compiled once does not pay the compile again on its next start (startup was
+            # 350-535 s per layout in the smoke run, with an empty cache every time).
+            - name: VLLM_CACHE_ROOT
+              value: /root/.cache/huggingface/vllm-cache-study41
+            # Pod Ready took up to 535 s in the smoke run (TP4, first cold start), close to the
+            # 600 s default; a cold image pull on a fresh node adds more.
+            - name: VLLM_ENGINE_READY_TIMEOUT_S
+              value: "1800"
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          # As the smoke pod (../smoke/smoke.sh): all four GPUs, generous CPU/RAM (DP4 runs
+          # four engine cores plus workers). g6.12xlarge: 48 vCPU, ~179 GiB allocatable.
+          resources:
+            requests:
+              nvidia.com/gpu: "4"
+              cpu: "16"
+              memory: 64Gi
+            limits:
+              nvidia.com/gpu: "4"
+              cpu: "40"
+              memory: 160Gi
+          volumeMounts:
+            - name: model-cache
+              mountPath: /root/.cache/huggingface
+            - name: shm
+              mountPath: /dev/shm
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            # 40 min: image pull on a fresh node + model load + compile + CUDA graphs, above
+            # VLLM_ENGINE_READY_TIMEOUT_S (1800 s).
+            failureThreshold: 240
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        # Created and filled by the smoke run (2026-10-22), bound to an EBS volume in
+        # us-east-2a: the node must be in us-east-2a (infra/README.md).
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: vllm-model-cache-dsv2lite
+        # NCCL / multiprocessing shared memory between the four ranks.
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 32Gi

@@ -1,0 +1,24 @@
+#!/bin/bash
+# Stub kubectl for the apply_config.sh / run_test.sh tests. Logs every call to $STUB_LOG and
+# answers the calls those scripts make. STUB_READY: what `get sts vllm-dsv2` reports ready.
+# STUB_ZONE: the GPU node's zone (default us-east-2a). STUB_GPU_PODS: the "ns/name:gpus"
+# lines `get pods -A --field-selector spec.nodeName=...` returns (default: none).
+echo "kubectl $*" >> "$STUB_LOG"
+args="$*"
+case "$args" in
+  *"get nodes"*) echo "node-l4" ;;
+  *"get node node-l4"*zone*) echo "${STUB_ZONE:-us-east-2a}" ;;
+  *"get pods -A"*nodeName*) [ -z "${STUB_GPU_PODS:-}" ] || printf '%s\n' "$STUB_GPU_PODS" ;;
+  *"get sts vllm-dsv2"*readyReplicas*) echo "${STUB_READY:-1}" ;;
+  *"get pod vllm-dsv2-0"*restartCount*) echo 0 ;;
+  *"get pod vllm-dsv2-0"*phase*) echo "Running" ;;
+  *"get pods"*"app=vllm-dsv2"*uid*) echo "vllm-dsv2-0:uid0:0" ;;
+  *"get pods"*"app=vllm-dsv2"*"-o name"*) : ;;
+  *"get job aiperf-dsv2"*succeeded*) echo 1 ;;
+  *"get job aiperf-dsv2"*failed*) echo "" ;;
+  *"apply -f "*) f=${args##*-f }; echo "applied $(grep -m1 '^  name: ' "$f" | awk '{print $2}')" >> "$STUB_LOG" ;;
+  logs*|*" logs "*) echo "MEASURED RUN START" ;;
+  exec*|*" exec "*) echo 5 ;;
+  *) : ;;
+esac
+exit 0

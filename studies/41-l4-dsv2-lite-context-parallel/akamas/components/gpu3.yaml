@@ -1,0 +1,18 @@
+kind: component
+system: vLLM_Benchmark_41_L4_DSV2_Lite_CP
+
+name: gpu3
+description: >-
+  NVIDIA L4 index 3 of 4 on the llm-serving-l4 node (g6.12xlarge), one component per physical
+  GPU (study 16's modelling) so every DCGM metric is its own series per GPU in Akamas.
+componentType: GPU
+# $GPU$ is substituted with this exact DCGM `gpu` label value (the device index; regex
+# matchers are anchored, so gpu=~"3" matches index 3 only). $NODEROLE$ restricts the DCGM
+# series to the llm-serving-l4 node (join on the dcgm-exporter's `hostname` label = node name),
+# so another GPU node scaled up later cannot add its own GPU 3. Verified live 2026-10-22:
+# dcgm-exporter on ip-192-168-64-57 exposes gpu "0".."3", modelName "NVIDIA L4", and carries no
+# exported_pod label (the `pod` label is the exporter's own pod), so no pod filter here.
+properties:
+  prometheus:
+    gpu: "3"
+    noderole: llm-serving-l4

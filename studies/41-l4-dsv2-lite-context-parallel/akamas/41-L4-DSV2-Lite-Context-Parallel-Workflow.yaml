@@ -1,0 +1,49 @@
+kind: workflow
+name: 41-L4-DSV2-Lite-Context-Parallel-Workflow
+# The study: closed-loop users ramp 1 -> 96 concurrent sessions over 3600 s. TODO(calibrate): 96 / 3600 are the spec's placeholders; the calibration run (Smoke study, README 'Before starting') sets RT_USERS / RT_RAMP_S so the TP4 baseline breaks the SLO mid-ramp and TP4+DCP4 has headroom before the ramp ends.
+# All tasks run on the toolbox host over SSH with the toolbox's own key
+# (/home/akamas/.ssh/id_rsa, mounted from the toolbox-keys secret; the path must exist on
+# the toolbox when `akamas create workflow` runs, so run it from the toolbox). Akamas 4.1 has
+# no `update workflow`: a change means delete and recreate.
+tasks:
+  # The parameters are rendered into an env file, not into a manifest: render_statefulset.sh
+  # validates them (topology rules included) and writes the vLLM flags (booleans as --x /
+  # --no-x). ignoreUnsubstitutedTokens false: every token must resolve.
+  - name: Write config
+    operator: FileConfigurator
+    arguments:
+      ignoreUnsubstitutedTokens: false
+      source:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/vllm-benchmark/studies/41-l4-dsv2-lite-context-parallel/k8s/params.env.template
+      target:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/vllm-benchmark/studies/41-l4-dsv2-lite-context-parallel/k8s/params.env
+  - name: Apply config
+    operator: Executor
+    arguments:
+      retries: 0
+      # apply_config.sh's rollout wait (model load + torch.compile + CUDA graphs, 350-535 s
+      # per layout in the smoke run, VLLM_ENGINE_READY_TIMEOUT_S=1800, ROLLOUT_S 2700) plus
+      # the warm-up and log dump: worst case ~4100 s plus the logs (budget in apply_config.sh).
+      timeout: 75m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/vllm-benchmark/studies/41-l4-dsv2-lite-context-parallel/k8s/apply_config.sh
+  - name: RunTest
+    operator: Executor
+    arguments:
+      retries: 0
+      # Above run_test.sh's own deadline (RT_RAMP_S + 2400 s), so its log dump always runs.
+      timeout: 110m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: RT_USERS=96 RT_RAMP_S=3600 bash /work/vllm-benchmark/studies/41-l4-dsv2-lite-context-parallel/k8s/run_test.sh

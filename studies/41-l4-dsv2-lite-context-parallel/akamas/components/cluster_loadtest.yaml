@@ -1,0 +1,11 @@
+kind: component
+system: vLLM_Benchmark_41_L4_DSV2_Lite_CP
+
+name: cluster_loadtest
+description: >-
+  The CPU node running the load generator (node group system-2b, label
+  node-role=system-m8a, m8a.xlarge, us-east-2b).
+componentType: Kubernetes Cluster
+properties:
+  prometheus:
+    noderole: system-m8a

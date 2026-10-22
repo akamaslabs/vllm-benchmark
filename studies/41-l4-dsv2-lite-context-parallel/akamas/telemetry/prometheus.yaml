@@ -1,0 +1,264 @@
+# Prometheus telemetry for 41-l4-dsv2-lite-context-parallel: study 39's catalog (vLLM, container,
+# cluster) on namespace llm-serving, plus the per-GPU DCGM metrics of study 16 for the
+# components gpu0..gpu3 (one per physical L4). Changes from those sources:
+#   - container_* queries filter namespace="llm-serving" (pod names are study-specific:
+#     vllm-dsv2-0, aiperf-dsv2-*; the namespace also hosts other studies' pods);
+#   - DCGM queries: the live dcgm-exporter (2026-10-22) has no exported_pod label and its `pod`
+#     label is the exporter itself, so study 16's pod filter is replaced by a join on the
+#     exporter's `hostname` label (= node name) with kube_node_labels of $NODEROLE$
+#     (llm-serving-l4); $GPU$ is the device index of the component ("0".."3"). Verified live:
+#     the GPU 2 power query returns one series. DCGM's 0-100 utilization fields are divided by
+#     100 (study 16).
+#   - time_to_first_token_p95 / time_per_output_token_p95 / inter_token_latency_p95 use a
+#     [150s] rate window: the two constraints read these 150 s p95s with :max over the
+#     6-sample scored window; k8s/run_test.sh's watchdog computes the same 150 s p95s.
+# Rules carried over: placeholder keys have NO underscore ($NODEROLE$, $GPU$); vLLM queries sum
+# over the pods matched by $POD$ (only vllm-dsv2-0) and over its DP engines, and filter
+# model_name on $MODEL$ (dsv2-lite). total_token_throughput (goal and windowing metric) = rate
+# of vllm:prompt_tokens + vllm:generation_tokens over $DURATION$ (30 s). Every vLLM metric
+# name used here exists in vLLM 0.32.0 (vllm/v1/metrics/loggers.py).
+kind: telemetry-instance
+system: vLLM_Benchmark_41_L4_DSV2_Lite_CP
+name: Prometheus_41_L4_DSV2_Lite_CP
+provider: Prometheus
+config:
+  address: kube-prometheus-stack-prometheus.monitoring.svc.cluster.local
+  port: 9090
+  logLevel: DETAILED
+  duration: 30
+metrics:
+- metric: e2e_request_latency_p95
+  datasourceMetric: '(histogram_quantile(0.95, sum by(le)(rate(vllm:e2e_request_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000'
+  scale: 1
+- metric: e2e_request_latency_avg
+  datasourceMetric: '(sum(rate(vllm:e2e_request_latency_seconds_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:e2e_request_latency_seconds_count{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1e-9))*1000'
+  scale: 1
+- metric: request_success_rate
+  datasourceMetric: 'sum(rate(vllm:request_success_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))'
+- metric: time_to_first_token_p95
+  datasourceMetric: '(histogram_quantile(0.95, sum by(le)(rate(vllm:time_to_first_token_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[150s]))))*1000'
+  scale: 1
+- metric: time_to_first_token_avg
+  datasourceMetric: '(sum(rate(vllm:time_to_first_token_seconds_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:time_to_first_token_seconds_count{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1e-9))*1000'
+  scale: 1
+- metric: prefill_token_throughput
+  datasourceMetric: 'sum(rate(vllm:prompt_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))'
+- metric: inter_token_latency_p95
+  datasourceMetric: '(histogram_quantile(0.95, sum by(le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[150s]))))*1000'
+  scale: 1
+- metric: inter_token_latency_avg
+  datasourceMetric: '(sum(rate(vllm:inter_token_latency_seconds_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:inter_token_latency_seconds_count{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1e-9))*1000'
+  scale: 1
+- metric: decode_token_throughput
+  datasourceMetric: 'sum(rate(vllm:generation_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))'
+- metric: total_token_throughput
+  datasourceMetric: 'sum(rate(vllm:prompt_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) + sum(rate(vllm:generation_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))'
+- metric: request_queue_time_p95
+  datasourceMetric: '(histogram_quantile(0.95, sum by(le)(rate(vllm:request_queue_time_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000'
+  scale: 1
+- metric: num_requests_running
+  datasourceMetric: 'sum(vllm:num_requests_running{model_name=~"$MODEL$", pod=~"$POD$"})'
+- metric: num_requests_waiting
+  datasourceMetric: 'sum(vllm:num_requests_waiting{model_name=~"$MODEL$", pod=~"$POD$"})'
+- metric: kv_cache_usage_avg
+  datasourceMetric: 'avg(vllm:kv_cache_usage_perc{model_name=~"$MODEL$", pod=~"$POD$"})'
+- metric: kv_cache_usage_max
+  datasourceMetric: 'max(vllm:kv_cache_usage_perc{model_name=~"$MODEL$", pod=~"$POD$"})'
+- metric: preemption_rate
+  datasourceMetric: 'sum(rate(vllm:num_preemptions_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))'
+- metric: prefix_cache_hit_rate
+  datasourceMetric: 'sum(rate(vllm:prefix_cache_hits_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:prefix_cache_queries_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1)'
+- metric: active_dp_engines
+  datasourceMetric: 'count(count by (pod, engine) (vllm:cache_config_info{pod=~"$POD$"}))'
+- metric: input_sequence_length_p95
+  datasourceMetric: 'histogram_quantile(0.95, sum by(le)(rate(vllm:request_prompt_tokens_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m])))'
+- metric: input_sequence_length_avg
+  datasourceMetric: 'sum(rate(vllm:request_prompt_tokens_sum{model_name=~"$MODEL$", pod=~"$POD$"}[5m])) / clamp_min(sum(rate(vllm:request_prompt_tokens_count{model_name=~"$MODEL$", pod=~"$POD$"}[5m])), 1e-9)'
+- metric: output_sequence_length_p95
+  datasourceMetric: 'histogram_quantile(0.95, sum by(le)(rate(vllm:request_generation_tokens_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m])))'
+- metric: output_sequence_length_avg
+  datasourceMetric: 'sum(rate(vllm:request_generation_tokens_sum{model_name=~"$MODEL$", pod=~"$POD$"}[5m])) / clamp_min(sum(rate(vllm:request_generation_tokens_count{model_name=~"$MODEL$", pod=~"$POD$"}[5m])), 1e-9)'
+- metric: fleet_e2e_latency_percentile
+  datasourceMetric: '(histogram_quantile(0.95, sum by(le)(rate(vllm:e2e_request_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m]))))*1000'
+  scale: 1
+- metric: fleet_inter_token_latency_percentile
+  datasourceMetric: '(histogram_quantile(0.95, sum by(le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m]))))*1000'
+  scale: 1
+- metric: fleet_request_success_rate
+  datasourceMetric: 'sum(rate(vllm:request_success_total{model_name=~"$MODEL$", pod=~"$POD$"}[5m]))'
+- metric: fleet_kv_cache_usage_avg
+  datasourceMetric: 'avg(vllm:kv_cache_usage_perc{model_name=~"$MODEL$", pod=~"$POD$"})'
+- metric: inter_token_latency_p95_5m
+  datasourceMetric: '(histogram_quantile(0.95, sum by(le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m]))))*1000'
+  scale: 1
+- metric: inter_token_latency_p95_max_per_pod
+  datasourceMetric: '(max(histogram_quantile(0.95, sum by(pod, le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m])))))*1000'
+  scale: 1
+- metric: inter_token_latency_p95_min_per_pod
+  datasourceMetric: '(min(histogram_quantile(0.95, sum by(pod, le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m])))))*1000'
+  scale: 1
+- metric: container_cpu_pressure_some
+  datasourceMetric: 'sum(rate(container_pressure_cpu_waiting_seconds_total{namespace="llm-serving", pod=~"$POD$", container!=""}[2m]))'
+- metric: container_cpu_pressure_full
+  datasourceMetric: 'sum(rate(container_pressure_cpu_stalled_seconds_total{namespace="llm-serving", pod=~"$POD$", container!=""}[2m]))'
+- metric: container_memory_pressure_some
+  datasourceMetric: 'sum(rate(container_pressure_memory_waiting_seconds_total{namespace="llm-serving", pod=~"$POD$", container!=""}[2m]))'
+- metric: container_memory_pressure_full
+  datasourceMetric: 'sum(rate(container_pressure_memory_stalled_seconds_total{namespace="llm-serving", pod=~"$POD$", container!=""}[2m]))'
+- metric: container_io_pressure_some
+  datasourceMetric: 'sum(rate(container_pressure_io_waiting_seconds_total{namespace="llm-serving", pod=~"$POD$", container!=""}[2m]))'
+- metric: container_io_pressure_full
+  datasourceMetric: 'sum(rate(container_pressure_io_stalled_seconds_total{namespace="llm-serving", pod=~"$POD$", container!=""}[2m]))'
+- metric: container_cpu_used
+  datasourceMetric: '1000 * sum(rate(container_cpu_usage_seconds_total{namespace="llm-serving", pod=~"$POD$", container!=""}[2m]))'
+- metric: container_cpu_used_max
+  datasourceMetric: '1000 * max(sum by(pod)(rate(container_cpu_usage_seconds_total{namespace="llm-serving", pod=~"$POD$", container!=""}[2m])))'
+- metric: container_cpu_util
+  datasourceMetric: 'sum(rate(container_cpu_usage_seconds_total{namespace="llm-serving", pod=~"$POD$", container!=""}[2m])) / clamp_min(sum(kube_pod_container_resource_limits{resource="cpu", namespace="llm-serving", pod=~"$POD$", container!=""}), 1e-9)'
+- metric: container_cpu_util_max
+  datasourceMetric: 'max(sum by(pod)(rate(container_cpu_usage_seconds_total{namespace="llm-serving", pod=~"$POD$", container!=""}[2m])) / clamp_min(sum by(pod)(kube_pod_container_resource_limits{resource="cpu", namespace="llm-serving", pod=~"$POD$", container!=""}), 1e-9))'
+- metric: container_cpu_throttle_time
+  datasourceMetric: 'sum(rate(container_cpu_cfs_throttled_periods_total{namespace="llm-serving", pod=~"$POD$", container!=""}[2m])) / clamp_min(sum(rate(container_cpu_cfs_periods_total{namespace="llm-serving", pod=~"$POD$", container!=""}[2m])), 1e-9)'
+- metric: container_cpu_request
+  datasourceMetric: '1000 * sum(kube_pod_container_resource_requests{resource="cpu", namespace="llm-serving", pod=~"$POD$", container!=""})'
+- metric: container_cpu_limit
+  datasourceMetric: '1000 * sum(kube_pod_container_resource_limits{resource="cpu", namespace="llm-serving", pod=~"$POD$", container!=""})'
+- metric: container_memory_used
+  datasourceMetric: 'sum(container_memory_usage_bytes{namespace="llm-serving", pod=~"$POD$", container!=""})'
+- metric: container_memory_used_max
+  datasourceMetric: 'max(sum by(pod)(container_memory_usage_bytes{namespace="llm-serving", pod=~"$POD$", container!=""}))'
+- metric: container_memory_util
+  datasourceMetric: 'sum(container_memory_working_set_bytes{namespace="llm-serving", pod=~"$POD$", container!=""}) / clamp_min(sum(kube_pod_container_resource_limits{resource="memory", namespace="llm-serving", pod=~"$POD$", container!=""}), 1e-9)'
+- metric: container_memory_util_max
+  datasourceMetric: 'max(sum by(pod)(container_memory_working_set_bytes{namespace="llm-serving", pod=~"$POD$", container!=""}) / clamp_min(sum by(pod)(kube_pod_container_resource_limits{resource="memory", namespace="llm-serving", pod=~"$POD$", container!=""}), 1e-9))'
+- metric: container_memory_working_set
+  datasourceMetric: 'sum(container_memory_working_set_bytes{namespace="llm-serving", pod=~"$POD$", container!=""})'
+- metric: container_memory_resident_set
+  datasourceMetric: 'sum(container_memory_rss{namespace="llm-serving", pod=~"$POD$", container!=""})'
+- metric: container_memory_cache
+  datasourceMetric: 'sum(container_memory_cache{namespace="llm-serving", pod=~"$POD$", container!=""})'
+- metric: container_memory_request
+  datasourceMetric: 'sum(kube_pod_container_resource_requests{resource="memory", namespace="llm-serving", pod=~"$POD$", container!=""})'
+- metric: container_memory_limit
+  datasourceMetric: 'sum(kube_pod_container_resource_limits{resource="memory", namespace="llm-serving", pod=~"$POD$", container!=""})'
+- metric: container_restarts
+  datasourceMetric: 'sum(kube_pod_container_status_restarts_total{namespace="llm-serving", pod=~"$POD$", container!=""})'
+- metric: container_oom_kills_count
+  datasourceMetric: 'sum(container_oom_events_total{namespace="llm-serving", pod=~"$POD$", container!=""})'
+- metric: k8s_cluster_cpu_pressure
+  datasourceMetric: 'sum(rate(node_pressure_cpu_waiting_seconds_total[2m]) * on(instance) group_left(nodename) node_uname_info * on(nodename) group_left(node) label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "nodename", "$1", "node", "(.*)"))'
+- metric: k8s_cluster_memory_pressure_some
+  datasourceMetric: 'sum(rate(node_pressure_memory_waiting_seconds_total[2m]) * on(instance) group_left(nodename) node_uname_info * on(nodename) group_left(node) label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "nodename", "$1", "node", "(.*)"))'
+- metric: k8s_cluster_memory_pressure_full
+  datasourceMetric: 'sum(rate(node_pressure_memory_stalled_seconds_total[2m]) * on(instance) group_left(nodename) node_uname_info * on(nodename) group_left(node) label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "nodename", "$1", "node", "(.*)"))'
+- metric: k8s_cluster_io_pressure_some
+  datasourceMetric: 'sum(rate(node_pressure_io_waiting_seconds_total[2m]) * on(instance) group_left(nodename) node_uname_info * on(nodename) group_left(node) label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "nodename", "$1", "node", "(.*)"))'
+- metric: k8s_cluster_io_pressure_full
+  datasourceMetric: 'sum(rate(node_pressure_io_stalled_seconds_total[2m]) * on(instance) group_left(nodename) node_uname_info * on(nodename) group_left(node) label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "nodename", "$1", "node", "(.*)"))'
+- metric: time_to_first_token_p90
+  datasourceMetric: '(histogram_quantile(0.90, sum by(le)(rate(vllm:time_to_first_token_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000'
+  scale: 1
+- metric: inter_token_latency_p90
+  datasourceMetric: '(histogram_quantile(0.90, sum by(le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000'
+  scale: 1
+- metric: time_per_output_token_p95
+  datasourceMetric: '(histogram_quantile(0.95, sum by(le)(rate(vllm:request_time_per_output_token_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[150s]))))*1000'
+  scale: 1
+- metric: time_per_output_token_avg
+  datasourceMetric: '(sum(rate(vllm:request_time_per_output_token_seconds_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:request_time_per_output_token_seconds_count{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1e-9))*1000'
+  scale: 1
+- metric: request_prefill_time_p95
+  datasourceMetric: '(histogram_quantile(0.95, sum by(le)(rate(vllm:request_prefill_time_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000'
+  scale: 1
+- metric: request_decode_time_p95
+  datasourceMetric: '(histogram_quantile(0.95, sum by(le)(rate(vllm:request_decode_time_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000'
+  scale: 1
+- metric: request_queue_time_avg
+  datasourceMetric: '(sum(rate(vllm:request_queue_time_seconds_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:request_queue_time_seconds_count{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1e-9))*1000'
+  scale: 1
+- metric: k8s_cluster_nodes
+  datasourceMetric: 'count(kube_node_labels{label_node_role=~"$NODEROLE$"})'
+- metric: k8s_cluster_cpu
+  datasourceMetric: 'sum(kube_node_status_capacity{resource="cpu"} * on(node) group_left() kube_node_labels{label_node_role=~"$NODEROLE$"})'
+- metric: k8s_cluster_cpu_available
+  datasourceMetric: 'sum(kube_node_status_allocatable{resource="cpu"} * on(node) group_left() kube_node_labels{label_node_role=~"$NODEROLE$"})'
+- metric: k8s_cluster_cpu_request
+  datasourceMetric: 'sum(sum by(node)(kube_pod_container_resource_requests{resource="cpu"}) * on(node) group_left() kube_node_labels{label_node_role=~"$NODEROLE$"})'
+- metric: k8s_cluster_cpu_util
+  datasourceMetric: 'sum(sum by(node)(rate(container_cpu_usage_seconds_total{container!=""}[2m])) * on(node) group_left() kube_node_labels{label_node_role=~"$NODEROLE$"}) / clamp_min(sum(kube_node_status_capacity{resource="cpu"} * on(node) group_left() kube_node_labels{label_node_role=~"$NODEROLE$"}), 1e-9)'
+- metric: k8s_cluster_memory
+  datasourceMetric: 'sum(kube_node_status_capacity{resource="memory"} * on(node) group_left() kube_node_labels{label_node_role=~"$NODEROLE$"})'
+- metric: k8s_cluster_memory_available
+  datasourceMetric: 'sum(kube_node_status_allocatable{resource="memory"} * on(node) group_left() kube_node_labels{label_node_role=~"$NODEROLE$"})'
+- metric: k8s_cluster_memory_request
+  datasourceMetric: 'sum(sum by(node)(kube_pod_container_resource_requests{resource="memory"}) * on(node) group_left() kube_node_labels{label_node_role=~"$NODEROLE$"})'
+- metric: k8s_cluster_memory_util
+  datasourceMetric: 'sum(sum by(node)(container_memory_working_set_bytes{container!=""}) * on(node) group_left() kube_node_labels{label_node_role=~"$NODEROLE$"}) / clamp_min(sum(kube_node_status_capacity{resource="memory"} * on(node) group_left() kube_node_labels{label_node_role=~"$NODEROLE$"}), 1e-9)'
+# --- Per-GPU DCGM metrics (components gpu0..gpu3; study 16's set, node-scoped by $NODEROLE$).
+#     gpu_fb_total = used + free. XID errors / remapped rows may be absent on this exporter config.
+- metric: gpu_util
+  datasourceMetric: 'avg(DCGM_FI_DEV_GPU_UTIL{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)")) / 100'
+- metric: gpu_sm_active
+  datasourceMetric: 'avg(DCGM_FI_PROF_SM_ACTIVE{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_sm_occupancy
+  datasourceMetric: 'avg(DCGM_FI_PROF_SM_OCCUPANCY{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_tensor_core_active
+  datasourceMetric: 'avg(DCGM_FI_PROF_PIPE_TENSOR_ACTIVE{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_dram_active
+  datasourceMetric: 'avg(DCGM_FI_PROF_DRAM_ACTIVE{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_gr_engine_active
+  datasourceMetric: 'avg(DCGM_FI_PROF_GR_ENGINE_ACTIVE{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_fp16_pipe_active
+  datasourceMetric: 'avg(DCGM_FI_PROF_PIPE_FP16_ACTIVE{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_fp32_pipe_active
+  datasourceMetric: 'avg(DCGM_FI_PROF_PIPE_FP32_ACTIVE{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_mem_copy_util
+  datasourceMetric: 'avg(DCGM_FI_DEV_MEM_COPY_UTIL{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)")) / 100'
+- metric: gpu_fb_used
+  datasourceMetric: 'sum(DCGM_FI_DEV_FB_USED{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_fb_used_percent
+  datasourceMetric: 'max(DCGM_FI_DEV_FB_USED_PERCENT{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_fb_reserved
+  datasourceMetric: 'max(DCGM_FI_DEV_FB_RESERVED{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_power_usage
+  datasourceMetric: 'max(DCGM_FI_DEV_POWER_USAGE{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_power_limit
+  datasourceMetric: 'max(DCGM_FI_DEV_POWER_MGMT_LIMIT{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_temp
+  datasourceMetric: 'max(DCGM_FI_DEV_GPU_TEMP{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_memory_temp
+  datasourceMetric: 'max(DCGM_FI_DEV_MEMORY_TEMP{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_slowdown_temp
+  datasourceMetric: 'max(DCGM_FI_DEV_SLOWDOWN_TEMP{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_sm_clock
+  datasourceMetric: 'avg(DCGM_FI_DEV_SM_CLOCK{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_mem_clock
+  datasourceMetric: 'avg(DCGM_FI_DEV_MEM_CLOCK{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_pstate
+  datasourceMetric: 'min(DCGM_FI_DEV_PSTATE{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_total_energy_consumption
+  datasourceMetric: 'sum(DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_pcie_tx_bytes
+  datasourceMetric: 'sum(DCGM_FI_PROF_PCIE_TX_BYTES{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_pcie_rx_bytes
+  datasourceMetric: 'sum(DCGM_FI_PROF_PCIE_RX_BYTES{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_clock_throttle_reasons
+  datasourceMetric: 'max(DCGM_FI_DEV_CLOCK_THROTTLE_REASONS{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_count
+  datasourceMetric: 'max(DCGM_FI_DEV_COUNT{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_xid_errors
+  datasourceMetric: 'max(DCGM_FI_DEV_XID_ERRORS{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_correctable_remapped_rows
+  datasourceMetric: 'max(DCGM_FI_DEV_CORRECTABLE_REMAPPED_ROWS{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_uncorrectable_remapped_rows
+  datasourceMetric: 'max(DCGM_FI_DEV_UNCORRECTABLE_REMAPPED_ROWS{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_row_remap_failure
+  datasourceMetric: 'max(DCGM_FI_DEV_ROW_REMAP_FAILURE{gpu=~"$GPU$"} * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_fb_total
+  datasourceMetric: 'sum((DCGM_FI_DEV_FB_USED{gpu=~"$GPU$"} + DCGM_FI_DEV_FB_FREE{gpu=~"$GPU$"}) * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_power_violation_rate
+  datasourceMetric: 'sum(rate(DCGM_FI_DEV_POWER_VIOLATION{gpu=~"$GPU$"}[$DURATION$]) * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_thermal_violation_rate
+  datasourceMetric: 'sum(rate(DCGM_FI_DEV_THERMAL_VIOLATION{gpu=~"$GPU$"}[$DURATION$]) * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'
+- metric: gpu_pcie_replay_rate
+  datasourceMetric: 'sum(rate(DCGM_FI_DEV_PCIE_REPLAY_COUNTER{gpu=~"$GPU$"}[$DURATION$]) * on(hostname) group_left() label_replace(kube_node_labels{label_node_role=~"$NODEROLE$"}, "hostname", "$1", "node", "(.*)"))'

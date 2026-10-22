@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_41_L4_DSV2_Lite_CP
+
+name: container
+description: >-
+  The vLLM container of pod vllm-dsv2-0 (namespace llm-serving): 4 GPUs, CPU 16 request / 40
+  limit, memory 64 / 160 GiB, fixed. Not tuned; CPU and memory headroom of the engine processes
+  (DP4 runs four engine cores) are read here.
+componentType: Kubernetes Container
+properties:
+  prometheus:
+    pod: ^vllm-dsv2-0$

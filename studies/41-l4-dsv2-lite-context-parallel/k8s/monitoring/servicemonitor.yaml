@@ -1,0 +1,25 @@
+# Scrapes this study's vLLM pod (namespace llm-serving) through the `vllm-dsv2` Service.
+# Additive: a new ServiceMonitor next to the other studies' ones (the existing `vllm` one
+# selects app=vllm in the same namespace and does not match this Service). The study's
+# telemetry also filters on its own served model_name (dsv2-lite), which no other study serves.
+# GPU metrics come from the dcgm-exporter already running on the L4 node (ServiceMonitor
+# `dcgm-exporter`, namespace monitoring); pod CPU / memory from cAdvisor and kube-state-metrics.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vllm-dsv2
+  namespace: monitoring
+  labels:
+    app: vllm-dsv2
+spec:
+  namespaceSelector:
+    matchNames:
+      - llm-serving
+  selector:
+    matchLabels:
+      app: vllm-dsv2
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 5s
+      scrapeTimeout: 4s

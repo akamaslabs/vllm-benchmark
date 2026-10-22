@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_41_L4_DSV2_Lite_CP
+
+name: cluster
+description: >-
+  The GPU node (node group llm-serving-l4, one g6.12xlarge, 48 vCPU / 192 GiB / 4x L4, label
+  node-role=llm-serving-l4) for node-level CPU/memory/pressure counters; $NODEROLE$ resolves
+  from noderole.
+componentType: Kubernetes Cluster
+properties:
+  prometheus:
+    noderole: llm-serving-l4

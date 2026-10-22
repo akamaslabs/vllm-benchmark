@@ -1,0 +1,93 @@
+# AIPerf Job for 41-l4-dsv2-lite-context-parallel. Rendered by render_job.sh (tokens
+# WORKLOAD_ARGS, MEASURED_ENTRIES, WORKLOAD_SEED, WARMUP_ENTRIES, WARMUP_SEED, LOAD_ARGS between
+# at-signs; the workload itself is defined once, in lib_workload.sh).
+#
+# Synthetic multi-turn long-context chat sessions with a pool of 8k-token shared prefixes
+# (lib_workload.sh), CLOSED LOOP: a users ramp 1 -> N concurrent sessions over RAMP s
+# (--concurrency N --concurrency-ramp-duration RAMP, as study 38), fixed seed, so every
+# trial receives the same sessions in the same order.
+# Before the measured run: 60 s at concurrency 4 on other sessions (discarded). The marker
+# line "MEASURED RUN START" arms run_test.sh's watchdog.
+# Runs on the system node (node-role system-m8a, us-east-2b), never on the GPU node.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aiperf-dsv2
+  namespace: llm-serving
+  labels:
+    app: aiperf-dsv2
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: aiperf-dsv2
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node-role: system-m8a
+      initContainers:
+        - name: wait-for-vllm
+          image: alpine:3
+          command:
+            - sh
+            - -c
+            - |
+              until wget -qO- http://vllm-dsv2-0.vllm-dsv2-headless.llm-serving.svc.cluster.local:8000/health >/dev/null 2>&1; do
+                echo "$(date -u +%T) waiting for vllm-dsv2-0..."
+                sleep 10
+              done
+              echo "vllm-dsv2-0 is ready."
+      containers:
+        - name: aiperf
+          image: python:3.12-slim
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              pip install --quiet aiperf==0.11.0
+              MODEL_NAME=dsv2-lite
+              TOKENIZER=deepseek-ai/DeepSeek-V2-Lite-Chat
+              URL=http://vllm-dsv2-0.vllm-dsv2-headless.llm-serving.svc.cluster.local:8000
+              OUT=/benchmarks/study41
+              mkdir -p "$OUT"
+              echo "$(date -u +%T) warm-up: 60 s at concurrency 4 (discarded)"
+              aiperf profile --model "$MODEL_NAME" --tokenizer "$TOKENIZER" --url "$URL" \
+                @WORKLOAD_ARGS@ \
+                --num-dataset-entries @WARMUP_ENTRIES@ --random-seed @WARMUP_SEED@ \
+                --concurrency 4 --benchmark-duration 60 --ui simple \
+                --output-artifact-dir /tmp/warmup > /tmp/warmup.log 2>&1 \
+                || { tail -50 /tmp/warmup.log; exit 1; }
+              RUN="$OUT/aiperf-$(date +%s)"
+              echo "$(date -u +%T) MEASURED RUN START: @LOAD_ARGS@"
+              aiperf profile --model "$MODEL_NAME" --tokenizer "$TOKENIZER" --url "$URL" \
+                @WORKLOAD_ARGS@ \
+                --num-dataset-entries @MEASURED_ENTRIES@ --random-seed @WORKLOAD_SEED@ \
+                @LOAD_ARGS@ \
+                --goodput "time_to_first_token:10000 inter_token_latency:50" \
+                --ui simple \
+                --output-artifact-dir "$RUN"
+              echo "--- AIPerf summary (profile_export_aiperf.json) ---"
+              cat "$RUN/profile_export_aiperf.json" 2>/dev/null || true
+          env:
+            - name: HF_HOME
+              value: /hf-cache
+          resources:
+            # Closed loop, up to ~100 streaming sessions; the dataset generation (4000
+            # sessions of ~11k synthetic tokens each, plus 32 x 8k prefixes) is the heavy part.
+            # system-m8a has 3.92 CPU / ~14 GiB allocatable, shared with Prometheus.
+            requests:
+              cpu: 2000m
+              memory: 4Gi
+          volumeMounts:
+            - name: results
+              mountPath: /benchmarks
+            - name: hf-cache
+              mountPath: /hf-cache
+      volumes:
+        - name: results
+          persistentVolumeClaim:
+            claimName: aiperf-results-dsv2
+        - name: hf-cache
+          persistentVolumeClaim:
+            claimName: aiperf-hf-cache-dsv2

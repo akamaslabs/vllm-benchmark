@@ -1,0 +1,11 @@
+kind: system
+
+name: vLLM_Benchmark_41_L4_DSV2_Lite_CP
+description: >-
+  Study 41: decode / prefill context parallelism (DCP / PCP) vs tensor, data and expert
+  parallelism for deepseek-ai/DeepSeek-V2-Lite-Chat (MLA + MoE, bf16, served as dsv2-lite,
+  vllm/vllm-openai:v0.32.0) on one g6.12xlarge (4x NVIDIA L4 24 GB, PCIe; node group
+  llm-serving-l4, namespace llm-serving), always on all four GPUs. Goal: total tokens/s under
+  TTFT p95 <= 10 s and TPOT p95 <= 50 ms, with a closed-loop AIPerf users ramp of multi-turn
+  long-context sessions sharing 8k-token prefixes. Requires vLLM pack 1.14.0, the Kubernetes
+  pack 1.9.0 and the GPU pack 1.4.0. Created 2026-10-22.

@@ -1,0 +1,14 @@
+kind: component
+system: vLLM_Benchmark_41_L4_DSV2_Lite_CP
+
+name: vllm
+description: >-
+  The vLLM server (StatefulSet vllm-dsv2, pod vllm-dsv2-0, namespace llm-serving),
+  deepseek-ai/DeepSeek-V2-Lite-Chat served as dsv2-lite on all four L4s. Carries every tuned
+  vLLM parameter and the goal, constraint and windowing metrics. With DP > 1 the pod exposes
+  one series per engine (label engine); every query sums over them.
+componentType: vLLM
+properties:
+  prometheus:
+    pod: ^vllm-dsv2-0$
+    model: dsv2-lite

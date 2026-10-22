@@ -1,0 +1,34 @@
+# PVCs of 41-l4-dsv2-lite-context-parallel, namespace llm-serving.
+#
+# 1. The vLLM model cache. ALREADY EXISTS (created by the smoke run on 2026-10-22, bound to
+#    an EBS volume in us-east-2a, DeepSeek-V2-Lite-Chat already downloaded): declared here
+#    with exactly its live spec so `kubectl apply` is a no-op on it. Deleting it means a new
+#    31.4 GB download on the next start.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vllm-model-cache-dsv2lite
+  namespace: llm-serving
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3-ephemeral
+  resources:
+    requests:
+      storage: 60Gi
+---
+# 2. AIPerf results (one directory per measured run), for the Job on the system node
+#    (us-east-2b; WaitForFirstConsumer binds it there). New; nothing shared with the other
+#    studies' AIPerf Jobs.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: aiperf-results-dsv2
+  namespace: llm-serving
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3
+  resources:
+    requests:
+      storage: 10Gi

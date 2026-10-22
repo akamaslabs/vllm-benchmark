@@ -1,0 +1,14 @@
+# Hugging Face cache for the AIPerf pod (the DeepSeek-V2-Lite-Chat tokenizer, ungated). The
+# model itself is never loaded here. New; on the system node (us-east-2b).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: aiperf-hf-cache-dsv2
+  namespace: llm-serving
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3-ephemeral
+  resources:
+    requests:
+      storage: 5Gi

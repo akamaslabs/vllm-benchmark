@@ -25,8 +25,11 @@ where TP4's KV cache saturates.
   SLA without the AIPerf pack. Counting only computed prompt tokens would reward configurations
   that miss the prefix cache, so it is not used either.
 - **Constraints (SLA):** `vllm.time_to_first_token_p95:max <= 10000` ms and
-  `vllm.time_per_output_token_p95:max <= 50` ms over the scored window (150 s p95s; the pack
-  metrics are unitless, the telemetry queries return ms).
+  `vllm.time_per_output_token_p95:max <= 100` ms over the scored window (150 s p95s; the pack
+  metrics are unitless, the telemetry queries return ms). TPOT was 50 ms at design time; the
+  calibration (Smoke study, below) showed TPOT > 50 ms breaking every layout at 23-31 users, before
+  the TP4 KV cache filled, so the study would have measured decode speed only. 100 ms (10
+  tokens/s per user, the usual chat SLA, as study 39) was agreed with the user on 2026-10-23.
 - **Parity:** every configuration uses all four L4s (`TP x PCP x DP = 4`; DCP reuses TP ranks).
 - **Not the goal:** concurrent users. Akamas 4.1 has no AIPerf pack installed, so the goal reads
   vLLM's own counters; the users ramp is the load, and the best valid window of tokens/s is the
@@ -85,7 +88,6 @@ used only for the fixed prefix-caching key).
 | `vllm.decode_context_parallel_size` | {1, 2, 4} ([1, 16]) | 1 | the study's main lever: shards the latent KV across TP ranks |
 | `vllm.prefill_context_parallel_size` | {1, 2, 4} ([1, 8]) | 1 | splits long prefills across ranks |
 | `vllm.enable_expert_parallel` | true, false | false | whole experts per rank vs TP-sharded experts |
-| `vllm.kv_cache_dtype` | auto, fp8 (auto, fp8, fp8_e4m3, fp8_e5m2) | auto (bf16) | KV x2 again; TRITON_MLA supports fp8 on SM89+ |
 | `vllm.max_num_seqs` | 16-512 (1-4096) | 256 (vLLM 0.32.0 default on a < 70 GiB GPU) | admission cap per engine |
 | `vllm.max_num_batched_tokens` | 2048-32768 (1-65536) | 2048 (vLLM 0.32.0 default on a < 70 GiB GPU) | prefill budget per step: TTFT of 8-30k prompts |
 | `vllm.gpu_memory_utilization` | 0.80-0.94 (0-1) | 0.90 (repo convention; vLLM default 0.92) | the KV budget per GPU |
@@ -154,8 +156,8 @@ Backends: `TRITON_MLA` (decode), `FLASH_ATTN MLA prefill backend`. Startup 350-5
   32768.
 - **Closed loop, users ramp:** `--concurrency N --concurrency-ramp-duration RAMP` (AIPerf 0.11.0:
   a concurrency slot is a *session*, held across the think time, so N = concurrent users).
-  Placeholders **N = 96, RAMP = 3600 s** (`RT_USERS` / `RT_RAMP_S` in the workflow), to be fixed by
-  the calibration run.
+  **N = 60, RAMP = 3600 s** (`RT_USERS` / `RT_RAMP_S` in the workflow): one user a minute, set from
+  the calibration run (TP4 broke the SLA at ~27 users, DCP4 at ~31, on a 96-user/1800 s ramp).
 - **Why it saturates where it should:** TP4 holds 374,192 KV tokens, i.e. ~19-26 in-flight
   sequences of 14-20k; with ~10 s think time out of a ~15-25 s turn cycle, roughly half the users
   have a request in flight, so TP4's KV fills around 40-50 users — mid-ramp — and preemption /
@@ -163,7 +165,7 @@ Backends: `TRITON_MLA` (decode), `FLASH_ATTN MLA prefill backend`. Startup 350-5
   and prefill speed hold, its knee should sit much later in the same ramp. The ramp must be long
   and high enough that DCP4's knee is not capped by its end (hence the calibration on both).
 - **Watchdog** (`k8s/run_test.sh`, study 39's pattern): ends the run with success once vLLM's TTFT
-  p95 > 20000 ms or TPOT p95 > 100 ms (2 x the SLA) holds for 120 s; the trial fails on a Job
+  p95 > 20000 ms or TPOT p95 > 200 ms (2 x the SLA) holds for 120 s; the trial fails on a Job
   failure, a vLLM restart, a stall or the deadline (RAMP + 2400 s).
 - **Scoring:** `stability` windowing on `vllm.decode_token_throughput`, width 6 samples (150-180 s
   at 25-30 s scrape), `maxStdDev` 300000000 (filter disabled), `when: max`: the valid window with
@@ -177,15 +179,40 @@ Backends: `TRITON_MLA` (decode), `FLASH_ATTN MLA prefill backend`. Startup 350-5
 | 1 | baseline (2 trials) | TP4, vLLM 0.32.0 defaults, gmu 0.90 | reference + first noise measure |
 | 2 | tp4 dcp2 | baseline + DCP2 | KV x2 |
 | 3 | tp4 dcp4 | baseline + DCP4 | KV x4 |
-| 4 | tp4 dcp4 kv fp8 | + fp8 KV | KV x8 vs baseline; fp8 with DCP never run |
-| 5 | tp1 pcp4 ep | TP1 x PCP4 + EP | PCP at its widest |
-| 6 | tp2 pcp2 ep | TP2 x PCP2 + EP | PCP with sharded KV |
-| 7 | dp4 ep | TP1 x DP4 + EP | replicas, the classic throughput layout |
-| 8 | optimize | AKAMAS, 0 init, 60 experiments, `maxFailedExperiments` 20 | as studies 27-39 |
+| 4 | tp1 pcp4 ep | TP1 x PCP4 + EP | PCP at its widest |
+| 5 | tp2 pcp2 ep | TP2 x PCP2 + EP | PCP with sharded KV |
+| 6 | dp4 ep | TP1 x DP4 + EP | replicas, the classic throughput layout |
+| 7 | optimize | AKAMAS, 0 init, 60 experiments, `maxFailedExperiments` 20 | as studies 27-39 |
 
-Calibration study `41-L4-DSV2-Lite-Context-Parallel-Smoke` (workflow `...-Smoke-Workflow`, users 1
--> 96 over 1800 s): the baseline, `tp4 dcp4`, `tp4 dcp4 kv fp8` and `tp1 pcp4 ep`, once each
-(the last two are the combinations never run under load: fp8 KV with DCP, PCP with prefix caching).
+`kv_cache_dtype` is not tuned: fp8 crashed TRITON_MLA on the L4 (calibration, below), so it is
+pinned to vLLM's default (`auto`, bf16) and `render_statefulset.sh` refuses fp8.
+
+### Calibration (Smoke study `41-L4-DSV2-Lite-Context-Parallel-Smoke`, 2026-10-22)
+
+Workflow `...-Smoke-Workflow`, users 1 -> 96 over 1800 s, SLA then TTFT p95 <= 10 s / TPOT p95
+<= 50 ms (the manifest in git is the one that ran). Each trial lasted ~15-20 min: the watchdog
+(then at TPOT 100 ms) ended every run 11-14 min into the ramp. Values read from vLLM's Prometheus
+series at the first watchdog breach:
+
+| exp | layout | users at 1st breach | KV usage | waiting | TPOT p95 | TTFT p95 | prefix-cache hit rate | score (gen tok/s) |
+|---|---|---|---|---|---|---|---|---|
+| 1 | TP4 baseline | ~27 | 89 % | 4 | 119 ms | 3.3 s | 69 % | 94.1 (VALID) |
+| 2 | TP4 + DCP4 | ~31 | 25 % | 0 | 100 ms | 3.7 s | **82 %** | 115.2 (+22 %, VALID) |
+| 3 | TP4 + DCP4 + fp8 KV | — | — | — | — | — | — | ERROR: `OutOfResources: shared memory` in a Triton MLA kernel (worker `TP0_DCP0`) at the first requests |
+| 4 | TP1 x PCP4 + EP | ~23 | 80 % | 0 | 137 ms | 6.3 s | 62 % | 149.2 (CONSTRAINTS_VIOLATED) |
+
+- The load hits what it was sized for: TP4's KV cache was at 89 % with requests queueing at ~27
+  users, DCP4's at 25 %.
+- Prefix caching works with DCP and PCP; DCP4 keeps more history in cache (82 % vs 69 % hit rate).
+- TPOT <= 50 ms broke first in every layout (decode of ~15k-token contexts with 20-30 running
+  sequences on the L4), before the KV cache mattered: hence the 100 ms SLA.
+- Context measured over the whole Smoke run (vLLM `request_prompt_tokens`): median 15.3k, mean
+  14.9k, p10 10.1k prompt tokens (p90 above the 20k histogram bucket; ~28k max by design), 249
+  generated tokens per request, 73 % of prompt tokens served from the prefix cache.
+- PCP was the worst layout, as in the single-request smoke test.
+- The first start needed `akamas finish study` + `start` (Akamas 4.1 timed out waiting for the
+  Airflow DAG), and the first trial failed on a `render_statefulset.sh` bug (a commented `${...}`
+  read as a leftover token), fixed with a regression test before the trials above.
 
 **KPIs (8):** Generation throughput, TTFT P95 150s, TPOT P95 150s, Completed requests, KV cache
 usage (max), Preemptions, Waiting requests (max), Prefix cache hit rate. Total tokens/s and the
@@ -193,8 +220,11 @@ per-GPU series (`gpu0`..`gpu3`) are still collected as metrics.
 
 ## Before starting
 
-Nothing has been created on Akamas, pushed, or copied into the toolbox: every step below waits for
-the user's go.
+State on 2026-10-23: system, components, telemetry and the Smoke study exist on Akamas 4.1; the
+Kubernetes layer is applied; the node group `llm-serving-l4` was scaled to 0 after the Smoke study
+(the model PVC stays in us-east-2a). Steps 1-5 below were done for the Smoke study; for the main
+study: scale up (1-2), sync the changed files to the toolbox, create the main workflow and study,
+start it.
 
 1. **Node in us-east-2a.** The model PVC is an EBS volume in us-east-2a; the ASG spans 2a/2b/2c.
    After any scale-up: `kubectl get nodes -l node-role=llm-serving-l4 -L
@@ -207,8 +237,8 @@ the user's go.
    Services and the ServiceMonitor if missing; never touches the model PVC).
 4. **Sync the repo to the toolbox** (`/work/vllm-benchmark`), then create the system, components,
    telemetry and the Smoke workflow/study (`akamas/README.md`).
-5. **Calibration run** (Smoke study: TP4 baseline, TP4+DCP4, TP4+DCP4 fp8 KV, TP1xPCP4+EP,
-   1 -> 96 users over 1800 s). Read:
+5. **Calibration run** — done 2026-10-22, results above (Smoke study: TP4 baseline, TP4+DCP4,
+   TP4+DCP4 fp8 KV, TP1xPCP4+EP, 1 -> 96 users over 1800 s). It read:
    - the users at each knee (AIPerf log, `kv_cache_usage`, `num_requests_waiting`): set
      `RT_USERS` / `RT_RAMP_S` in the main workflow so TP4 breaks the SLA around mid-ramp and
      TP4+DCP4 still has headroom before the end (raise N if DCP4 never breaks);
@@ -236,7 +266,7 @@ the user's go.
 - **`tp % dcp == 0` written as `dcp <= tp`:** equivalent for sizes in {1, 2, 4}; Akamas formulas
   have no documented modulo operator.
 - **Watchdog on TPOT too:** the spec named TTFT p95 > 2 x SLA; the watchdog also stops at TPOT p95
-  > 2 x SLA (100 ms), as study 39's did, since past either breach every later window is invalid.
+  > 2 x SLA (200 ms since the 100 ms SLA; 100 ms in the Smoke study), as study 39's did, since past either breach every later window is invalid.
 - **AIPerf `--tokenizer-trust-remote-code`** added to the workload (the checkpoint ships remote
   code; vLLM is started with `--trust-remote-code`). The local dry run loaded the tokenizer fine.
 - **Calibration as an Akamas Smoke study** (baseline + `tp4 dcp4` on a 1800 s ramp) rather than

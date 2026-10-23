@@ -52,6 +52,9 @@ done
 # TRITON_MLA supported_kv_cache_dtypes on SM 8.9 (the study's domain is {auto, fp8}).
 [ -z "$KV_CACHE_DTYPE" ] || [[ "$KV_CACHE_DTYPE" =~ ^(auto|fp8|fp8_e4m3)$ ]] \
   || die "kv_cache_dtype '$KV_CACHE_DTYPE' is not auto, fp8 or fp8_e4m3"
+# Smoke experiment 3 (2026-10-22): fp8 KV crashed TRITON_MLA on the L4 at the first long prefill
+# (Triton OutOfResources: shared memory). The study pins KV_CACHE_DTYPE= (vLLM default, auto).
+[[ "$KV_CACHE_DTYPE" =~ ^fp8 ]] && die "kv_cache_dtype fp8 crashes TRITON_MLA on the L4 (OutOfResources: shared memory)"
 
 # Effective values (empty = vLLM 0.32.0's default) for the cross-parameter checks.
 TP=${TENSOR_PARALLEL_SIZE:-1} DP=${DATA_PARALLEL_SIZE:-1}

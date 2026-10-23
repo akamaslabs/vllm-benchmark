@@ -13,7 +13,7 @@ templates under `../k8s/`), as in every other study here.
 Generation tokens/s (from vLLM's own Prometheus counters, summed over DP engines; with a fixed
 256-token reply it is completed turns/s x 256 — see ../README.md for why not total tokens/s) of `deepseek-ai/DeepSeek-V2-Lite-Chat` (MLA + MoE, bf16, served as `dsv2-lite`,
 `vllm/vllm-openai:v0.32.0`) on the four L4s of one g6.12xlarge, under TTFT p95 <= 10000 ms and
-TPOT p95 <= 50 ms (150 s p95s, read with `:max` over the 6-sample scored window). The search is
+TPOT p95 <= 100 ms (150 s p95s, read with `:max` over the 6-sample scored window). The search is
 over the parallel layout (TP / DP / DCP / PCP / EP, always on 4 GPUs) and four engine settings.
 
 ## Versions
@@ -41,15 +41,15 @@ over the parallel layout (TP / DP / DCP / PCP / EP, always on 4 GPUs) and four e
 | `components/cluster_loadtest.yaml` | component (`Kubernetes Cluster`) | `cluster_loadtest` — node role `system-m8a` |
 | `components/gpu0.yaml` .. `gpu3.yaml` | component (`GPU`) | `gpu0`..`gpu3` — one per physical L4 (`gpu: "0".."3"`, `noderole: llm-serving-l4`) |
 | `telemetry/prometheus.yaml` | telemetry-instance | `Prometheus_41_L4_DSV2_Lite_CP` (107 metrics) |
-| `41-L4-DSV2-Lite-Context-Parallel-Workflow.yaml` | workflow | Write config → Apply config → RunTest (users 1 → 96 over 3600 s, TODO calibrate) |
+| `41-L4-DSV2-Lite-Context-Parallel-Workflow.yaml` | workflow | Write config → Apply config → RunTest (users 1 → 60 over 3600 s, set by the calibration run) |
 | `41-L4-DSV2-Lite-Context-Parallel-Smoke-Workflow.yaml` | workflow | same, steeper ramp (1 → 96 over 1800 s) for the calibration run |
 | `41-L4-DSV2-Lite-Context-Parallel.yaml` | study | main study |
-| `41-L4-DSV2-Lite-Context-Parallel-Smoke.yaml` | study | calibration: baseline + `tp4 dcp4`, one trial each |
+| `41-L4-DSV2-Lite-Context-Parallel-Smoke.yaml` | study | calibration (ran 2026-10-22): baseline, `tp4 dcp4`, `tp4 dcp4 kv fp8`, `tp1 pcp4 ep`, one trial each |
 | `gen_study.py` | — | generates both study manifests (keeps them in sync) |
 | `check_offline.py` | — | offline checks against the repo rules, the pack sources and the real renderer |
 
 Steps of the main study: `baseline` (TP4, vLLM 0.32.0 defaults, gmu 0.90; 2 trials), presets
-`tp4 dcp2`, `tp4 dcp4`, `tp4 dcp4 kv fp8`, `tp1 pcp4 ep`, `tp2 pcp2 ep`, `dp4 ep`, then `optimize`
+`tp4 dcp2`, `tp4 dcp4`, `tp1 pcp4 ep`, `tp2 pcp2 ep`, `dp4 ep`, then `optimize`
 (AKAMAS, 0 init experiments, 60 experiments, stop after 20 failures). 13 layouts are feasible
 under the parameterConstraints (`check_offline.py` enumerates them and checks that
 `../k8s/render_statefulset.sh` accepts exactly the same ones).

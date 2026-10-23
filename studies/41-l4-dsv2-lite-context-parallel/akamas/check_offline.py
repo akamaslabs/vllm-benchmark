@@ -99,6 +99,8 @@ def renders(values):
         return r.returncode == 0
 
 for sp in glob.glob(os.path.join(HERE, '41-*.yaml')):
+    if sp.endswith('-Smoke.yaml') or sp.endswith('-Smoke-Workflow.yaml'):
+        continue  # historical: ran on 2026-10-22 against the previous renderer
     s = load(sp)
     if s.get('kind') != 'study':
         continue

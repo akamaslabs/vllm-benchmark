@@ -4,7 +4,8 @@
 # One AIPerf Job against vllm-dsv2-0: 60 s warm-up, then a closed-loop users ramp, 1 -> RT_USERS
 # concurrent sessions over RT_RAMP_S s (render_job.sh), of synthetic multi-turn long-context
 # sessions with 8k-token shared prefixes (lib_workload.sh).
-# TODO(calibrate): RT_USERS=96 / RT_RAMP_S=3600 are placeholders until the calibration run
+# Calibrated by the Smoke study (2026-10-22): RT_USERS=60 / RT_RAMP_S=3600 (one user a minute; the
+# baseline broke the SLA at ~27-31 users on a 96-user ramp, mid-ramp here). Was a placeholder
 # (README "Before starting": one TP4 baseline + one TP4+DCP4 run) places the knees; the
 # workflow command sets both explicitly.
 # The trial FAILS (exit 1) if the Job fails, the vLLM pod restarts or is replaced,
@@ -13,7 +14,7 @@
 # (150 s) > RT_WD_TTFT_MS or TPOT p95 (150 s) > RT_WD_TPOT_MS for RT_WD_HOLD_S: in a closed
 # loop more users past the knee only queue longer, every later window is invalid anyway, and
 # Akamas scores the best valid window before it. Defaults = 2 x the study's SLO (TTFT p95 <=
-# 10000 ms, TPOT p95 <= 50 ms), so the run goes a little past the breach and the scored
+# 10000 ms, TPOT p95 <= 100 ms), so the run goes a little past the breach and the scored
 # window before it is complete. TPOT is vllm:request_time_per_output_token_seconds, the
 # histogram behind the constraint metric vllm.time_per_output_token_p95 (present in vLLM
 # 0.32.0, v1/metrics/loggers.py); it is observed when a request completes, so it lags the
@@ -24,13 +25,13 @@ NS=llm-serving
 APP=vllm-dsv2
 POD=vllm-dsv2-0
 MODEL=dsv2-lite
-USERS=${RT_USERS:-96}
+USERS=${RT_USERS:-60}
 RAMP_S=${RT_RAMP_S:-3600}
 # pip (~2 min) + synthetic dataset generation (4000 long sessions: to be measured by the
 # calibration run, budgeted ~15 min) + 60 s warm-up + the ramp + grace. The workflow's
 # RunTest timeout must stay above it, or Akamas kills the task before the log dump.
 DEADLINE_S=${RT_DEADLINE_S:-$((RAMP_S + 2400))}
-WD_TTFT_MS=${RT_WD_TTFT_MS:-20000}; WD_TPOT_MS=${RT_WD_TPOT_MS:-100}
+WD_TTFT_MS=${RT_WD_TTFT_MS:-20000}; WD_TPOT_MS=${RT_WD_TPOT_MS:-200}
 WD_HOLD_S=${RT_WD_HOLD_S:-120}; WD_ARM_DELAY_S=${RT_WD_ARM_DELAY_S:-150}
 POLL_S=${RT_POLL_S:-15}; STALL_S=${RT_STALL_S:-900}; FIRST_OK_S=${RT_FIRST_OK_S:-2100}
 PROGRESS_EVERY_S=${RT_PROGRESS_EVERY_S:-60}

@@ -5,7 +5,7 @@ name: 41-L4-DSV2-Lite-Context-Parallel
 description: 'Study 41: does decode context parallelism (which removes TP''s KV duplication on an MLA
   model) or prefill context parallelism give more long-context throughput at parity of GPUs? deepseek-ai/DeepSeek-V2-Lite-Chat
   (MLA + MoE, bf16) on 4x L4, vLLM 0.32.0, always on all four GPUs (TP x PCP x DP = 4). Goal: generation
-  tokens/s (= turns/s x 256) under TTFT p95 <= 10 s and TPOT p95 <= 50 ms (150 s p95, :max). Load: closed-loop
+  tokens/s (= turns/s x 256) under TTFT p95 <= 10 s and TPOT p95 <= 100 ms (150 s p95, :max). Load: closed-loop
   AIPerf users ramp of multi-turn sessions with 8k-token shared prefixes, ended by a watchdog past 2 x
   the SLO. Steps: TP4 baseline (2 trials), 6 layout presets, 60 AKAMAS experiments. Needs vLLM pack 1.14.0
   and GPU pack 1.4.0.'
@@ -21,7 +21,7 @@ goal:
     - name: TTFT P95 over 150 s
       formula: vllm.time_to_first_token_p95:max <= 10000
     - name: TPOT P95 over 150 s
-      formula: vllm.time_per_output_token_p95:max <= 50
+      formula: vllm.time_per_output_token_p95:max <= 100
 windowing:
   type: stability
   stability:
@@ -53,10 +53,6 @@ parametersSelection:
   categories:
   - 'true'
   - 'false'
-- name: vllm.kv_cache_dtype
-  categories:
-  - auto
-  - fp8
 - name: vllm.max_num_seqs
   domain:
   - 16
@@ -130,7 +126,6 @@ steps:
     vllm.decode_context_parallel_size: 1
     vllm.prefill_context_parallel_size: 1
     vllm.enable_expert_parallel: 'false'
-    vllm.kv_cache_dtype: auto
     vllm.max_num_seqs: 256
     vllm.max_num_batched_tokens: 2048
     vllm.gpu_memory_utilization: 0.9
@@ -142,7 +137,6 @@ steps:
     vllm.decode_context_parallel_size: 2
     vllm.prefill_context_parallel_size: 1
     vllm.enable_expert_parallel: 'false'
-    vllm.kv_cache_dtype: auto
     vllm.max_num_seqs: 256
     vllm.max_num_batched_tokens: 2048
     vllm.gpu_memory_utilization: 0.9
@@ -154,19 +148,6 @@ steps:
     vllm.decode_context_parallel_size: 4
     vllm.prefill_context_parallel_size: 1
     vllm.enable_expert_parallel: 'false'
-    vllm.kv_cache_dtype: auto
-    vllm.max_num_seqs: 256
-    vllm.max_num_batched_tokens: 2048
-    vllm.gpu_memory_utilization: 0.9
-- name: tp4 dcp4 kv fp8
-  type: preset
-  values:
-    vllm.tensor_parallel_size: 4
-    vllm.data_parallel_size: 1
-    vllm.decode_context_parallel_size: 4
-    vllm.prefill_context_parallel_size: 1
-    vllm.enable_expert_parallel: 'false'
-    vllm.kv_cache_dtype: fp8
     vllm.max_num_seqs: 256
     vllm.max_num_batched_tokens: 2048
     vllm.gpu_memory_utilization: 0.9
@@ -178,7 +159,6 @@ steps:
     vllm.decode_context_parallel_size: 1
     vllm.prefill_context_parallel_size: 4
     vllm.enable_expert_parallel: 'true'
-    vllm.kv_cache_dtype: auto
     vllm.max_num_seqs: 256
     vllm.max_num_batched_tokens: 2048
     vllm.gpu_memory_utilization: 0.9
@@ -190,7 +170,6 @@ steps:
     vllm.decode_context_parallel_size: 1
     vllm.prefill_context_parallel_size: 2
     vllm.enable_expert_parallel: 'true'
-    vllm.kv_cache_dtype: auto
     vllm.max_num_seqs: 256
     vllm.max_num_batched_tokens: 2048
     vllm.gpu_memory_utilization: 0.9
@@ -202,7 +181,6 @@ steps:
     vllm.decode_context_parallel_size: 1
     vllm.prefill_context_parallel_size: 1
     vllm.enable_expert_parallel: 'true'
-    vllm.kv_cache_dtype: auto
     vllm.max_num_seqs: 256
     vllm.max_num_batched_tokens: 2048
     vllm.gpu_memory_utilization: 0.9

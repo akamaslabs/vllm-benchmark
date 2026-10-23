@@ -18,8 +18,8 @@ grep -q '^applied aiperf-dsv2$' "$TMP/kubectl.log" && ok "ready: Job applied" ||
 grep -q 'delete job -l app=aiperf-dsv2' "$TMP/kubectl.log" && ok "leftover Job deleted first" || ko "leftover Job deleted first"
 grep -q -- '-n llm-serving' "$TMP/kubectl.log" && ok "namespace llm-serving" || ko "namespace llm-serving"
 grep -qE 'app=vllm( |$)' "$TMP/kubectl.log" && ko "never selects the other study's app=vllm" || ok "never selects the other study's app=vllm"
-grep -q 'users ramp 1 -> 96 over 3600 s' "$TMP/out.txt" && ok "default ramp 96 users / 3600 s" || ko "default ramp"
-grep -q 'TTFT p95 > 20000 ms or TPOT p95 > 100 ms for 120 s' "$TMP/out.txt" && ok "watchdog at 2 x the SLO" || ko "watchdog at 2 x the SLO"
+grep -q 'users ramp 1 -> 60 over 3600 s' "$TMP/out.txt" && ok "default ramp 60 users / 3600 s" || ko "default ramp"
+grep -q 'TTFT p95 > 20000 ms or TPOT p95 > 200 ms for 120 s' "$TMP/out.txt" && ok "watchdog at 2 x the SLO" || ko "watchdog at 2 x the SLO"
 grep -q 'deadline 6000 s' "$TMP/out.txt" && ok "deadline ramp + 2400 s" || ko "deadline"
 run 1 RT_USERS=48 RT_RAMP_S=1200; rc=$?
 { [ $rc = 0 ] && grep -q 'users ramp 1 -> 48 over 1200 s' "$TMP/out.txt"; } && ok "RT_USERS / RT_RAMP_S honoured" || ko "RT_USERS / RT_RAMP_S honoured"

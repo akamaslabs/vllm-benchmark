@@ -80,7 +80,7 @@ fi
 # 2. The study's presets render (the layouts measured in the smoke run).
 accept "TP4+DCP2" DECODE_CONTEXT_PARALLEL_SIZE=2
 accept "TP4+DCP4" DECODE_CONTEXT_PARALLEL_SIZE=4
-accept "TP4+DCP4+fp8" DECODE_CONTEXT_PARALLEL_SIZE=4 KV_CACHE_DTYPE=fp8
+expect_reject "TP4+DCP4+fp8 (crashes TRITON_MLA on the L4)" DECODE_CONTEXT_PARALLEL_SIZE=4 KV_CACHE_DTYPE=fp8
 accept "TP1xPCP4+EP" TENSOR_PARALLEL_SIZE=1 PREFILL_CONTEXT_PARALLEL_SIZE=4 ENABLE_EXPERT_PARALLEL=true
 accept "TP2xPCP2+EP" TENSOR_PARALLEL_SIZE=2 PREFILL_CONTEXT_PARALLEL_SIZE=2 ENABLE_EXPERT_PARALLEL=true
 accept "DP4+EP" TENSOR_PARALLEL_SIZE=1 DATA_PARALLEL_SIZE=4 ENABLE_EXPERT_PARALLEL=true
@@ -136,9 +136,10 @@ for k in $(grep -o '^[A-Z_]*=\${' "$K8S/params.env.template" | cut -d= -f1); do
   grep -q "\b$k\b" "$R" && ok "template key $k is read" || ko "template key $k is read"
 done
 for k in TENSOR_PARALLEL_SIZE DATA_PARALLEL_SIZE DECODE_CONTEXT_PARALLEL_SIZE PREFILL_CONTEXT_PARALLEL_SIZE \
-         ENABLE_EXPERT_PARALLEL KV_CACHE_DTYPE MAX_NUM_SEQS MAX_NUM_BATCHED_TOKENS GPU_MEMORY_UTILIZATION; do
+         ENABLE_EXPERT_PARALLEL MAX_NUM_SEQS MAX_NUM_BATCHED_TOKENS GPU_MEMORY_UTILIZATION; do
   grep -q "^$k=\${vllm\.[a-z_]*}$" "$K8S/params.env.template" && ok "contract key $k in the template" || ko "contract key $k in the template"
 done
+grep -qx "KV_CACHE_DTYPE=" "$K8S/params.env.template" && ok "fixed KV_CACHE_DTYPE= (default auto) in the template" || ko "fixed KV_CACHE_DTYPE= in the template"
 grep -qx "ENABLE_PREFIX_CACHING=" "$K8S/params.env.template" && ok "fixed ENABLE_PREFIX_CACHING= (default) in the template" || ko "fixed ENABLE_PREFIX_CACHING= in the template"
 
 # 6. The real template as the FileConfigurator leaves it (every token replaced, comments kept):

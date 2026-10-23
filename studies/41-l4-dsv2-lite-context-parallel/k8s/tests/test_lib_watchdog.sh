@@ -4,7 +4,7 @@ set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 # shellcheck source=../lib_watchdog.sh
 source "$(dirname "$HERE")/lib_watchdog.sh"
-export WD_TTFT_MS=20000 WD_TPOT_MS=100 WD_HOLD_S=120 WD_ARM_DELAY_S=150   # read by the sourced library
+export WD_TTFT_MS=20000 WD_TPOT_MS=200 WD_HOLD_S=120 WD_ARM_DELAY_S=150   # read by the sourced library
 FAILS=0
 t() { local name=$1; shift; if "$@"; then echo "ok   $name"; else echo "FAIL $name"; FAILS=$((FAILS + 1)); fi; }
 n() { local name=$1; shift; if "$@"; then echo "FAIL $name"; FAILS=$((FAILS + 1)); else echo "ok   $name"; fi; }
@@ -12,7 +12,7 @@ eq() { [ "$1" = "$2" ]; }
 n "no data is not over"             wd_over "" ""
 n "under both thresholds"           wd_over 20000 100
 t "TTFT over"                       wd_over 20001 50
-t "TPOT over"                       wd_over 100 101
+t "TPOT over"                       wd_over 200 201
 t "TPOT over with no TTFT data"     wd_over "" 250
 n "non-numeric is no data"          wd_over NaN +Inf
 t "starts counting when over"       eq "$(wd_next_since 1000 "" 0)" 1000

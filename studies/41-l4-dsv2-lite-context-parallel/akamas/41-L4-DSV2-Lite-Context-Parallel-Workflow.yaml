@@ -1,6 +1,6 @@
 kind: workflow
 name: 41-L4-DSV2-Lite-Context-Parallel-Workflow
-# The study: closed-loop users ramp 1 -> 96 concurrent sessions over 3600 s. TODO(calibrate): 96 / 3600 are the spec's placeholders; the calibration run (Smoke study, README 'Before starting') sets RT_USERS / RT_RAMP_S so the TP4 baseline breaks the SLO mid-ramp and TP4+DCP4 has headroom before the ramp ends.
+# The study: closed-loop users ramp 1 -> 60 concurrent sessions over 3600 s (one user a minute), set by the calibration run (Smoke study, 2026-10-22: TP4 broke the SLA at ~27 users, TP4+DCP4 at ~31, on 1 -> 96 over 1800 s).
 # All tasks run on the toolbox host over SSH with the toolbox's own key
 # (/home/akamas/.ssh/id_rsa, mounted from the toolbox-keys secret; the path must exist on
 # the toolbox when `akamas create workflow` runs, so run it from the toolbox). Akamas 4.1 has
@@ -46,4 +46,4 @@ tasks:
         hostname: toolbox
         username: akamas
         key: /home/akamas/.ssh/id_rsa
-      command: RT_USERS=96 RT_RAMP_S=3600 bash /work/vllm-benchmark/studies/41-l4-dsv2-lite-context-parallel/k8s/run_test.sh
+      command: RT_USERS=60 RT_RAMP_S=3600 bash /work/vllm-benchmark/studies/41-l4-dsv2-lite-context-parallel/k8s/run_test.sh

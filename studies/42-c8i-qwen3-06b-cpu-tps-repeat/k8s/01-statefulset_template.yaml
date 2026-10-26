@@ -1,0 +1,156 @@
+# vLLM CPU serving for 42-c8i-qwen3-06b-cpu-tps-repeat. Rendered by render_statefulset.sh (called by
+# apply_config.sh), NOT by the Akamas FileConfigurator. Not valid YAML until rendered: the
+# line holding the TUNED_ARGS token (between two at-signs) is replaced by one "- --flag"
+# item per tuned parameter.
+#
+# One replica of the vLLM CPU backend (vllm/vllm-openai-cpu:v0.31.0, x86_64, AMX) on the
+# c8i.12xlarge node of node group llm-serving-c8i (Xeon 6 Granite Rapids, 24 cores / 48 vCPU,
+# 96 GiB). A StatefulSet for the stable pod name vllm-0 (the Akamas components, the watchdog
+# and the warm-up address it by name), as studies 28/30.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vllm
+  namespace: llm-cpu
+spec:
+  serviceName: vllm-headless
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app: vllm
+  template:
+    metadata:
+      labels:
+        app: vllm
+    spec:
+      # Kubernetes would otherwise inject VLLM_PORT=tcp://... from the Service, which
+      # collides with vLLM's own VLLM_PORT variable and crashes it at startup.
+      enableServiceLinks: false
+      nodeSelector:
+        node-role: llm-serving-cpu
+      tolerations:
+        - key: workload
+          operator: Equal
+          value: cpu-inference
+          effect: NoSchedule
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: vllm
+          # Image entrypoint is ["vllm", "serve"] (docker/Dockerfile.cpu, target vllm-openai);
+          # it sets LD_PRELOAD to tcmalloc + Intel OpenMP (libiomp5), which vLLM checks at
+          # init ("... is not found in LD_PRELOAD" otherwise).
+          image: vllm/vllm-openai-cpu:v0.31.0
+          args:
+            # Apache-2.0, ungated: no HF token anywhere in this study.
+            - "--model=Qwen/Qwen3-0.6B"
+            # A name no other study's telemetry filters on.
+            - "--served-model-name=qwen3-06b"
+            - "--port=8000"
+            - "--host=0.0.0.0"
+            # The vLLM CPU docs: "float16 support in torch CPU is unstable"; bf16 is also the
+            # AMX attention path (cpu_attn.py _get_attn_isa: AMX + bf16 + block_size % 32 == 0).
+            - "--dtype=bfloat16"
+            # Fixed (contract). Also the bound render_statefulset.sh checks for
+            # --no-enable-chunked-prefill and long_prefill_token_threshold (MAX_MODEL_LEN there).
+            - "--max-model-len=16384"
+            # Qwen3 thinks by default; off for every chat request unless the request
+            # overrides it (vllm/entrypoints/launchers/cli_args.py, json.loads type).
+            - "--default-chat-template-kwargs"
+            - '{"enable_thinking": false}'
+            # usage.prompt_tokens_details.cached_tokens in every response, so AIPerf's own
+            # export carries the prefix-cache hits next to vLLM's prefix_cache_* counters
+            # (frontend only; launchers/cli_args.py, BooleanOptionalAction).
+            - "--enable-prompt-tokens-details"
+            # --- Tuned (parametersSelection), one item per parameter ---
+            @TUNED_ARGS@
+          env:
+            - name: HF_HOME
+              value: /hf-cache
+            # vLLM's torch.compile / inductor cache (envs.py VLLM_CACHE_ROOT, default
+            # ~/.cache/vllm) on the node, so a configuration already compiled once does not
+            # pay the CPU inductor compile again on its next start.
+            - name: VLLM_CACHE_ROOT
+              value: /vllm-cache
+            # CPU engine startup (inductor compile at cold start) can exceed the default
+            # 600 s (vLLM recipe for Xeon 6). The startupProbe and apply_config.sh's ROLLOUT_S
+            # sit above it.
+            - name: VLLM_ENGINE_READY_TIMEOUT_S
+              value: "1800"
+            # Fixed, not tuned (TODO pack owner: no vLLM pack parameter for them yet).
+            # auto = one OMP thread per physical core of the pod's cpuset (highest SMT
+            # sibling, vllm/utils/ompmultiprocessing.py), minus the reserved ones below. With
+            # 44 exclusive CPUs = 22 cores: 22 - 2 = 20 OMP threads; the 2 reserved cores and
+            # the 22 idle siblings serve the API server and the engine-core scheduler.
+            - name: VLLM_CPU_OMP_THREADS_BIND
+              value: auto
+            - name: VLLM_CPU_NUM_OF_RESERVED_CPU
+              value: "2"
+            # NEVER set VLLM_CPU_KVCACHE_SPACE here: platforms/cpu.py turns any non-empty
+            # value into kv_cache_memory_bytes, which bypasses --gpu-memory-utilization (the
+            # tuned KV budget, see params.env.template).
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          # Guaranteed QoS (requests == limits, integer CPUs) so the kubelet static CPU
+          # manager gives the container an exclusive cpuset of whole cores (node group with
+          # full-pcpus-only); vLLM's auto binding reads sched_getaffinity, which then matches
+          # the CPUs the pod may actually use (no CFS-quota throttling of pinned OMP threads).
+          # 44 = 22 physical cores; the node keeps core 0 (both siblings) for the system and
+          # one more core for the DaemonSets. Memory: the KV cache is sized from THIS limit
+          # (cgroup memory.max clamps the NUMA total, vllm/utils/cpu_resource_utils.py), see
+          # params.env.template for the arithmetic.
+          resources:
+            requests:
+              cpu: "44"
+              memory: 48Gi
+            limits:
+              cpu: "44"
+              memory: 48Gi
+          # vLLM CPU docs (Kubernetes): without Unconfined seccomp and SYS_NICE, get_mempolicy /
+          # set_mempolicy fail ("Operation not permitted") and the NUMA binding is skipped.
+          securityContext:
+            seccompProfile:
+              type: Unconfined
+            capabilities:
+              add:
+                - SYS_NICE
+          volumeMounts:
+            - name: hf-cache
+              mountPath: /hf-cache
+            - name: vllm-cache
+              mountPath: /vllm-cache
+            - name: shm
+              mountPath: /dev/shm
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            # 40 min: cold image pull + model download (~1.5 GB) + VLLM_ENGINE_READY_TIMEOUT_S
+            # (1800 s) for the CPU compile and warm-up.
+            failureThreshold: 240
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        # hostPath, not a PVC (studies 26/28/30): a node scaled up from 0 starts empty; the
+        # first start downloads the model, every later start reads it from the node.
+        - name: hf-cache
+          hostPath:
+            path: /var/lib/hf-cache-study42
+            type: DirectoryOrCreate
+        - name: vllm-cache
+          hostPath:
+            path: /var/lib/vllm-cache-study42
+            type: DirectoryOrCreate
+        # vLLM CPU docker examples use --shm-size=4g. Memory-backed: what is written here
+        # counts against the 48Gi limit (TP 1 uses little: the engine's message queue).
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 4Gi

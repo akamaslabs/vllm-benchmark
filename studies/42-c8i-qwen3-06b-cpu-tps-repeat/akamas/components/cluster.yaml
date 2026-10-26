@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_42_C8i_Qwen3_06B_CPU_TPS_Repeat
+
+name: cluster
+description: >-
+  The CPU inference node (node group llm-serving-c8i, one c8i.12xlarge, 48 vCPU / 96 GiB,
+  label node-role=llm-serving-cpu) for node-level CPU/memory/pressure counters; $NODEROLE$
+  resolves from noderole.
+componentType: Kubernetes Cluster
+properties:
+  prometheus:
+    noderole: llm-serving-cpu

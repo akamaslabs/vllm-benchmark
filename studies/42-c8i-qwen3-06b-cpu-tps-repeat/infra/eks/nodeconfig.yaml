@@ -1,0 +1,43 @@
+# nodeadm NodeConfig part for the llm-serving-c8i launch template (AL2023, EKS-managed AMI).
+#
+# cpu-nodegroup.sh wraps this file into a MIME multipart part with
+# `Content-Type: application/node.eks.aws` and puts it in the launch template's user data.
+# The launch template has NO ImageId, so EKS appends its own NodeConfig (cluster endpoint,
+# CA, service CIDR, clusterDNS, maxPods, kubeReserved, --node-labels, --register-with-taints)
+# after this part and nodeadm merges the two. Only kubelet keys EKS does not set go here.
+# Docs: https://docs.aws.amazon.com/eks/latest/userguide/launch-templates.html
+#       https://awslabs.github.io/amazon-eks-ami/nodeadm/doc/examples/
+#
+# A malformed part is ignored silently (the node joins with the default kubelet config):
+# after `cpu-nodegroup.sh --up`, the script reads the live kubelet config back via configz.
+---
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  kubelet:
+    config:
+      # Exclusive cpusets for Guaranteed pods with integer CPU requests. vLLM's CPU
+      # auto-binding (VLLM_CPU_OMP_THREADS_BIND=auto) reads sched_getaffinity, so without
+      # this the pod would see all 48 vCPUs and be throttled by the CFS quota.
+      cpuManagerPolicy: static
+      # Only whole physical cores (both SMT siblings) are handed to a container; a request
+      # that is not a multiple of 2 is rejected (SMTAlignmentError) instead of splitting a
+      # core. The vLLM pod requests 44 = 22 cores. A guardrail: 44 is already whole cores.
+      cpuManagerPolicyOptions:
+        full-pcpus-only: "true"
+      # All of a pod's CPUs and memory from one NUMA node. c8i.12xlarge is expected to be
+      # a single NUMA node (then this is a no-op); if lscpu shows 2 (sub-NUMA clustering),
+      # a 44-CPU pod fails admission with TopologyAffinityError (see infra/README.md).
+      topologyManagerPolicy: single-numa-node
+      # CPUs kept off the pods' exclusive pool (kubelet, containerd, the DaemonSets).
+      # NOT reservedSystemCPUs: EKS's AL2023 kubelet config sets kubeReservedCgroup /runtime
+      # and systemReservedCgroup /system, and the kubelet refuses reservedSystemCPUs with
+      # either ("can't use reservedSystemCPUs ... with systemReservedCgroup or
+      # kubeReservedCgroup", seen on the first node 2026-10-16). Instead: EKS's kubeReserved
+      # cpu is 190m on 48 vCPUs, + 1810m here = exactly 2 CPUs, which the static policy
+      # reserves topology-aware from the lowest whole core, i.e. cpus 0 and 24 (core 0;
+      # siblings verified on the node: cpu0 thread_siblings_list = 0,24, 1 NUMA node).
+      # Allocatable CPU = 46. If EKS changes its 190m, the sum stops being an integer, the
+      # kubelet rounds the reservation up to 3 CPUs and `--up` shows allocatable != 46.
+      systemReserved:
+        cpu: 1810m

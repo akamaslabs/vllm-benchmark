@@ -1,0 +1,13 @@
+kind: component
+system: vLLM_Benchmark_43_C8i_Metal_Qwen3_06B_CPU_Membw
+
+name: vllm
+description: >-
+  The vLLM CPU server (StatefulSet vllm, pod vllm-0, namespace llm-cpu), Qwen/Qwen3-0.6B
+  served as qwen3-06b. Carries every tuned vLLM parameter and the goal, constraint and
+  windowing metrics.
+componentType: vLLM
+properties:
+  prometheus:
+    pod: ^vllm-0$
+    model: qwen3-06b

@@ -1,0 +1,11 @@
+# Namespace for 43-c8i-metal-qwen3-06b-cpu-membw. The vLLM StatefulSet (on the llm-serving-cpu node)
+# and the AIPerf Job (on the system-m8a node) both live in llm-cpu; nothing is shared with
+# the namespaces other studies use. `monitoring` (kube-prometheus-stack) already exists on
+# the shared cluster and is not managed here. The workflow scripts run kubectl from the
+# Akamas 4.1 toolbox (namespace akamas-41); it is assumed cluster-admin, as the 3.7 one is.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: llm-cpu
+  labels:
+    study: 43-c8i-metal-qwen3-06b-cpu-membw

@@ -1,0 +1,49 @@
+kind: workflow
+name: 43-C8i-Metal-Qwen3-06B-CPU-Membw-Workflow
+# The study: open-loop linear rate ramp 0 -> 4 req/s over 4000 s (0.06 req/s per minute), from the probe of 2026-10-16 (/work/probe39/results/summary.txt): the baseline meets the SLO at 1 req/s and breaks TPOT p95 at 2 (132 ms), saturating at ~2.5 req/s (128 running). The probe proposed RT_RATE 2; 4 leaves headroom so a tuned configuration's knee is not capped by the ramp (the watchdog ends the run past the SLO anyway).
+# All tasks run on the toolbox host over SSH with the toolbox's own key
+# (/home/akamas/.ssh/id_rsa, mounted from the toolbox-keys secret; the path must exist on
+# the toolbox when `akamas create workflow` runs, so run it from the toolbox). Akamas 4.1 has
+# no `update workflow`: a change means delete and recreate.
+tasks:
+  # The parameters are rendered into an env file, not into a manifest: render_statefulset.sh
+  # validates them and writes the vLLM flags (booleans as --x / --no-x). ignoreUnsubstitutedTokens
+  # false: every token must resolve.
+  - name: Write config
+    operator: FileConfigurator
+    arguments:
+      ignoreUnsubstitutedTokens: false
+      source:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/vllm-benchmark/studies/43-c8i-metal-qwen3-06b-cpu-membw/k8s/params.env.template
+      target:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/vllm-benchmark/studies/43-c8i-metal-qwen3-06b-cpu-membw/k8s/params.env
+  - name: Apply config
+    operator: Executor
+    arguments:
+      retries: 0
+      # apply_config.sh's rollout wait (cold node: image pull + model download + CPU
+      # torch.compile warm-up, VLLM_ENGINE_READY_TIMEOUT_S=1800) plus the warm-up and log dump:
+      # worst case ~4100 s plus the logs (budget in apply_config.sh, next to ROLLOUT_S).
+      timeout: 75m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/vllm-benchmark/studies/43-c8i-metal-qwen3-06b-cpu-membw/k8s/apply_config.sh
+  - name: RunTest
+    operator: Executor
+    arguments:
+      retries: 0
+      # Above run_test.sh's own deadline (RT_RAMP_S + margin), so its log dump always runs.
+      timeout: 130m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: RT_RATE=4 RT_RAMP_S=4000 bash /work/vllm-benchmark/studies/43-c8i-metal-qwen3-06b-cpu-membw/k8s/run_test.sh

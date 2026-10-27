@@ -1,0 +1,24 @@
+# Scrapes this study's vLLM pod (namespace llm-cpu) through the `vllm` Service. Additive:
+# a new ServiceMonitor next to the other studies' ones, not a change to them. This study's
+# telemetry filters on its own served model_name (qwen3-06b), which no other study serves.
+# No GPU here: no dcgm-exporter values. CPU / memory of the pod come from cAdvisor
+# (kube-prometheus-stack's kubelet ServiceMonitor), already scraped cluster-wide.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vllm-cpu
+  namespace: monitoring
+  labels:
+    app: vllm
+spec:
+  namespaceSelector:
+    matchNames:
+      - llm-cpu
+  selector:
+    matchLabels:
+      app: vllm
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 5s
+      scrapeTimeout: 4s

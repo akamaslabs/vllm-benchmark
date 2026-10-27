@@ -1,0 +1,103 @@
+# AIPerf Job for 43-c8i-metal-qwen3-06b-cpu-membw. Rendered by render_job.sh (tokens WORKLOAD_ARGS,
+# MEASURED_ENTRIES, WORKLOAD_SEED, WARMUP_ENTRIES, WARMUP_SEED, LOAD_ARGS between at-signs;
+# the workload itself is defined once, in lib_workload.sh).
+#
+# Synthetic multi-turn chat sessions with a pool of shared prefixes (lib_workload.sh),
+# OPEN LOOP with study 27's generator: a linear rate ramp 0 -> R over D s (--request-rate R
+# --request-rate-ramp-duration D), gamma arrivals (smoothness 4), fixed seed, so every trial
+# receives the same arrival sequence and the same sessions.
+# AIPERF_TIMING_RATE_RAMP_UPDATE_INTERVAL=10: without it AIPerf 0.11.0 draws the first wait
+# at ~0 req/s and the ramp sends nothing for minutes (study 27, smoke run 1).
+# Before the measured run: 60 s at concurrency 4 on other sessions (discarded). The marker
+# line "MEASURED RUN START" arms run_test.sh's watchdog.
+# Runs on the system node (node-role system-m8a), never on the CPU inference node: the load
+# generator must not steal cores from the engine under test.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aiperf-cpu
+  namespace: llm-cpu
+  labels:
+    app: aiperf-cpu
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: aiperf-cpu
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node-role: system-m8a
+      initContainers:
+        - name: wait-for-vllm
+          image: alpine:3
+          command:
+            - sh
+            - -c
+            - |
+              until wget -qO- http://vllm-0.vllm-headless.llm-cpu.svc.cluster.local:8000/health >/dev/null 2>&1; do
+                echo "$(date -u +%T) waiting for vllm-0..."
+                sleep 10
+              done
+              echo "vllm-0 is ready."
+      containers:
+        - name: aiperf
+          image: python:3.12-slim
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              pip install --quiet aiperf==0.11.0
+              MODEL_NAME=qwen3-06b
+              TOKENIZER=Qwen/Qwen3-0.6B
+              URL=http://vllm-0.vllm-headless.llm-cpu.svc.cluster.local:8000
+              OUT=/benchmarks/study43
+              mkdir -p "$OUT"
+              echo "$(date -u +%T) warm-up: 60 s at concurrency 4 (discarded)"
+              aiperf profile --model "$MODEL_NAME" --tokenizer "$TOKENIZER" --url "$URL" \
+                @WORKLOAD_ARGS@ \
+                --num-dataset-entries @WARMUP_ENTRIES@ --random-seed @WARMUP_SEED@ \
+                --concurrency 4 --benchmark-duration 60 --ui simple \
+                --output-artifact-dir /tmp/warmup > /tmp/warmup.log 2>&1 \
+                || { tail -50 /tmp/warmup.log; exit 1; }
+              RUN="$OUT/aiperf-$(date +%s)"
+              echo "$(date -u +%T) MEASURED RUN START: @LOAD_ARGS@"
+              aiperf profile --model "$MODEL_NAME" --tokenizer "$TOKENIZER" --url "$URL" \
+                @WORKLOAD_ARGS@ \
+                --num-dataset-entries @MEASURED_ENTRIES@ --random-seed @WORKLOAD_SEED@ \
+                @LOAD_ARGS@ \
+                --goodput "time_to_first_token:3000 inter_token_latency:100" \
+                --ui simple \
+                --output-artifact-dir "$RUN"
+              echo "--- AIPerf summary (profile_export_aiperf.json) ---"
+              cat "$RUN/profile_export_aiperf.json" 2>/dev/null || true
+              # inputs.json is the generated dataset: identical in every run (fixed seed) and the
+              # bulk of a run folder; study 41 filled its 10 GiB volume with 47 copies. Keep the
+              # per-request records and the summary, drop the dataset.
+              rm -f "$RUN/inputs.json"
+              df -h /benchmarks | tail -1
+          env:
+            - name: AIPERF_TIMING_RATE_RAMP_UPDATE_INTERVAL
+              value: "10"
+            - name: HF_HOME
+              value: /hf-cache
+          resources:
+            # Streaming chat at up to a few tens of req/s at the end of the ramp (study 26:
+            # ~1.3 cores at ~20 req/s). system-m8a has 3.92 allocatable, ~0.3 requested
+            # besides Prometheus.
+            requests:
+              cpu: 2000m
+              memory: 3Gi
+          volumeMounts:
+            - name: results
+              mountPath: /benchmarks
+            - name: hf-cache
+              mountPath: /hf-cache
+      volumes:
+        - name: results
+          persistentVolumeClaim:
+            claimName: aiperf-results-43
+        - name: hf-cache
+          persistentVolumeClaim:
+            claimName: hf-cache

@@ -1,0 +1,14 @@
+# Hugging Face cache for the AIPerf pod (the Qwen3-0.6B tokenizer, ungated). The model
+# itself is never loaded here.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hf-cache
+  namespace: llm-cpu
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3-ephemeral
+  resources:
+    requests:
+      storage: 5Gi

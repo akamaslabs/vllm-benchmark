@@ -220,7 +220,35 @@ Bulk alternative, same order: `akamas create -f system.yaml`, `akamas create -f 
 
 Study 39's best configuration (exp 50: fp8 KV, block 96, max_num_seqs 176, batched 512, gmu
 0.68, prefix caching on) run by hand from the toolbox with study 42's scripts on this node, ramp
-0 -> 4 req/s over 4000 s from 11:13 UTC, membw.py recording. Results: TODO.
+0 -> 4 req/s over 4000 s from 11:14 UTC, membw.py recording. The watchdog ended it at 11:56
+(~2500 s, ~2.5 req/s offered; study 39's knee for this configuration: ~2.4 req/s).
+
+| 5 min from (UTC) | tokens/s (prompt + gen) | running (max) | DRAM read avg / p95 (GB/s) | write avg (GB/s) |
+|---|---|---|---|---|
+| 11:22 | 916 | 2 | 87.7 / 99.6 | 0.6 |
+| 11:27 | 2052 | 4 | 90.0 / 100.1 | 0.7 |
+| 11:32 | 2801 | 7 | 90.5 / 101.2 | 0.8 |
+| 11:37 | 3843 | 12 | 89.7 / 101.7 | 1.0 |
+| 11:42 | 4829 | 18 | 87.1 / 100.7 | 1.3 |
+| 11:47 | 5767 | 24 | 85.1 / 97.7 | 1.6 |
+| 11:52 | 6517 | 32 | 80.8 / 93.7 | 2.0 |
+| 11:57 | 7558 | 57 | — | — |
+
+(tokens/s and running from Prometheus, 5 min rates at the window end; bandwidth from membw, whole
+socket, but the pod's memory is bound to NUMA 0.) The pod's CPU usage was ~21 cores from 11:27 on
+(the OMP threads spin, so it reads as saturated at any load).
+
+Ceilings measured on NUMA 0 right after (22 processes pinned with `numactl --cpunodebind=0
+--membind=0`, membw reading): **~152 GB/s read-only** (numpy sum of 1 GiB arrays, one thread each)
+and **~159 GB/s read + write** (`perf bench mem memcpy`, ~80 + 80).
+
+First reading: DRAM traffic is almost all reads and **flat at ~90 GB/s (~100 at p95) from the
+lowest load to the SLO break**, while tokens/s grow 7x — consistent with every engine step
+streaming the weights once whatever the batch size, so batching amortizes it. At the SLO break
+vLLM uses ~60 % of the read bandwidth the same 22 cores can pull from their NUMA node: this
+configuration does not look memory-bandwidth bound; the limit is elsewhere (compute per step /
+scheduling). The study's other configurations will show whether any of them moves the
+bandwidth.
 
 ## Conclusions
 

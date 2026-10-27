@@ -1,7 +1,7 @@
 # 43-c8i-metal-qwen3-06b-cpu-membw
 
-**Status:** RUNNING (started 2026-10-27 ~12:00 UTC, to be stopped by hand)
-**Dates:** 2026-10-27 –
+**Status:** STOPPED by hand (Akamas FINISHED, 13 experiments VALID)
+**Dates:** 2026-10-27 (11:59 - 20:55 UTC)
 
 ## Objective
 
@@ -213,8 +213,36 @@ Bulk alternative, same order: `akamas create -f system.yaml`, `akamas create -f 
 
 ## Results
 
-<Filled in by the study-recap skill once the study is stopped. Study 39's numbers for comparison:
-`../39-c8i-qwen3-06b-cpu-tps/README.md`, Results.>
+Stopped by hand on 2026-10-27 at 20:55 UTC (`akamas finish study`) after 13 completed experiments
+(all VALID; experiment 14 was cut mid-ramp), then vLLM and the node group scaled to 0 (~9.5 h of
+c8i.metal-48xl on demand, ~85 USD). Best: **experiment 12, 7188 tokens/s** (+15.9 % vs the
+baseline's 6204; study 39's best was 7611 on the 12xlarge VM, study 39 had 65 experiments).
+Dashboard with every chart: <https://claude.ai/artifact/W7LP7mP8ynJwJoUmUBZmTH> (private).
+
+Bandwidth = membw's DRAM read over the trial's Akamas scoring window (150 s, 1 s samples), whole
+socket, while the pod's CPUs and memory sit on NUMA 0 (ceiling measured below: 152 GB/s read-only).
+
+| Exp | Step | KV | block | seqs | batched | gmu | prefix | long-prefill | tokens/s | DRAM read avg / p95 (GB/s) | % of 152 GB/s |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | baseline | auto | 128 | 128 | 2048 | 0.90 | true | 0 | 6204 | 123.0 / 135.6 | 80.9 |
+| 2 | baseline repeat | auto | 128 | 128 | 2048 | 0.90 | true | 0 | 6033 | 123.0 / 134.3 | 80.9 |
+| 3 | kv fp8 | fp8 | 128 | 128 | 2048 | 0.90 | true | 0 | 6920 | 84.3 / 95.5 | 55.5 |
+| 4 | no prefix cache | auto | 128 | 128 | 2048 | 0.90 | false | 0 | 3977 | 106.6 / 143.4 | 70.1 |
+| 5 | small kv budget | auto | 128 | 128 | 2048 | 0.15 | true | 0 | 4018 | 105.7 / 131.5 | 69.5 |
+| 6 | optimize | fp8 | 32 | 129 | 2109 | 0.89 | true | 0 | 6300 | 86.1 / 96.4 | 56.6 |
+| 7 | optimize | fp8 | 128 | 108 | 512 | 0.90 | true | 4096 | 6971 | 84.7 / 96.7 | 55.7 |
+| 8 | optimize | fp8 | 64 | 108 | 512 | 0.90 | true | 4096 | 6986 | 88.8 / 102.3 | 58.4 |
+| 9 | optimize | fp8 | 96 | 12 | 6010 | 0.15 | false | 3943 | 3690 | 73.0 / 107.1 | 48.0 |
+| 10 | optimize | fp8 | 96 | 8 | 3928 | 0.90 | true | 1909 | 4498 | 91.6 / 104.4 | 60.3 |
+| 11 | optimize | fp8 | 64 | 101 | 512 | 0.90 | true | 4096 | 6940 | 88.6 / 100.9 | 58.3 |
+| 12 | optimize | fp8 | 64 | 53 | 1911 | 0.90 | true | 1083 | 7188 | 87.0 / 98.7 | 57.3 |
+| 13 | optimize | fp8 | 96 | 8 | 1635 | 0.90 | true | 2494 | 4489 | 91.2 / 103.2 | 60.0 |
+
+Top-down of the vLLM pod's 44 CPUs (`perf stat` for 15 s at 20:50 UTC, during experiment 14,
+DRAM read 88 GB/s; AL2023's perf has no Granite Rapids metric files, so TopdownL1 from the kernel's
+topdown events plus raw `CYCLE_ACTIVITY.STALLS_*` counters): retiring 16.2 %, backend bound
+80.1 % (memory 45.9 %, core 34.3 %), frontend 3.1 %, bad speculation 0.6 %; cycles stalled with an
+L1D / L2 / L3 miss outstanding 44.6 / 37.1 / 32.9 %; IPC 0.86 at an average 1.7 GHz.
 
 ### Manual run before the study (2026-10-27)
 
@@ -252,4 +280,25 @@ bandwidth.
 
 ## Conclusions
 
-<Filled in by the study-recap skill once the study finishes.>
+What bounds vLLM CPU inference here (Qwen3-0.6B, 22 Granite Rapids cores, one NUMA node):
+
+- **Not memory bandwidth.** No experiment averages more than 81 % of the read bandwidth the same
+  22 cores can pull (bf16 KV, experiments 1-2: 123 GB/s); with fp8 KV every configuration sits at
+  48-60 % (73-92 GB/s).
+- **Bytes still matter.** fp8 KV instead of bf16 (experiment 1 -> 3) cuts DRAM reads by 31 % and
+  raises tokens/s by 11.5 %: the attention re-reads every running sequence's KV each step.
+- **With fp8 the bandwidth is nearly fixed whatever the score** (84-92 GB/s from ~3700 to 7188
+  tokens/s): each engine step streams the weights and the KV; tokens/s depend on how many
+  sequences a step carries (max_num_seqs 8, experiments 10 and 13, scores ~4500 at 91 GB/s).
+- **Memory latency, then compute.** A third of the cycles stall on an outstanding L3 miss while
+  bandwidth is at 58 % of the ceiling: the cores wait on DRAM without filling it (too few misses
+  in flight per core), and another third is core bound (AMX / execution ports). Indicative only:
+  the OpenMP threads that spin between steps dilute the percentages.
+
+Caveats: 13 experiments (vs 65 in study 39); one top-down sample, on one configuration; the 152
+GB/s ceiling is what 22 single-threaded numpy readers reach, possibly limited per core rather than
+by the NUMA node's 4 channels (230 GB/s theoretical).
+
+Next, if pursued: top-down per configuration (fp8 vs bf16, small vs large max_num_seqs) and with
+`OMP_WAIT_POLICY=passive` to remove the spin; a pointer-chasing latency test vs a bandwidth test
+on NUMA 0; the same study with the pod spread over two NUMA nodes.

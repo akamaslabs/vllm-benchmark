@@ -1,6 +1,6 @@
 # 43-c8i-metal-qwen3-06b-cpu-membw
 
-**Status:** TODO (created 2026-10-27, not started)
+**Status:** RUNNING (started 2026-10-27 ~12:00 UTC, to be stopped by hand)
 **Dates:** 2026-10-27 –
 
 ## Objective

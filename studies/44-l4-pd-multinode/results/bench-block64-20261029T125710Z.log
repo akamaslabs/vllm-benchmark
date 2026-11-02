@@ -1,0 +1,4 @@
+bench block64: 40 requests, concurrency 4, extra common='--block-size=64' env=''
+wall 80.0 s, prompt tokens ~6433, TTFT p50 7.025 s, p90 9.705 s
+--- decode KV Transfer metrics since 2026-10-29T12:57:10Z ---
+transfers 40, avg xfer 792 ms, avg 454.3 MB, 574 MB/s per transfer, avg descriptors 2608

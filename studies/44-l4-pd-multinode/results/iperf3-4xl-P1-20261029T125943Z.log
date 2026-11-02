@@ -1,0 +1,13 @@
+server 192.168.27.232 from node ip-192-168-12-80.us-east-2.compute.internal
+Connecting to host 192.168.27.232, port 5201
+[  5] local 192.168.30.163 port 54604 connected to 192.168.27.232 port 5201
+[ ID] Interval           Transfer     Bitrate         Retr  Cwnd
+[  5]   0.00-10.00  sec  5.78 GBytes  4.96 Gbits/sec  402   3.60 MBytes       
+[  5]  10.00-20.01  sec  5.78 GBytes  4.96 Gbits/sec    0   4.01 MBytes       
+[  5]  20.01-30.01  sec  5.78 GBytes  4.96 Gbits/sec    0   4.01 MBytes       
+- - - - - - - - - - - - - - - - - - - - - - - - -
+[ ID] Interval           Transfer     Bitrate         Retr
+[  5]   0.00-30.01  sec  17.3 GBytes  4.96 Gbits/sec  402             sender
+[  5]   0.00-30.01  sec  17.3 GBytes  4.96 Gbits/sec                  receiver
+
+iperf Done.

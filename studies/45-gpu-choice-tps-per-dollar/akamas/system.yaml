@@ -1,0 +1,11 @@
+kind: system
+name: vLLM_Benchmark_45_GPU_Choice
+# Keep `description` under the API's 1024-character cap; the long form lives in README.md.
+description: >-
+  Study 45: Qwen/Qwen3-8B-FP8 (vLLM 0.29.0) on one or two GPU nodes that the optimizer picks
+  per experiment among g5 (A10G), g6 (L4) and g6e (L40S), xlarge or 2xlarge, in us-east-2b:
+  one node aggregated, two nodes aggregated behind a least-in-flight router, or P/D (node_a
+  prefill -> node_b decode, NixlConnector over TCP). The workflow scales the chosen EKS node
+  groups up and everything back to 0 after each experiment. Goal: router tokens/s per $/h of
+  the nodes in use (aws_ec2_price), under TTFT/ITL p95 SLAs over 150 s (study 27's AIPerf
+  ramp, 4096 in / 256 out). AWS pack 1.5.0, vLLM pack 1.14.0.

@@ -1,0 +1,15 @@
+=== B0-iperf start 20:45:27
+=== B0-iperf exit=0 20:47:34
+=== B2-ramp start 20:47:34
+=== B2-ramp exit=0 21:57:16
+=== B4-up start 21:57:16
+=== B4-up exit=0 22:00:23
+=== B4-ramp start 22:00:23
+=== B4-ramp exit=0 23:22:38
+=== B5-up start 23:22:38
+=== B5-up exit=0 23:25:55
+=== B5-ramp start 23:25:55
+=== B5-ramp exit=0 00:01:56
+deployment.apps "vllm-pd-mn-decode" deleted from llm-serving namespace
+deployment.apps "vllm-pd-mn-router" deleted from llm-serving namespace
+=== ALL DONE 00:01:57

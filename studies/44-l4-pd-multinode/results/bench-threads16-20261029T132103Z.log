@@ -1,0 +1,4 @@
+bench threads16: 40 requests, concurrency 4, extra common='' env=''
+wall 79.0 s, prompt tokens ~6433, TTFT p50 6.947 s, p90 9.642 s
+--- decode KV Transfer metrics since 2026-10-29T13:21:03Z ---
+transfers 37, avg xfer 752 ms, avg 452.6 MB, 602 MB/s per transfer, avg descriptors 11125

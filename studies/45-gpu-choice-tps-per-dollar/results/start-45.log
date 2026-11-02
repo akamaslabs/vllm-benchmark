@@ -1,0 +1,9 @@
+12:21:19 study 44 C stopped; starting study 45
+An error occurred: Could not start the study
+command terminated with exit code 1
+12:23:59 no experiment after start: finish + start (late Airflow DAG)
+
+                                1.14.0.                                                                                                                                                                 
+
+1    Dynamic    None                  None    RUNNING   Experiment is running   UNKNOWN       None                  2m 19s  
+12:27:12 START-45 DONE

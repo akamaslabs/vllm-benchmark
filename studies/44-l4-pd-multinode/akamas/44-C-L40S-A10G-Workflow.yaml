@@ -1,0 +1,51 @@
+kind: workflow
+name: 44-C-L40S-A10G-Workflow
+
+# Study 27's three-task shape. Everything runs on the `toolbox` host over SSH with the
+# toolbox's own key (/home/akamas/.ssh/id_rsa). The scripts live in a COPY of this study folder
+# on the toolbox's persistent volume, /work/study44/44-l4-pd-multinode (the /work/vllm-benchmark
+# checkout is not used: nothing of study 44 is pushed yet). Re-copy the folder after editing k8s/.
+#
+# Timeouts:
+#   Apply config  40 m — each pod's progressDeadlineSeconds is 1500 s and apply_config_c.sh
+#                       waits up to 1500 s in total, plus the log dump.
+#   RunTest      160 m — the ramp lasts at most 120 min (the watchdog usually ends it earlier),
+#                       plus pip install and dataset generation; run_test_c.sh's own deadline
+#                       (8400 s) stays below this, so its log dump always runs.
+tasks:
+  - name: Write config
+    operator: FileConfigurator
+    arguments:
+      ignoreUnsubstitutedTokens: true
+      source:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/study44/44-l4-pd-multinode/k8s/40-c-config_template.yaml
+      target:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/study44/44-l4-pd-multinode/k8s/40-c-config.yaml
+
+  - name: Apply config
+    operator: Executor
+    arguments:
+      retries: 0
+      timeout: 40m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/study44/44-l4-pd-multinode/k8s/apply_config_c.sh
+
+  - name: RunTest
+    operator: Executor
+    arguments:
+      retries: 0
+      timeout: 160m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/study44/44-l4-pd-multinode/k8s/run_test_c.sh

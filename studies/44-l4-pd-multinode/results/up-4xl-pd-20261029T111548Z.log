@@ -1,0 +1,22 @@
+service/vllm-pd-mn created
+service/vllm-pd-mn-prefill created
+service/vllm-pd-mn-decode created
+configmap/pd-mn-config created
+servicemonitor.monitoring.coreos.com/vllm-pd-mn created
+configmap/pd-mn-scripts created
+configmap/pd-tuned-configs configured
+No resources found
+deployment.apps/vllm-pd-mn-prefill created
+deployment.apps/vllm-pd-mn-decode created
+deployment.apps/vllm-pd-mn-router created
+11:16:30 waiting for the engines (model download + compile, ~10-20 min)...
+Waiting for deployment "vllm-pd-mn-decode" rollout to finish: 0 of 1 updated replicas are available...
+deployment "vllm-pd-mn-decode" successfully rolled out
+Waiting for deployment "vllm-pd-mn-prefill" rollout to finish: 0 of 1 updated replicas are available...
+deployment "vllm-pd-mn-prefill" successfully rolled out
+Waiting for deployment "vllm-pd-mn-router" rollout to finish: 0 of 1 updated replicas are available...
+deployment "vllm-pd-mn-router" successfully rolled out
+NAME                                  READY   STATUS    RESTARTS   AGE     IP               NODE                                          NOMINATED NODE   READINESS GATES
+vllm-pd-mn-decode-c57b769fb-jzqv9     1/1     Running   0          5m16s   192.168.28.75    ip-192-168-12-80.us-east-2.compute.internal   <none>           <none>
+vllm-pd-mn-prefill-58cf9fdcb5-xdwvk   1/1     Running   0          5m16s   192.168.26.161   ip-192-168-8-108.us-east-2.compute.internal   <none>           <none>
+vllm-pd-mn-router-848c848769-mcqt5    1/1     Running   0          5m15s   192.168.8.65     ip-192-168-12-80.us-east-2.compute.internal   <none>           <none>

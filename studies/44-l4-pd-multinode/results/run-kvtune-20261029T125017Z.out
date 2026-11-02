@@ -1,0 +1,53 @@
+configmap/pd-mn-config unchanged
+service/vllm-pd-mn unchanged
+service/vllm-pd-mn-prefill unchanged
+service/vllm-pd-mn-decode unchanged
+servicemonitor.monitoring.coreos.com/vllm-pd-mn unchanged
+configmap/pd-mn-scripts unchanged
+configmap/pd-tuned-configs configured
+No resources found
+deployment.apps/vllm-pd-mn-prefill created
+deployment.apps/vllm-pd-mn-decode created
+deployment.apps/vllm-pd-mn-router created
+12:50:30 waiting for the engines (model download + compile, ~10-20 min)...
+Waiting for deployment "vllm-pd-mn-decode" rollout to finish: 0 of 1 updated replicas are available...
+deployment "vllm-pd-mn-decode" successfully rolled out
+Waiting for deployment "vllm-pd-mn-prefill" rollout to finish: 0 of 1 updated replicas are available...
+deployment "vllm-pd-mn-prefill" successfully rolled out
+deployment "vllm-pd-mn-router" successfully rolled out
+NAME                                  READY   STATUS    RESTARTS   AGE     IP               NODE                                          NOMINATED NODE   READINESS GATES
+vllm-pd-mn-decode-fb9df676b-x4gb4     1/1     Running   0          2m23s   192.168.6.141    ip-192-168-12-80.us-east-2.compute.internal   <none>           <none>
+vllm-pd-mn-prefill-7f745cd9dc-wk22n   1/1     Running   0          2m24s   192.168.0.17     ip-192-168-8-108.us-east-2.compute.internal   <none>           <none>
+vllm-pd-mn-router-64fb8f8dbc-8ppv5    1/1     Running   0          2m23s   192.168.13.235   ip-192-168-12-80.us-east-2.compute.internal   <none>           <none>
+bench block16: 40 requests, concurrency 4, extra common='' env=''
+wall 80.2 s, prompt tokens ~6433, TTFT p50 6.983 s, p90 9.515 s
+--- decode KV Transfer metrics since 2026-10-29T12:52:53Z ---
+transfers 40, avg xfer 842 ms, avg 452.8 MB, 538 MB/s per transfer, avg descriptors 10208
+configmap/pd-mn-config configured
+service/vllm-pd-mn unchanged
+service/vllm-pd-mn-prefill unchanged
+service/vllm-pd-mn-decode unchanged
+servicemonitor.monitoring.coreos.com/vllm-pd-mn unchanged
+configmap/pd-mn-scripts unchanged
+configmap/pd-tuned-configs configured
+deployment.apps "vllm-pd-mn-decode" deleted from llm-serving namespace
+deployment.apps "vllm-pd-mn-prefill" deleted from llm-serving namespace
+deployment.apps "vllm-pd-mn-router" deleted from llm-serving namespace
+deployment.apps/vllm-pd-mn-prefill created
+deployment.apps/vllm-pd-mn-decode created
+deployment.apps/vllm-pd-mn-router created
+12:54:33 waiting for the engines (model download + compile, ~10-20 min)...
+Waiting for deployment "vllm-pd-mn-decode" rollout to finish: 0 of 1 updated replicas are available...
+deployment "vllm-pd-mn-decode" successfully rolled out
+Waiting for deployment "vllm-pd-mn-prefill" rollout to finish: 0 of 1 updated replicas are available...
+deployment "vllm-pd-mn-prefill" successfully rolled out
+Waiting for deployment "vllm-pd-mn-router" rollout to finish: 0 of 1 updated replicas are available...
+deployment "vllm-pd-mn-router" successfully rolled out
+NAME                                  READY   STATUS    RESTARTS   AGE     IP               NODE                                          NOMINATED NODE   READINESS GATES
+vllm-pd-mn-decode-c85654dc8-lxrjt     1/1     Running   0          2m36s   192.168.12.197   ip-192-168-12-80.us-east-2.compute.internal   <none>           <none>
+vllm-pd-mn-prefill-6b7bdc9479-mz2tp   1/1     Running   0          2m36s   192.168.1.100    ip-192-168-8-108.us-east-2.compute.internal   <none>           <none>
+vllm-pd-mn-router-696df5b747-zpqsl    1/1     Running   0          2m36s   192.168.24.125   ip-192-168-12-80.us-east-2.compute.internal   <none>           <none>
+bench block64: 40 requests, concurrency 4, extra common='--block-size=64' env=''
+wall 80.0 s, prompt tokens ~6433, TTFT p50 7.025 s, p90 9.705 s
+--- decode KV Transfer metrics since 2026-10-29T12:57:10Z ---
+transfers 40, avg xfer 792 ms, avg 454.3 MB, 574 MB/s per transfer, avg descriptors 2608

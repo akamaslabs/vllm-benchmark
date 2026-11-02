@@ -1,0 +1,10 @@
+run,study,config,topology,cost_per_hour,tokens_per_s,score,how
+44 A6,44 tappa A,L4 xlarge,1 nodo,0.8048,1967,2445,a mano
+44 A3,44 tappa A,L4 4xlarge,1 nodo,1.3232,1745,1318,a mano
+44 A2,44 tappa A,P/D L4 4xlarge → L4 4xlarge,P/D,2.6464,3253,1229,a mano
+44 A5,44 tappa A,P/D L4 xlarge → L4 xlarge,P/D,1.6096,2670,1659,a mano
+44 B4,44 tappa B,L40S 2xlarge,1 nodo,2.24208,6477,2889,a mano
+44 B5,44 tappa B,A10G 2xlarge,1 nodo,1.212,2587,2134,a mano
+44 B2,44 tappa B,P/D L40S 2xlarge → A10G 2xlarge,P/D,3.454,5344,1547,a mano
+44 C3,44 tappa C,L40S 2xlarge + A10G 2xlarge,2 nodi agg,3.454,9094,2633,Akamas
+44 C1,44 tappa C,P/D L40S 2xlarge → A10G 2xlarge,P/D,3.454,5004,1449,Akamas

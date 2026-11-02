@@ -1,0 +1,10 @@
+kind: component
+system: vLLM_Benchmark_44_L40S_A10G_PD
+name: vllm_a10g
+description: "The vLLM pod on the A10G (Deployment vllm-pd-mn-a10g, served name qwen3-8b-a10g): the decode (kv_consumer) in P/D, a whole-request replica when aggregated. Carries the KV cache dtype shared by both pods."
+componentType: vLLM
+properties:
+  prometheus:
+    pod: "^vllm-pd-mn-a10g-.*"
+    model: qwen3-8b-a10g
+    endpoint: http

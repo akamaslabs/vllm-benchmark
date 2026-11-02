@@ -1,0 +1,10 @@
+kind: component
+system: vLLM_Benchmark_45_GPU_Choice
+name: vllm_b
+description: "The vLLM pod on node_b (Deployment vllm-pd-mn-b, served name qwen3-8b-b): aggregated replica, or decode in P/D. Not started when the topology uses one node."
+componentType: vLLM
+properties:
+  prometheus:
+    pod: "^vllm-pd-mn-b-.*"
+    model: qwen3-8b-b
+    endpoint: http

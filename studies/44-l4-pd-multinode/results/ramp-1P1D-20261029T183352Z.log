@@ -1,0 +1,238 @@
+ramp 0 -> 1.2 req/s over 3600 s started 2026-10-29T18:33:54Z; watchdog TTFT p95 > 20000 ms or ITL p95 > 225 ms for 120 s
+18:33:57 TTFT p95 n/a ms  ITL p95 n/a ms
+18:34:14 TTFT p95 n/a ms  ITL p95 n/a ms
+18:34:31 TTFT p95 n/a ms  ITL p95 n/a ms
+18:34:49 TTFT p95 n/a ms  ITL p95 n/a ms
+18:35:06 TTFT p95 n/a ms  ITL p95 n/a ms
+18:35:23 TTFT p95 n/a ms  ITL p95 n/a ms
+18:35:42 TTFT p95 n/a ms  ITL p95 n/a ms
+18:35:59 TTFT p95 n/a ms  ITL p95 n/a ms
+18:36:19 TTFT p95 n/a ms  ITL p95 n/a ms
+18:36:40 TTFT p95 n/a ms  ITL p95 n/a ms
+18:37:01 TTFT p95 n/a ms  ITL p95 n/a ms
+18:37:18 TTFT p95 n/a ms  ITL p95 n/a ms
+18:37:35 TTFT p95 n/a ms  ITL p95 n/a ms
+18:37:52 TTFT p95 n/a ms  ITL p95 n/a ms
+18:38:10 TTFT p95 n/a ms  ITL p95 n/a ms
+18:38:27 TTFT p95 n/a ms  ITL p95 n/a ms
+18:38:44 TTFT p95 n/a ms  ITL p95 n/a ms
+18:39:01 TTFT p95 n/a ms  ITL p95 n/a ms
+18:39:19 TTFT p95 n/a ms  ITL p95 n/a ms
+18:39:36 TTFT p95 n/a ms  ITL p95 n/a ms
+18:39:53 TTFT p95 n/a ms  ITL p95 n/a ms
+18:40:10 TTFT p95 n/a ms  ITL p95 n/a ms
+18:40:27 TTFT p95 n/a ms  ITL p95 n/a ms
+18:40:45 TTFT p95 n/a ms  ITL p95 n/a ms
+18:41:02 TTFT p95 n/a ms  ITL p95 n/a ms
+18:41:19 TTFT p95 n/a ms  ITL p95 n/a ms
+18:41:36 TTFT p95 n/a ms  ITL p95 n/a ms
+18:41:53 TTFT p95 n/a ms  ITL p95 n/a ms
+18:42:11 TTFT p95 n/a ms  ITL p95 n/a ms
+18:42:28 TTFT p95 n/a ms  ITL p95 n/a ms
+18:42:45 TTFT p95 3900 ms  ITL p95 39 ms
+18:43:02 TTFT p95 3800 ms  ITL p95 39 ms
+18:43:20 TTFT p95 3749 ms  ITL p95 39 ms
+18:43:37 TTFT p95 3499 ms  ITL p95 39 ms
+18:43:54 TTFT p95 3350 ms  ITL p95 39 ms
+18:44:11 TTFT p95 3199 ms  ITL p95 39 ms
+18:44:29 TTFT p95 3099 ms  ITL p95 39 ms
+18:44:46 TTFT p95 2498 ms  ITL p95 39 ms
+18:45:03 TTFT p95 2493 ms  ITL p95 39 ms
+18:45:20 TTFT p95 2462 ms  ITL p95 39 ms
+18:45:37 TTFT p95 2464 ms  ITL p95 39 ms
+18:45:54 TTFT p95 2467 ms  ITL p95 39 ms
+18:46:12 TTFT p95 2468 ms  ITL p95 39 ms
+18:46:29 TTFT p95 2470 ms  ITL p95 39 ms
+18:46:46 TTFT p95 2469 ms  ITL p95 39 ms
+18:47:03 TTFT p95 2470 ms  ITL p95 39 ms
+18:47:21 TTFT p95 2472 ms  ITL p95 39 ms
+18:47:38 TTFT p95 2675 ms  ITL p95 40 ms
+18:47:55 TTFT p95 2599 ms  ITL p95 47 ms
+18:48:12 TTFT p95 3574 ms  ITL p95 47 ms
+18:48:29 TTFT p95 3525 ms  ITL p95 47 ms
+18:48:47 TTFT p95 3683 ms  ITL p95 47 ms
+18:49:04 TTFT p95 3666 ms  ITL p95 47 ms
+18:49:21 TTFT p95 3666 ms  ITL p95 47 ms
+18:49:38 TTFT p95 3666 ms  ITL p95 47 ms
+18:49:55 TTFT p95 3633 ms  ITL p95 48 ms
+18:50:13 TTFT p95 3683 ms  ITL p95 45 ms
+18:50:30 TTFT p95 3000 ms  ITL p95 45 ms
+18:50:49 TTFT p95 3474 ms  ITL p95 47 ms
+18:51:12 TTFT p95 2962 ms  ITL p95 48 ms
+18:51:29 TTFT p95 2937 ms  ITL p95 48 ms
+18:51:48 TTFT p95 2937 ms  ITL p95 49 ms
+18:52:05 TTFT p95 2937 ms  ITL p95 49 ms
+18:52:22 TTFT p95 3825 ms  ITL p95 49 ms
+18:52:40 TTFT p95 4233 ms  ITL p95 49 ms
+18:52:59 TTFT p95 4183 ms  ITL p95 49 ms
+18:53:19 TTFT p95 3800 ms  ITL p95 49 ms
+18:53:38 TTFT p95 3887 ms  ITL p95 49 ms
+18:53:59 TTFT p95 4149 ms  ITL p95 49 ms
+18:54:38 TTFT p95 4324 ms  ITL p95 49 ms
+18:54:58 TTFT p95 4300 ms  ITL p95 49 ms
+18:55:17 TTFT p95 4066 ms  ITL p95 49 ms
+18:55:40 TTFT p95 4249 ms  ITL p95 49 ms
+18:55:58 TTFT p95 4212 ms  ITL p95 52 ms
+18:56:15 TTFT p95 3999 ms  ITL p95 53 ms
+18:56:32 TTFT p95 3995 ms  ITL p95 53 ms
+18:56:50 TTFT p95 3816 ms  ITL p95 54 ms
+18:57:07 TTFT p95 3977 ms  ITL p95 55 ms
+18:57:24 TTFT p95 3856 ms  ITL p95 54 ms
+18:57:42 TTFT p95 3843 ms  ITL p95 55 ms
+18:57:59 TTFT p95 3971 ms  ITL p95 55 ms
+18:58:16 TTFT p95 3969 ms  ITL p95 55 ms
+18:58:34 TTFT p95 4319 ms  ITL p95 58 ms
+18:58:51 TTFT p95 4299 ms  ITL p95 59 ms
+18:59:08 TTFT p95 4583 ms  ITL p95 63 ms
+18:59:26 TTFT p95 4629 ms  ITL p95 65 ms
+18:59:43 TTFT p95 4624 ms  ITL p95 65 ms
+19:00:00 TTFT p95 4930 ms  ITL p95 67 ms
+19:00:18 TTFT p95 4934 ms  ITL p95 67 ms
+19:00:35 TTFT p95 4929 ms  ITL p95 67 ms
+19:00:53 TTFT p95 5062 ms  ITL p95 69 ms
+19:01:10 TTFT p95 5031 ms  ITL p95 71 ms
+19:01:27 TTFT p95 5187 ms  ITL p95 69 ms
+19:01:45 TTFT p95 5124 ms  ITL p95 69 ms
+19:02:02 TTFT p95 6071 ms  ITL p95 71 ms
+19:02:19 TTFT p95 5031 ms  ITL p95 71 ms
+19:02:37 TTFT p95 5749 ms  ITL p95 73 ms
+19:02:54 TTFT p95 5729 ms  ITL p95 74 ms
+19:03:12 TTFT p95 5708 ms  ITL p95 73 ms
+19:03:29 TTFT p95 5770 ms  ITL p95 70 ms
+19:03:46 TTFT p95 5791 ms  ITL p95 70 ms
+19:04:04 TTFT p95 5791 ms  ITL p95 71 ms
+19:04:21 TTFT p95 4918 ms  ITL p95 69 ms
+19:04:38 TTFT p95 4919 ms  ITL p95 70 ms
+19:04:56 TTFT p95 4731 ms  ITL p95 68 ms
+19:05:13 TTFT p95 4750 ms  ITL p95 68 ms
+19:05:30 TTFT p95 4615 ms  ITL p95 68 ms
+19:05:48 TTFT p95 4609 ms  ITL p95 70 ms
+19:06:05 TTFT p95 4627 ms  ITL p95 72 ms
+19:06:22 TTFT p95 4650 ms  ITL p95 73 ms
+19:06:40 TTFT p95 4776 ms  ITL p95 74 ms
+19:06:57 TTFT p95 4786 ms  ITL p95 72 ms
+19:07:14 TTFT p95 4803 ms  ITL p95 72 ms
+19:07:32 TTFT p95 4775 ms  ITL p95 72 ms
+19:07:49 TTFT p95 5708 ms  ITL p95 72 ms
+19:08:06 TTFT p95 6760 ms  ITL p95 76 ms
+19:08:24 TTFT p95 6839 ms  ITL p95 81 ms
+19:08:41 TTFT p95 6839 ms  ITL p95 85 ms
+19:08:58 TTFT p95 6830 ms  ITL p95 85 ms
+19:09:15 TTFT p95 6778 ms  ITL p95 85 ms
+19:09:33 TTFT p95 6740 ms  ITL p95 86 ms
+19:09:50 TTFT p95 6750 ms  ITL p95 86 ms
+19:10:08 TTFT p95 6730 ms  ITL p95 87 ms
+19:10:25 TTFT p95 4940 ms  ITL p95 87 ms
+19:10:43 TTFT p95 7575 ms  ITL p95 85 ms
+19:11:00 TTFT p95 10874 ms  ITL p95 83 ms
+19:11:17 TTFT p95 12138 ms  ITL p95 92 ms
+19:11:35 TTFT p95 12055 ms  ITL p95 98 ms
+19:11:52 TTFT p95 12111 ms  ITL p95 98 ms
+19:12:10 TTFT p95 11972 ms  ITL p95 99 ms
+19:12:27 TTFT p95 12083 ms  ITL p95 98 ms
+19:12:44 TTFT p95 12111 ms  ITL p95 97 ms
+19:13:02 TTFT p95 12027 ms  ITL p95 98 ms
+19:13:19 TTFT p95 9964 ms  ITL p95 99 ms
+19:13:37 TTFT p95 8927 ms  ITL p95 97 ms
+19:13:54 TTFT p95 8886 ms  ITL p95 92 ms
+19:14:11 TTFT p95 9291 ms  ITL p95 94 ms
+19:14:29 TTFT p95 9232 ms  ITL p95 99 ms
+19:14:46 TTFT p95 9283 ms  ITL p95 99 ms
+19:15:03 TTFT p95 9289 ms  ITL p95 111 ms
+19:15:21 TTFT p95 9052 ms  ITL p95 109 ms
+19:15:38 TTFT p95 9083 ms  ITL p95 103 ms
+19:15:56 TTFT p95 9258 ms  ITL p95 102 ms
+19:16:13 TTFT p95 9470 ms  ITL p95 103 ms
+19:16:31 TTFT p95 9363 ms  ITL p95 112 ms
+19:16:48 TTFT p95 10416 ms  ITL p95 109 ms
+19:17:05 TTFT p95 13727 ms  ITL p95 110 ms
+19:17:23 TTFT p95 14590 ms  ITL p95 112 ms
+19:17:40 TTFT p95 14714 ms  ITL p95 115 ms
+19:17:57 TTFT p95 14736 ms  ITL p95 119 ms
+19:18:15 TTFT p95 14754 ms  ITL p95 122 ms
+19:18:32 TTFT p95 14761 ms  ITL p95 121 ms
+19:18:50 TTFT p95 14930 ms  ITL p95 119 ms
+19:19:07 TTFT p95 18381 ms  ITL p95 120 ms
+19:19:24 TTFT p95 18975 ms  ITL p95 120 ms
+19:19:42 TTFT p95 19145 ms  ITL p95 120 ms
+19:20:00 TTFT p95 19397 ms  ITL p95 120 ms
+19:20:18 TTFT p95 19526 ms  ITL p95 120 ms
+19:20:35 TTFT p95 22187 ms  ITL p95 121 ms
+19:20:53 TTFT p95 26294 ms  ITL p95 121 ms
+19:21:10 TTFT p95 28200 ms  ITL p95 124 ms
+19:21:28 TTFT p95 28659 ms  ITL p95 123 ms
+19:21:45 TTFT p95 29030 ms  ITL p95 130 ms
+19:22:03 TTFT p95 29181 ms  ITL p95 133 ms
+19:22:21 TTFT p95 29336 ms  ITL p95 134 ms
+19:22:39 TTFT p95 29422 ms  ITL p95 136 ms
+19:22:39 watchdog: TTFT p95 29422 ms, ITL p95 136 ms past the limits for 120 s, ending the ramp
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+
+[notice] A new release of pip is available: 25.0.1 -> 26.2.2
+[notice] To update, run: pip install --upgrade pip
+18:34:33.812 INFO     Starting AIPerf System (_single_run.py:64)
+18:34:33.829 INFO     [OK] Tokenizer Qwen/Qwen3-8B-FP8 detected (tokenizer_display.py:297)
+18:34:33.829 INFO     1 tokenizer validated | 0.0s (tokenizer_display.py:306)
+18:34:33.831 INFO     HF cache hit (skipping prefetch): ['Qwen/Qwen3-8B-FP8'] (tokenizer_validator.py:99)
+18:34:34.110 INFO     Registered Dataset Manager (id: 'dataset_manager') (system_controller.py:391)
+18:34:34.113 INFO     GPU telemetry export enabled: /benchmarks/aiperf-1793298873/gpu_telemetry_export.jsonl (jsonl_writer.py:56)
+18:34:34.115 INFO     Server Metrics: Discovered 1 endpoints: ['http://vllm-pd-mn.llm-serving.svc.cluster.local:8000/metrics'] (manager.py:75)
+18:34:34.120 INFO     Telemetry streaming is disabled (set --otel-url and/or --mlflow-tracking-uri to enable) (otel_metrics_results_processor.py:128)
+18:34:34.120 INFO     OTel metrics streamer is disabled and will not be used: Telemetry streaming is disabled (set --otel-url and/or --mlflow-tracking-uri to enable) (records_manager.py:216)
+18:34:34.120 INFO     Record metrics export enabled: /benchmarks/aiperf-1793298873/profile_export.jsonl (record_export_results_processor.py:58)
+18:34:34.196 INFO     Registered Worker Manager (id: 'worker_manager') (system_controller.py:391)
+18:34:34.245 INFO     Registered Gpu Telemetry Manager (id: 'gpu_telemetry_manager') (system_controller.py:391)
+18:34:34.246 INFO     Registered Records Manager (id: 'records_manager') (system_controller.py:391)
+18:34:34.262 INFO     Registered Server Metrics Manager (id: 'server_metrics_manager') (system_controller.py:391)
+18:34:34.297 INFO     Registered Timing Manager (id: 'timing_manager') (system_controller.py:391)
+18:34:34.368 INFO     Registered Record Processor (id: 'record_processor_1d68e4b8') (system_controller.py:391)
+18:34:34.477 INFO     Registered Worker (id: 'worker_ef6bae5a') (system_controller.py:391)
+18:34:34.477 INFO     Registered Worker (id: 'worker_adeeccd5') (system_controller.py:391)
+18:34:34.596 INFO     AIPerf System is CONFIGURING (system_controller.py:280)
+18:34:34.596 INFO     Configuring all services to start profiling (system_controller.py:293)
+18:34:34.596 INFO     Configuring tokenizers for inference result parser (resolve_alias: True) (inference_result_parser.py:77)
+18:34:34.596 INFO     Waiting for dataset to be configured before configuring timing (manager.py:122)
+18:34:34.596 INFO     Configuring tokenizer(s) for dataset manager (dataset_manager.py:139)
+18:34:34.605 INFO     Server Metrics: Capturing baseline metrics... (manager.py:160)
+18:34:34.608 WARNING  GPU Telemetry: http://localhost:9400/metrics is not reachable (manager.py:243)
+18:34:34.609 WARNING  GPU Telemetry: http://localhost:9401/metrics is not reachable (manager.py:243)
+18:34:34.610 INFO     DCGM telemetry skipped: no DCGM endpoints reachable (system_controller.py:505)
+18:34:34.615 INFO     Server metrics enabled - 1/1 endpoint(s) reachable. (system_controller.py:531)
+18:34:35.322 INFO     HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen3-8B-FP8/revision/main "HTTP/1.1 200 OK" (_client.py:1025)
+18:34:35.324 INFO     HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen3-8B-FP8/revision/main "HTTP/1.1 200 OK" (_client.py:1025)
+18:34:35.365 INFO     HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen3-8B-FP8/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found" (_client.py:1025)
+18:34:35.369 INFO     HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen3-8B-FP8/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found" (_client.py:1025)
+18:34:35.399 INFO     HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen3-8B-FP8/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK" (_client.py:1025)
+18:34:35.404 INFO     HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen3-8B-FP8/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK" (_client.py:1025)
+18:34:35.774 INFO     HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen3-8B-FP8 "HTTP/1.1 200 OK" (_client.py:1025)
+18:34:35.775 INFO     HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen3-8B-FP8 "HTTP/1.1 200 OK" (_client.py:1025)
+18:34:35.775 INFO     Initialized tokenizers: {'qwen3-8b': {'class': 'Qwen2Tokenizer', 'name_or_path': 'Qwen/Qwen3-8B-FP8'}} in 1.18 seconds (inference_result_parser.py:100)
+18:34:35.775 INFO     Tokenizer(s) configured in 1.18 seconds (dataset_manager.py:143)
+18:34:35.776 INFO     Configuring dataset for dataset_manager (dataset_manager.py:149)
+18:34:36.789 INFO     Memory-mapped backing store initialized (streaming to /tmp/aiperf_mmap_86de834ac00b/dataset.dat) (memory_map_utils.py:141)
+18:34:36.819 INFO     Data file finalized: 1000 conversations, 17.52 MB (memory_map_utils.py:245)
+18:34:36.820 INFO     Index file created: /tmp/aiperf_mmap_86de834ac00b/index.dat (memory_map_utils.py:252)
+18:34:36.820 INFO     Backing store finalized: client_type=DatasetClientStoreType.MEMORY_MAP data_file_path=PosixPath('/tmp/aiperf_mmap_86de834ac00b/dataset.dat') index_file_path=PosixPath('/tmp/aiperf_mmap_86de834ac00b/index.dat') conversation_count=1000 total_size_bytes=18368996 compressed_data_file_path=None compressed_index_file_path=None compressed_size_bytes=0 (dataset_manager.py:479)
+18:34:36.824 INFO     sampling strategy: sequential, unique conversations: 1000, unique turn count: 1000 (dataset_manager.py:497)
+18:34:36.860 INFO     Generating inputs.json file at /benchmarks/aiperf-1793298873/inputs.json (dataset_manager.py:337)
+18:34:36.864 INFO     Initialized 1 phase(s): ['Profiling'] (phase_orchestrator.py:165)
+18:34:36.883 INFO     inputs.json file generated in 0.02 seconds (dataset_manager.py:356)
+18:34:36.995 INFO     Dataset client initialized and freed 1000 conversations from memory (dataset_manager.py:185)
+18:34:36.995 INFO     Dataset configured in 1.22 seconds (dataset_manager.py:156)
+18:34:36.996 INFO     All services configured in 2.40 seconds (system_controller.py:304)
+18:34:36.996 INFO     AIPerf System is CONFIGURED (system_controller.py:282)
+18:34:36.996 INFO     Server Metrics: Started 1 collector(s) successfully (manager.py:228)
+18:34:36.997 INFO     All services started profiling successfully (system_controller.py:326)
+18:34:36.997 INFO     AIPerf System is PROFILING (system_controller.py:284)
+18:34:36.999 INFO     Creating interval generator: pattern=gamma, rate=1.2, smoothness=4.0 (request_rate.py:114)
+18:34:36.999 INFO     Starting request rate ramp: 0.00 → 1.2 QPS over 3600.0s (runner.py:513)
+18:34:36.999 NOTICE   Phase profiling started | target: 3600.0s duration (runner.py:376)
+18:34:36.999 INFO     Waiting for event 'profiling phase sending' with timeout of 3599.999842668s (runner.py:751)
+18:34:37.000 INFO     Credit phase start: profiling (records_manager.py:606)
+POD                                   RESTARTS
+vllm-pd-mn-decode-7d9999bc55-gkjfq    0
+vllm-pd-mn-prefill-774f8965cd-z266g   0
+vllm-pd-mn-router-7979459fd9-l9hcr    0
+window: 2026-10-29T18:33:54Z -> 2026-10-29T19:22:39Z
+GPUs holding the model: 2
+best valid window 19:05:24-19:07:54 UTC: 2670.0 tokens/s total, 1334.98 tokens/s per GPU (study 27 score), 0.520 req/s, max TTFT p95 6637 ms, max ITL p95 73.9 ms, prefill leg p50 1417 ms

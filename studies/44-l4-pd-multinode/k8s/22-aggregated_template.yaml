@@ -1,0 +1,104 @@
+# Study 44 same-hardware control: ONE aggregated vLLM (P0D1) on one node of the same group,
+# behind the same router. Same placeholders as 21-serving_template.yaml. The pod keeps the
+# label role=decode, so Service vllm-pd-mn-decode and the router's pod affinity work
+# unchanged; the router gets no prefill URL and round-robins whole requests (P=0).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-pd-mn-decode
+  namespace: llm-serving
+  labels: {app: vllm-pd-mn, role: decode}
+spec:
+  replicas: 1
+  progressDeadlineSeconds: 1500
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: vllm-pd-mn, role: decode}
+  template:
+    metadata:
+      labels: {app: vllm-pd-mn, role: decode, topology: "0P1D"}
+      annotations: {pd-config-sha: "__CONFIG_SHA__"}
+    spec:
+      enableServiceLinks: false
+      nodeSelector: {node-role: __D_NODE_ROLE__}
+      tolerations:
+        - {key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}
+      containers:
+        - name: engine
+          image: vllm/vllm-openai:v0.29.0
+          command: ["bash", "/pd-scripts/serve.sh"]
+          env:
+            - {name: PD_ROLE, value: aggregated}
+            - {name: POD_IP, valueFrom: {fieldRef: {fieldPath: status.podIP}}}
+            - {name: NODE_NAME, valueFrom: {fieldRef: {fieldPath: spec.nodeName}}}
+            - {name: VLLM_LOGGING_LEVEL, value: INFO}
+          ports:
+            - {name: http, containerPort: 8000}
+          resources:
+            requests: {nvidia.com/gpu: "1", cpu: "__D_CPU_REQ__", memory: "__D_MEM_REQ__"}
+            limits: {nvidia.com/gpu: "1", memory: "__D_MEM_LIM__"}
+          startupProbe:
+            httpGet: {path: /health, port: 8000}
+            failureThreshold: 150
+            periodSeconds: 10
+          volumeMounts:
+            - {name: shm, mountPath: /dev/shm}
+            - {name: model-cache, mountPath: /root/.cache/huggingface}
+            - {name: pd-config, mountPath: /pd-config, readOnly: true}
+            - {name: pd-scripts, mountPath: /pd-scripts, readOnly: true}
+            - {name: pd-tuned-configs, mountPath: /pd-tuned-configs, readOnly: true}
+      volumes:
+        - {name: shm, emptyDir: {medium: Memory, sizeLimit: __D_SHM__}}
+        - {name: model-cache, emptyDir: {sizeLimit: 40Gi}}
+        - {name: pd-config, configMap: {name: pd-mn-config}}
+        - {name: pd-scripts, configMap: {name: pd-mn-scripts, defaultMode: 0555}}
+        - {name: pd-tuned-configs, configMap: {name: pd-tuned-configs, optional: true}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-pd-mn-router
+  namespace: llm-serving
+  labels: {app: vllm-pd-mn, role: router}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: vllm-pd-mn, role: router}
+  template:
+    metadata:
+      labels: {app: vllm-pd-mn, role: router, topology: "0P1D"}
+      annotations: {pd-config-sha: "__CONFIG_SHA__"}
+    spec:
+      enableServiceLinks: false
+      nodeSelector: {node-role: __D_NODE_ROLE__}
+      tolerations:
+        - {key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - {key: role, operator: In, values: [decode]}
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: router
+          image: vllm/vllm-openai:v0.29.0
+          command: ["python3", "-u", "/pd-scripts/pd_router.py"]
+          env:
+            - {name: PD_ROUTER_MODEL_LABEL, value: qwen3-8b-router}
+            - {name: PD_ROUTER_PORT, value: "8000"}
+            - {name: PD_TOPOLOGY_FILE, value: /nonexistent}
+            - {name: PD_DECODE_URLS, value: "http://vllm-pd-mn-decode.llm-serving.svc.cluster.local:8000"}
+          ports:
+            - {name: http, containerPort: 8000}
+          resources:
+            requests: {cpu: "500m", memory: "512Mi"}
+            limits: {memory: "2Gi"}
+          readinessProbe:
+            httpGet: {path: /health, port: 8000}
+            periodSeconds: 15
+          volumeMounts:
+            - {name: pd-scripts, mountPath: /pd-scripts, readOnly: true}
+      volumes:
+        - {name: pd-scripts, configMap: {name: pd-mn-scripts, defaultMode: 0555}}

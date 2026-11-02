@@ -1,0 +1,12 @@
+scale-down at 00:02:05
+llm-serving-l4-pd: desired=0
+llm-serving-l4-pd-xl: desired=0
+llm-serving-l40s-pd: desired=0
+llm-serving-a10g-pd: desired=0
+llm-serving-l4-pd	UPDATING	g6.4xlarge	0
+llm-serving-l4-pd-xl	UPDATING	g6.xlarge	0
+llm-serving-l40s-pd	UPDATING	g6e.2xlarge	1
+llm-serving-a10g-pd	UPDATING	g5.2xlarge	1
+NAME                                           STATUS   ROLES    AGE     VERSION               NODE-ROLE             ZONE         INSTANCE-TYPE
+ip-192-168-20-206.us-east-2.compute.internal   Ready    <none>   3h26m   v1.35.9-eks-577a51e   llm-serving-l40s-pd   us-east-2b   g6e.2xlarge
+ip-192-168-26-221.us-east-2.compute.internal   Ready    <none>   3h25m   v1.35.9-eks-577a51e   llm-serving-a10g-pd   us-east-2b   g5.2xlarge

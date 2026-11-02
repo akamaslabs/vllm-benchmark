@@ -1,0 +1,10 @@
+kind: component
+system: vLLM_Benchmark_45_GPU_Choice
+name: vllm_a
+description: "The vLLM pod on node_a (Deployment vllm-pd-mn-a, served name qwen3-8b-a): aggregated replica, or prefill in P/D. Carries the KV cache dtype shared by both pods."
+componentType: vLLM
+properties:
+  prometheus:
+    pod: "^vllm-pd-mn-a-.*"
+    model: qwen3-8b-a
+    endpoint: http

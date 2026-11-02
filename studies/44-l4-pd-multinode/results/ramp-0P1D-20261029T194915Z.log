@@ -1,0 +1,156 @@
+ramp 0 -> 1.2 req/s over 3600 s started 2026-10-29T19:49:23Z; watchdog TTFT p95 > 20000 ms or ITL p95 > 225 ms for 120 s
+19:49:48 TTFT p95 n/a ms  ITL p95 n/a ms
+19:50:17 TTFT p95 n/a ms  ITL p95 n/a ms
+19:50:36 TTFT p95 n/a ms  ITL p95 n/a ms
+19:50:56 TTFT p95 n/a ms  ITL p95 n/a ms
+19:51:17 TTFT p95 n/a ms  ITL p95 n/a ms
+19:51:38 TTFT p95 n/a ms  ITL p95 n/a ms
+19:52:03 TTFT p95 n/a ms  ITL p95 n/a ms
+19:52:23 TTFT p95 n/a ms  ITL p95 n/a ms
+19:52:53 TTFT p95 n/a ms  ITL p95 n/a ms
+19:53:12 TTFT p95 n/a ms  ITL p95 n/a ms
+19:53:46 TTFT p95 n/a ms  ITL p95 n/a ms
+19:54:17 TTFT p95 n/a ms  ITL p95 n/a ms
+19:54:43 TTFT p95 n/a ms  ITL p95 n/a ms
+19:55:09 TTFT p95 n/a ms  ITL p95 n/a ms
+19:55:27 TTFT p95 n/a ms  ITL p95 n/a ms
+19:55:45 TTFT p95 n/a ms  ITL p95 n/a ms
+19:56:02 TTFT p95 n/a ms  ITL p95 n/a ms
+19:56:20 TTFT p95 n/a ms  ITL p95 n/a ms
+19:56:38 TTFT p95 n/a ms  ITL p95 n/a ms
+19:56:56 TTFT p95 n/a ms  ITL p95 n/a ms
+19:57:14 TTFT p95 n/a ms  ITL p95 n/a ms
+19:57:31 TTFT p95 n/a ms  ITL p95 n/a ms
+19:57:49 TTFT p95 n/a ms  ITL p95 n/a ms
+19:58:06 TTFT p95 1475 ms  ITL p95 39 ms
+19:58:24 TTFT p95 1475 ms  ITL p95 39 ms
+19:58:42 TTFT p95 1475 ms  ITL p95 39 ms
+19:58:59 TTFT p95 1475 ms  ITL p95 39 ms
+19:59:17 TTFT p95 1475 ms  ITL p95 39 ms
+19:59:34 TTFT p95 1475 ms  ITL p95 39 ms
+19:59:52 TTFT p95 1475 ms  ITL p95 39 ms
+20:00:10 TTFT p95 1475 ms  ITL p95 39 ms
+20:00:27 TTFT p95 1474 ms  ITL p95 39 ms
+20:00:45 TTFT p95 1474 ms  ITL p95 39 ms
+20:01:02 TTFT p95 1475 ms  ITL p95 39 ms
+20:01:19 TTFT p95 1475 ms  ITL p95 39 ms
+20:01:37 TTFT p95 1475 ms  ITL p95 39 ms
+20:01:54 TTFT p95 1475 ms  ITL p95 39 ms
+20:02:11 TTFT p95 1475 ms  ITL p95 39 ms
+20:02:28 TTFT p95 1475 ms  ITL p95 47 ms
+20:02:46 TTFT p95 1475 ms  ITL p95 47 ms
+20:03:03 TTFT p95 1488 ms  ITL p95 48 ms
+20:03:20 TTFT p95 1488 ms  ITL p95 49 ms
+20:03:37 TTFT p95 1525 ms  ITL p95 49 ms
+20:03:54 TTFT p95 1500 ms  ITL p95 49 ms
+20:04:12 TTFT p95 1512 ms  ITL p95 49 ms
+20:04:29 TTFT p95 1499 ms  ITL p95 49 ms
+20:04:46 TTFT p95 1512 ms  ITL p95 49 ms
+20:05:06 TTFT p95 1498 ms  ITL p95 49 ms
+20:05:23 TTFT p95 1499 ms  ITL p95 49 ms
+20:05:40 TTFT p95 1499 ms  ITL p95 49 ms
+20:05:57 TTFT p95 1487 ms  ITL p95 49 ms
+20:06:15 TTFT p95 1486 ms  ITL p95 49 ms
+20:06:32 TTFT p95 1486 ms  ITL p95 49 ms
+20:06:49 TTFT p95 1485 ms  ITL p95 49 ms
+20:07:06 TTFT p95 1485 ms  ITL p95 49 ms
+20:07:24 TTFT p95 1485 ms  ITL p95 49 ms
+20:07:41 TTFT p95 1496 ms  ITL p95 49 ms
+20:07:58 TTFT p95 1496 ms  ITL p95 49 ms
+20:08:16 TTFT p95 1495 ms  ITL p95 49 ms
+20:08:33 TTFT p95 1495 ms  ITL p95 49 ms
+20:08:50 TTFT p95 1496 ms  ITL p95 49 ms
+20:09:07 TTFT p95 1681 ms  ITL p95 49 ms
+20:09:25 TTFT p95 1740 ms  ITL p95 56 ms
+20:09:42 TTFT p95 1941 ms  ITL p95 61 ms
+20:09:59 TTFT p95 1940 ms  ITL p95 60 ms
+20:10:16 TTFT p95 1933 ms  ITL p95 64 ms
+20:10:34 TTFT p95 1920 ms  ITL p95 64 ms
+20:10:51 TTFT p95 1932 ms  ITL p95 67 ms
+20:11:08 TTFT p95 1925 ms  ITL p95 73 ms
+20:11:25 TTFT p95 1920 ms  ITL p95 72 ms
+20:11:42 TTFT p95 1895 ms  ITL p95 73 ms
+20:12:00 TTFT p95 1868 ms  ITL p95 73 ms
+20:12:17 TTFT p95 1684 ms  ITL p95 74 ms
+20:12:34 TTFT p95 1679 ms  ITL p95 74 ms
+20:12:51 TTFT p95 1679 ms  ITL p95 74 ms
+20:13:09 TTFT p95 1499 ms  ITL p95 73 ms
+20:13:26 TTFT p95 1771 ms  ITL p95 78 ms
+20:13:43 TTFT p95 1816 ms  ITL p95 1003 ms
+20:14:00 TTFT p95 1856 ms  ITL p95 1166 ms
+20:14:18 TTFT p95 2362 ms  ITL p95 1374 ms
+20:14:35 TTFT p95 3249 ms  ITL p95 1604 ms
+20:14:52 TTFT p95 3249 ms  ITL p95 1597 ms
+20:15:09 TTFT p95 3742 ms  ITL p95 1695 ms
+20:15:26 TTFT p95 3756 ms  ITL p95 1757 ms
+20:15:43 TTFT p95 3781 ms  ITL p95 1687 ms
+20:15:43 watchdog: TTFT p95 3781 ms, ITL p95 1687 ms past the limits for 120 s, ending the ramp
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+
+[notice] A new release of pip is available: 25.0.1 -> 26.2.2
+[notice] To update, run: pip install --upgrade pip
+19:49:55.469 INFO     Starting AIPerf System (_single_run.py:64)
+19:49:55.484 INFO     [OK] Tokenizer Qwen/Qwen3-8B-FP8 detected (tokenizer_display.py:297)
+19:49:55.484 INFO     1 tokenizer validated | 0.0s (tokenizer_display.py:306)
+19:49:55.486 INFO     HF cache hit (skipping prefetch): ['Qwen/Qwen3-8B-FP8'] (tokenizer_validator.py:99)
+19:49:55.757 INFO     GPU telemetry export enabled: /benchmarks/aiperf-1793303394/gpu_telemetry_export.jsonl (jsonl_writer.py:56)
+19:49:55.763 INFO     Telemetry streaming is disabled (set --otel-url and/or --mlflow-tracking-uri to enable) (otel_metrics_results_processor.py:128)
+19:49:55.763 INFO     OTel metrics streamer is disabled and will not be used: Telemetry streaming is disabled (set --otel-url and/or --mlflow-tracking-uri to enable) (records_manager.py:216)
+19:49:55.763 INFO     Server Metrics: Discovered 1 endpoints: ['http://vllm-pd-mn.llm-serving.svc.cluster.local:8000/metrics'] (manager.py:75)
+19:49:55.764 INFO     Record metrics export enabled: /benchmarks/aiperf-1793303394/profile_export.jsonl (record_export_results_processor.py:58)
+19:49:55.801 INFO     Registered Server Metrics Manager (id: 'server_metrics_manager') (system_controller.py:391)
+19:49:55.822 INFO     Registered Records Manager (id: 'records_manager') (system_controller.py:391)
+19:49:55.840 INFO     Registered Worker Manager (id: 'worker_manager') (system_controller.py:391)
+19:49:55.916 INFO     Registered Dataset Manager (id: 'dataset_manager') (system_controller.py:391)
+19:49:55.917 INFO     Registered Gpu Telemetry Manager (id: 'gpu_telemetry_manager') (system_controller.py:391)
+19:49:55.942 INFO     Registered Timing Manager (id: 'timing_manager') (system_controller.py:391)
+19:49:56.032 INFO     Registered Worker (id: 'worker_ddd542a3') (system_controller.py:391)
+19:49:56.039 INFO     Registered Record Processor (id: 'record_processor_db4485df') (system_controller.py:391)
+19:49:56.106 INFO     Registered Worker (id: 'worker_b81f9c00') (system_controller.py:391)
+19:49:56.241 INFO     AIPerf System is CONFIGURING (system_controller.py:280)
+19:49:56.241 INFO     Configuring all services to start profiling (system_controller.py:293)
+19:49:56.241 INFO     Waiting for dataset to be configured before configuring timing (manager.py:122)
+19:49:56.241 INFO     Configuring tokenizer(s) for dataset manager (dataset_manager.py:139)
+19:49:56.241 INFO     Configuring tokenizers for inference result parser (resolve_alias: True) (inference_result_parser.py:77)
+19:49:56.249 INFO     Server Metrics: Capturing baseline metrics... (manager.py:160)
+19:49:56.252 WARNING  GPU Telemetry: http://localhost:9400/metrics is not reachable (manager.py:243)
+19:49:56.253 WARNING  GPU Telemetry: http://localhost:9401/metrics is not reachable (manager.py:243)
+19:49:56.253 INFO     DCGM telemetry skipped: no DCGM endpoints reachable (system_controller.py:505)
+19:49:56.256 INFO     Server metrics enabled - 1/1 endpoint(s) reachable. (system_controller.py:531)
+19:49:56.967 INFO     HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen3-8B-FP8/revision/main "HTTP/1.1 200 OK" (_client.py:1025)
+19:49:56.971 INFO     HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen3-8B-FP8/revision/main "HTTP/1.1 200 OK" (_client.py:1025)
+19:49:57.006 INFO     HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen3-8B-FP8/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found" (_client.py:1025)
+19:49:57.013 INFO     HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen3-8B-FP8/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found" (_client.py:1025)
+19:49:57.045 INFO     HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen3-8B-FP8/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK" (_client.py:1025)
+19:49:57.046 INFO     HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen3-8B-FP8/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK" (_client.py:1025)
+19:49:57.397 INFO     HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen3-8B-FP8 "HTTP/1.1 200 OK" (_client.py:1025)
+19:49:57.398 INFO     HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen3-8B-FP8 "HTTP/1.1 200 OK" (_client.py:1025)
+19:49:57.398 INFO     Tokenizer(s) configured in 1.16 seconds (dataset_manager.py:143)
+19:49:57.398 INFO     Configuring dataset for dataset_manager (dataset_manager.py:149)
+19:49:57.399 INFO     Initialized tokenizers: {'qwen3-8b': {'class': 'Qwen2Tokenizer', 'name_or_path': 'Qwen/Qwen3-8B-FP8'}} in 1.16 seconds (inference_result_parser.py:100)
+19:49:58.402 INFO     Memory-mapped backing store initialized (streaming to /tmp/aiperf_mmap_6db4559049c0/dataset.dat) (memory_map_utils.py:141)
+19:49:58.433 INFO     Data file finalized: 1000 conversations, 17.52 MB (memory_map_utils.py:245)
+19:49:58.433 INFO     Index file created: /tmp/aiperf_mmap_6db4559049c0/index.dat (memory_map_utils.py:252)
+19:49:58.433 INFO     Backing store finalized: client_type=DatasetClientStoreType.MEMORY_MAP data_file_path=PosixPath('/tmp/aiperf_mmap_6db4559049c0/dataset.dat') index_file_path=PosixPath('/tmp/aiperf_mmap_6db4559049c0/index.dat') conversation_count=1000 total_size_bytes=18368996 compressed_data_file_path=None compressed_index_file_path=None compressed_size_bytes=0 (dataset_manager.py:479)
+19:49:58.438 INFO     sampling strategy: sequential, unique conversations: 1000, unique turn count: 1000 (dataset_manager.py:497)
+19:49:58.500 INFO     Generating inputs.json file at /benchmarks/aiperf-1793303394/inputs.json (dataset_manager.py:337)
+19:49:58.504 INFO     Initialized 1 phase(s): ['Profiling'] (phase_orchestrator.py:165)
+19:49:58.526 INFO     inputs.json file generated in 0.03 seconds (dataset_manager.py:356)
+19:49:58.631 INFO     Dataset client initialized and freed 1000 conversations from memory (dataset_manager.py:185)
+19:49:58.632 INFO     Dataset configured in 1.23 seconds (dataset_manager.py:156)
+19:49:58.632 INFO     All services configured in 2.39 seconds (system_controller.py:304)
+19:49:58.632 INFO     AIPerf System is CONFIGURED (system_controller.py:282)
+19:49:58.633 INFO     Server Metrics: Started 1 collector(s) successfully (manager.py:228)
+19:49:58.633 INFO     All services started profiling successfully (system_controller.py:326)
+19:49:58.633 INFO     AIPerf System is PROFILING (system_controller.py:284)
+19:49:58.635 INFO     Creating interval generator: pattern=gamma, rate=1.2, smoothness=4.0 (request_rate.py:114)
+19:49:58.635 INFO     Starting request rate ramp: 0.00 → 1.2 QPS over 3600.0s (runner.py:513)
+19:49:58.636 NOTICE   Phase profiling started | target: 3600.0s duration (runner.py:376)
+19:49:58.636 INFO     Waiting for event 'profiling phase sending' with timeout of 3599.999841568s (runner.py:751)
+19:49:58.636 INFO     Credit phase start: profiling (records_manager.py:606)
+POD                                  RESTARTS
+vllm-pd-mn-decode-5f9dd95c67-qv6nf   0
+vllm-pd-mn-router-749559bb5c-tcjxh   0
+window: 2026-10-29T19:49:23Z -> 2026-10-29T20:15:43Z
+GPUs holding the model: 1
+best valid window 20:10:23-20:12:53 UTC: 1967.4 tokens/s total, 1967.44 tokens/s per GPU (study 27 score), 0.427 req/s, max TTFT p95 1932 ms, max ITL p95 74.7 ms

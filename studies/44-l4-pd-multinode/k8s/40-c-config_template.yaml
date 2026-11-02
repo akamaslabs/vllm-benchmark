@@ -1,0 +1,52 @@
+# Study 44 tappa C: the per-experiment config, rendered by the Akamas FileConfigurator into
+# 40-c-config.yaml and applied by apply_config_c.sh. The dollar-brace tokens are the tuned
+# parameters. Components are named by GPU, not by role, because the topology decides the role:
+#
+#   pd_topology.pd_prefill_instances = 1   P/D: the L40S pod is the prefill (kv_producer),
+#                                           the A10G pod the decode (kv_consumer)
+#   pd_topology.pd_prefill_instances = 0   aggregated: both pods serve whole requests, the
+#                                           router sends each to the one with fewer in flight
+#
+# So vllm_l40s.* are the prefill flags in P/D and the L40S replica's flags when aggregated;
+# vllm_a10g.* likewise for the decode / A10G replica. Pinned, not tuned:
+#   --attention-backend=FLASHINFER  same on both GPUs (NIXL compatibility hash); FlashAttention
+#                                   2 (sm89/sm86) rejects an fp8 KV cache
+#   --kv-cache-dtype                ONE tuned value (vllm_a10g.kv_cache_dtype) for both pods,
+#                                   for the same hash reason
+#   A10G linear backend = marlin    Ampere has no FP8 tensor cores: triton W8A8 cannot run,
+#                                   Marlin (weight-only FP8) can; humming is untested on sm86
+#   kv_buffer_device=cpu, NixlConnector (pull), no prefix caching, max_model_len 8192: tappe A/B
+# A flag line whose token stays unrendered is deleted by apply_config_c.sh, so vLLM's own
+# default applies.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pd-mn-config
+  namespace: llm-serving
+data:
+  topology.env: |
+    PD_PREFILL_INSTANCES=${pd_topology.pd_prefill_instances}
+    PD_KV_CONNECTOR=NixlConnector
+    PD_KV_BUFFER_DEVICE=cpu
+    PD_TUNED_KERNEL_CONFIGS=false
+  common.args: |
+    --max-model-len=8192
+    --attention-backend=FLASHINFER
+    --kv-cache-dtype=${vllm_a10g.kv_cache_dtype}
+    --no-enable-prefix-caching
+    --enable-mfu-metrics
+    --default-chat-template-kwargs={"enable_thinking": false}
+  l40s.args: |
+    --gpu-memory-utilization=${vllm_l40s.gpu_memory_utilization}
+    --max-num-seqs=${vllm_l40s.max_num_seqs}
+    --max-num-batched-tokens=${vllm_l40s.max_num_batched_tokens}
+    --linear-backend=${vllm_l40s.linear_backend}
+  a10g.args: |
+    --gpu-memory-utilization=${vllm_a10g.gpu_memory_utilization}
+    --max-num-seqs=${vllm_a10g.max_num_seqs}
+    --max-num-batched-tokens=${vllm_a10g.max_num_batched_tokens}
+    --linear-backend=marlin
+  l40s.env: |
+    # none
+  a10g.env: |
+    # none

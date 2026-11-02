@@ -1,0 +1,146 @@
+# Study 44: study 27's AIPerf job (header below kept as written for study 18/27), pointed at
+# this study's router (Service vllm-pd-mn) and renamed aiperf-pd-mn. Same load: synthetic
+# 4096 in / 256 out, open-loop gamma ramp, seed 18. run.sh renders __RATE_MAX__/__RAMP_S__;
+# its defaults keep study 27's slope (0.02 req/s per minute) over a shorter ramp, since a
+# single P1D1 tops out below ~1 req/s.
+#
+# AIPerf load test for study 18. Unlike every study before it (ShareGPT replay), the load is
+# SYNTHETIC AND PREFILL-HEAVY, because prefill/decode disaggregation only has a case on
+# long inputs. llm-d's +70% is at 20:1 input:output, and vLLM's own docs say "Disaggregated
+# prefill DOES NOT improve throughput" — what it can improve is tail ITL, by keeping
+# prefill chunks out of the decode batch. ShareGPT is short-input chat, so on it the
+# study would be answered by construction.
+#
+#   prompts   4096 tokens, stddev 0     (fixed length: every request costs the same
+#                                        prefill and moves the same ~0.56 GiB of bf16 KV)
+#   outputs   256 tokens, stddev 0, ignore_eos=true (exactly 256, 16:1 ratio)
+#   ramp      STUDY 27: an OPEN-LOOP linear rate ramp, not concurrency levels. Studies 18-24
+#             ran a closed loop (`--concurrency` only: a new request leaves when one ends)
+#             in 6 levels x 600 s (2,4,8,16,24,32). Two problems, measured in study 24
+#             (see research/vllm/load_generation.md):
+#             - the score can only take the value of one level: the same config scored
+#               1382 (study 22) and 986 (study 24), because its TTFT p95 at concurrency 16
+#               moved around the 10 s limit;
+#             - with 0 think time the users stay synchronized, and their requests reach the
+#               prefill in bursts.
+#             `--request-rate R --request-rate-ramp-duration D` (no `--concurrency`, which
+#             would cap the in-flight requests and close the loop again) starts at R*0.1/D
+#             and raises the rate linearly to R, updated every 0.1 s (AIPerf 0.11.0,
+#             timing/phase/runner.py). Same seed for every trial.
+#   arrivals  GAMMA, smoothness 4 (2026-09-30). The first run of study 27 used Poisson: two
+#             identical baselines scored 1158.49 and 1089.98 (-5.9%), while their ITL broke
+#             at the same rate (~0.55 req/s). The score is the throughput realized in the
+#             180 s window, that is the number of arrivals in it: with Poisson that count
+#             varies by ~±10% at 0.5 req/s (~90 requests), and the max over the valid
+#             windows picks a lucky one. Gamma with shape k keeps the mean rate and divides
+#             the variance of the intervals by k (AIPerf GammaIntervalGenerator, the same
+#             parametrization as vLLM's `burstiness`): the count noise falls to ~1/2.
+#   R, D      Rendered by run_test_tps.sh from RT_RATE_MAX (default 2.4 req/s) and RT_RAMP_S
+#             (default 7200 s): 0.02 req/s per minute. The first run of study 27 used 3.0 in
+#             3600 s: the 180 s window then spanned 0.15 req/s, 27% of the baseline's SLA
+#             rate. Now it spans 0.06 req/s (11% at 0.55 req/s, 4% at 1.5 req/s). 2.4 req/s
+#             is above every config in the search space (2P2D with fp8 KV is estimated at
+#             ~1.8 req/s): the ramp ends by the watchdog in run_test_tps.sh, not at R, so the
+#             true peak is always measured.
+#   goodput   TTFT 10000 ms / ITL 75 ms, the same values as the study's SLA. For the AIPerf
+#             summary only; the score comes from Prometheus.
+#
+# Target: the router (Service vllm-pd:8000). TTFT therefore includes the remote prefill and
+# the KV transfer, and every preset pays the same routing hop. Model name `qwen3-8b` is the
+# alias every instance accepts. The tokenizer is the served checkpoint's own (not gated).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aiperf-pd-mn
+  namespace: llm-benchmark
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        node-role: system-m8a
+      initContainers:
+        - name: wait-for-router
+          image: alpine:3
+          command:
+            - sh
+            - -c
+            - |
+              until wget -qO- http://vllm-pd-mn.llm-serving.svc.cluster.local:8000/health >/dev/null 2>&1; do
+                echo "$(date -u +%T) waiting for the router (all vLLM instances healthy)..."
+                sleep 10
+              done
+              echo "router ready: $(wget -qO- http://vllm-pd-mn.llm-serving.svc.cluster.local:8000/health)"
+      containers:
+        - name: aiperf
+          image: python:3.12-slim
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              pip install --quiet aiperf==0.11.0
+              # Keep only the latest run's artifacts on the 10 Gi results volume.
+              find /benchmarks -mindepth 1 -maxdepth 1 -name 'aiperf-*' -exec rm -rf {} +
+              # __RATE_MAX__ and __RAMP_S__ are replaced by run_test_tps.sh before the apply.
+              aiperf profile \
+                --model qwen3-8b \
+                --tokenizer Qwen/Qwen3-8B-FP8 \
+                --url http://vllm-pd-mn.llm-serving.svc.cluster.local:8000 \
+                --endpoint-type chat \
+                --streaming \
+                --synthetic-input-tokens-mean 4096 \
+                --synthetic-input-tokens-stddev 0 \
+                --output-tokens-mean 256 \
+                --output-tokens-stddev 0 \
+                --extra-inputs ignore_eos:true \
+                --num-dataset-entries 1000 \
+                --random-seed 18 \
+                --request-rate __RATE_MAX__ \
+                --request-rate-ramp-duration __RAMP_S__ \
+                --arrival-pattern gamma \
+                --arrival-smoothness 4 \
+                --benchmark-duration __RAMP_S__ \
+                --benchmark-grace-period 60 \
+                --goodput "time_to_first_token:10000 inter_token_latency:75" \
+                --ui simple \
+                --output-artifact-dir "/benchmarks/aiperf-$(date +%s)"
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+                  optional: true   # Qwen/Qwen3-8B-FP8 is not gated (HF API, 2026-09-23)
+            # Study 27: without this the ramp sends NOTHING (smoke test 2026-09-30: sent=0 in
+            # 600 s). The ramp starts at R x interval / D (1.5 x 0.1 / 600 = 0.00025 req/s),
+            # the first Poisson interval is drawn at that rate (mean ~4000 s), and a later
+            # rate change does not reschedule the pending wait (request_rate.py
+            # set_request_rate only updates the generator). With 10 s (the maximum) the ramp
+            # starts at R x 10 / D: 0.0033 req/s for 2.4 / 7200 s, first request after ~5 min
+            # on average (at a negligible load), then the rate follows the ramp in 10 s steps.
+            # Reproduced and fixed locally with AIPerf 0.11.0: sent=0 -> sent=21 in 120 s.
+            - name: AIPERF_TIMING_RATE_RAMP_UPDATE_INTERVAL
+              value: "10"
+            - name: AIPERF_DATASET_CONFIGURATION_TIMEOUT
+              value: "900"
+            - name: AIPERF_SERVICE_PROFILE_CONFIGURE_TIMEOUT
+              value: "1200"
+          resources:
+            requests:
+              cpu: "2"
+              memory: "6Gi"
+            limits:
+              memory: "12Gi"
+          volumeMounts:
+            - name: results
+              mountPath: /benchmarks
+            - name: hf-cache
+              mountPath: /root/.cache/huggingface
+      volumes:
+        - name: results
+          persistentVolumeClaim:
+            claimName: aiperf-results
+        - name: hf-cache
+          persistentVolumeClaim:
+            claimName: hf-cache

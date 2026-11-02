@@ -1,0 +1,59 @@
+# Node-to-node network test, rendered by run.sh (`run.sh iperf <4xl|xl> [seconds]`).
+# Server on one node of the group, client Job on the other (anti-affinity), pod network
+# (VPC CNI: pod IPs are VPC IPs, no overlay). Long by default (__SECONDS__ = 600 s), because
+# the xlarge/4xlarge "up to" bandwidth is a burst-credit bucket: a short test only measures
+# the burst, the KV stream of a long ramp sees the baseline.
+#   -P 4    four streams (UCX opens several TCP connections too)
+#   -i 10   one line per 10 s, so the drop from burst to baseline shows in the log
+# No GPU requested: it runs alongside nothing else, before the vLLM pods.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: iperf3-server
+  namespace: llm-serving
+  labels: {app: iperf3, side: server}
+spec:
+  nodeSelector: {node-role: __S_NODE_ROLE__}
+  tolerations:
+    - {key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}
+  containers:
+    - name: iperf3
+      image: alpine:3.20
+      command: ["sh", "-c", "apk add --no-cache iperf3 >/dev/null && exec iperf3 -s"]
+      ports:
+        - {containerPort: 5201}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: iperf3-client
+  namespace: llm-serving
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels: {app: iperf3, side: client}
+    spec:
+      restartPolicy: Never
+      nodeSelector: {node-role: __C_NODE_ROLE__}
+      tolerations:
+        - {key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels: {app: iperf3, side: server}
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: iperf3
+          image: alpine:3.20
+          command:
+            - sh
+            - -c
+            - |
+              apk add --no-cache iperf3 >/dev/null
+              echo "server ${SERVER_IP} from node ${NODE_NAME}"
+              iperf3 -c "${SERVER_IP}" -t __SECONDS__ -P 4 -i 10 --forceflush
+          env:
+            - {name: SERVER_IP, value: "__SERVER_IP__"}
+            - {name: NODE_NAME, valueFrom: {fieldRef: {fieldPath: spec.nodeName}}}

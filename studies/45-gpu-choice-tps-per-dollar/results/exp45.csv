@@ -1,0 +1,25 @@
+experiment,step,state,config,family,topology,node_a,node_b,cost_per_hour,score,tokens_per_s,req_per_s,ttft_p95_ms,itl_p95_ms,kv_cache,linear_a,duration_h,cost_usd,note
+1,baseline,completato,L4 xlarge,L4,1 nodo,g6.xlarge,,0.8048,2217.5,1785,0.44,2103,68.6,fp8,humming,0.65,0.52,limite ITL
+2,preset,completato,A10G 2xlarge,A10G,1 nodo,g5.2xlarge,,1.212,2108.1,2555,0.56,2224,50.8,fp8,marlin,0.77,0.93,
+3,preset,completato,L4 2xlarge,L4,1 nodo,g6.2xlarge,,0.9776,2015.9,1971,0.393,1819,72.9,fp8,humming,0.61,0.6,limite ITL
+4,preset,completato,2x L4 xlarge,L4,2 nodi agg,g6.xlarge,g6.xlarge,1.6096,2276.7,3665,0.847,2089,69.5,fp8,humming,1.02,1.64,limite ITL
+5,Akamas,completato,L40S xlarge,L40S,1 nodo,g6e.xlarge,,1.861,2676.0,4980,1.2,600,47.2,bf16,marlin,1.25,2.32,
+6,Akamas,fallito,A10G xlarge + L40S 2xlarge,misto,2 nodi agg,g5.xlarge,g6e.2xlarge,3.2481,,,,,,bf16,marlin,1.14,1.84,niente capacità g6e
+7,Akamas,fallito,2x L40S xlarge,L40S,2 nodi agg,g6e.xlarge,g6e.xlarge,3.722,,,,,,bf16,marlin,0.29,0.54,niente capacità g6e
+8,Akamas,fallito,A10G xlarge + L40S xlarge,misto,2 nodi agg,g5.xlarge,g6e.xlarge,2.867,,,,,,bf16,marlin,0.3,0.43,niente capacità g6e
+9,Akamas,completato,L4 xlarge,L4,1 nodo,g6.xlarge,,0.8048,1619.2,1303,0.287,2932,70.4,bf16,marlin,0.6,0.48,limite ITL
+10,Akamas,completato,A10G xlarge,A10G,1 nodo,g5.xlarge,,1.006,2305.9,2320,0.52,5085,56.2,bf16,marlin,0.73,0.73,
+11,Akamas,fallito,2x L40S xlarge,L40S,2 nodi agg,g6e.xlarge,g6e.xlarge,3.722,,,,,,bf16,marlin,0.29,0.53,niente capacità g6e
+12,Akamas,completato,A10G xlarge,A10G,1 nodo,g5.xlarge,,1.006,2529.5,2545,0.553,2094,56.6,fp8,marlin,0.82,0.82,
+13,Akamas,completato,2x L40S xlarge,L40S,2 nodi agg,g6e.xlarge,g6e.xlarge,3.722,2738.4,10192,2.36,490,51.8,fp8,triton,2.21,8.21,tetto della rampa (2.4 req/s)
+14,Akamas,completato,P/D L40S xlarge → L4 xlarge,P/D,P/D,g6e.xlarge,g6.xlarge,2.6658,654.9,1746,0.373,2086,68.8,bf16,triton,0.82,2.18,limite ITL
+15,Akamas,completato,2x L40S xlarge,L40S,2 nodi agg,g6e.xlarge,g6e.xlarge,3.722,2736.9,10187,2.347,9312,58.6,bf16,triton,2.2,8.21,tetto della rampa (2.4 req/s)
+16,Akamas,completato,L40S xlarge + L4 xlarge,misto,2 nodi agg,g6e.xlarge,g6.xlarge,2.6658,2281.0,6081,1.353,7821,59.4,bf16,humming,1.6,4.26,limite TTFT
+17,Akamas,completato,A10G xlarge,A10G,1 nodo,g5.xlarge,,1.006,2543.8,2559,0.6,2198,52.7,fp8,marlin,0.87,0.88,
+18,Akamas,completato,2x L40S xlarge,L40S,2 nodi agg,g6e.xlarge,g6e.xlarge,3.722,2638.5,9820,2.207,6142,58.6,bf16,triton,2.19,8.16,
+19,Akamas,completato,L40S 2xlarge,L40S,1 nodo,g6e.2xlarge,,2.2421,2768.7,6208,1.273,488,53.5,fp8,triton,1.5,3.36,
+20,Akamas,completato,A10G 2xlarge,A10G,1 nodo,g5.2xlarge,,1.212,1683.0,2040,0.48,1600,38.8,fp8,marlin,0.63,0.76,
+21,Akamas,completato,L40S xlarge + L40S 2xlarge,L40S,2 nodi agg,g6e.xlarge,g6e.2xlarge,4.1031,2466.6,10121,2.36,569,36.7,fp8,triton,2.19,8.99,tetto della rampa (2.4 req/s)
+22,Akamas,completato,L40S 2xlarge + L4 2xlarge,misto,2 nodi agg,g6e.2xlarge,g6.2xlarge,3.2197,2069.9,6665,1.487,1880,73.8,bf16,triton,1.74,5.59,limite ITL
+23,Akamas,completato,2x L40S 2xlarge,L40S,2 nodi agg,g6e.2xlarge,g6e.2xlarge,4.4842,2146.8,9627,2.127,8512,47.7,bf16,triton,2.15,9.66,limite TTFT
+24,Akamas,interrotto,L40S xlarge,L40S,1 nodo,g6e.xlarge,,1.861,,,,,,bf16,marlin,0,0.0,interrotto allo stop

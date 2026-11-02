@@ -1,0 +1,148 @@
+# Study 44 tappa C telemetry: study 27's Prometheus catalog (same vLLM `vllm:*` queries, same
+# 30 s duration and 150 s p95 windows), filtered to the metrics of the two component types this
+# system uses (vLLM, vLLM_PD_Topology; vLLM pack 1.14.0). Study 27's GPU (DCGM), Kubernetes
+# container and node metrics are dropped: this system has no GPU or Kubernetes components
+# (dcgm-exporter does not run on the L40S/A10G node groups). Placeholders come from each
+# component's properties.prometheus: $POD$, $MODEL$, $ENDPOINT$ (the scrape port, `http` for
+# every pod here). Known gap: the router republishes vllm_kv_cache_capacity_* / _used_* under
+# the served names qwen3-8b-prefill/-decode, not qwen3-8b-l40s/-a10g, so the kv_cache_capacity_*
+# and kv_cache_used_* metrics of vllm_l40s / vllm_a10g stay empty (kv_cache_usage_* work).
+kind: telemetry-instance
+system: vLLM_Benchmark_44_L40S_A10G_PD
+name: Prometheus_44_L40S_A10G_PD
+provider: Prometheus
+config:
+  address: kube-prometheus-stack-prometheus.monitoring.svc.cluster.local
+  port: 9090
+  logLevel: DETAILED
+  duration: 30
+metrics:
+- metric: e2e_request_latency_p95
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:e2e_request_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000
+  scale: 1
+- metric: e2e_request_latency_avg
+  datasourceMetric: (sum(rate(vllm:e2e_request_latency_seconds_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:e2e_request_latency_seconds_count{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1e-9))*1000
+  scale: 1
+- metric: request_success_rate
+  datasourceMetric: sum(rate(vllm:request_success_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))
+- metric: time_to_first_token_p95
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:time_to_first_token_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000
+  scale: 1
+- metric: time_to_first_token_avg
+  datasourceMetric: (sum(rate(vllm:time_to_first_token_seconds_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:time_to_first_token_seconds_count{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1e-9))*1000
+  scale: 1
+- metric: prefill_token_throughput
+  datasourceMetric: (sum(rate(vllm:prompt_tokens_by_source_total{source!="external_kv_transfer", model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) or sum(rate(vllm:prompt_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])))
+- metric: inter_token_latency_p95
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000
+  scale: 1
+- metric: inter_token_latency_avg
+  datasourceMetric: (sum(rate(vllm:inter_token_latency_seconds_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:inter_token_latency_seconds_count{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1e-9))*1000
+  scale: 1
+- metric: decode_token_throughput
+  datasourceMetric: sum(rate(vllm:generation_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))
+- metric: total_token_throughput
+  datasourceMetric: (sum(rate(vllm:prompt_tokens_by_source_total{source!="external_kv_transfer", model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) or sum(rate(vllm:prompt_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))) + sum(rate(vllm:generation_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))
+- metric: request_queue_time_p95
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:request_queue_time_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000
+  scale: 1
+- metric: num_requests_running
+  datasourceMetric: sum(vllm:num_requests_running{model_name=~"$MODEL$", pod=~"$POD$"})
+- metric: num_requests_waiting
+  datasourceMetric: sum(vllm:num_requests_waiting{model_name=~"$MODEL$", pod=~"$POD$"}) or vector(0)
+- metric: kv_cache_usage_avg
+  datasourceMetric: avg(vllm:kv_cache_usage_perc{model_name=~"$MODEL$", pod=~"$POD$"})
+- metric: kv_cache_usage_max
+  datasourceMetric: max(vllm:kv_cache_usage_perc{model_name=~"$MODEL$", pod=~"$POD$"})
+- metric: preemption_rate
+  datasourceMetric: sum(rate(vllm:num_preemptions_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))
+- metric: prefix_cache_hit_rate
+  datasourceMetric: sum(rate(vllm:prefix_cache_hits_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:prefix_cache_queries_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1)
+- metric: kv_cache_capacity_tokens
+  datasourceMetric: sum(vllm_kv_cache_capacity_tokens{model_name=~"$MODEL$", pod=~"$POD$"})
+- metric: kv_cache_used_tokens
+  datasourceMetric: sum(vllm_kv_cache_used_tokens{model_name=~"$MODEL$", pod=~"$POD$"})
+- metric: kv_cache_capacity_gb
+  datasourceMetric: sum(vllm_kv_cache_capacity_bytes{model_name=~"$MODEL$", pod=~"$POD$"}) / 1e9
+- metric: kv_cache_used_gb
+  datasourceMetric: sum(vllm_kv_cache_used_bytes{model_name=~"$MODEL$", pod=~"$POD$"}) / 1e9
+- metric: active_gpus
+  datasourceMetric: count(vllm:cache_config_info{endpoint=~"$ENDPOINT$", pod=~"$POD$"})
+- metric: active_dp_engines
+  datasourceMetric: count(count by (instance, engine) (vllm:cache_config_info{endpoint=~"$ENDPOINT$", pod=~"$POD$"}))
+- metric: gpu_memory_allocated_gb
+  datasourceMetric: sum(DCGM_FI_DEV_FB_USED{exported_pod=~"$POD$"} * on(gpu) group_left() max by(gpu)(pd_gpu_role_info{model_name=~"$MODEL$", pod=~"$POD$"})) * 1048576 / 1e9
+- metric: input_sequence_length_p95
+  datasourceMetric: histogram_quantile(0.95, sum by(le)(rate(vllm:request_prompt_tokens_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m])))
+- metric: input_sequence_length_avg
+  datasourceMetric: sum(rate(vllm:request_prompt_tokens_sum{model_name=~"$MODEL$", pod=~"$POD$"}[5m])) / clamp_min(sum(rate(vllm:request_prompt_tokens_count{model_name=~"$MODEL$", pod=~"$POD$"}[5m])), 1e-9)
+- metric: output_sequence_length_p95
+  datasourceMetric: histogram_quantile(0.95, sum by(le)(rate(vllm:request_generation_tokens_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m])))
+- metric: output_sequence_length_avg
+  datasourceMetric: sum(rate(vllm:request_generation_tokens_sum{model_name=~"$MODEL$", pod=~"$POD$"}[5m])) / clamp_min(sum(rate(vllm:request_generation_tokens_count{model_name=~"$MODEL$", pod=~"$POD$"}[5m])), 1e-9)
+- metric: fleet_e2e_latency_percentile
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:e2e_request_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m]))))*1000
+  scale: 1
+- metric: fleet_inter_token_latency_percentile
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m]))))*1000
+  scale: 1
+- metric: fleet_request_success_rate
+  datasourceMetric: sum(rate(vllm:request_success_total{model_name=~"$MODEL$", pod=~"$POD$"}[5m]))
+- metric: fleet_kv_cache_usage_avg
+  datasourceMetric: avg(vllm:kv_cache_usage_perc{model_name=~"$MODEL$", pod=~"$POD$"})
+- metric: inter_token_latency_p95_5m
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m]))))*1000
+  scale: 1
+- metric: inter_token_latency_p95_max_per_pod
+  datasourceMetric: (max(histogram_quantile(0.95, sum by(endpoint, le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m])))))*1000
+  scale: 1
+- metric: inter_token_latency_p95_min_per_pod
+  datasourceMetric: (min(histogram_quantile(0.95, sum by(endpoint, le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m])))))*1000
+  scale: 1
+- metric: time_to_first_token_p95_150s
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:time_to_first_token_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[150s]))))*1000
+  scale: 1
+- metric: inter_token_latency_p95_150s
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[150s]))))*1000
+  scale: 1
+- metric: estimated_flops_per_gpu
+  datasourceMetric: avg(sum by(endpoint)(rate(vllm:estimated_flops_per_gpu_total{model_name=~"$MODEL$", pod=~"$POD$"}[1m]))) / 1e12
+- metric: estimated_read_bytes_per_gpu
+  datasourceMetric: avg(sum by(endpoint)(rate(vllm:estimated_read_bytes_per_gpu_total{model_name=~"$MODEL$", pod=~"$POD$"}[1m]))) / 1e9
+- metric: estimated_write_bytes_per_gpu
+  datasourceMetric: avg(sum by(endpoint)(rate(vllm:estimated_write_bytes_per_gpu_total{model_name=~"$MODEL$", pod=~"$POD$"}[1m]))) / 1e9
+- metric: nixl_xfer_time_p95
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:nixl_xfer_time_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000
+  scale: 1
+- metric: nixl_xfer_time_avg
+  datasourceMetric: (sum(rate(vllm:nixl_xfer_time_seconds_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:nixl_xfer_time_seconds_count{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1e-9))*1000
+  scale: 1
+- metric: nixl_transfer_throughput
+  datasourceMetric: sum(rate(vllm:nixl_bytes_transferred_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / 1e9
+- metric: nixl_failed_transfers_rate
+  datasourceMetric: sum(rate(vllm:nixl_num_failed_transfers_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))
+- metric: nixl_kv_expired_requests_rate
+  datasourceMetric: sum(rate(vllm:nixl_num_kv_expired_reqs_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))
+- metric: external_kv_prompt_token_throughput
+  datasourceMetric: sum(rate(vllm:prompt_tokens_by_source_total{source="external_kv_transfer", model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))
+- metric: request_prefill_time_p95
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:request_prefill_time_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000
+  scale: 1
+- metric: request_decode_time_p95
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:request_decode_time_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000
+  scale: 1
+- metric: request_queue_time_avg
+  datasourceMetric: (sum(rate(vllm:request_queue_time_seconds_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:request_queue_time_seconds_count{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1e-9))*1000
+  scale: 1
+- metric: time_to_first_token_p90
+  datasourceMetric: (histogram_quantile(0.90, sum by(le)(rate(vllm:time_to_first_token_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000
+  scale: 1
+- metric: inter_token_latency_p90
+  datasourceMetric: (histogram_quantile(0.90, sum by(le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000
+  scale: 1
+- metric: time_per_output_token_p95
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:request_time_per_output_token_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000
+  scale: 1
+- metric: time_per_output_token_avg
+  datasourceMetric: (sum(rate(vllm:request_time_per_output_token_seconds_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:request_time_per_output_token_seconds_count{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1e-9))*1000
+  scale: 1

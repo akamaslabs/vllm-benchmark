@@ -309,6 +309,10 @@ self-contained). Update this file:
   model, single replica, no production traffic) fail the first two cleanly — a sharper,
   more falsifiable statement than the previous qualitative "N/A until multi-replica
   scope," worth citing here instead of just asserting non-applicability.
+  **Measured 2026-10-30/31 (studies 44 and 45, Qwen3-8B-FP8, 4096/256 load, NIXL over TCP between
+  EKS nodes):** P/D lost to aggregated serving in every configuration tried, same GPU or mixed
+  (L40S prefill → A10G or L4 decode), manually and when Akamas chose it — consistent with the
+  thresholds above. On AWS without EFA the KV moves on one TCP flow capped at ~5 Gbps.
 - **Q7 — Does this repo's telemetry config actually point at vLLM's real Prometheus
   metric names?** Per
   `knowledge/notes/2026-07-generative-ai-on-kubernetes-model-observability.md`, vLLM
@@ -416,6 +420,8 @@ of this backlog that isn't one of these two goals has moved to **Section F
 | 41 | [41-l4-dsv2-lite-context-parallel](studies/41-l4-dsv2-lite-context-parallel/README.md) | vLLM (4-GPU parallel layout: TP / DP / DCP / PCP / EP) + per-GPU components | **Context parallelism at parity of GPUs (designed 2026-10-22):** `deepseek-ai/DeepSeek-V2-Lite-Chat` (MLA + MoE, bf16) on vLLM 0.32.0, 4x L4 (`llm-serving-l4`), always all four GPUs (TP x PCP x DP = 4). Does DCP (shards TP4's replicated latent KV: 374k -> 1.52M tokens) or PCP turn into more long-context throughput under a closed-loop users ramp (multi-turn, 8k-token shared prefixes, ~20k context)? Maximize total tokens/s under TTFT p95 <= 10 s / TPOT p95 <= 50 ms; 9 parameters, 13 feasible layouts; single-request smoke: neither helps one request | TODO |
 | 42 | [42-c8i-qwen3-06b-cpu-tps-repeat](studies/42-c8i-qwen3-06b-cpu-tps-repeat/README.md) | vLLM (CPU backend, single node) | **Exact repeat of study 39 (2026-10-26):** same Qwen3-0.6B bf16 on vLLM 0.31.0 CPU, c8i.12xlarge spot, goal, SLO, parameters, steps and AIPerf seed, on new Akamas resources; measures run-to-run noise and whether the optimizer converges to the same region. Memory-bandwidth measurement (`membw.py`) planned separately: the VM exposes no uncore/RDT counters. | ERROR (2026-10-26: spot interruption at 18:40 UTC, no node for 20 min, exps 15-30 failed in seconds; 2 valid optimize exps) |
 | 43 | [43-c8i-metal-qwen3-06b-cpu-membw](studies/43-c8i-metal-qwen3-06b-cpu-membw/README.md) | vLLM (CPU backend, single node, bare metal) | **Study 42 on a bare-metal c8i.metal-48xl (2026-10-27)** to find what bounds CPU inference: same model, image, goal, SLO, parameters, steps and AIPerf seed; the vLLM pod keeps 22 cores on one of the 3 NUMA nodes while `membw.py` (Granite Rapids profile added) reads the uncore IMC counters. Run long, stopped by hand. **Result:** not bandwidth bound (max 81 % of the 152 GB/s the 22 cores can read, 48-60 % with fp8 KV); a third of the cycles stall on DRAM (latency), a third core bound; fp8 KV -31 % reads, +11.5 % tokens/s; best 7188 tokens/s. | DONE |
+| 44 | [44-l4-pd-multinode](studies/44-l4-pd-multinode/README.md) | vLLM prefill/decode across nodes (manual in tappa A/B, Akamas in tappa C) | **Multi-node P/D exploration (scaffolded 2026-10-29), status TODO.** Tappa A: P1D1 Qwen3-8B-FP8 with prefill and decode on two single-L4 nodes in one AZ (2x g6.4xlarge, then 2x g6.xlarge), KV over TCP via NIXL, study 27 flags and load, against study 27 (single node) and a P0D1 control on the same node class. Tappa B: different GPUs per role (prefill L40S, decode A10G). Tappa C: Akamas study with GPU type per role, goal tokens/s per $/h. Tracker: https://claude.ai/artifact/71LTADBPt2k3eiDwpUQ9GU | DONE 2026-10-30 ([results](studies/44-l4-pd-multinode/README.md#results)): P/D across nodes never beat aggregated (L4 −7 % per GPU on 4xl, −32 % per $ on xl; L40S→A10G 1547 vs one L40S 2889 tokens/s per $/h); KV on one TCP flow, ~5 Gbps AWS per-flow cap |
+| 45 | [45-gpu-choice-tps-per-dollar](studies/45-gpu-choice-tps-per-dollar/README.md) | AWS ec2 (GPU instance choice, 2 nodes) + vLLM_PD_Topology + vLLM per node | **Hardware right-sizing by the optimizer (created 2026-10-30), status TODO.** Akamas picks one or two GPU nodes among g5/g6/g6e (A10G/L4/L40S) x xlarge/2xlarge, the topology (one node, two aggregated, P/D) and each pod's vLLM flags; goal router tokens/s per $/h of the nodes in use (AWS pack 1.5.0 `aws_ec2_price`); the workflow scales the EKS node groups per experiment and back to 0. Baseline = study 44 B4 (one L40S, 2889 tokens/s per $/h). | DONE 2026-10-31 ([results](studies/45-gpu-choice-tps-per-dollar/README.md#results)): best one L40S g6e.2xlarge 2768.7 tokens/s per $/h (+24.9 % vs L4 g6.xlarge baseline); two L40S xl aggregated ~equal per $; P/D worst (654.9) |
 Before activating a study: run `/new-study` (reads this roadmap and `knowledge/README.md`
 for you), pick a real name, and let it scaffold `studies/<name>/` from the template.
 Once scaffolded, replace the `<tbd>` row above with the real study name and a link.
@@ -587,6 +593,14 @@ need, or revise #3/#4's design to not depend on it.
   variation out. Capping is worth its calibration (~3.5 h of GPU) for fixed-load metrics, not for
   this goal. Separately: per-request records must be gzipped and moved off the toolbox's shared
   1 GiB `/work`; a full disk turned three valid runs into failed experiments in one night.
+- **Per $/h, pick the GPU and the node size before tuning flags; P/D over TCP is not a lever at
+  7-8B scale** (`studies/44-l4-pd-multinode`, `studies/45-gpu-choice-tps-per-dollar`, Qwen3-8B-FP8,
+  vLLM 0.29.0, us-east-2 on-demand prices, 2026-10-31): one L40S (g6e.2xlarge) gave the most tokens/s
+  per $/h, ahead of A10G and L4; the smallest node size per GPU wins (g6.xlarge vs g6.4xlarge ~+85 %
+  per $ for the same L4); two identical GPUs aggregated behind a least-in-flight router scale about
+  linearly, while mixing GPUs aggregated or as P/D does worse than the best GPU alone; prefill/decode
+  across nodes lost every time (one TCP flow per KV transfer, ~5 Gbps on AWS without EFA). A
+  hardware-choice study needs GPU capacity checks: 4 of 23 experiments failed on g6e capacity.
 
 ## D. Incremental Study Plan — Setup Detail (Infra / Study / Load config)
 

@@ -1,0 +1,46 @@
+service/vllm-pd-mn unchanged
+service/vllm-pd-mn-prefill unchanged
+service/vllm-pd-mn-decode unchanged
+configmap/pd-mn-config unchanged
+servicemonitor.monitoring.coreos.com/vllm-pd-mn unchanged
+configmap/pd-mn-scripts unchanged
+configmap/pd-tuned-configs configured
+deployment.apps "vllm-pd-mn-decode" deleted from llm-serving namespace
+deployment.apps "vllm-pd-mn-prefill" deleted from llm-serving namespace
+deployment.apps "vllm-pd-mn-router" deleted from llm-serving namespace
+deployment.apps/vllm-pd-mn-decode created
+deployment.apps/vllm-pd-mn-router created
+12:12:19 waiting for the engines (model download + compile, ~10-20 min)...
+Waiting for deployment "vllm-pd-mn-decode" rollout to finish: 0 of 1 updated replicas are available...
+deployment "vllm-pd-mn-decode" successfully rolled out
+Waiting for deployment "vllm-pd-mn-router" rollout to finish: 0 of 1 updated replicas are available...
+deployment "vllm-pd-mn-router" successfully rolled out
+NAME                                 READY   STATUS    RESTARTS   AGE     IP               NODE                                          NOMINATED NODE   READINESS GATES
+vllm-pd-mn-decode-65c8f79554-tb6lh   1/1     Running   0          2m16s   192.168.13.102   ip-192-168-12-80.us-east-2.compute.internal   <none>           <none>
+vllm-pd-mn-router-7c9bcc49cc-nkr8p   1/1     Running   0          2m16s   192.168.20.225   ip-192-168-12-80.us-east-2.compute.internal   <none>           <none>
+--- one chat request through the router ---
+0.315 s Hello, how can I help?
+--- router /health ---
+{"status":"ok","prefill_instances":0,"decode_instances":1}
+--- decode: NIXL / UCX / KV lines ---
+serve: role=aggregated pod_ip=192.168.13.102 node=ip-192-168-12-80.us-east-2.compute.internal connector=NixlConnector kv_buffer_device=cpu tuned=true
+serve: tuned config ./._N=24576,K=4096,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json
+serve: tuned config ./N=24576,K=4096,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json
+serve: tuned config ./._N=4096,K=12288,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json
+serve: tuned config ./N=4096,K=12288,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json
+serve: tuned config ./._N=4096,K=4096,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json
+serve: tuned config ./N=4096,K=4096,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json
+serve: tuned config ./._N=6144,K=4096,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json
+serve: tuned config ./N=6144,K=4096,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json
+serve: env: (none) VLLM_NIXL_SIDE_CHANNEL_HOST=192.168.13.102 VLLM_NIXL_SIDE_CHANNEL_PORT=5600
+serve: vllm serve Qwen/Qwen3-8B-FP8 --host 0.0.0.0 --port 8000 --served-model-name qwen3-8b-decode qwen3-8b --max-model-len=8192 --attention-backend=FLASHINFER --kv-cache-dtype=fp8 --no-enable-prefix-caching --enable-mfu-metrics --default-chat-template-kwargs={"enable_thinking": false} --gpu-memory-utilization=0.9 --max-num-batched-tokens=4655 --linear-backend=humming
+job.batch/aiperf-pd-mn created
+ramp 0 -> 1.2 req/s over 3600 s started 2026-10-29T12:14:44Z; watchdog TTFT p95 > 20000 ms or ITL p95 > 225 ms for 120 s
+12:41:29 watchdog: TTFT p95 11249 ms, ITL p95 1861 ms past the limits for 120 s, ending the ramp
+job.batch "aiperf-pd-mn" deleted from llm-benchmark namespace
+POD                                  RESTARTS
+vllm-pd-mn-decode-65c8f79554-tb6lh   0
+vllm-pd-mn-router-7c9bcc49cc-nkr8p   0
+window: 2026-10-29T12:14:44Z -> 2026-10-29T12:41:29Z
+GPUs holding the model: 1
+best valid window 12:34:14-12:36:44 UTC: 1744.5 tokens/s total, 1744.53 tokens/s per GPU (study 27 score), 0.387 req/s, max TTFT p95 2325 ms, max ITL p95 74.6 ms

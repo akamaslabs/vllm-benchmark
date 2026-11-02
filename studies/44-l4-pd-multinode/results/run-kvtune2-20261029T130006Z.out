@@ -1,0 +1,16 @@
+configmap/pd-mn-config configured
+service/vllm-pd-mn unchanged
+service/vllm-pd-mn-prefill unchanged
+service/vllm-pd-mn-decode unchanged
+servicemonitor.monitoring.coreos.com/vllm-pd-mn unchanged
+configmap/pd-mn-scripts configured
+configmap/pd-tuned-configs configured
+deployment.apps "vllm-pd-mn-decode" deleted from llm-serving namespace
+deployment.apps "vllm-pd-mn-prefill" deleted from llm-serving namespace
+deployment.apps "vllm-pd-mn-router" deleted from llm-serving namespace
+deployment.apps/vllm-pd-mn-prefill created
+deployment.apps/vllm-pd-mn-decode created
+deployment.apps/vllm-pd-mn-router created
+13:00:19 waiting for the engines (model download + compile, ~10-20 min)...
+Waiting for deployment "vllm-pd-mn-decode" rollout to finish: 0 of 1 updated replicas are available...
+error: object has been deleted

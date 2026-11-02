@@ -1,0 +1,12 @@
+--- one chat request through the router ---
+0.32 s Hello, how can I help?
+--- router /health ---
+{"status":"ok","prefill_instances":0,"decode_instances":1}
+--- decode: NIXL / UCX / KV lines ---
+serve: role=aggregated pod_ip=192.168.17.249 node=ip-192-168-29-150.us-east-2.compute.internal connector=NixlConnector kv_buffer_device=cpu tuned=true
+serve: tuned config ./N=24576,K=4096,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json
+serve: tuned config ./N=4096,K=12288,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json
+serve: tuned config ./N=4096,K=4096,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json
+serve: tuned config ./N=6144,K=4096,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json
+serve: env: (none) VLLM_NIXL_SIDE_CHANNEL_HOST=192.168.17.249 VLLM_NIXL_SIDE_CHANNEL_PORT=5600
+serve: vllm serve Qwen/Qwen3-8B-FP8 --host 0.0.0.0 --port 8000 --served-model-name qwen3-8b-decode qwen3-8b --max-model-len=8192 --attention-backend=FLASHINFER --kv-cache-dtype=fp8 --no-enable-prefix-caching --enable-mfu-metrics --default-chat-template-kwargs={"enable_thinking": false} --gpu-memory-utilization=0.9 --max-num-batched-tokens=4655 --linear-backend=humming

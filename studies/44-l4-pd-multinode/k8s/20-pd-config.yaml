@@ -1,0 +1,52 @@
+# Study 44 serving config: study 27's flags, so the only change against the single node is
+# where the processes run. Applied as-is (no Akamas rendering in tappa A).
+#
+#   prefill.args / decode.args   study 27 exp 8 "P1D1 kv fp8" (1754.57 tokens/s/GPU on one
+#                                g6.12xlarge): gmu 0.9, 128 seqs, 8192 batched tokens on both
+#                                roles, prefill triton + tuned configs, decode Marlin,
+#                                FLASHINFER, fp8 KV, kv_buffer_device cpu.
+#   aggregated.args              the same-hardware control, study 27's best configuration
+#                                family (exps 20/21/28, P0D1 fp8 Humming, 1941-1975): fp8 KV,
+#                                FLASHINFER, Humming, batched 4655 (exp 20). APPROXIMATE: gmu and
+#                                max_num_seqs of exp 20 were not read back from Akamas (login
+#                                expired 2026-10-29); gmu 0.9 and vLLM's default seqs are used.
+#
+# common.args is identical for every role: P and D must match on attention backend and KV
+# dtype (NIXL compatibility hash, vllm nixl/metadata.py compute_nixl_compatibility_hash).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pd-mn-config
+  namespace: llm-serving
+data:
+  topology.env: |
+    PD_KV_CONNECTOR=NixlConnector
+    PD_KV_BUFFER_DEVICE=cpu
+    PD_TUNED_KERNEL_CONFIGS=true
+  common.args: |
+    --max-model-len=8192
+    --attention-backend=FLASHINFER
+    --kv-cache-dtype=fp8
+    --no-enable-prefix-caching
+    --enable-mfu-metrics
+    --default-chat-template-kwargs={"enable_thinking": false}
+  prefill.args: |
+    --gpu-memory-utilization=0.9
+    --max-num-seqs=128
+    --max-num-batched-tokens=8192
+    --linear-backend=triton
+  decode.args: |
+    --gpu-memory-utilization=0.9
+    --max-num-seqs=128
+    --max-num-batched-tokens=8192
+    --linear-backend=marlin
+  aggregated.args: |
+    --gpu-memory-utilization=0.9
+    --max-num-batched-tokens=4655
+    --linear-backend=humming
+  prefill.env: |
+    # none
+  decode.env: |
+    # none
+  aggregated.env: |
+    # none

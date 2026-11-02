@@ -1,0 +1,86 @@
+--- one chat request through the router ---
+0.504 s Hello, how can I help?
+--- router /health ---
+{"status":"ok","prefill_instances":1,"decode_instances":1}
+--- prefill: NIXL / UCX / KV lines ---
+[1793272884.313168] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* with reply flag from host memory    |
+[1793272884.314918] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* with reply flag(fast-completion) from host memory    |
+[1793272884.316688] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* with reply flag(multi) from host memory    |
+[1793272884.318430] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | remote memory write by ucp_put* from host memory to host    |
+[1793272884.321056] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | remote memory write by ucp_put* from host memory to cuda/dev[0]    |
+[1793272884.322368] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* from host memory    |
+[1793272884.324154] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send*(fast-completion) from host memory    |
+[1793272884.327456] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send*(multi) from host memory    |
+[1793272884.329248] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* with reply flag from host memory    |
+[1793272884.330949] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* with reply flag(fast-completion) from host memory    |
+[1793272884.332758] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* with reply flag(multi) from host memory    |
+[1793272884.334529] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | remote memory write by ucp_put* from host memory to host    |
+[1793272884.337155] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | remote memory write by ucp_put* from host memory to cuda/dev[0]    |
+[1793272884.338424] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* from host memory    |
+[1793272884.340173] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send*(fast-completion) from host memory    |
+[1793272884.343558] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send*(multi) from host memory    |
+[1793272884.345352] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* with reply flag from host memory    |
+[1793272884.347046] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* with reply flag(fast-completion) from host memory    |
+[1793272884.348844] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* with reply flag(multi) from host memory    |
+[1793272884.350576] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | remote memory write by ucp_put* from host memory to host    |
+[1793272884.353215] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | remote memory write by ucp_put* from host memory to cuda/dev[0]    |
+[1793272884.354509] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* from host memory    |
+[1793272884.356327] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send*(fast-completion) from host memory    |
+[1793272884.359593] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send*(multi) from host memory    |
+[1793272884.361343] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* with reply flag from host memory    |
+[1793272884.363211] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   +--------------------------------+-------------------------------------------------------------------------------------+(EngineCore pid=234) 2026-10-29 11:21:24 NIXL INFO    _api.py:390 Backend UCX was instantiated
+(EngineCore pid=234) 2026-10-29 11:21:24 NIXL INFO    _api.py:268 Initialized NIXL agent: 6386ec80-0b1d-48d0-9ba7-d36431f278da
+(EngineCore pid=234) INFO 10-29 11:21:37 [factory.py:62] Creating v1 connector with name: NixlPullConnector and engine_id: 32af3924-ac2b-48b4-bd62-91580a815564
+(EngineCore pid=234) INFO 10-29 11:21:37 [base_scheduler.py:101] Initializing NIXL Scheduler 32af3924-ac2b-48b4-bd62-91580a815564
+[1793272884.363220] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* with reply flag(fast-completion) from host memory    |
+[1793272884.365049] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 intra-node cfg#1 | active message by ucp_am_send* with reply flag(multi) from host memory    |
+[1793272884.471107] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :0]   | ucp_context_0 self cfg#1 | remote memory write by ucp_put* from host memory to host    |
+[1793272911.739849] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :1]   | ucp_context_0 inter-node cfg#2 | remote memory write by ucp_put* from host memory to host    |
+[1793272911.741213] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :1]   | ucp_context_0 inter-node cfg#2 | remote memory write by ucp_put* from host memory to cuda/dev[0]    |
+[1793272911.742554] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* from host memory    |
+[1793272911.744247] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send*(fast-completion) from host memory    |
+[1793272911.747697] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send*(multi) from host memory    |
+[1793272911.749383] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* with reply flag from host memory    |
+[1793272911.751051] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* with reply flag(fast-completion) from host memory    |
+[1793272911.752800] [vllm-pd-mn-prefill-58cf9fdcb5-xdwvk:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* with reply flag(multi) from host memory    |
+--- decode: NIXL / UCX / KV lines ---
+[1793272911.647812] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send*(fast-completion) from host memory    |
+[1793272911.651358] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send*(multi) from host memory    |
+[1793272911.653062] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* with reply flag from host memory    |
+[1793272911.654757] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* with reply flag(fast-completion) from host memory    |
+[1793272911.656465] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* with reply flag(multi) from host memory    |
+[1793272911.658728] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | remote memory write by ucp_put* from host memory to host    |
+[1793272911.660124] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | remote memory write by ucp_put* from host memory to cuda/dev[0]    |
+[1793272911.661478] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* from host memory    |
+[1793272911.663175] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send*(fast-completion) from host memory    |
+[1793272911.666646] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send*(multi) from host memory    |
+[1793272911.668342] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* with reply flag from host memory    |
+[1793272911.670051] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* with reply flag(fast-completion) from host memory    |
+[1793272911.671800] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* with reply flag(multi) from host memory    |
+[1793272911.673942] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | remote memory write by ucp_put* from host memory to host    |
+[1793272911.675279] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | remote memory write by ucp_put* from host memory to cuda/dev[0]    |
+[1793272911.676592] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* from host memory    |
+[1793272911.678294] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send*(fast-completion) from host memory    |
+[1793272911.681838] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send*(multi) from host memory    |
+[1793272911.683527] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* with reply flag from host memory    |
+[1793272911.685209] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* with reply flag(fast-completion) from host memory    |
+[1793272911.686925] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* with reply flag(multi) from host memory    |
+[1793272911.689053] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | remote memory write by ucp_put* from host memory to host    |
+[1793272911.690430] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | remote memory write by ucp_put* from host memory to cuda/dev[0]    |
+[1793272911.691963] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* from host memory    |
+[1793272911.693860] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send*(fast-completion) from host memory    |
+[1793272911.697366] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send*(multi) from host memory    |
+[1793272911.699075] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* with reply flag from host memory    |
+[1793272911.700803] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* with reply flag(fast-completion) from host memory    |
+[1793272911.702577] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* with reply flag(multi) from host memory    |
+[1793272911.704718] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | remote memory write by ucp_put* from host memory to host    |
+[1793272911.706063] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | remote memory write by ucp_put* from host memory to cuda/dev[0]    |
+[1793272911.707376] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* from host memory    |
+[1793272911.709080] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send*(fast-completion) from host memory    |
+[1793272911.712596] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send*(multi) from host memory    |
+[1793272911.714305] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* with reply flag from host memory    |
+[1793272911.715976] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* with reply flag(fast-completion) from host memory    |
+[1793272911.717703] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :1]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send* with reply flag(multi) from host memory    |
+[1793272911.737761] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :0]   | ucp_context_0 inter-node cfg#2 | remote memory read by ucp_get*(multi) into host memory from host    |
+[1793272911.756650] [vllm-pd-mn-decode-c57b769fb-jzqv9:234  :0]   | ucp_context_0 inter-node cfg#2 | active message by ucp_am_send*(egr) from host memory    |
+(APIServer pid=1) INFO 10-29 11:21:56 [metrics.py:103] KV Transfer metrics: Num successful transfers=1, Avg xfer time (ms)=20.143, P90 xfer time (ms)=20.143, Avg post time (ms)=0.439, P90 post time (ms)=0.439, Avg MB per transfer=2.25, Throughput (MB/s)=111.701, Avg number of descriptors=36.0

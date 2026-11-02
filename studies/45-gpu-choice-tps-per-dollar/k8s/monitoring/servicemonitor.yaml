@@ -1,0 +1,19 @@
+# Scrapes the router and both vLLM pods of study 44 (port http on each Service). The role is
+# told apart by model_name, as in study 27:
+#   qwen3-8b-router   router (client-side TTFT/ITL/E2E, delivered tokens)
+#   qwen3-8b-prefill  prefill pod
+#   qwen3-8b-decode   decode pod (the aggregated control too)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vllm-pd-mn
+  namespace: monitoring
+  labels: {app: vllm-pd-mn}
+spec:
+  namespaceSelector:
+    matchNames: [llm-serving]
+  selector:
+    matchLabels: {app: vllm-pd-mn}
+  podTargetLabels: [topology, role, pdrole, gpu]
+  endpoints:
+    - {port: http, path: /metrics, interval: 5s, scrapeTimeout: 4s}

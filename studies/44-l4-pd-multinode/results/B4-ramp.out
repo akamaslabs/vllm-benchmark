@@ -1,0 +1,10 @@
+job.batch/aiperf-pd-mn created
+ramp 0 -> 2.4 req/s over 7200 s started 2026-10-29T22:00:24Z; watchdog TTFT p95 > 20000 ms or ITL p95 > 225 ms for 120 s
+23:22:37 watchdog: TTFT p95 628 ms, ITL p95 274 ms past the limits for 120 s, ending the ramp
+job.batch "aiperf-pd-mn" deleted from llm-benchmark namespace
+POD                                  RESTARTS
+vllm-pd-mn-decode-84f49865b5-gfrv5   0
+vllm-pd-mn-router-78c8cb5658-l7j5w   0
+window: 2026-10-29T22:00:24Z -> 2026-10-29T23:22:37Z
+GPUs holding the model: 1
+best valid window 23:11:24-23:13:54 UTC: 6477.2 tokens/s total, 6477.16 tokens/s per GPU (study 27 score), 1.440 req/s, max TTFT p95 508 ms, max ITL p95 47.7 ms

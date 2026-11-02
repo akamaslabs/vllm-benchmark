@@ -1,0 +1,5 @@
+bench threads16: 40 requests, concurrency 4, extra common='' env=''
+E1029 14:20:26.491934   16606 v2.go:167] "Unhandled Error" err="next reader: read tcp 192.168.1.54:59777->3.135.66.120:443: read: connection reset by peer"
+E1029 14:20:26.491935   16606 v2.go:150] "Unhandled Error" err="next reader: read tcp 192.168.1.54:59777->3.135.66.120:443: read: connection reset by peer"
+E1029 14:20:26.491938   16606 v2.go:129] "Unhandled Error" err="next reader: read tcp 192.168.1.54:59777->3.135.66.120:443: read: connection reset by peer"
+error: error reading from error stream: next reader: read tcp 192.168.1.54:59777->3.135.66.120:443: read: connection reset by peer

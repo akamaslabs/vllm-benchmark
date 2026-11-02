@@ -1,0 +1,11 @@
+kind: system
+name: vLLM_Benchmark_44_L40S_A10G_PD
+# Keep `description` under the API's 1024-character cap; the long form lives in README.md.
+description: >-
+  Study 44 tappa C: Qwen/Qwen3-8B-FP8 (vLLM 0.29.0) on two fixed nodes in us-east-2b, one GPU
+  each: NVIDIA L40S (g6e.2xlarge) and NVIDIA A10G (g5.2xlarge), $3.454/h together. The topology
+  is tuned: prefill on L40S -> decode on A10G (NixlConnector, KV over TCP through host memory),
+  or both GPUs aggregated behind a least-in-flight router. Goal: router-measured tokens/s per
+  $/h under TTFT/ITL p95 SLAs over 150 s (study 27's load: AIPerf open-loop gamma ramp,
+  4096 in / 256 out). 3 components: the topology (router view) and one vLLM per GPU.
+  vLLM optimization pack 1.14.0.

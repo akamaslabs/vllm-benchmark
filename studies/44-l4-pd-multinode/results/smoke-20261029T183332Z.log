@@ -1,0 +1,5 @@
+--- one chat request through the router ---
+0.595 s Hello, how can I help?
+--- router /health ---
+{"status":"ok","prefill_instances":1,"decode_instances":1}
+--- prefill: NIXL / UCX / KV lines ---

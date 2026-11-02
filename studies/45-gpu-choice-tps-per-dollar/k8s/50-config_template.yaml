@@ -1,0 +1,52 @@
+# Study 45: the per-experiment config, rendered by the Akamas FileConfigurator into
+# 50-config.yaml and read by apply_config.sh. The dollar-brace tokens are the tuned parameters:
+#
+#   pd_topology.pd_prefill_instances / pd_decode_instances   the topology
+#       P0 D1  one node (node_a), aggregated
+#       P0 D2  two nodes (node_a, node_b), both aggregated, router "least in flight"
+#       P1 D1  P/D: node_a prefill -> node_b decode (NixlConnector, KV over TCP via host memory)
+#   node_a / node_b .aws_ec2_instance_type + .aws_ec2_instance_size   each node's EC2 instance
+#       (AWS pack 1.5.0: g5 = A10G, g6 = L4, g6e = L40S; xlarge or 2xlarge). node_b is
+#       unused (not started, price 0) in P0 D1.
+#   vllm_a / vllm_b .*   the vLLM flags of the pod on node_a / node_b, whatever its role.
+#   vllm_a.kv_cache_dtype   ONE value for both pods: P and D must match for NIXL.
+# Pinned: FLASHINFER on both (FlashAttention 2 rejects an fp8 KV cache), max_model_len 8192,
+# no prefix caching, NixlConnector pull, kv_buffer_device cpu (study 44: the only path over TCP).
+# A flag line whose token stays unrendered is deleted by apply_config.sh.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pd-mn-config
+  namespace: llm-serving
+data:
+  topology.env: |
+    PD_PREFILL_INSTANCES=${pd_topology.pd_prefill_instances}
+    PD_DECODE_INSTANCES=${pd_topology.pd_decode_instances}
+    NODE_A_TYPE=${node_a.aws_ec2_instance_type}
+    NODE_A_SIZE=${node_a.aws_ec2_instance_size}
+    NODE_B_TYPE=${node_b.aws_ec2_instance_type}
+    NODE_B_SIZE=${node_b.aws_ec2_instance_size}
+    PD_KV_CONNECTOR=NixlConnector
+    PD_KV_BUFFER_DEVICE=cpu
+    PD_TUNED_KERNEL_CONFIGS=false
+  common.args: |
+    --max-model-len=8192
+    --attention-backend=FLASHINFER
+    --kv-cache-dtype=${vllm_a.kv_cache_dtype}
+    --no-enable-prefix-caching
+    --enable-mfu-metrics
+    --default-chat-template-kwargs={"enable_thinking": false}
+  a.args: |
+    --gpu-memory-utilization=${vllm_a.gpu_memory_utilization}
+    --max-num-seqs=${vllm_a.max_num_seqs}
+    --max-num-batched-tokens=${vllm_a.max_num_batched_tokens}
+    --linear-backend=${vllm_a.linear_backend}
+  b.args: |
+    --gpu-memory-utilization=${vllm_b.gpu_memory_utilization}
+    --max-num-seqs=${vllm_b.max_num_seqs}
+    --max-num-batched-tokens=${vllm_b.max_num_batched_tokens}
+    --linear-backend=${vllm_b.linear_backend}
+  a.env: |
+    # none
+  b.env: |
+    # none

@@ -1,0 +1,190 @@
+# Study 44 tappa C serving layout, filled by apply_config_c.sh (sed) from the rendered
+# topology. One pod per GPU, named by GPU so the Akamas components (vllm_l40s, vllm_a10g)
+# match the same pod whatever its role:
+#
+#   vllm-pd-mn-l40s   node llm-serving-l40s-pd (g6e.2xlarge, 1x L40S)   role __L40S_ROLE__
+#   vllm-pd-mn-a10g   node llm-serving-a10g-pd (g5.2xlarge, 1x A10G)    role __A10G_ROLE__
+#   vllm-pd-mn-router on the A10G node: prefill __PREFILL_URLS__, decode __DECODE_URLS__,
+#                     policy least (fewest requests in flight)
+#
+# Placeholders: __L40S_ROLE__ / __A10G_ROLE__ (prefill | decode | aggregated), __PREFILL_URLS__,
+# __DECODE_URLS__, __TOPOLOGY__ (e.g. 1P1D, 0P2D), __CONFIG_SHA__.
+# Model weights: emptyDir per pod (8.8 GiB download at each start), as in tappe A/B.
+# The GPU pods carry `pdrole`, not `role`: the tappa A/B Services vllm-pd-mn-prefill / -decode
+# select on `role`, and a second Service on the same pod would make the ServiceMonitor scrape
+# it twice (double-counted series). apply_config_c.sh also deletes those two Services.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-pd-mn-l40s
+  namespace: llm-serving
+  labels: {app: vllm-pd-mn, gpu: l40s}
+spec:
+  replicas: 1
+  progressDeadlineSeconds: 1500
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: vllm-pd-mn, gpu: l40s}
+  template:
+    metadata:
+      labels: {app: vllm-pd-mn, gpu: l40s, pdrole: __L40S_ROLE__, topology: "__TOPOLOGY__"}
+      annotations: {pd-config-sha: "__CONFIG_SHA__"}
+    spec:
+      enableServiceLinks: false
+      nodeSelector: {node-role: llm-serving-l40s-pd}
+      tolerations:
+        - {key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}
+      containers:
+        - name: engine
+          image: vllm/vllm-openai:v0.29.0
+          command: ["bash", "/pd-scripts/serve.sh"]
+          env:
+            - {name: PD_ROLE, value: __L40S_ROLE__}
+            - {name: PD_ARGS_NAME, value: l40s}
+            - {name: PD_SERVED_NAME, value: qwen3-8b-l40s}
+            - {name: POD_IP, valueFrom: {fieldRef: {fieldPath: status.podIP}}}
+            - {name: NODE_NAME, valueFrom: {fieldRef: {fieldPath: spec.nodeName}}}
+            - {name: VLLM_LOGGING_LEVEL, value: INFO}
+            - {name: UCX_PROTO_INFO, value: "y"}
+          ports:
+            - {name: http, containerPort: 8000}
+            - {name: nixl, containerPort: 5600}
+          resources:
+            requests: {nvidia.com/gpu: "1", cpu: "6", memory: "40Gi"}
+            limits: {nvidia.com/gpu: "1", memory: "56Gi"}
+          startupProbe:
+            httpGet: {path: /health, port: 8000}
+            failureThreshold: 150
+            periodSeconds: 10
+          volumeMounts:
+            - {name: shm, mountPath: /dev/shm}
+            - {name: model-cache, mountPath: /root/.cache/huggingface}
+            - {name: pd-config, mountPath: /pd-config, readOnly: true}
+            - {name: pd-scripts, mountPath: /pd-scripts, readOnly: true}
+      volumes:
+        - {name: shm, emptyDir: {medium: Memory, sizeLimit: 8Gi}}
+        - {name: model-cache, emptyDir: {sizeLimit: 40Gi}}
+        - {name: pd-config, configMap: {name: pd-mn-config}}
+        - {name: pd-scripts, configMap: {name: pd-mn-scripts, defaultMode: 0555}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-pd-mn-a10g
+  namespace: llm-serving
+  labels: {app: vllm-pd-mn, gpu: a10g}
+spec:
+  replicas: 1
+  progressDeadlineSeconds: 1500
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: vllm-pd-mn, gpu: a10g}
+  template:
+    metadata:
+      labels: {app: vllm-pd-mn, gpu: a10g, pdrole: __A10G_ROLE__, topology: "__TOPOLOGY__"}
+      annotations: {pd-config-sha: "__CONFIG_SHA__"}
+    spec:
+      enableServiceLinks: false
+      nodeSelector: {node-role: llm-serving-a10g-pd}
+      tolerations:
+        - {key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}
+      containers:
+        - name: engine
+          image: vllm/vllm-openai:v0.29.0
+          command: ["bash", "/pd-scripts/serve.sh"]
+          env:
+            - {name: PD_ROLE, value: __A10G_ROLE__}
+            - {name: PD_ARGS_NAME, value: a10g}
+            - {name: PD_SERVED_NAME, value: qwen3-8b-a10g}
+            - {name: POD_IP, valueFrom: {fieldRef: {fieldPath: status.podIP}}}
+            - {name: NODE_NAME, valueFrom: {fieldRef: {fieldPath: spec.nodeName}}}
+            - {name: VLLM_LOGGING_LEVEL, value: INFO}
+            - {name: UCX_PROTO_INFO, value: "y"}
+          ports:
+            - {name: http, containerPort: 8000}
+            - {name: nixl, containerPort: 5600}
+          resources:
+            # g5.2xlarge: 8 vCPU, 32 GiB. With kv_buffer_device=cpu the host copy of the KV
+            # region takes ~13 GiB here (tappa B: 13.6 GiB for the decode pod).
+            requests: {nvidia.com/gpu: "1", cpu: "6", memory: "20Gi"}
+            limits: {nvidia.com/gpu: "1", memory: "27Gi"}
+          startupProbe:
+            httpGet: {path: /health, port: 8000}
+            failureThreshold: 150
+            periodSeconds: 10
+          volumeMounts:
+            - {name: shm, mountPath: /dev/shm}
+            - {name: model-cache, mountPath: /root/.cache/huggingface}
+            - {name: pd-config, mountPath: /pd-config, readOnly: true}
+            - {name: pd-scripts, mountPath: /pd-scripts, readOnly: true}
+      volumes:
+        - {name: shm, emptyDir: {medium: Memory, sizeLimit: 4Gi}}
+        - {name: model-cache, emptyDir: {sizeLimit: 40Gi}}
+        - {name: pd-config, configMap: {name: pd-mn-config}}
+        - {name: pd-scripts, configMap: {name: pd-mn-scripts, defaultMode: 0555}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-pd-mn-router
+  namespace: llm-serving
+  labels: {app: vllm-pd-mn, role: router}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: vllm-pd-mn, role: router}
+  template:
+    metadata:
+      labels: {app: vllm-pd-mn, role: router, topology: "__TOPOLOGY__"}
+      annotations: {pd-config-sha: "__CONFIG_SHA__"}
+    spec:
+      enableServiceLinks: false
+      nodeSelector: {node-role: llm-serving-a10g-pd}
+      tolerations:
+        - {key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}
+      containers:
+        - name: router
+          image: vllm/vllm-openai:v0.29.0
+          command: ["python3", "-u", "/pd-scripts/pd_router.py"]
+          env:
+            - {name: PD_ROUTER_MODEL_LABEL, value: qwen3-8b-router}
+            - {name: PD_ROUTER_PORT, value: "8000"}
+            - {name: PD_ROUTER_POLICY, value: least}
+            - {name: PD_TOPOLOGY_FILE, value: /nonexistent}
+            - {name: PD_PREFILL_URLS, value: "__PREFILL_URLS__"}
+            - {name: PD_DECODE_URLS, value: "__DECODE_URLS__"}
+          ports:
+            - {name: http, containerPort: 8000}
+          resources:
+            requests: {cpu: "500m", memory: "512Mi"}
+            limits: {memory: "2Gi"}
+          readinessProbe:
+            httpGet: {path: /health, port: 8000}
+            periodSeconds: 15
+          volumeMounts:
+            - {name: pd-scripts, mountPath: /pd-scripts, readOnly: true}
+      volumes:
+        - {name: pd-scripts, configMap: {name: pd-mn-scripts, defaultMode: 0555}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm-pd-mn-l40s
+  namespace: llm-serving
+  labels: {app: vllm-pd-mn, gpu: l40s}
+spec:
+  selector: {app: vllm-pd-mn, gpu: l40s}
+  ports:
+    - {name: http, port: 8000, targetPort: 8000}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm-pd-mn-a10g
+  namespace: llm-serving
+  labels: {app: vllm-pd-mn, gpu: a10g}
+spec:
+  selector: {app: vllm-pd-mn, gpu: a10g}
+  ports:
+    - {name: http, port: 8000, targetPort: 8000}

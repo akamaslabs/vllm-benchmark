@@ -1,0 +1,10 @@
+kind: component
+system: vLLM_Benchmark_44_L40S_A10G_PD
+name: pd_topology
+description: "The deployment as a whole, seen from its router (Deployment vllm-pd-mn-router): topology, client-side TTFT/ITL/E2E and delivered tokens (router series, model_name qwen3-8b-router). pod matches all three pods, so active_gpus counts both vLLM pods."
+componentType: vLLM_PD_Topology
+properties:
+  prometheus:
+    pod: "^vllm-pd-mn-.*"
+    model: qwen3-8b-router
+    endpoint: http

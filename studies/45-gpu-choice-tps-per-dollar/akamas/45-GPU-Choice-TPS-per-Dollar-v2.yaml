@@ -1,0 +1,222 @@
+kind: study
+name: 45-GPU-Choice-TPS-per-Dollar-v2
+description: >-
+  Study 45: the optimizer chooses the GPU nodes (one or two among g5/A10G, g6/L4, g6e/L40S,
+  xlarge or 2xlarge), the topology (one node aggregated, two nodes aggregated, or P/D
+  node_a -> node_b) and each pod's vLLM flags for Qwen/Qwen3-8B-FP8 (vLLM 0.29.0). Goal:
+  router tokens/s per $/h of the nodes in use, TTFT p95 <= 10 s, ITL p95 <= 75 ms over 150 s
+  (study 27's AIPerf ramp). Steps: a baseline and 3 presets on L4/A10G (study 44's measured
+  configurations), then 33 AKAMAS experiments. Needs AWS pack 1.5.0, vLLM pack 1.14.0.
+# v2 (2026-10-30): baseline/presets moved to L4/A10G (no g6e capacity), maxFailedExperiments 15,
+# Scale down not critical. v1 (same name without -v2) was created but never started.
+# Own system, telemetry instance and workflow (this folder); the workflow runs a copy of
+# ../k8s in /work/study45 on the toolbox and scales the GPU node groups itself. Why: README.md
+# and the tracker of study 44 (https://claude.ai/artifact/71LTADBPt2k3eiDwpUQ9GU).
+system: vLLM_Benchmark_45_GPU_Choice
+workflow: 45-GPU-Choice-Workflow-v2
+
+# Cost: each node's on-demand $/h (AWS Pricing API, us-east-2, 2026-10-29) is set by
+# apply_config.sh and read as node_*.aws_ec2_price; an unused node_b costs 0. Throughput:
+# every prompt and output token the router delivered, counted once, whatever the topology.
+goal:
+  objective: maximize
+  function:
+    formula: pd_topology.total_token_throughput / (node_a.aws_ec2_price + node_b.aws_ec2_price)
+    unit: tokens per second per dollar per hour
+  constraints:
+    absolute:
+      - name: TTFT P95 over 150 s at the router
+        formula: pd_topology.time_to_first_token_p95_150s:max <= 10000
+      - name: ITL P95 over 150 s at the router
+        formula: pd_topology.inter_token_latency_p95_150s:max <= 75
+
+windowing:
+  type: stability
+  stability:
+    metric: pd_topology.total_token_throughput
+    width: 6
+    maxStdDev: 300000000
+    when:
+      metric: pd_topology.total_token_throughput
+      is: max
+
+numberOfTrials: 1
+
+# Topology: (P, D) = (0, 1) one node, node_a aggregated; (0, 2) both nodes aggregated; (1, 1)
+# P/D node_a -> node_b. node_b's instance and vllm_b's flags only matter when node_b is used.
+# Domains from tappe A-C. A10G (g5): Marlin only (no FP8 tensor cores; Humming untested on sm86).
+parametersSelection:
+  - name: pd_topology.pd_prefill_instances
+    domain: [0, 1]
+  - name: pd_topology.pd_decode_instances
+    domain: [1, 2]
+  - name: node_a.aws_ec2_instance_type
+    categories: ["g5", "g6", "g6e"]
+  - name: node_a.aws_ec2_instance_size
+    categories: ["xlarge", "2xlarge"]
+  - name: node_b.aws_ec2_instance_type
+    categories: ["g5", "g6", "g6e"]
+  - name: node_b.aws_ec2_instance_size
+    categories: ["xlarge", "2xlarge"]
+  - name: vllm_a.gpu_memory_utilization
+    domain: [0.7, 0.92]
+  - name: vllm_a.max_num_seqs
+    domain: [8, 256]
+  - name: vllm_a.max_num_batched_tokens
+    domain: [2048, 16384]
+  - name: vllm_a.linear_backend
+    categories: ["marlin", "humming", "triton"]
+  - name: vllm_a.kv_cache_dtype
+    categories: ["auto", "fp8"]
+  - name: vllm_b.gpu_memory_utilization
+    domain: [0.7, 0.92]
+  - name: vllm_b.max_num_seqs
+    domain: [8, 256]
+  - name: vllm_b.max_num_batched_tokens
+    domain: [2048, 16384]
+  - name: vllm_b.linear_backend
+    categories: ["marlin", "humming", "triton"]
+
+parameterConstraints:
+  - name: at most two nodes (no P1 D2)
+    formula: pd_topology.pd_prefill_instances + pd_topology.pd_decode_instances <= 2
+  - name: A10G on node_a runs Marlin only
+    formula: node_a.aws_ec2_instance_type != "g5" || vllm_a.linear_backend == "marlin"
+  - name: A10G on node_b runs Marlin only
+    formula: node_b.aws_ec2_instance_type != "g5" || vllm_b.linear_backend == "marlin"
+  - name: node_a batch budget covers its sequence cap
+    formula: vllm_a.max_num_batched_tokens >= vllm_a.max_num_seqs
+  - name: node_b batch budget covers its sequence cap
+    formula: vllm_b.max_num_batched_tokens >= vllm_b.max_num_seqs
+  # Study 27's activation-headroom rule with a 24 GB GPU's usable 22.03 GiB for every GPU
+  # (conservative on the 48 GB L40S).
+  - name: node_a activation headroom for the batched tokens
+    formula: vllm_a.gpu_memory_utilization * 22.03 + vllm_a.max_num_batched_tokens * 0.00016 <= 22.03
+  - name: node_b activation headroom for the batched tokens
+    formula: vllm_b.gpu_memory_utilization * 22.03 + vllm_b.max_num_batched_tokens * 0.00016 <= 22.03
+
+# At most 8.
+kpis:
+  - name: Total throughput (router)
+    formula: pd_topology.total_token_throughput
+    direction: maximize
+  - name: TTFT P95 150s (router)
+    formula: pd_topology.time_to_first_token_p95_150s
+    direction: minimize
+    aggregation: max
+  - name: ITL P95 150s (router)
+    formula: pd_topology.inter_token_latency_p95_150s
+    direction: minimize
+    aggregation: max
+  - name: Price node a
+    formula: node_a.aws_ec2_price
+    direction: minimize
+  - name: Price node b
+    formula: node_b.aws_ec2_price
+    direction: minimize
+  - name: Running requests node a (peak)
+    formula: vllm_a.num_requests_running
+    direction: maximize
+    aggregation: max
+  - name: Running requests node b (peak)
+    formula: vllm_b.num_requests_running
+    direction: maximize
+    aggregation: max
+  - name: Preemptions node a (peak)
+    formula: vllm_a.preemption_rate
+    direction: minimize
+    aggregation: max
+
+steps:
+  # Study 44 tappa A's A6: one L4 (g6.xlarge) aggregated with study 27's best aggregated flags
+  # (fp8 KV, Humming, 4655 batched): 1967 tokens/s = 2445 per $/h. node_b unused.
+  # Why not the L40S (study 44's best, 2889 per $/h): g6e.xlarge and g6e.2xlarge had no capacity in
+  # us-east-2b on 2026-10-30 10:05 UTC, and a failed baseline puts a 4.1 study in ERROR. Baseline and
+  # presets use only instances probed available (g6, g5); the L40S stays in the optimizer's space.
+  - name: baseline L4 xl aggregated
+    type: baseline
+    values:
+      pd_topology.pd_prefill_instances: 0
+      pd_topology.pd_decode_instances: 1
+      node_a.aws_ec2_instance_type: "g6"
+      node_a.aws_ec2_instance_size: "xlarge"
+      node_b.aws_ec2_instance_type: "g6"
+      node_b.aws_ec2_instance_size: "xlarge"
+      vllm_a.kv_cache_dtype: "fp8"
+      vllm_a.gpu_memory_utilization: 0.9
+      vllm_a.max_num_seqs: 256
+      vllm_a.max_num_batched_tokens: 4655
+      vllm_a.linear_backend: "humming"
+      vllm_b.gpu_memory_utilization: 0.9
+      vllm_b.max_num_seqs: 256
+      vllm_b.max_num_batched_tokens: 4655
+      vllm_b.linear_backend: "marlin"
+
+  # Study 44 tappa B's B5: one A10G (g5.2xlarge), Marlin, 2587 tokens/s = 2134 per $/h.
+  - name: A10G 2xl aggregated
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 0
+      pd_topology.pd_decode_instances: 1
+      node_a.aws_ec2_instance_type: "g5"
+      node_a.aws_ec2_instance_size: "2xlarge"
+      node_b.aws_ec2_instance_type: "g6"
+      node_b.aws_ec2_instance_size: "xlarge"
+      vllm_a.kv_cache_dtype: "fp8"
+      vllm_a.gpu_memory_utilization: 0.9
+      vllm_a.max_num_seqs: 256
+      vllm_a.max_num_batched_tokens: 4655
+      vllm_a.linear_backend: "marlin"
+      vllm_b.gpu_memory_utilization: 0.9
+      vllm_b.max_num_seqs: 256
+      vllm_b.max_num_batched_tokens: 4655
+      vllm_b.linear_backend: "marlin"
+
+  # One L4 on g6.2xlarge (8 vCPU, 32 GiB): does the extra CPU/RAM pay its $0.17/h over g6.xlarge?
+  - name: L4 2xl aggregated
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 0
+      pd_topology.pd_decode_instances: 1
+      node_a.aws_ec2_instance_type: "g6"
+      node_a.aws_ec2_instance_size: "2xlarge"
+      node_b.aws_ec2_instance_type: "g6"
+      node_b.aws_ec2_instance_size: "xlarge"
+      vllm_a.kv_cache_dtype: "fp8"
+      vllm_a.gpu_memory_utilization: 0.9
+      vllm_a.max_num_seqs: 256
+      vllm_a.max_num_batched_tokens: 4655
+      vllm_a.linear_backend: "humming"
+      vllm_b.gpu_memory_utilization: 0.9
+      vllm_b.max_num_seqs: 256
+      vllm_b.max_num_batched_tokens: 4655
+      vllm_b.linear_backend: "marlin"
+
+  # Two L4 (2x g6.xlarge) aggregated behind the least-in-flight router: the scale-out of A6.
+  - name: aggregated two L4 xl
+    type: preset
+    values:
+      pd_topology.pd_prefill_instances: 0
+      pd_topology.pd_decode_instances: 2
+      node_a.aws_ec2_instance_type: "g6"
+      node_a.aws_ec2_instance_size: "xlarge"
+      node_b.aws_ec2_instance_type: "g6"
+      node_b.aws_ec2_instance_size: "xlarge"
+      vllm_a.kv_cache_dtype: "fp8"
+      vllm_a.gpu_memory_utilization: 0.9
+      vllm_a.max_num_seqs: 256
+      vllm_a.max_num_batched_tokens: 4655
+      vllm_a.linear_backend: "humming"
+      vllm_b.gpu_memory_utilization: 0.9
+      vllm_b.max_num_seqs: 256
+      vllm_b.max_num_batched_tokens: 4655
+      vllm_b.linear_backend: "humming"
+
+  # ~60 h over the weekend at ~1.2-2.3 h per experiment (node start + ramp). maxFailedExperiments 15:
+  # g6e capacity gaps and P/D on 16-32 GiB nodes (host copy of the KV region) are expected failures.
+  - name: optimize
+    type: optimize
+    optimizer: AKAMAS
+    numberOfInitExperiments: 0
+    numberOfExperiments: 33
+    maxFailedExperiments: 15

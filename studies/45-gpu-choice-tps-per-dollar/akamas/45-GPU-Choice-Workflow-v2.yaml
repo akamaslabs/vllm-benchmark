@@ -1,0 +1,70 @@
+kind: workflow
+name: 45-GPU-Choice-Workflow-v2
+
+# Study 44 tappa C's three tasks plus a fourth that always runs. Everything runs on the
+# `toolbox` host over SSH (/home/akamas/.ssh/id_rsa), from a copy of this study folder on the
+# toolbox's persistent volume, /work/study45/45-gpu-choice-tps-per-dollar (not pushed). The
+# toolbox's node role has an inline IAM policy (study45-scale-gpu-nodegroups:
+# eks:DescribeNodegroup, eks:UpdateNodegroupConfig on vllm-bench's node groups) so the scripts
+# can scale the GPU node groups.
+#
+# Timeouts:
+#   Apply config  60 m — up to 15 min for the nodes (new instances), the image pull, then the
+#                       pods' 1500 s rollout budget, plus the log dump.
+#   RunTest      160 m — as study 44 (ramp <= 120 min + setup; the script's own deadline is 8400 s).
+#   Scale down    15 m — alwaysRun: every experiment, failed ones included, ends with every
+#                       study-45 node group at 0, so nothing keeps running when the study stops.
+tasks:
+  - name: Write config
+    operator: FileConfigurator
+    arguments:
+      ignoreUnsubstitutedTokens: true
+      source:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/study45/45-gpu-choice-tps-per-dollar/k8s/50-config_template.yaml
+      target:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/study45/45-gpu-choice-tps-per-dollar/k8s/50-config.yaml
+
+  - name: Apply config
+    operator: Executor
+    arguments:
+      retries: 0
+      timeout: 60m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/study45/45-gpu-choice-tps-per-dollar/k8s/apply_config.sh
+
+  - name: RunTest
+    operator: Executor
+    arguments:
+      retries: 0
+      timeout: 160m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/study45/45-gpu-choice-tps-per-dollar/k8s/run_test.sh
+
+  - name: Scale down
+    operator: Executor
+    alwaysRun: true
+    # Not critical: a scaling hiccup (EKS update in progress, API error) must not fail an
+    # experiment whose RunTest already produced a valid score. The toolbox idle guard
+    # (k8s/idle_guard.sh) catches node groups this task leaves up.
+    critical: false
+    arguments:
+      retries: 1
+      retry_delay: 30s
+      timeout: 15m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/study45/45-gpu-choice-tps-per-dollar/k8s/scale_down.sh

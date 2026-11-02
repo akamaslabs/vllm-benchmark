@@ -1,0 +1,20 @@
+configmap/pd-mn-config unchanged
+service/vllm-pd-mn unchanged
+service/vllm-pd-mn-prefill unchanged
+service/vllm-pd-mn-decode unchanged
+servicemonitor.monitoring.coreos.com/vllm-pd-mn unchanged
+configmap/pd-mn-scripts unchanged
+configmap/pd-tuned-configs unchanged
+deployment.apps "vllm-pd-mn-decode" deleted from llm-serving namespace
+deployment.apps "vllm-pd-mn-prefill" deleted from llm-serving namespace
+deployment.apps "vllm-pd-mn-router" deleted from llm-serving namespace
+deployment.apps/vllm-pd-mn-decode created
+deployment.apps/vllm-pd-mn-router created
+21:57:22 waiting for the engines (model download + compile, ~10-20 min)...
+Waiting for deployment "vllm-pd-mn-decode" rollout to finish: 0 of 1 updated replicas are available...
+deployment "vllm-pd-mn-decode" successfully rolled out
+Waiting for deployment "vllm-pd-mn-router" rollout to finish: 0 of 1 updated replicas are available...
+deployment "vllm-pd-mn-router" successfully rolled out
+NAME                                 READY   STATUS    RESTARTS   AGE    IP              NODE                                           NOMINATED NODE   READINESS GATES
+vllm-pd-mn-decode-84f49865b5-gfrv5   1/1     Running   0          3m1s   192.168.25.72   ip-192-168-20-206.us-east-2.compute.internal   <none>           <none>
+vllm-pd-mn-router-78c8cb5658-l7j5w   1/1     Running   0          3m1s   192.168.11.69   ip-192-168-20-206.us-east-2.compute.internal   <none>           <none>

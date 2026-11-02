@@ -1,0 +1,8 @@
+kind: component
+system: vLLM_Benchmark_45_GPU_Choice
+name: node_b
+description: "The EC2 instance of node_b (family + size, AWS pack 1.5.0); aws_ec2_price is its on-demand $/h, exported by the router as pd_node_price_dollars_per_hour{node=\"b\"}, 0 when node_b is not used."
+componentType: ec2
+properties:
+  prometheus:
+    node: "b"

@@ -1,0 +1,39 @@
+configmap/pd-mn-config unchanged
+service/vllm-pd-mn unchanged
+service/vllm-pd-mn-prefill unchanged
+service/vllm-pd-mn-decode unchanged
+servicemonitor.monitoring.coreos.com/vllm-pd-mn unchanged
+configmap/pd-mn-scripts unchanged
+configmap/pd-tuned-configs configured
+No resources found
+deployment.apps/vllm-pd-mn-decode created
+deployment.apps/vllm-pd-mn-router created
+19:43:21 waiting for the engines (model download + compile, ~10-20 min)...
+Waiting for deployment "vllm-pd-mn-decode" rollout to finish: 0 of 1 updated replicas are available...
+deployment "vllm-pd-mn-decode" successfully rolled out
+deployment "vllm-pd-mn-router" successfully rolled out
+NAME                                 READY   STATUS    RESTARTS   AGE     IP               NODE                                           NOMINATED NODE   READINESS GATES
+vllm-pd-mn-decode-5f9dd95c67-qv6nf   1/1     Running   0          4m37s   192.168.17.249   ip-192-168-29-150.us-east-2.compute.internal   <none>           <none>
+vllm-pd-mn-router-749559bb5c-tcjxh   1/1     Running   0          4m36s   192.168.10.36    ip-192-168-29-150.us-east-2.compute.internal   <none>           <none>
+--- one chat request through the router ---
+0.32 s Hello, how can I help?
+--- router /health ---
+{"status":"ok","prefill_instances":0,"decode_instances":1}
+--- decode: NIXL / UCX / KV lines ---
+serve: role=aggregated pod_ip=192.168.17.249 node=ip-192-168-29-150.us-east-2.compute.internal connector=NixlConnector kv_buffer_device=cpu tuned=true
+serve: tuned config ./N=24576,K=4096,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json
+serve: tuned config ./N=4096,K=12288,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json
+serve: tuned config ./N=4096,K=4096,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json
+serve: tuned config ./N=6144,K=4096,device_name=NVIDIA_L4,dtype=fp8_w8a8,block_shape=[128,128].json
+serve: env: (none) VLLM_NIXL_SIDE_CHANNEL_HOST=192.168.17.249 VLLM_NIXL_SIDE_CHANNEL_PORT=5600
+serve: vllm serve Qwen/Qwen3-8B-FP8 --host 0.0.0.0 --port 8000 --served-model-name qwen3-8b-decode qwen3-8b --max-model-len=8192 --attention-backend=FLASHINFER --kv-cache-dtype=fp8 --no-enable-prefix-caching --enable-mfu-metrics --default-chat-template-kwargs={"enable_thinking": false} --gpu-memory-utilization=0.9 --max-num-batched-tokens=4655 --linear-backend=humming
+job.batch/aiperf-pd-mn created
+ramp 0 -> 1.2 req/s over 3600 s started 2026-10-29T19:49:23Z; watchdog TTFT p95 > 20000 ms or ITL p95 > 225 ms for 120 s
+20:15:43 watchdog: TTFT p95 3781 ms, ITL p95 1687 ms past the limits for 120 s, ending the ramp
+job.batch "aiperf-pd-mn" deleted from llm-benchmark namespace
+POD                                  RESTARTS
+vllm-pd-mn-decode-5f9dd95c67-qv6nf   0
+vllm-pd-mn-router-749559bb5c-tcjxh   0
+window: 2026-10-29T19:49:23Z -> 2026-10-29T20:15:43Z
+GPUs holding the model: 1
+best valid window 20:10:23-20:12:53 UTC: 1967.4 tokens/s total, 1967.44 tokens/s per GPU (study 27 score), 0.427 req/s, max TTFT p95 1932 ms, max ITL p95 74.7 ms

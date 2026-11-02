@@ -1,0 +1,10 @@
+kind: component
+system: vLLM_Benchmark_44_L40S_A10G_PD
+name: vllm_l40s
+description: "The vLLM pod on the L40S (Deployment vllm-pd-mn-l40s, served name qwen3-8b-l40s): the prefill (kv_producer) in P/D, a whole-request replica when aggregated"
+componentType: vLLM
+properties:
+  prometheus:
+    pod: "^vllm-pd-mn-l40s-.*"
+    model: qwen3-8b-l40s
+    endpoint: http

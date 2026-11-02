@@ -1,0 +1,42 @@
+13:17:24 waiting for experiment 23 to end
+15:04:59 experiment 23: FINISHED; finishing the study
+24              None                  None       RUNNING    Experiment is running                                       
+23              △ 3.19%               2146.834   FINISHED   Experiment has finished                                     
+22              △ 6.66%               2069.934   FINISHED   Experiment has finished                                     
+21   Dynamic    △ 11.23%              2466.630   FINISHED   Experiment has finished                                     
+20              △ 24.11%              1682.954   FINISHED   Experiment has finished                                     
+19   Dynamic    △ 24.85%              2768.679   FINISHED   Experiment has finished                                     
+18              △ 18.98%              2638.483   FINISHED   Experiment has finished                                     
+17              △ 14.71%              2543.784   FINISHED   Experiment has finished                                     
+16              △ 2.86%               2281.044   FINISHED   Experiment has finished                                     
+15   Dynamic    △ 23.42%              2736.910   FINISHED   Experiment has finished                                     
+14              △ 70.47%              654.853    FINISHED   Experiment has finished                                     
+13   Dynamic    △ 23.49%              2738.431   FINISHED   Experiment has finished                                     
+12              △ 14.07%              2529.543   FINISHED   Experiment has finished                                     
+11              None                  None       ERROR      Experiment failed due to a failure in trial 1 -> An error oc
+10              △ 3.99%               2305.911   FINISHED   Experiment has finished                                     
+9               △ 26.98%              1619.201   FINISHED   Experiment has finished                                     
+8               None                  None       ERROR      Experiment failed due to a failure in trial 1 -> An error oc
+7               None                  None       ERROR      Experiment failed due to a failure in trial 1 -> An error oc
+6               None                  None       ERROR      Experiment failed due to a failure in trial 1 -> An error oc
+5               △ 20.67%              2675.966   FINISHED   Experiment has finished                                     
+                                1.14.0.                                                                                                               
+
+status             | FINISHED                                                   
+status message     | Study is finished                                          
+deployment.apps "vllm-pd-mn-a" deleted from llm-serving namespace
+deployment.apps "vllm-pd-mn-router" deleted from llm-serving namespace
+llm-serving-l4-pd-xl -> 0
+llm-serving-g6-2xl -> 0
+llm-serving-g5-xl -> 0
+llm-serving-a10g-pd -> 0
+llm-serving-g6e-xl -> 0
+llm-serving-l40s-pd -> 0
+llm-serving-l4-pd-xl	ACTIVE	g6.xlarge	0
+llm-serving-g6-2xl	ACTIVE	g6.2xlarge	0
+llm-serving-g5-xl	ACTIVE	g5.xlarge	0
+llm-serving-a10g-pd	ACTIVE	g5.2xlarge	0
+llm-serving-g6e-xl	ACTIVE	g6e.xlarge	0
+llm-serving-l40s-pd	ACTIVE	g6e.2xlarge	0
+ip-192-168-20-64.us-east-2.compute.internal     NotReady,SchedulingDisabled   <none>   8m31s   v1.35.9-eks-577a51e   llm-serving-g6e-xl   g6e.xlarge
+15:13:16 STOP-45 DONE

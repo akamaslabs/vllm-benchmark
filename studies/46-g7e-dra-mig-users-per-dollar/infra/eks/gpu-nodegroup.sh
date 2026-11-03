@@ -1,6 +1,10 @@
 #!/bin/bash
-# Creates (or reconciles) study 46's GPU node group: llm-serving-g7e-2xl, one g7e.2xlarge
-# (1x NVIDIA RTX PRO 6000 Blackwell Server Edition 96 GB, 8 vCPU / 64 GiB, 3.36 USD/h).
+# Creates (or reconciles) study 46's GPU node group: llm-serving-g7e-4xl, one g7e.4xlarge
+# (1x NVIDIA RTX PRO 6000 Blackwell Server Edition 96 GB, 16 vCPU / 128 GiB, 4.00 USD/h).
+# History: Phase 0 ran on llm-serving-g7e-2xl (g7e.2xlarge, 8 vCPU): with 4 vLLM replicas two
+# of them were CPU-throttled ~15 % at the peak minute already at concurrency 64, so on
+# 2026-11-03 the user chose g7e.4xlarge (NG=llm-serving-g7e-2xl INSTANCE_TYPE=g7e.2xlarge
+# reproduces the old one).
 # Copied from study 30's script (self-contained studies) and adapted.
 #
 # Why g7e.2xlarge: capacity probes on 2026-11-03 (studies/17-.../infra/eks/
@@ -24,8 +28,8 @@
 set -euo pipefail
 CLUSTER=vllm-bench
 REGION=us-east-2
-NG=${NG:-llm-serving-g7e-2xl}
-INSTANCE_TYPE=${INSTANCE_TYPE:-g7e.2xlarge}
+NG=${NG:-llm-serving-g7e-4xl}
+INSTANCE_TYPE=${INSTANCE_TYPE:-g7e.4xlarge}
 : "${AWS_PROFILE:=lab}"; export AWS_PROFILE
 
 UP=0; ALWAYS_ON=0

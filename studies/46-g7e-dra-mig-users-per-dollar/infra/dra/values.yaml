@@ -19,9 +19,15 @@ resources:
   computeDomains:
     enabled: false
 kubeletPlugin:
-  nodeSelector:
-    node-role: llm-serving-g7e-2xl
-  affinity: {}
+  nodeSelector: {}
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-role
+            operator: In
+            values: [llm-serving-g7e-2xl, llm-serving-g7e-4xl]
   tolerations:
   - key: nvidia.com/gpu
     operator: Exists

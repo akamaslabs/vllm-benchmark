@@ -23,7 +23,7 @@ Allocation (DRA)**, compared with the same GPU kept whole?
   think time (for example 20 s between messages), labelled as a derived number.
 - **SLA, checked per replica:** TTFT p95 <= 1500 ms, ITL p95 <= 300 ms, and at least
   95 % of requests completed (same values as studies 26/28).
-- **Cost:** one g7e.2xlarge at 3.36 USD/h on-demand (us-east-2, 2026-11-03). The cost is
+- **Cost:** one g7e.4xlarge at 4.00 USD/h on-demand (us-east-2, 2026-11-03). The cost is
   the same in every experiment, so users per $/h is computed here, not in Akamas. The
   load-generator node is not counted.
 
@@ -61,8 +61,11 @@ models at once, different vLLM settings within one experiment, and comparing g7e
   served model name will be unique to this study. One pod per MIG slice, each with its
   own `ResourceClaim`.
 - **Cluster / hardware:** EKS `vllm-bench`, us-east-2, **Kubernetes 1.36.5**.
-  - **GPU node:** new node group `llm-serving-g7e-2xl`, 1x **g7e.2xlarge** (8 vCPU /
-    64 GiB, 1x RTX PRO 6000 Blackwell Server Edition 96 GB).
+  - **GPU node:** new node group `llm-serving-g7e-4xl`, 1x **g7e.4xlarge** (16 vCPU /
+    128 GiB, 1x RTX PRO 6000 Blackwell Server Edition 96 GB, **4.00 USD/h**). Phase 0
+    started on `llm-serving-g7e-2xl` (g7e.2xlarge, 8 vCPU, 3.36 USD/h). The user switched
+    to 4xlarge on 2026-11-03 after the CPU check (see Phase 0). The 2xl node group stays
+    at 0.
   - **AMI:** `AL2023_x86_64_NVIDIA` for 1.36 (not pinned).
   - **Subnets:** 2a/2b/2c, because g7e capacity moved between zones within hours on
     2026-11-03.

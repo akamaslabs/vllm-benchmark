@@ -14,7 +14,7 @@ kind: Pod
 metadata: {namespace: $NS, name: probe-$T-$i, labels: {app: dra-probe}}
 spec:
   restartPolicy: Never
-  nodeSelector: {node-role: llm-serving-g7e-2xl}
+  nodeSelector: {node-role: ${NODE_ROLE:-llm-serving-g7e-4xl}}
   tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
   containers:
   - name: probe

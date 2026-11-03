@@ -12,6 +12,7 @@ affinity:
           - llm-serving-g7-4500
           - llm-serving-l40s-1xl
           - llm-serving-g7e-2xl
+          - llm-serving-g7e-4xl
 extraConfigMapVolumes:
 - configMap:
     items:

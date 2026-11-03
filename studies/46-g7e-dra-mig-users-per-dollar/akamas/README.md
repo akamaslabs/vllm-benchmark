@@ -82,23 +82,25 @@ as a safety net. The per-replica SLA is the one `run_ramp.sh` enforces.
 ## Placeholders
 
 None. Hosts, key path and Prometheus address are the akamas-41 toolbox values already
-used by studies 26 and 45 (`toolbox`, user `akamas`, `/home/akamas/.ssh/id_rsa`, repo at
-`/work/vllm-benchmark`).
+used by study 45 (`toolbox`, user `akamas`, `/home/akamas/.ssh/id_rsa`; study files at
+`/work/study46/46-g7e-dra-mig-users-per-dollar`).
 
 ## Setup & run
 
 Before you run anything:
 
-- **Sync the toolbox checkout**: put branch `study-46-dra-mig` (or `master` after the
-  merge) under `/work/vllm-benchmark` on the akamas-41 toolbox. GitLab is not reachable
-  from there: use a git bundle.
+- **Copy the study to the toolbox**, as study 45 did. `/work/vllm-benchmark` on the
+  akamas-41 toolbox is a stale checkout (study 39), so don't use it. From the laptop:
+  `cd studies && COPYFILE_DISABLE=1 tar --no-xattrs -czf - --exclude='results/*'
+  46-g7e-dra-mig-users-per-dollar | kubectl -n akamas-41 exec -i deploy/toolbox -c toolbox
+  -- sh -c 'mkdir -p /work/study46 && tar -xzf - -C /work/study46'`.
 - **Scale up the GPU node and the load node**, as `../README.md` describes:
   `infra/eks/gpu-nodegroup.sh --up --always-on` and `infra/eks/load-node.sh up`.
 - **Check the DRA driver**: `infra/dra/install.sh` must have run.
 
 CLI through the toolbox:
 `kubectl -n akamas-41 exec deploy/toolbox -c toolbox -- akamas ...`. Paths below are
-relative to `/work/vllm-benchmark/studies/46-g7e-dra-mig-users-per-dollar/akamas`.
+relative to `/work/study46/46-g7e-dra-mig-users-per-dollar/akamas`.
 
 ```bash
 akamas create system             system.yaml

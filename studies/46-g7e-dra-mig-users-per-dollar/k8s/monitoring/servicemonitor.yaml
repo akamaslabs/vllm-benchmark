@@ -1,0 +1,16 @@
+# Prometheus scrape of the study 46 vLLM pods (namespace dra-mig), 5 s like the other
+# vLLM ServiceMonitors (e.g. vllm-gpu-sharing). Selects the Service `vllm` (label
+# app: vllm) defined in ../01-statefulset_template.yaml; the headless Service carries
+# app: vllm-headless so the pods are not scraped twice. Applied by apply_config.sh
+# (idempotent). Without it every vllm:* query, i.e. the goal and both constraints, is empty.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vllm-dra-mig
+  namespace: monitoring
+  labels: {app: vllm}
+spec:
+  endpoints:
+  - {interval: 5s, path: /metrics, port: http, scrapeTimeout: 4s}
+  namespaceSelector: {matchNames: [dra-mig]}
+  selector: {matchLabels: {app: vllm}}

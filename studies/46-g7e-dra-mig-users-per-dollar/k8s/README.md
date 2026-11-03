@@ -13,6 +13,7 @@ them work in namespace `dra-mig`.
 | `run_ramp.sh` | **Ramp** task. Per-replica concurrency levels, all replicas together, stops at the first SLA failure, writes `level.current` |
 | `run_hold.sh` | **Hold** task. Holds `level.current` for 240 s, the window Akamas scores, and dumps the AIPerf logs |
 | `lib_load.sh` | Shared by Ramp and Hold: `run_level`, AIPerf CSV parser, per-replica SLA check, restart guard |
+| `monitoring/servicemonitor.yaml` | ServiceMonitor `vllm-dra-mig`: Prometheus scrapes the vLLM pods (Service `vllm`). Applied by `apply_config.sh` |
 | `monitoring/dcgm-exporter-values.yaml` | dcgm-exporter Helm values as deployed (g7e node groups added, `KUBERNETES_ENABLE_DRA=true`) |
 | `spike/` | Phase 0 throwaway scripts (claims probe, vLLM up, CPU check) |
 

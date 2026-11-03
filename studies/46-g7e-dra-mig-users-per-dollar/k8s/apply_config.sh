@@ -15,7 +15,7 @@
 # experiment's setup under the current one's name.
 set -euo pipefail
 
-STUDY_DIR=${STUDY_DIR:-/work/vllm-benchmark/studies/46-g7e-dra-mig-users-per-dollar}   # overridable for manual tests
+STUDY_DIR=${STUDY_DIR:-/work/study46/46-g7e-dra-mig-users-per-dollar}   # overridable for manual tests
 NS=dra-mig
 NODE_ROLE=llm-serving-g7e-4xl
 LOAD_NODE_ROLE=m8a-2xlarge
@@ -49,6 +49,7 @@ kubectl get nodes -l node-role=$LOAD_NODE_ROLE -o name | grep -q . || die "no no
 
 # --- 2. Tear down the previous experiment (pods AND claims: the claims hold the slices) --
 kubectl apply -f "$K8S/00-claims.yaml" >/dev/null
+kubectl apply -f "$K8S/monitoring/servicemonitor.yaml" >/dev/null   # vLLM scrape (goal + constraints)
 kubectl -n $NS delete statefulset vllm aiperf-client --ignore-not-found --wait=true
 kubectl -n $NS wait --for=delete pod -l 'app in (vllm,aiperf-client)' --timeout=300s 2>/dev/null || true
 T0=$SECONDS

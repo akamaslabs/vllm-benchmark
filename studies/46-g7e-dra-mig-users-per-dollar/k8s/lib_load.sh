@@ -10,7 +10,7 @@
 # (the study SLA, client-side, per replica).
 
 NS=dra-mig
-STUDY_DIR=${STUDY_DIR:-/work/vllm-benchmark/studies/46-g7e-dra-mig-users-per-dollar}
+STUDY_DIR=${STUDY_DIR:-/work/study46/46-g7e-dra-mig-users-per-dollar}
 K8S=$STUDY_DIR/k8s
 TTFT_MAX=1500
 ITL_MAX=300

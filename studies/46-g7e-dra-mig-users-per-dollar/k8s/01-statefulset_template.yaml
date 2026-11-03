@@ -3,9 +3,18 @@
 # (or the whole GPU). Rendered by apply_config.sh. Tokens (between two at-signs): CLAIM
 # REPLICAS NODE_ROLE CPU MEM GMU MAX_NUM_SEQS MAX_NUM_BATCHED_TOKENS KV_CACHE_DTYPE.
 # requests == limits for cpu and memory (Guaranteed QoS, the CPU-fairness guard).
+# Service `vllm` (label app: vllm) is what the ServiceMonitor vllm-dra-mig scrapes;
+# the headless one gives each AIPerf client a stable DNS name for its replica.
 apiVersion: v1
 kind: Service
-metadata: {name: vllm-headless, namespace: dra-mig}
+metadata: {name: vllm, namespace: dra-mig, labels: {app: vllm}}
+spec:
+  selector: {app: vllm}
+  ports: [{name: http, port: 8000, targetPort: 8000}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: vllm-headless, namespace: dra-mig, labels: {app: vllm-headless}}
 spec:
   clusterIP: None
   selector: {app: vllm}

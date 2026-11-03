@@ -1,0 +1,55 @@
+# Phase 0 spike: N vLLM replicas, each with its own DRA ResourceClaim from @CLAIM@.
+# Rendered by ./vllm-up.sh. Derived from study 28's StatefulSet; the GPU comes from
+# resources.claims (DRA), not from nvidia.com/gpu (device plugin).
+apiVersion: v1
+kind: Service
+metadata: {name: vllm-headless, namespace: dra-mig}
+spec:
+  clusterIP: None
+  selector: {app: vllm}
+  ports: [{name: http, port: 8000, targetPort: 8000}]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: vllm, namespace: dra-mig}
+spec:
+  serviceName: vllm-headless
+  replicas: @REPLICAS@
+  podManagementPolicy: OrderedReady
+  selector: {matchLabels: {app: vllm}}
+  template:
+    metadata: {labels: {app: vllm}}
+    spec:
+      enableServiceLinks: false
+      nodeSelector: {node-role: llm-serving-g7e-2xl}
+      tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+      terminationGracePeriodSeconds: 30
+      resourceClaims: [{name: gpu, resourceClaimTemplateName: @CLAIM@}]
+      containers:
+      - name: vllm
+        image: vllm/vllm-openai:v0.29.0
+        args:
+        - "--model=Qwen/Qwen3-8B-FP8"
+        - "--served-model-name=qwen3-8b-dra"
+        - "--port=8000"
+        - "--host=0.0.0.0"
+        - "--no-enable-prefix-caching"
+        - "--max-model-len=4096"
+        - "--gpu-memory-utilization=@GMU@"
+        - "--max-num-seqs=@MAX_NUM_SEQS@"
+        env:
+        - {name: HF_HOME, value: /hf-cache}
+        - {name: VLLM_USE_V2_MODEL_RUNNER, value: "0"}
+        ports: [{name: http, containerPort: 8000}]
+        resources:
+          claims: [{name: gpu}]
+          requests: {cpu: "@CPU@m", memory: "@MEM@Gi"}
+          limits: {cpu: "@CPU@m", memory: "@MEM@Gi"}
+        volumeMounts:
+        - {name: hf-cache, mountPath: /hf-cache}
+        - {name: shm, mountPath: /dev/shm}
+        startupProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10, failureThreshold: 120}
+        readinessProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10, failureThreshold: 3}
+      volumes:
+      - {name: hf-cache, hostPath: {path: /var/lib/hf-cache-study46, type: DirectoryOrCreate}}
+      - {name: shm, emptyDir: {medium: Memory, sizeLimit: 1Gi}}

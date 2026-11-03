@@ -126,6 +126,26 @@ Estimate: about 30 experiments × 75 min ≈ 38 h, ≈ 130–150 USD, plus Phase
 5. dcgm-exporter publishes one series per MIG instance.
 6. CPU check: four replicas under a short AIPerf load. Record CPU throttling for each.
 
+### Phase 0 results (2026-11-03, 19:24–20:00 UTC)
+
+Setup: node group `llm-serving-g7e-2xl` (AMI `1.36.5-20261031`), node in us-east-2a;
+`dra-driver-nvidia-gpu` 0.5.1 with `DynamicMIG` (`infra/dra/`); load node `m8a-2xlarge`
+in us-east-2c (cross-AZ). Scripts and manifests: `k8s/spike/`.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | Driver | **580.178.04**, CUDA 13.0, RTX PRO 6000 Blackwell Server Edition, 97,887 MiB |
+| 2 | ResourceSlices | Whole GPU `gpu-0` plus every MIG placement (`1g.24gb` x4, `2g.48gb` x2, `4g.96gb`, and the `+gfx`/`+me`/`-me` variants). At start the plugin disabled MIG mode and destroyed unknown partitions |
+| 3 | Claims | ✅ 4x `1g.24gb`, 2x `2g.48gb`, 1x `4g.96gb` and **1x whole GPU (`gpu.nvidia.com`, no MIG)**, each on distinct devices. Pods Ready **2–4 s** after creation (partition created per claim). Teardown of pods + claims ~30 s (mostly pod grace period). **The whole-GPU arm stays a real whole GPU**, not `4g.96gb` |
+| 4 | vLLM on `1g.24gb` | ✅ 4 replicas: `Model loading took 8.88 GiB`, `Available KV cache memory: 9.61 GiB`, **69,952 KV tokens per slice** (gmu 0.90, bf16 KV). Cold start with OrderedReady: 1072 s for all four (first pod pulls the image and downloads the model, about 8 min) |
+| 5 | dcgm-exporter | ⚠️ Per-MIG series (`GPU_I_PROFILE`, `GPU_I_ID`) only after **restarting the exporter**; it reads the layout at start, as in study 26. With `KUBERNETES_ENABLE_DRA=true` there is still **no pod label**: the chart doesn't mount a service-account token ("Failed to get in-cluster config"). Open item |
+| 6 | CPU, 4 replicas x concurrency 64, 240 s | vLLM: 0.6–1.1 cores per replica at the peak minute (limit 1.9). **Throttled CFS periods: 0 % on two replicas, 14–16 % on the other two at the peak minute.** AIPerf: about 1.1 cores per Job (4 of the load node's 8 vCPU) |
+
+Load observations, not scored: per replica about 3.1 req/s, about 800 output tok/s
+(about 3200 tok/s over the GPU), ITL p95 about 81 ms. **TTFT p95 was 31 s**, caused by
+the first wave of requests on cold replicas: p90 was 0.6 s. A discarded warm-up run is
+needed before the measured run, as study 28 already did.
+
 **Fallbacks:**
 
 - **`DynamicMIG` fails:** switch to static MIG through DRA.

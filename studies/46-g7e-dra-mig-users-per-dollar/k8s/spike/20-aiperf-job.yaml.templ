@@ -1,0 +1,31 @@
+# Phase 0 CPU check: one AIPerf Job per vLLM replica, on the m8a-2xlarge load node.
+# Short closed-loop run at a fixed concurrency; rendered by ./cpu-check.sh.
+apiVersion: batch/v1
+kind: Job
+metadata: {name: aiperf-r@REPLICA@, namespace: dra-mig, labels: {app: aiperf}}
+spec:
+  backoffLimit: 0
+  template:
+    metadata: {labels: {app: aiperf}}
+    spec:
+      restartPolicy: Never
+      nodeSelector: {node-role: m8a-2xlarge}
+      tolerations: [{key: dedicated, operator: Equal, value: m8a-2xlarge, effect: NoSchedule}]
+      containers:
+      - name: aiperf
+        image: python:3.12-slim
+        command: ["sh","-c"]
+        args:
+        - |
+          set -e
+          pip install --quiet aiperf==0.11.0
+          URL=http://vllm-@REPLICA@.vllm-headless.dra-mig.svc.cluster.local:8000
+          aiperf profile --model qwen3-8b-dra --tokenizer Qwen/Qwen3-8B-FP8 --url "$URL" \
+            --endpoint-type chat --streaming --public-dataset sharegpt \
+            --concurrency @CONC@ --benchmark-duration @DUR@ \
+            --goodput "time_to_first_token:1500 inter_token_latency:300" \
+            --ui simple --output-artifact-dir /tmp/out
+          cat /tmp/out/*.csv 2>/dev/null | head -40 || true
+        resources:
+          requests: {cpu: 1500m, memory: 3Gi}
+          limits: {cpu: 1900m, memory: 6Gi}

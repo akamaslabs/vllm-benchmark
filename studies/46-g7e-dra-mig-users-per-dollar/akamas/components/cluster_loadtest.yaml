@@ -1,0 +1,10 @@
+kind: component
+system: vLLM_Benchmark_46_G7E_DRA_MIG
+
+name: cluster_loadtest
+description: >-
+  The load-generator node (node group m8a-2xlarge, m8a.2xlarge, 8 vCPU / 32 GiB).
+componentType: Kubernetes Cluster
+properties:
+  prometheus:
+    noderole: m8a-2xlarge

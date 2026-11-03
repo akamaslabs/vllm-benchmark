@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_46_G7E_DRA_MIG
+
+name: vllm_r3
+description: >-
+  Replica vllm-3 alone. Per-replica view only (which slice breaks first); never used by
+  goal, constraints or KPIs. EMPTY when fewer than 4 replicas run (whole GPU: 1, 2g.48gb: 2).
+componentType: vLLM
+properties:
+  prometheus:
+    pod: ^vllm-3$
+    model: qwen3-8b-dra

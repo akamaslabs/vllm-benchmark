@@ -1,0 +1,14 @@
+kind: component
+system: vLLM_Benchmark_46_G7E_DRA_MIG
+
+name: vllm
+description: >-
+  Every vLLM replica together (StatefulSet vllm, pods vllm-0..vllm-3, namespace dra-mig),
+  Qwen/Qwen3-8B-FP8 served as qwen3-8b-dra. Carries every tuned vLLM parameter (rendered
+  identically on each replica) and is the component the goal, the SLA constraints and the
+  KPIs read: sums over replicas, p95 from the merged histograms.
+componentType: vLLM
+properties:
+  prometheus:
+    pod: ^vllm-[0-9]+$
+    model: qwen3-8b-dra

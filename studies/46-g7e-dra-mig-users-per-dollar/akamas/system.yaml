@@ -1,0 +1,10 @@
+kind: system
+
+name: vLLM_Benchmark_46_G7E_DRA_MIG
+description: >-
+  One NVIDIA RTX PRO 6000 Blackwell Server Edition 96 GB (g7e.4xlarge, node group
+  llm-serving-g7e-4xl) serving Qwen/Qwen3-8B-FP8 with vllm/vllm-openai:v0.29.0, split with
+  MIG through Kubernetes DRA (dra-driver-nvidia-gpu 0.5.1, DynamicMIG): whole GPU,
+  2x 2g.48gb or 4x 1g.24gb, one vLLM replica per slice, each with its own ResourceClaim.
+  Goal: users (requests in flight) within TTFT p95 1.5 s / ITL p95 300 ms. Requires GPU
+  pack 1.4.0, vLLM pack 1.14.0, Kubernetes pack 1.9.0. Created 2026-11-03.

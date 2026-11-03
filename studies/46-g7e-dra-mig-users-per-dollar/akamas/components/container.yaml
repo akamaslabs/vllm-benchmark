@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_46_G7E_DRA_MIG
+
+name: container
+description: >-
+  The vLLM containers (pods vllm-N, namespace dra-mig). CPU request = limit = (node
+  allocatable - 400m) / replicas, so container_cpu_throttle_time is the CPU-fairness guard
+  (study anti-goal: a result driven by CPU starvation).
+componentType: Kubernetes Container
+properties:
+  prometheus:
+    pod: ^vllm-[0-9]+$

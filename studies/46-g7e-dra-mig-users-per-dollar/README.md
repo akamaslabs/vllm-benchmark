@@ -1,7 +1,8 @@
 # 46-g7e-dra-mig-users-per-dollar
 
-**Status:** TODO — scaffolded 2026-11-03. Next: Phase 0 (DRA spike) on a new
-`g7e.2xlarge` node; Akamas resources are generated only after Phase 0 passes.
+**Status:** TODO. Scaffolded 2026-11-03. Phase 0 passed the same day on g7e.4xlarge.
+Akamas resources written in `akamas/`; not yet created on akamas-41 (needs the user's
+OK).
 **Dates:** 2026-11-03 –
 
 Design: [`docs/superpowers/specs/2026-11-03-study-46-g7e-dra-mig-users-per-dollar-design.md`](../../docs/superpowers/specs/2026-11-03-study-46-g7e-dra-mig-users-per-dollar-design.md)

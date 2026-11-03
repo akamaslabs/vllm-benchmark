@@ -1,0 +1,14 @@
+kind: component
+system: vLLM_Benchmark_46_G7E_DRA_MIG
+
+name: gpu0
+description: >-
+  The single physical NVIDIA RTX PRO 6000 Blackwell Server Edition (97,887 MiB, driver
+  580.178.04). Carries mig_profile (GPU pack 1.4.0): none (whole GPU, gpu.nvidia.com claim),
+  2g.48gb (2 slices) or 1g.24gb (4 slices), created per claim by the DRA driver.
+  Queries filter on the GPU model and gpu, never on pod (no pod label under DRA yet).
+componentType: GPU
+properties:
+  prometheus:
+    gpu: "0"
+    gpumodel: .*RTX PRO 6000.*

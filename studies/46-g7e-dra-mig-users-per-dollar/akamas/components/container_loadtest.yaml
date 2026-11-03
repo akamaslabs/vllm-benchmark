@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_46_G7E_DRA_MIG
+
+name: container_loadtest
+description: >-
+  The AIPerf client pods (aiperf-client-N, one per replica, namespace dra-mig, node group
+  m8a-2xlarge), so a starved client shows up as such instead of as a slower server. Phase 0:
+  ~1.1 cores each at concurrency 64.
+componentType: Kubernetes Container
+properties:
+  prometheus:
+    pod: ^aiperf-client-[0-9]+$

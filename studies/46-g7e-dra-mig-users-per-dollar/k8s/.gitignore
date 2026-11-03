@@ -1,0 +1,5 @@
+params.env
+01-statefulset.yaml
+02-aiperf-clients.yaml
+replicas.current
+level.current

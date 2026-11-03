@@ -1,0 +1,118 @@
+kind: study
+name: 46-G7E-DRA-MIG-Users-per-Dollar
+description: >-
+  Generic oversized-GPU case: Qwen/Qwen3-8B-FP8 (vLLM 0.29.0) on one NVIDIA RTX PRO 6000
+  Blackwell 96 GB (g7e.4xlarge, 4.00 USD/h), split with MIG through Kubernetes DRA
+  (DynamicMIG): whole GPU, 2x 2g.48gb or 4x 1g.24gb, one replica per slice, vLLM settings
+  tuned per split. Goal: users served within TTFT p95 1500 ms / ITL p95 300 ms on the GPU =
+  N replicas x the highest per-replica closed-loop concurrency at which every replica
+  meets the SLA (found by the Ramp task, held by the Hold task, read here as requests in
+  flight). Users per USD/h is computed in the README. Requires GPU pack 1.4.0, vLLM pack
+  1.14.0, Kubernetes pack 1.9.0.
+system: vLLM_Benchmark_46_G7E_DRA_MIG
+workflow: 46-G7E-DRA-MIG-Users-Workflow
+goal:
+  objective: maximize
+  function:
+    # Requests in flight over the Hold window. In a closed loop with no think time every
+    # simulated user always has one request in flight (running or queued in vLLM), and all
+    # replicas are held at the same level, so this equals N x level = N x min-per-replica
+    # passing level (design, 2026-11-03).
+    formula: vllm.num_requests_running + vllm.num_requests_waiting
+    unit: users
+  constraints:
+    absolute:
+      # Safety net on the merged histograms of all replicas; the per-replica SLA is
+      # enforced by run_ramp.sh, client-side.
+      - name: TTFT P95 interactive-chat SLA
+        formula: vllm.time_to_first_token_p95 <= 1500
+      - name: ITL P95 interactive-chat SLA
+        formula: vllm.inter_token_latency_p95 <= 300
+# Only the Hold task, minus its 20 s warm-up and first seconds at level (1m), and its
+# grace period + log dump at the end (45s).
+windowing:
+  type: trim
+  trim: [1m, 45s]
+  task: Hold
+numberOfTrials: 1
+parametersSelection:
+  - name: gpu0.mig_profile
+    categories: [none, 2g.48gb, 1g.24gb]
+  # vLLM, rendered identically on every replica.
+  - name: vllm.max_num_seqs
+    domain: [16, 1024]
+  - name: vllm.max_num_batched_tokens
+    domain: [1024, 16384]
+  - name: vllm.gpu_memory_utilization
+    domain: [0.85, 0.95]
+  - name: vllm.kv_cache_dtype
+    categories: [auto, fp8]
+kpis:
+  - name: TTFT P95
+    formula: vllm.time_to_first_token_p95
+    direction: minimize
+  - name: ITL P95
+    formula: vllm.inter_token_latency_p95
+    direction: minimize
+  - name: Token throughput
+    formula: vllm.total_token_throughput
+    direction: maximize
+  - name: KV cache used
+    formula: vllm.kv_cache_usage_avg
+    direction: minimize
+  - name: Preemptions peak
+    formula: vllm.preemption_rate
+    direction: minimize
+    aggregation: max
+  - name: GPU power
+    formula: gpu0.gpu_power_usage
+    direction: minimize
+  # CPU-fairness guards (study anti-goal): a throttled vLLM or a saturated client would
+  # make the split look worse than the GPU is.
+  - name: vLLM CPU throttled
+    formula: container.container_cpu_throttle_time
+    direction: minimize
+  - name: AIPerf CPU
+    formula: container_loadtest.container_cpu_used
+    direction: minimize
+steps:
+  - name: baseline
+    type: baseline
+    numberOfTrials: 1
+    values:
+      gpu0.mig_profile: none
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+      vllm.gpu_memory_utilization: 0.90
+      vllm.kv_cache_dtype: auto
+  - name: MIG half GPU
+    type: preset
+    values:
+      gpu0.mig_profile: 2g.48gb
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+      vllm.gpu_memory_utilization: 0.90
+      vllm.kv_cache_dtype: auto
+  - name: MIG quarter GPU
+    type: preset
+    values:
+      gpu0.mig_profile: 1g.24gb
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+      vllm.gpu_memory_utilization: 0.90
+      vllm.kv_cache_dtype: auto
+  # The baseline again: a drift check before trusting the gaps (study 26 saw ~5 %).
+  - name: whole GPU repeat
+    type: preset
+    values:
+      gpu0.mig_profile: none
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+      vllm.gpu_memory_utilization: 0.90
+      vllm.kv_cache_dtype: auto
+  - name: optimize
+    type: optimize
+    optimizer: AKAMAS
+    numberOfInitExperiments: 4
+    numberOfExperiments: 25
+    maxFailedExperiments: 10

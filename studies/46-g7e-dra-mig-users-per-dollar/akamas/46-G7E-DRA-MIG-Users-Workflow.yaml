@@ -1,0 +1,56 @@
+kind: workflow
+name: 46-G7E-DRA-MIG-Users-Workflow
+# Four tasks, all on the akamas-41 toolbox (repo checkout under /work/vllm-benchmark):
+#   Write config  render params.env from the experiment's parameters
+#   Apply config  ResourceClaimTemplate for the split + vLLM StatefulSet (one replica per
+#                 slice) + one AIPerf client pod per replica; logs dumped to stdout
+#   Ramp          per-replica closed-loop concurrency steps until any replica breaks the SLA
+#   Hold          the last passing level held for 240 s: the study windows on this task
+tasks:
+  # ignoreUnsubstitutedTokens false on purpose: every token must resolve.
+  - name: Write config
+    operator: FileConfigurator
+    arguments:
+      ignoreUnsubstitutedTokens: false
+      source:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/vllm-benchmark/studies/46-g7e-dra-mig-users-per-dollar/k8s/params.env.template
+      target:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/vllm-benchmark/studies/46-g7e-dra-mig-users-per-dollar/k8s/params.env
+  - name: Apply config
+    operator: Executor
+    arguments:
+      retries: 0
+      # Above apply_config.sh's own 2400 s vLLM wait + 600 s client wait, so its log dump runs.
+      timeout: 60m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/vllm-benchmark/studies/46-g7e-dra-mig-users-per-dollar/k8s/apply_config.sh
+  - name: Ramp
+    operator: Executor
+    arguments:
+      retries: 0
+      # 17 levels x (20 s warm-up + 120 s + up to 30 s grace + exec overhead) ~ 52 min worst case.
+      timeout: 70m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/vllm-benchmark/studies/46-g7e-dra-mig-users-per-dollar/k8s/run_ramp.sh
+  - name: Hold
+    operator: Executor
+    arguments:
+      retries: 0
+      timeout: 15m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/vllm-benchmark/studies/46-g7e-dra-mig-users-per-dollar/k8s/run_hold.sh

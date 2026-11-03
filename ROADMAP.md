@@ -422,6 +422,7 @@ of this backlog that isn't one of these two goals has moved to **Section F
 | 43 | [43-c8i-metal-qwen3-06b-cpu-membw](studies/43-c8i-metal-qwen3-06b-cpu-membw/README.md) | vLLM (CPU backend, single node, bare metal) | **Study 42 on a bare-metal c8i.metal-48xl (2026-10-27)** to find what bounds CPU inference: same model, image, goal, SLO, parameters, steps and AIPerf seed; the vLLM pod keeps 22 cores on one of the 3 NUMA nodes while `membw.py` (Granite Rapids profile added) reads the uncore IMC counters. Run long, stopped by hand. **Result:** not bandwidth bound (max 81 % of the 152 GB/s the 22 cores can read, 48-60 % with fp8 KV); a third of the cycles stall on DRAM (latency), a third core bound; fp8 KV -31 % reads, +11.5 % tokens/s; best 7188 tokens/s. | DONE |
 | 44 | [44-l4-pd-multinode](studies/44-l4-pd-multinode/README.md) | vLLM prefill/decode across nodes (manual in tappa A/B, Akamas in tappa C) | **Multi-node P/D exploration (scaffolded 2026-10-29), status TODO.** Tappa A: P1D1 Qwen3-8B-FP8 with prefill and decode on two single-L4 nodes in one AZ (2x g6.4xlarge, then 2x g6.xlarge), KV over TCP via NIXL, study 27 flags and load, against study 27 (single node) and a P0D1 control on the same node class. Tappa B: different GPUs per role (prefill L40S, decode A10G). Tappa C: Akamas study with GPU type per role, goal tokens/s per $/h. Tracker: https://claude.ai/artifact/71LTADBPt2k3eiDwpUQ9GU | DONE 2026-10-30 ([results](studies/44-l4-pd-multinode/README.md#results)): P/D across nodes never beat aggregated (L4 −7 % per GPU on 4xl, −32 % per $ on xl; L40S→A10G 1547 vs one L40S 2889 tokens/s per $/h); KV on one TCP flow, ~5 Gbps AWS per-flow cap |
 | 45 | [45-gpu-choice-tps-per-dollar](studies/45-gpu-choice-tps-per-dollar/README.md) | AWS ec2 (GPU instance choice, 2 nodes) + vLLM_PD_Topology + vLLM per node | **Hardware right-sizing by the optimizer (created 2026-10-30), status TODO.** Akamas picks one or two GPU nodes among g5/g6/g6e (A10G/L4/L40S) x xlarge/2xlarge, the topology (one node, two aggregated, P/D) and each pod's vLLM flags; goal router tokens/s per $/h of the nodes in use (AWS pack 1.5.0 `aws_ec2_price`); the workflow scales the EKS node groups per experiment and back to 0. Baseline = study 44 B4 (one L40S, 2889 tokens/s per $/h). | DONE 2026-10-31 ([results](studies/45-gpu-choice-tps-per-dollar/README.md#results)): best one L40S g6e.2xlarge 2768.7 tokens/s per $/h (+24.9 % vs L4 g6.xlarge baseline); two L40S xl aggregated ~equal per $; P/D worst (654.9) |
+| 46 | [46-g7e-dra-mig-users-per-dollar](studies/46-g7e-dra-mig-users-per-dollar/README.md) | GPU (`mig_profile`, requested via DRA `DynamicMIG`) + vLLM per replica, 1x RTX PRO 6000 Blackwell 96 GB (g7e.2xlarge) | **First DRA study (scaffolded 2026-11-03, after the cluster moved to Kubernetes 1.36).** Generic oversized-GPU case: Qwen3-8B-FP8 on a whole GPU vs 2x `2g.48gb` vs 4x `1g.24gb`, slices requested via `ResourceClaim`s (NVIDIA `dra-driver-nvidia-gpu`, DynamicMIG alpha); goal = N x min-per-replica concurrent users within TTFT p95 1.5 s / ITL p95 300 ms, reported per $/h. Phase 0 DRA spike gates the Akamas resources. Also the ROADMAP 'DRA prerequisites' follow-up and Section D #4 via DRA. | TODO |
 Before activating a study: run `/new-study` (reads this roadmap and `knowledge/README.md`
 for you), pick a real name, and let it scaffold `studies/<name>/` from the template.
 Once scaffolded, replace the `<tbd>` row above with the real study name and a link.
@@ -659,6 +660,14 @@ assume). Treat study #2's own `baseline` experiment as the new hardware referenc
 point for every study after it.
 
 ### DRA prerequisites and risk — read before scoping studies #3/#4
+
+**Status update 2026-11-03:** `vllm-bench` is now on **Kubernetes 1.36.5** (control plane
+and 20 of 21 node groups; `llm-serving-g7e` stays on its pinned 1.35 AMI). On 1.36,
+`DRAPartitionableDevices` and `DRAConsumableCapacity` are on by default, so the driver's
+`DynamicMIG` and `ConsumableShares` are no longer blocked by EKS. Driver docs
+(2026-11-02): `DynamicMIG` alpha, `featureGates.DynamicMIG=true` +
+`gpuResourcesEnabledOverride=true`, still mutually exclusive with `MPSSupport`; GPU
+Operator v26.7.2 needs k8s >= 1.34.2 and driver >= 580. Taken up by study 46.
 
 **Status update 2026-09-29** (study 25 design): EKS `vllm-bench` 1.35.7 serves the GA
 `resource.k8s.io/v1` API (DeviceClass, ResourceClaim, ResourceClaimTemplate, ResourceSlice); no

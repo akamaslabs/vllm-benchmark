@@ -10,8 +10,11 @@ Two fixes came out of it:
 - AIPerf validated the full ShareGPT file at the start of every run (134 s), which fell
   inside the Hold window. The clients now keep the first 10,000 conversations (17 s).
 - The in-flight count dips at the warm-up/profiling switch, ~57 s into the Hold task, so
-  the windowing start trim went from 1m to 1m30s (study deleted and re-created before
-  any experiment ran).
+  the windowing start trim went from 1m to 90s. A first attempt wrote "1m30s": Akamas
+  accepted it at create time but the analyzer rejects it when scoring (each trim value
+  must match `\d+[mhs]`), so experiment 1 (baseline, whole GPU: ramp reached 256 users,
+  i.e. the max_num_seqs cap) ended in ERROR. Study deleted and re-created with
+  `[90s, 45s]` the same day (~14:50 UTC).
 **Dates:** 2026-11-03 –
 
 Design: [`docs/superpowers/specs/2026-11-03-study-46-g7e-dra-mig-users-per-dollar-design.md`](../../docs/superpowers/specs/2026-11-03-study-46-g7e-dra-mig-users-per-dollar-design.md)

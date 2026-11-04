@@ -60,15 +60,24 @@ as a safety net. The per-replica SLA is the one `run_ramp.sh` enforces.
 
 - `gpu0.mig_profile` ∈ {none, 2g.48gb, 1g.24gb}. The replica count follows from it: 1, 2
   or 4.
-- vLLM, the same on every replica:
-  - `max_num_seqs` [16, 1024]
-  - `max_num_batched_tokens` [1024, 16384]
-  - `gpu_memory_utilization` [0.85, 0.95]
-  - `kv_cache_dtype` {auto, fp8}
-- **`parameterConstraints`: none (to confirm with the user).** vLLM 0.29 runs chunked
-  prefill, so `max_num_batched_tokens` may be below `--max-model-len 4096`.
-- **`doNotRenderParameters`: none.** Every step renders all five parameters, and
-  `apply_config.sh` refuses to run if any is empty.
+- vLLM, the same on every replica (extended on 2026-11-04 to the set of studies 36/38, at the
+  user's request; the study was re-created before any experiment had a score):
+  - `gpu_memory_utilization` [0.80, 0.94], `max_num_seqs` [16, 1024],
+    `max_num_batched_tokens` [1024, 16384], `kv_cache_dtype` {auto, fp8}
+  - `performance_mode` {balanced, interactivity, throughput}, `optimization_level` [1, 3],
+    `async_scheduling` {true, false}, `max_cudagraph_capture_size` [16, 1024]
+  - `block_size` {16, 32, 64, 128}: powers of two only, other sizes are not known to work with
+    the SM 12.0 attention backends
+  - `watermark` [0, 0.10], `scheduler_reserve_full_isl` {true, false}, `stream_interval` [1, 16]
+  - Left out because they do not apply to Qwen3-8B-FP8: `linear_backend`,
+    `wna16_activation_dtype` (W4A16 kernels), `moe_backend` (dense model), `spec_method` /
+    `spec_tokens` (no MTP heads).
+- **`parameterConstraints`:** `max_num_batched_tokens >= max_num_seqs` (vLLM 0.29.0 refuses
+  to start otherwise).
+- **Rendering:** `apply_config.sh` turns `params.env` into vLLM flags (`@TUNED_ARGS@` in the
+  StatefulSet template). An empty value means no flag (vLLM's default); booleans become
+  `--x` / `--no-x`. The fixed steps (baseline and presets) list every new parameter in
+  `doNotRenderParameters`, so they run with vLLM's defaults for them.
 - **Steps:**
   1. `baseline`: whole GPU, `max_num_seqs` 256, `max_num_batched_tokens` 2048, gmu 0.90,
      KV `auto`.

@@ -27,10 +27,16 @@ die() { echo "error: $*" >&2; exit "${2:-2}"; }
 
 # --- 0. Parameters -------------------------------------------------------------------
 grep -q '\${' "$PARAMS" && die "params.env still has unsubstituted tokens: $(grep '\${' "$PARAMS")"
+MAX_NUM_BATCHED_TOKENS="" KV_CACHE_DTYPE="" PERFORMANCE_MODE="" OPTIMIZATION_LEVEL="" ASYNC_SCHEDULING=""
+MAX_CUDAGRAPH_CAPTURE_SIZE="" BLOCK_SIZE="" WATERMARK="" SCHEDULER_RESERVE_FULL_ISL="" STREAM_INTERVAL=""
 # shellcheck disable=SC1090
 source "$PARAMS"
-for v in MIG_PROFILE GPU_MEMORY_UTILIZATION MAX_NUM_SEQS MAX_NUM_BATCHED_TOKENS KV_CACHE_DTYPE; do
-  [ -n "${!v:-}" ] || die "$v is empty in params.env (doNotRenderParameters renders an empty string, not the token)"
+for v in MIG_PROFILE GPU_MEMORY_UTILIZATION MAX_NUM_SEQS; do
+  [ -n "${!v:-}" ] || die "$v is empty in params.env (always rendered: never in doNotRenderParameters)"
+done
+for v in MAX_NUM_BATCHED_TOKENS KV_CACHE_DTYPE PERFORMANCE_MODE OPTIMIZATION_LEVEL ASYNC_SCHEDULING \
+         MAX_CUDAGRAPH_CAPTURE_SIZE BLOCK_SIZE WATERMARK SCHEDULER_RESERVE_FULL_ISL STREAM_INTERVAL; do
+  grep -q "^$v=" "$PARAMS" || die "$v has no line in params.env (empty = vLLM's default, absent = broken template)"
 done
 case $MIG_PROFILE in
   none)    CLAIM=gpu-full;   REPLICAS=1 ;;
@@ -38,8 +44,42 @@ case $MIG_PROFILE in
   1g.24gb) CLAIM=mig-1g24gb; REPLICAS=4 ;;
   *) die "mig_profile '$MIG_PROFILE' is not one of none / 2g.48gb / 1g.24gb" ;;
 esac
-t "mig_profile=$MIG_PROFILE -> $REPLICAS replica(s), claim template $CLAIM; gmu=$GPU_MEMORY_UTILIZATION max_num_seqs=$MAX_NUM_SEQS max_num_batched_tokens=$MAX_NUM_BATCHED_TOKENS kv_cache_dtype=$KV_CACHE_DTYPE"
+# Akamas writes a tiny real in scientific notation (study 35: watermark 7.57e-17): make it decimal.
+for v in GPU_MEMORY_UTILIZATION WATERMARK; do
+  if [[ "${!v}" =~ ^[0-9]+(\.[0-9]+)?[eE][-+]?[0-9]+$ ]]; then LC_ALL=C printf -v "$v" '%.6f' "${!v}"; fi
+done
+[[ "$GPU_MEMORY_UTILIZATION" =~ ^0\.[0-9]+$ ]] || die "gpu_memory_utilization '$GPU_MEMORY_UTILIZATION' is not a fraction"
+for v in MAX_NUM_SEQS MAX_NUM_BATCHED_TOKENS MAX_CUDAGRAPH_CAPTURE_SIZE BLOCK_SIZE OPTIMIZATION_LEVEL STREAM_INTERVAL; do
+  [ -z "${!v}" ] || [[ "${!v}" =~ ^[0-9]+$ ]] || die "$v='${!v}' is not an integer"
+done
+# vLLM 0.29.0 config/scheduler.py raises ValueError when max_num_batched_tokens < max_num_seqs.
+[ -z "$MAX_NUM_BATCHED_TOKENS" ] || [ "$MAX_NUM_BATCHED_TOKENS" -ge "$MAX_NUM_SEQS" ] || die "max_num_batched_tokens $MAX_NUM_BATCHED_TOKENS < max_num_seqs $MAX_NUM_SEQS"
+[ -z "$OPTIMIZATION_LEVEL" ] || [ "$OPTIMIZATION_LEVEL" -le 3 ] || die "optimization_level '$OPTIMIZATION_LEVEL' is not 0-3"
+[ -z "$BLOCK_SIZE" ] || { [ "$BLOCK_SIZE" -ge 16 ] && [ $((BLOCK_SIZE % 16)) = 0 ]; } || die "block_size '$BLOCK_SIZE' is not a multiple of 16"
+[ -z "$KV_CACHE_DTYPE" ] || [[ "$KV_CACHE_DTYPE" =~ ^(auto|fp8)$ ]] || die "kv_cache_dtype '$KV_CACHE_DTYPE' is not auto or fp8"
+[ -z "$PERFORMANCE_MODE" ] || [[ "$PERFORMANCE_MODE" =~ ^(balanced|interactivity|throughput)$ ]] || die "performance_mode '$PERFORMANCE_MODE' is not balanced, interactivity or throughput"
+for v in ASYNC_SCHEDULING SCHEDULER_RESERVE_FULL_ISL; do
+  [ -z "${!v}" ] || [[ "${!v}" =~ ^(true|false)$ ]] || die "$v='${!v}' is not true or false"
+done
+[ -z "$WATERMARK" ] || [[ "$WATERMARK" =~ ^0(\.[0-9]+)?$ ]] || die "watermark '$WATERMARK' is not a fraction in [0, 1)"
+[ -z "$STREAM_INTERVAL" ] || [ "$STREAM_INTERVAL" -ge 1 ] || die "stream_interval '$STREAM_INTERVAL' is below 1"
+
+flag() { [ "$2" = true ] && echo "--$1" || echo "--no-$1"; }
+ARGS=("--gpu-memory-utilization=$GPU_MEMORY_UTILIZATION" "--max-num-seqs=$MAX_NUM_SEQS")
+# Empty = not rendered = no flag (vLLM's default).
+[ -z "$MAX_NUM_BATCHED_TOKENS" ] || ARGS+=("--max-num-batched-tokens=$MAX_NUM_BATCHED_TOKENS")
+[ -z "$KV_CACHE_DTYPE" ] || ARGS+=("--kv-cache-dtype=$KV_CACHE_DTYPE")
+[ -z "$PERFORMANCE_MODE" ] || ARGS+=("--performance-mode=$PERFORMANCE_MODE")
+[ -z "$OPTIMIZATION_LEVEL" ] || ARGS+=("--optimization-level=$OPTIMIZATION_LEVEL")
+[ -z "$ASYNC_SCHEDULING" ] || ARGS+=("$(flag async-scheduling "$ASYNC_SCHEDULING")")
+[ -z "$MAX_CUDAGRAPH_CAPTURE_SIZE" ] || ARGS+=("--max-cudagraph-capture-size=$MAX_CUDAGRAPH_CAPTURE_SIZE")
+[ -z "$BLOCK_SIZE" ] || ARGS+=("--block-size=$BLOCK_SIZE")
+[ -z "$WATERMARK" ] || ARGS+=("--watermark=$WATERMARK")
+[ -z "$SCHEDULER_RESERVE_FULL_ISL" ] || ARGS+=("$(flag scheduler-reserve-full-isl "$SCHEDULER_RESERVE_FULL_ISL")")
+[ -z "$STREAM_INTERVAL" ] || ARGS+=("--stream-interval=$STREAM_INTERVAL")
+t "mig_profile=$MIG_PROFILE -> $REPLICAS replica(s), claim template $CLAIM; vLLM flags: ${ARGS[*]}"
 echo "$REPLICAS" > "$K8S/replicas.current"
+[ "${RENDER_ONLY:-0}" = 1 ] && { printf '%s\n' "${ARGS[@]}"; exit 0; }   # local test of the rendering
 
 # --- 1. Nodes up ----------------------------------------------------------------------
 # The study does not scale node groups: both nodes must be up before it starts (study README).
@@ -66,11 +106,14 @@ AMEM_GI=$(( ${AMEM%Ki} / 1048576 ))
 # Fair split of the node: allocatable minus 400m / 6 GiB for the DaemonSets, divided evenly.
 CPU=$(( (ACPU - 400) / REPLICAS )); MEM=$(( (AMEM_GI - 6) / REPLICAS ))
 t "per replica: cpu ${CPU}m, memory ${MEM}Gi (node allocatable ${ACPU}m / ${AMEM_GI}Gi)"
+INDENT=$(grep -m1 '@TUNED_ARGS@' "$K8S/01-statefulset_template.yaml" | sed 's/@TUNED_ARGS@.*//')
+[ -n "$INDENT" ] || die "01-statefulset_template.yaml has no @TUNED_ARGS@ line"
+for a in "${ARGS[@]}"; do printf '%s- "%s"\n' "$INDENT" "$a"; done > "$K8S/tuned-args.tmp"
 sed -e "s/@CLAIM@/$CLAIM/g" -e "s/@REPLICAS@/$REPLICAS/g" -e "s/@NODE_ROLE@/$NODE_ROLE/g" \
-    -e "s/@CPU@/$CPU/g" -e "s/@MEM@/$MEM/g" -e "s/@GMU@/$GPU_MEMORY_UTILIZATION/g" \
-    -e "s/@MAX_NUM_SEQS@/$MAX_NUM_SEQS/g" -e "s/@MAX_NUM_BATCHED_TOKENS@/$MAX_NUM_BATCHED_TOKENS/g" \
-    -e "s/@KV_CACHE_DTYPE@/$KV_CACHE_DTYPE/g" \
+    -e "s/@CPU@/$CPU/g" -e "s/@MEM@/$MEM/g" \
+    -e "/@TUNED_ARGS@/r $K8S/tuned-args.tmp" -e '/@TUNED_ARGS@/d' \
     "$K8S/01-statefulset_template.yaml" > "$K8S/01-statefulset.yaml"
+rm -f "$K8S/tuned-args.tmp"
 sed -e "s/@REPLICAS@/$REPLICAS/g" "$K8S/02-aiperf-clients_template.yaml" > "$K8S/02-aiperf-clients.yaml"
 for f in 01-statefulset.yaml 02-aiperf-clients.yaml; do
   grep -q '@[A-Z_]*@' "$K8S/$f" && die "$f still has a token: $(grep -o '@[A-Z_]*@' "$K8S/$f" | sort -u | tr '\n' ' ')"

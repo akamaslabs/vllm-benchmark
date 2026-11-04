@@ -47,10 +47,9 @@ spec:
         - "--host=0.0.0.0"
         - "--no-enable-prefix-caching"
         - "--max-model-len=4096"
-        - "--gpu-memory-utilization=@GMU@"
-        - "--max-num-seqs=@MAX_NUM_SEQS@"
-        - "--max-num-batched-tokens=@MAX_NUM_BATCHED_TOKENS@"
-        - "--kv-cache-dtype=@KV_CACHE_DTYPE@"
+        # Tuned flags, written by apply_config.sh (render_args): one line per flag, none for a
+        # parameter left to vLLM's default.
+        @TUNED_ARGS@
         env:
         - {name: HF_HOME, value: /hf-cache}
         - {name: VLLM_USE_V2_MODEL_RUNNER, value: "0"}

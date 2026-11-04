@@ -34,6 +34,13 @@ spec:
           f = d + "/ShareGPT_V3_unfiltered_cleaned_split.json"
           if not os.path.exists(f):
               urllib.request.urlretrieve("https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/resolve/main/ShareGPT_V3_unfiltered_cleaned_split.json", f)
+              # Keep the first 10,000 conversations. AIPerf validates the whole file at the
+              # start of every run: on the full 94k entries that took 134 s per level (smoke
+              # test 2026-11-04), which fell inside the Hold window. 10k is still far more
+              # than one run sends (sequential sampling).
+              import json
+              json.dump(json.load(open(f))[:10000], open(f + ".tmp", "w"))
+              os.replace(f + ".tmp", f)
           PY
           touch /work/ready
           exec sleep infinity

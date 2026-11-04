@@ -28,11 +28,13 @@ goal:
         formula: vllm.time_to_first_token_p95 <= 1500
       - name: ITL P95 interactive-chat SLA
         formula: vllm.inter_token_latency_p95 <= 300
-# Only the Hold task, minus its 20 s warm-up and first seconds at level (1m), and its
-# grace period + log dump at the end (45s).
+# Only the Hold task. Start trim 1m30s: AIPerf start-up (~25 s with the 10k-conversation
+# dataset) + 20 s warm-up + the dip at the warm-up/profiling switch, measured at ~57 s into
+# the task in the smoke test (2026-11-04); 1m left only 3 s of margin. End trim 45s: the
+# grace period + log dump.
 windowing:
   type: trim
-  trim: [1m, 45s]
+  trim: [1m30s, 45s]
   task: Hold
 numberOfTrials: 1
 parametersSelection:

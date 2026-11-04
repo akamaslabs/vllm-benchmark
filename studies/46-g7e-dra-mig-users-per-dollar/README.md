@@ -1,8 +1,17 @@
 # 46-g7e-dra-mig-users-per-dollar
 
-**Status:** TODO. Scaffolded 2026-11-03. Phase 0 passed the same day on g7e.4xlarge.
-Akamas resources written in `akamas/`; not yet created on akamas-41 (needs the user's
-OK).
+**Status:** RUNNING. Scaffolded 2026-11-03. Phase 0 passed the same day on g7e.4xlarge.
+Started on akamas-41 on 2026-11-04 at about 13:55 UTC, after a smoke test on the
+g7e.4xlarge node (us-east-2b, obtained through a capacity reservation after ~4 h of ICE).
+Smoke test (1g.24gb, 4 replicas, levels 8 and 16, then a 240 s hold at 16): every replica
+within the SLA (TTFT p95 220-310 ms, ITL p95 29-37 ms, 0 errors); Prometheus saw 64
+requests in flight = 4 x 16; DCGM reports "NVIDIA RTX PRO 6000 Blackwell Server Edition".
+Two fixes came out of it:
+- AIPerf validated the full ShareGPT file at the start of every run (134 s), which fell
+  inside the Hold window. The clients now keep the first 10,000 conversations (17 s).
+- The in-flight count dips at the warm-up/profiling switch, ~57 s into the Hold task, so
+  the windowing start trim went from 1m to 1m30s (study deleted and re-created before
+  any experiment ran).
 **Dates:** 2026-11-03 –
 
 Design: [`docs/superpowers/specs/2026-11-03-study-46-g7e-dra-mig-users-per-dollar-design.md`](../../docs/superpowers/specs/2026-11-03-study-46-g7e-dra-mig-users-per-dollar-design.md)

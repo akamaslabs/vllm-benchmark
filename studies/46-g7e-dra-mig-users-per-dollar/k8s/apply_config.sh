@@ -45,9 +45,17 @@ case $MIG_PROFILE in
   *) die "mig_profile '$MIG_PROFILE' is not one of none / 2g.48gb / 1g.24gb" ;;
 esac
 # Akamas writes a tiny real in scientific notation (study 35: watermark 7.57e-17): make it decimal.
+t "params.env as rendered: $(grep -E '^[A-Z_]+=' "$PARAMS" | tr '\n' ' ')"
 for v in GPU_MEMORY_UTILIZATION WATERMARK; do
   if [[ "${!v}" =~ ^[0-9]+(\.[0-9]+)?[eE][-+]?[0-9]+$ ]]; then LC_ALL=C printf -v "$v" '%.6f' "${!v}"; fi
 done
+# Experiment 10 (2026-11-04): Akamas chose watermark 2.199e-15 but params.env got "2.19", the
+# exponent dropped. The study domain is [0, 0.10], so a watermark above 0.10 can only be a tiny
+# value that lost its exponent: use 0 (what the optimizer meant) instead of failing the trial.
+if [[ "$WATERMARK" =~ ^[0-9]+(\.[0-9]+)?$ ]] && awk -v w="$WATERMARK" 'BEGIN { exit !(w > 0.10) }'; then
+  t "WARNING: watermark '$WATERMARK' is outside the study domain [0, 0.10]: a tiny value rendered without its exponent, using 0"
+  WATERMARK=0
+fi
 [[ "$GPU_MEMORY_UTILIZATION" =~ ^0\.[0-9]+$ ]] || die "gpu_memory_utilization '$GPU_MEMORY_UTILIZATION' is not a fraction"
 for v in MAX_NUM_SEQS MAX_NUM_BATCHED_TOKENS MAX_CUDAGRAPH_CAPTURE_SIZE BLOCK_SIZE OPTIMIZATION_LEVEL STREAM_INTERVAL; do
   [ -z "${!v}" ] || [[ "${!v}" =~ ^[0-9]+$ ]] || die "$v='${!v}' is not an integer"

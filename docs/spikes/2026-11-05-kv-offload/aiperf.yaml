@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata: {name: aiperf, namespace: kv-offload-spike}
+spec:
+  nodeSelector: {node-role: llm-serving-g7-kv}
+  tolerations:
+  - {key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}
+  terminationGracePeriodSeconds: 5
+  containers:
+  - name: aiperf
+    image: python:3.12-slim
+    workingDir: /work
+    command: ["sh","-c","pip install --quiet aiperf==0.11.0 && touch /work/ready && exec sleep infinity"]
+    readinessProbe: {exec: {command: [test, -f, /work/ready]}, periodSeconds: 5}
+    resources:
+      requests: {cpu: "4", memory: 6Gi}
+      limits: {cpu: "4", memory: 6Gi}
+    volumeMounts: [{name: work, mountPath: /work}]
+  volumes: [{name: work, emptyDir: {}}]

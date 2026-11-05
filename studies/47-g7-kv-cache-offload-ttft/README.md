@@ -1,6 +1,6 @@
 # 47-g7-kv-cache-offload-ttft
 
-**Status:** RUNNING (started 2026-11-05 11:53 UTC on akamas-41; restarted from scratch 12:26 UTC after the ITL constraint fix, see below). **Design:**
+**Status:** RUNNING (started 2026-11-05 11:53 UTC on akamas-41; restarted from scratch 12:26 UTC after the ITL constraint fix and again 12:59 UTC after a contaminated baseline, see below). **Design:**
 `docs/superpowers/specs/2026-11-05-study-47-kv-cache-offload-design.md`. **Plan:**
 `docs/superpowers/plans/2026-11-05-study-47-kv-cache-offload.md`. **Spike:**
 `docs/spikes/2026-11-05-kv-offload/README.md`.
@@ -109,6 +109,18 @@ the window, 30 s values up to 164 ms.
 The user chose **120 ms** (~baseline + 25 %). Akamas 4.1 refuses a constraint change on a
 RUNNING study, so the study was finished, updated (experiment 1 re-scored VALID) and started
 again. The start reran the study from experiment 1 and wiped the history: ~33 min lost.
+
+## Contaminated baseline and second restart (2026-11-05 12:59 UTC)
+
+The 12:26 restart's baseline scored TTFT p95 58.8 s server-side (client-side 73 s; minute 0
+already 300 ms instead of 68 ms). The AIPerf process of the experiment aborted by the 12:26
+`finish` had survived its killed `kubectl exec` and kept sending its 1 req/s until ~12:45, so the
+baseline got twice the load.
+
+The 12:59 `finish` left another 20 AIPerf processes alive (controller, workers, record
+processors). `run_load.sh` now kills every process in the AIPerf pod except PID 1 before each
+run and fails if any is left. The study was finished and started from scratch again with a
+clean pod.
 
 ## Parameters tuned
 

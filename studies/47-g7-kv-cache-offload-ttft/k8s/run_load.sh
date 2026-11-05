@@ -42,6 +42,35 @@ for l in t.splitlines():
         print(m.group("n") + ("[" + tt.group(1) + "]" if tt else ""), m.group("v"))
 '
 snap() { kubectl -n $NS exec aiperf -- python3 -c "$SNAP" 2>/dev/null | sort; }
+
+# A Load task killed by Akamas (finish/abort/timeout) drops its kubectl exec but the AIPerf
+# process keeps running in the pod: on 2026-11-05 a survivor of an aborted experiment doubled the
+# load of the next one (TTFT p95 73 s instead of 0.9 s). Kill everything in the pod except PID 1
+# (sleep infinity) and this command, then check nothing is left.
+REAPER='
+import os, signal, time
+me = {os.getpid(), os.getppid()}
+def others():
+    out = []
+    for p in os.listdir("/proc"):
+        if p.isdigit() and int(p) != 1 and int(p) not in me:
+            try:
+                c = open("/proc/%s/cmdline" % p, "rb").read().replace(b"\0", b" ").decode().strip()
+            except OSError:
+                continue
+            if c: out.append((int(p), c))
+    return out
+found = others()
+for pid, c in found:
+    print("killing stale process %d: %s" % (pid, c[:100]))
+    try: os.kill(pid, signal.SIGKILL)
+    except OSError: pass
+time.sleep(2)
+left = others()
+print("stale processes killed: %d, left: %d" % (len(found), len(left)))
+raise SystemExit(1 if left else 0)
+'
+kubectl -n $NS exec aiperf -- python3 -c "$REAPER" || die "could not clear stale processes in the AIPerf pod" 6
 M0=$(snap)
 
 TASK_START=$(date +%s)

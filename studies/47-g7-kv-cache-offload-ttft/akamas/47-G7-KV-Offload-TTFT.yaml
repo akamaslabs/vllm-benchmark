@@ -77,10 +77,14 @@ kpis:
   - name: vLLM CPU throttled
     formula: container.container_cpu_throttle_time
     direction: minimize
-# Baseline = vLLM 0.29.0's own defaults on this GPU (calibration 2026-11-05, vLLM log and
-# vllm:cache_config_info): no tuned flag at all (every parameter in doNotRenderParameters), the
-# values below only record what vLLM resolved by itself. Presets measure each lever alone, then
-# both (design: offload must not be favoured by construction).
+# Baseline = vLLM 0.29.0's own defaults on this GPU (calibration 2026-11-05: vLLM log,
+# vllm:cache_config_info and EngineArgs.get_batch_defaults for a 32 GB GPU): gmu 0.92,
+# max_num_seqs 256, max_num_batched_tokens 2048, kv auto, block 16, no offload. Akamas 4.1 refuses
+# a parameter both in `values` and in doNotRenderParameters, so the defaults are rendered as
+# explicit flags (same configuration, and the optimizer knows the starting point); only
+# block_size stays unrendered (an explicit --block-size may change vLLM's attention backend
+# choice). Presets change one lever at a time, then both (design: offload must not be favoured
+# by construction).
 steps:
   - name: baseline
     type: baseline
@@ -90,13 +94,7 @@ steps:
       vllm.gpu_memory_utilization: 0.92
       vllm.max_num_seqs: 256
       vllm.max_num_batched_tokens: 2048
-      vllm.block_size: "16"
     doNotRenderParameters:
-      - vllm.kv_offloading_size
-      - vllm.kv_cache_dtype
-      - vllm.gpu_memory_utilization
-      - vllm.max_num_seqs
-      - vllm.max_num_batched_tokens
       - vllm.block_size
   - name: Offload only
     type: preset
@@ -106,12 +104,7 @@ steps:
       vllm.gpu_memory_utilization: 0.92
       vllm.max_num_seqs: 256
       vllm.max_num_batched_tokens: 2048
-      vllm.block_size: "16"
     doNotRenderParameters:
-      - vllm.kv_cache_dtype
-      - vllm.gpu_memory_utilization
-      - vllm.max_num_seqs
-      - vllm.max_num_batched_tokens
       - vllm.block_size
   - name: FP8 KV only
     type: preset
@@ -121,12 +114,7 @@ steps:
       vllm.gpu_memory_utilization: 0.92
       vllm.max_num_seqs: 256
       vllm.max_num_batched_tokens: 2048
-      vllm.block_size: "16"
     doNotRenderParameters:
-      - vllm.kv_offloading_size
-      - vllm.gpu_memory_utilization
-      - vllm.max_num_seqs
-      - vllm.max_num_batched_tokens
       - vllm.block_size
   - name: Offload and FP8
     type: preset
@@ -136,11 +124,7 @@ steps:
       vllm.gpu_memory_utilization: 0.92
       vllm.max_num_seqs: 256
       vllm.max_num_batched_tokens: 2048
-      vllm.block_size: "16"
     doNotRenderParameters:
-      - vllm.gpu_memory_utilization
-      - vllm.max_num_seqs
-      - vllm.max_num_batched_tokens
       - vllm.block_size
   # The baseline again: drift check before trusting the gaps.
   - name: Baseline repeat
@@ -151,13 +135,7 @@ steps:
       vllm.gpu_memory_utilization: 0.92
       vllm.max_num_seqs: 256
       vllm.max_num_batched_tokens: 2048
-      vllm.block_size: "16"
     doNotRenderParameters:
-      - vllm.kv_offloading_size
-      - vllm.kv_cache_dtype
-      - vllm.gpu_memory_utilization
-      - vllm.max_num_seqs
-      - vllm.max_num_batched_tokens
       - vllm.block_size
   - name: optimize
     type: optimize

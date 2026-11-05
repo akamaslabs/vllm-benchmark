@@ -84,7 +84,7 @@ echo "$SUMMARY"
 echo "--- vLLM counters during the run (end - start) ---"
 join <(echo "$M0") <(echo "$M1") | awk '{printf "%s %.0f\n", $1, $3 - $2}'
 echo "--- AIPerf log (tail) ---"
-kubectl -n $NS exec aiperf -- sh -c 'tail -c 4000 /work/out/run.log' 2>/dev/null | tr '\r' '\n' | grep -v 'Grace Period\|Profiling:' | tail -40
+kubectl -n $NS exec aiperf -- sh -c 'tail -c 4000 /work/out/run.log' 2>/dev/null | LC_ALL=C tr '\r' '\n' | grep -v 'Grace Period\|Profiling:' | tail -40
 kubectl -n $NS exec aiperf -- rm -rf /work/out >/dev/null 2>&1 || true
 
 [ "$(restarts)" = "$R0" ] || die "vLLM restarted or was replaced during the run: $R0 -> $(restarts)" 5

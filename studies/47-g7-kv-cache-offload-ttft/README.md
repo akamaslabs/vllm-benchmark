@@ -1,6 +1,6 @@
 # 47-g7-kv-cache-offload-ttft
 
-**Status:** RUNNING (started 2026-11-05 11:53 UTC on akamas-41). **Design:**
+**Status:** RUNNING (started 2026-11-05 11:53 UTC on akamas-41; restarted from scratch 12:26 UTC after the ITL constraint fix, see below). **Design:**
 `docs/superpowers/specs/2026-11-05-study-47-kv-cache-offload-design.md`. **Plan:**
 `docs/superpowers/plans/2026-11-05-study-47-kv-cache-offload.md`. **Spike:**
 `docs/spikes/2026-11-05-kv-offload/README.md`.
@@ -96,6 +96,19 @@ a parameter that is in both `values` and `doNotRenderParameters`.
 - GPU KV cache 241,184 tokens with FP8;
 - TTFT p95 96 ms over the first 5 min, before the contexts grow;
 - all four offload PromQL queries return values.
+
+## ITL constraint fix (2026-11-05 12:26 UTC)
+
+The first threshold, `vllm.inter_token_latency_p95 <= 50`, flagged the baseline itself
+(experiment 1: CONSTRAINTS_VIOLATED, TTFT p95 872 ms server-side / 885 ms client-side, 840/840
+requests). The 50 ms came from AIPerf's client-side figure, a p95 of per-request average ITL
+(33 ms). The server-side vLLM histogram instead measures every gap between two tokens,
+including decode steps stalled by the prefill of recomputed histories: ~96 ms on average over
+the window, 30 s values up to 164 ms.
+
+The user chose **120 ms** (~baseline + 25 %). Akamas 4.1 refuses a constraint change on a
+RUNNING study, so the study was finished, updated (experiment 1 re-scored VALID) and started
+again. The start reran the study from experiment 1 and wiped the history: ~33 min lost.
 
 ## Parameters tuned
 

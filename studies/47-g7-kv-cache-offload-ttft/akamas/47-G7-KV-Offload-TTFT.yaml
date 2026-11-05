@@ -19,11 +19,16 @@ goal:
     unit: milliseconds
   constraints:
     absolute:
-      # Absolute, so it stays meaningful whatever the baseline does (design). The spike measured
-      # 21-33 ms at this load. Errors and falling behind are enforced client-side by
-      # run_load.sh (exit 6: the trial fails).
+      # Absolute, so it stays meaningful whatever the baseline does (design). Server-side vLLM
+      # histogram = the gap between EVERY two tokens, so prefill chunks of recomputed histories
+      # show up in it: the baseline (exp 1, 2026-11-05) read ~96 ms on average over the window
+      # (30 s p95 values up to 164 ms), while AIPerf's per-request average ITL p95 was 33 ms.
+      # The first threshold, 50 ms, came from that client-side number and flagged the baseline
+      # itself; 120 ms (~baseline + 25 %, user's choice 2026-11-05) instead of the design's +10 %
+      # because the p95 interpolates inside the 75-100 ms bucket and is noisy. Errors and falling
+      # behind are enforced client-side by run_load.sh (exit 6: the trial fails).
       - name: ITL P95 not degraded
-        formula: vllm.inter_token_latency_p95 <= 50
+        formula: vllm.inter_token_latency_p95 <= 120
 # Only the Load task. Start trim 360s: the conversations reach their steady context size around
 # minute 5-6 (spike); end trim 90s: grace period, parsing and log dump. One unit per value (study
 # 46: "1m30s" breaks scoring).

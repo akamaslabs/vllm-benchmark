@@ -1,0 +1,59 @@
+# Study 47 vLLM server: one replica on the g7.4xlarge (node group llm-serving-g7-kv), rendered by
+# apply_config.sh. Tokens (between two at-signs): TUNED_ARGS SHM_GI MEM_GI.
+# - Fixed flags below; every tuned flag comes from apply_config.sh (one line per flag, none for a
+#   parameter left to vLLM's default).
+# - /dev/shm holds the whole CPU KV offload buffer (native backend mmaps it there; vLLM refuses
+#   to start if shm is smaller, spike 2026-11-05) and counts against the memory limit, so both
+#   follow vllm.kv_offloading_size: shm = offload + 1 GiB (2 GiB without offload), memory =
+#   offload + 20 GiB. requests == limits (Guaranteed QoS).
+apiVersion: v1
+kind: Namespace
+metadata: {name: kv-offload}
+---
+# Scraped by the ServiceMonitor vllm-kv-offload (label app: vllm).
+apiVersion: v1
+kind: Service
+metadata: {name: vllm, namespace: kv-offload, labels: {app: vllm}}
+spec:
+  selector: {app: vllm}
+  ports: [{name: http, port: 8000, targetPort: 8000}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: vllm, namespace: kv-offload}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: vllm}}
+  template:
+    metadata: {labels: {app: vllm}}
+    spec:
+      enableServiceLinks: false
+      nodeSelector: {node-role: llm-serving-g7-kv}
+      tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: vllm
+        image: vllm/vllm-openai:v0.29.0
+        args:
+        - "--model=Qwen/Qwen3-8B-FP8"
+        - "--served-model-name=qwen3-8b"
+        - "--port=8000"
+        - "--host=0.0.0.0"
+        - "--max-model-len=16384"
+        - "--enable-prefix-caching"
+        @TUNED_ARGS@
+        env:
+        - {name: HF_HOME, value: /hf-cache}
+        ports: [{name: http, containerPort: 8000}]
+        resources:
+          requests: {cpu: "10", memory: "@MEM_GI@Gi", nvidia.com/gpu: 1}
+          limits: {cpu: "10", memory: "@MEM_GI@Gi", nvidia.com/gpu: 1}
+        volumeMounts:
+        - {name: hf-cache, mountPath: /hf-cache}
+        - {name: shm, mountPath: /dev/shm}
+        startupProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10, failureThreshold: 120}
+        readinessProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10, failureThreshold: 3}
+      volumes:
+      - {name: hf-cache, hostPath: {path: /var/lib/hf-cache-study47, type: DirectoryOrCreate}}
+      - {name: shm, emptyDir: {medium: Memory, sizeLimit: "@SHM_GI@Gi"}}

@@ -1,0 +1,98 @@
+#!/bin/bash
+# Load task of study 47: one AIPerf multi-turn chat run (user-centric rate: USERS users, each
+# sending a turn every USERS/RATE seconds, TURNS turns per conversation with the history re-sent)
+# against the vLLM pod, from the long-lived AIPerf pod. The study windows on this task (trim
+# 360s / 90s), so the goal (vLLM's TTFT p95) is read in steady state.
+#
+# Prints, for the Akamas task log and the README:
+#   RESULT sent=<n> completed=<n> errors=<n> ttft_p50_ms=<x> ttft_p95_ms=<x> itl_p95_ms=<x>
+#     client-side, requests started >= STEADY_FROM s after the first request
+#   the TTFT p50/p95 per minute, the vLLM prefix-cache/offload counter deltas, the AIPerf log tail.
+# Exit 5 if vLLM restarted during the run, 6 if errors >= 1 % or completed < 95 % of sent (the
+# load is open-loop: a configuration that falls behind fails the trial instead of scoring).
+# Env overrides for manual runs: DURATION, USERS, RATE.
+set -uo pipefail
+HERE=$(cd "$(dirname "$0")" && pwd)
+NS=kv-offload
+OV_DURATION=${DURATION:-} OV_USERS=${USERS:-} OV_RATE=${RATE:-}
+# shellcheck disable=SC1091
+source "$HERE/workload.env"
+DURATION=${OV_DURATION:-$DURATION} USERS=${OV_USERS:-$USERS} RATE=${OV_RATE:-$RATE}
+t() { echo "$(date -u +%T) run_load: $*"; }
+die() { echo "error: $*" >&2; exit "${2:-2}"; }
+
+POD=$(kubectl -n $NS get pods -l app=vllm -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+[ -n "$POD" ] || die "no vLLM pod in $NS: the Apply config task did not complete" 3
+restarts() { kubectl -n $NS get pod "$POD" -o jsonpath='{.status.containerStatuses[0].restartCount}/{.metadata.uid}'; }
+R0=$(restarts)
+
+# vLLM counters (prefix cache, offload) before and after, read from inside the AIPerf pod.
+SNAP='
+import urllib.request, re
+t = urllib.request.urlopen("http://vllm.kv-offload.svc:8000/metrics").read().decode()
+for l in t.splitlines():
+    m = re.match(r"(?P<n>vllm:(?:prefix_cache_(?:hits|queries)|external_prefix_cache_(?:hits|queries)|num_preemptions|prompt_tokens)_total|vllm:kv_offload_total_bytes_total)(?P<l>\{[^}]*\})? (?P<v>\S+)$", l)
+    if m:
+        tt = re.search(r"transfer_type=\"([^\"]+)\"", m.group("l") or "")
+        print(m.group("n") + ("[" + tt.group(1) + "]" if tt else ""), m.group("v"))
+'
+snap() { kubectl -n $NS exec aiperf -- python3 -c "$SNAP" 2>/dev/null | sort; }
+M0=$(snap)
+
+t "users=$USERS rate=$RATE req/s (one turn per user every $(awk -v u=$USERS -v r=$RATE 'BEGIN{print u/r}') s) turns=$TURNS isl=$ISL osl=$OSL duration=${DURATION}s"
+kubectl -n $NS exec aiperf -- sh -c "rm -rf /work/out; mkdir -p /work/out; cd /work; \
+  aiperf profile --model qwen3-8b --tokenizer Qwen/Qwen3-8B-FP8 --url http://vllm.$NS.svc:8000 \
+    --endpoint-type chat --streaming \
+    --isl $ISL --isl-stddev 0 --osl $OSL --osl-stddev 0 --extra-inputs ignore_eos:true \
+    --conversation-turn-mean $TURNS --conversation-turn-stddev 0 --conversation-num 5000 \
+    --user-centric-rate $RATE --num-users $USERS --benchmark-duration $DURATION --benchmark-grace-period 60 \
+    --slice-duration 60 --ui simple --output-artifact-dir /work/out/run > /work/out/run.log 2>&1"
+AIPERF_RC=$?
+t "aiperf exit=$AIPERF_RC"
+M1=$(snap)
+
+# Client-side summary from the per-request export.
+PARSER='
+import json, sys
+steady = float(sys.argv[1])
+rows = []
+for l in open("/work/out/run/profile_export.jsonl"):
+    j = json.loads(l); m = j["metadata"]
+    if m.get("benchmark_phase") != "profiling": continue
+    rows.append(j)
+if not rows:
+    print("RESULT sent=0 completed=0 errors=0 ttft_p50_ms=NA ttft_p95_ms=NA itl_p95_ms=NA"); sys.exit()
+t0 = min(r["metadata"]["request_start_ns"] for r in rows) / 1e9
+def q(v, p):
+    v = sorted(v); return v[min(len(v) - 1, int(p * len(v)))] if v else float("nan")
+st = [r for r in rows if r["metadata"]["request_start_ns"] / 1e9 - t0 >= steady]
+ok = [r for r in st if "time_to_first_token" in r.get("metrics", {}) and not r.get("error")]
+err = [r for r in st if r.get("error") or r["metadata"].get("was_cancelled")]
+ttft = [r["metrics"]["time_to_first_token"]["value"] for r in ok]
+itl = [r["metrics"]["inter_token_latency"]["value"] for r in ok if "inter_token_latency" in r["metrics"]]
+print("RESULT sent=%d completed=%d errors=%d ttft_p50_ms=%.0f ttft_p95_ms=%.0f itl_p95_ms=%.1f" %
+      (len(st), len(ok), len(err), q(ttft, .5), q(ttft, .95), q(itl, .95)))
+by = {}
+for r in rows:
+    if "time_to_first_token" in r.get("metrics", {}):
+        by.setdefault(int((r["metadata"]["request_start_ns"] / 1e9 - t0) // 60), []).append(r["metrics"]["time_to_first_token"]["value"])
+print("minute  requests  ttft_p50_ms  ttft_p95_ms")
+for k in sorted(by): print("%6d  %8d  %11.0f  %11.0f" % (k, len(by[k]), q(by[k], .5), q(by[k], .95)))
+'
+SUMMARY=$(kubectl -n $NS exec aiperf -- python3 -c "$PARSER" "${STEADY_FROM_OVERRIDE:-$STEADY_FROM}" 2>&1)
+echo "$SUMMARY"
+echo "--- vLLM counters during the run (end - start) ---"
+join <(echo "$M0") <(echo "$M1") | awk '{printf "%s %.0f\n", $1, $3 - $2}'
+echo "--- AIPerf log (tail) ---"
+kubectl -n $NS exec aiperf -- sh -c 'tail -c 4000 /work/out/run.log' 2>/dev/null | tr '\r' '\n' | grep -v 'Grace Period\|Profiling:' | tail -40
+kubectl -n $NS exec aiperf -- rm -rf /work/out >/dev/null 2>&1 || true
+
+[ "$(restarts)" = "$R0" ] || die "vLLM restarted or was replaced during the run: $R0 -> $(restarts)" 5
+[ "$AIPERF_RC" = 0 ] || die "aiperf exited $AIPERF_RC" 6
+echo "$SUMMARY" | awk '/^RESULT/ {
+  for (k = 2; k <= NF; k++) { split($k, a, "="); v[a[1]] = a[2] }
+  if (v["sent"] == 0) { print "no request in the steady window"; exit 1 }
+  if (v["errors"] / v["sent"] >= 0.01) { print "errors " v["errors"] " / " v["sent"] " >= 1 %"; exit 1 }
+  if (v["completed"] / v["sent"] < 0.95) { print "completed " v["completed"] " / " v["sent"] " < 95 %"; exit 1 }
+}' || die "client-side check failed: the configuration does not keep up with the load" 6
+t "done"

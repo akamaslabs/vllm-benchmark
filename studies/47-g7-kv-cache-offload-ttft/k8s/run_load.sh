@@ -17,13 +17,18 @@ NS=kv-offload
 OV_DURATION=${DURATION:-} OV_USERS=${USERS:-} OV_RATE=${RATE:-}
 # shellcheck disable=SC1091
 source "$HERE/workload.env"
+# shellcheck disable=SC1091
+source "$HERE/lib_checks.sh"
 DURATION=${OV_DURATION:-$DURATION} USERS=${OV_USERS:-$USERS} RATE=${OV_RATE:-$RATE}
 t() { echo "$(date -u +%T) run_load: $*"; }
 die() { echo "error: $*" >&2; exit "${2:-2}"; }
 
-POD=$(kubectl -n $NS get pods -l app=vllm -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-[ -n "$POD" ] || die "no vLLM pod in $NS: the Apply config task did not complete" 3
-restarts() { kubectl -n $NS get pod "$POD" -o jsonpath='{.status.containerStatuses[0].restartCount}/{.metadata.uid}'; }
+# Only a Running pod counts: an evicted pod stays as Failed with the same label (final review).
+POD=$(kubectl -n $NS get pods -l app=vllm --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+[ -n "$POD" ] || die "no Running vLLM pod in $NS: the Apply config task did not complete" 3
+# Phase, restarts and uid: an OOM-killed container bumps the restart count, an evicted pod turns
+# Failed (restart count unchanged), a replaced pod disappears.
+restarts() { kubectl -n $NS get pod "$POD" -o jsonpath='{.status.phase}/{.status.containerStatuses[0].restartCount}/{.metadata.uid}' 2>/dev/null || echo gone; }
 R0=$(restarts)
 
 # vLLM counters (prefix cache, offload) before and after, read from inside the AIPerf pod.
@@ -39,6 +44,7 @@ for l in t.splitlines():
 snap() { kubectl -n $NS exec aiperf -- python3 -c "$SNAP" 2>/dev/null | sort; }
 M0=$(snap)
 
+TASK_START=$(date +%s)
 t "users=$USERS rate=$RATE req/s (one turn per user every $(awk -v u=$USERS -v r=$RATE 'BEGIN{print u/r}') s) turns=$TURNS isl=$ISL osl=$OSL duration=${DURATION}s"
 kubectl -n $NS exec aiperf -- sh -c "rm -rf /work/out; mkdir -p /work/out; cd /work; \
   aiperf profile --model qwen3-8b --tokenizer Qwen/Qwen3-8B-FP8 --url http://vllm.$NS.svc:8000 \
@@ -54,7 +60,7 @@ M1=$(snap)
 # Client-side summary from the per-request export.
 PARSER='
 import json, sys
-steady = float(sys.argv[1])
+steady = float(sys.argv[1]); task_start = float(sys.argv[2])
 rows = []
 for l in open("/work/out/run/profile_export.jsonl"):
     j = json.loads(l); m = j["metadata"]
@@ -63,6 +69,9 @@ for l in open("/work/out/run/profile_export.jsonl"):
 if not rows:
     print("RESULT sent=0 completed=0 errors=0 ttft_p50_ms=NA ttft_p95_ms=NA itl_p95_ms=NA"); sys.exit()
 t0 = min(r["metadata"]["request_start_ns"] for r in rows) / 1e9
+# Akamas trims 360 s from the start of the Load task, the RESULT line from the first request:
+# this is the gap between the two windows (AIPerf start-up).
+print("first request %.0f s after the Load task started" % (t0 - task_start))
 def q(v, p):
     v = sorted(v); return v[min(len(v) - 1, int(p * len(v)))] if v else float("nan")
 st = [r for r in rows if r["metadata"]["request_start_ns"] / 1e9 - t0 >= steady]
@@ -79,7 +88,7 @@ for r in rows:
 print("minute  requests  ttft_p50_ms  ttft_p95_ms")
 for k in sorted(by): print("%6d  %8d  %11.0f  %11.0f" % (k, len(by[k]), q(by[k], .5), q(by[k], .95)))
 '
-SUMMARY=$(kubectl -n $NS exec aiperf -- python3 -c "$PARSER" "${STEADY_FROM_OVERRIDE:-$STEADY_FROM}" 2>&1)
+SUMMARY=$(kubectl -n $NS exec aiperf -- python3 -c "$PARSER" "${STEADY_FROM_OVERRIDE:-$STEADY_FROM}" "$TASK_START" 2>&1)
 echo "$SUMMARY"
 echo "--- vLLM counters during the run (end - start) ---"
 join <(echo "$M0") <(echo "$M1") | awk '{printf "%s %.0f\n", $1, $3 - $2}'
@@ -89,10 +98,6 @@ kubectl -n $NS exec aiperf -- rm -rf /work/out >/dev/null 2>&1 || true
 
 [ "$(restarts)" = "$R0" ] || die "vLLM restarted or was replaced during the run: $R0 -> $(restarts)" 5
 [ "$AIPERF_RC" = 0 ] || die "aiperf exited $AIPERF_RC" 6
-echo "$SUMMARY" | awk '/^RESULT/ {
-  for (k = 2; k <= NF; k++) { split($k, a, "="); v[a[1]] = a[2] }
-  if (v["sent"] == 0) { print "no request in the steady window"; exit 1 }
-  if (v["errors"] / v["sent"] >= 0.01) { print "errors " v["errors"] " / " v["sent"] " >= 1 %"; exit 1 }
-  if (v["completed"] / v["sent"] < 0.95) { print "completed " v["completed"] " / " v["sent"] " < 95 %"; exit 1 }
-}' || die "client-side check failed: the configuration does not keep up with the load" 6
+EXPECTED_SENT=$(awk -v d="$DURATION" -v s="${STEADY_FROM_OVERRIDE:-$STEADY_FROM}" -v r="$RATE" 'BEGIN { printf "%d", (d - s) * r }')
+CHECK=$(check_result "$SUMMARY" "$EXPECTED_SENT") || die "client-side check failed ($CHECK): the configuration does not keep up with the load" 6
 t "done"

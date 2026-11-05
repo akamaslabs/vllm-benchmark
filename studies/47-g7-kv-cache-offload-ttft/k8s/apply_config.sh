@@ -84,12 +84,21 @@ INDENT=$(grep -m1 '@TUNED_ARGS@' "$HERE/01-vllm_template.yaml" | sed 's/@TUNED_A
 [ -n "$INDENT" ] || die "01-vllm_template.yaml has no @TUNED_ARGS@ line"
 TMP=$(mktemp)
 [ ${#ARGS[@]} -eq 0 ] || for a in "${ARGS[@]}"; do printf '%s- "%s"\n' "$INDENT" "$a"; done > "$TMP"
-sed -e "s/@SHM_GI@/$SHM/g" -e "s/@MEM_GI@/$MEM/g" \
+sed -e "s/@SHM_GI@/$SHM/g" -e "s/@MEM_GI@/$MEM/g" -e "s/@APPLIED_AT@/$(date -u +%Y%m%dT%H%M%SZ)/g" \
     -e "/@TUNED_ARGS@/r $TMP" -e '/@TUNED_ARGS@/d' \
     "$HERE/01-vllm_template.yaml" > "$K8S/01-vllm.yaml"
 rm -f "$TMP"
 grep -q '@[A-Z_]*@' "$K8S/01-vllm.yaml" && die "01-vllm.yaml still has a token"
 kubectl apply -f "$HERE/monitoring/servicemonitor.yaml" >/dev/null
+# An evicted pod (e.g. /dev/shm over its sizeLimit, node memory pressure) stays as Failed with the
+# app=vllm label and would block the readiness check below forever (final review 2026-11-05).
+kubectl -n $NS get pods -l app=vllm --field-selector=status.phase=Failed -o wide 2>/dev/null | grep -q . && {
+  echo "--- Failed vLLM pods left from a previous experiment (deleted now) ---"
+  kubectl -n $NS get pods -l app=vllm --field-selector=status.phase=Failed \
+    -o custom-columns=POD:.metadata.name,REASON:.status.reason,MESSAGE:.status.message
+  kubectl -n $NS delete pods -l app=vllm --field-selector=status.phase=Failed --wait=false >/dev/null
+}
+APPLY_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 kubectl apply -f "$K8S/01-vllm.yaml" || die "kubectl apply failed: refusing to benchmark a stale configuration" 3
 kubectl apply -f "$HERE/02-aiperf.yaml" >/dev/null || die "kubectl apply of the AIPerf pod failed" 3
 
@@ -103,14 +112,21 @@ while [ $((SECONDS - T0)) -lt 2400 ]; do
   RDY=$(kubectl -n $NS get deploy vllm -o jsonpath='{.status.readyReplicas}')
   UPD=$(kubectl -n $NS get deploy vllm -o jsonpath='{.status.updatedReplicas}')
   if [ "$OBS" = "$GEN" ] && [ "${RDY:-0}" = 1 ] && [ "${UPD:-0}" = 1 ] \
-     && [ "$(kubectl -n $NS get pods -l app=vllm -o name | wc -l | tr -d ' ')" = 1 ]; then EXIT=0; break; fi
+     && [ "$(kubectl -n $NS get pods -l app=vllm --field-selector=status.phase!=Failed -o name | wc -l | tr -d ' ')" = 1 ]; then EXIT=0; break; fi
+  # The new pod evicted during startup: no container restart, so the check below would miss it.
+  if kubectl -n $NS get pods -l app=vllm --field-selector=status.phase=Failed -o jsonpath='{.items[*].metadata.creationTimestamp}' 2>/dev/null \
+       | tr ' ' '\n' | awk -v t0="$APPLY_TS" '$0 >= t0 { f = 1 } END { exit !f }'; then
+    echo "error: the new vLLM pod failed during startup (evicted?):" >&2
+    kubectl -n $NS get pods -l app=vllm -o custom-columns=POD:.metadata.name,PHASE:.status.phase,REASON:.status.reason,MESSAGE:.status.message >&2
+    EXIT=4; break
+  fi
   R=$(kubectl -n $NS get pods -l app=vllm -o jsonpath='{range .items[*]}{.status.containerStatuses[0].restartCount}{"\n"}{end}' | sort -n | tail -1)
   if [ "${R:-0}" -ge 2 ]; then echo "error: vLLM restarted $R times during startup: crash loop" >&2; EXIT=4; break; fi
   sleep 15
 done
 [ $EXIT = 1 ] && { echo "error: vLLM not Ready after 2400 s" >&2; EXIT=4; }
 t "vLLM rollout exit=$EXIT after $((SECONDS - T0)) s"
-POD=$(kubectl -n $NS get pods -l app=vllm -o jsonpath='{.items[0].metadata.name}')
+POD=$(kubectl -n $NS get pods -l app=vllm --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1:].metadata.name}')
 echo "--- $POD: startup summary ---"
 kubectl -n $NS logs "$POD" --tail=-1 2>/dev/null | grep -E 'non-default args|Model loading took|Available KV cache memory|GPU KV cache size|offload|Error|Traceback' || true
 echo "--- $POD: full log ---"

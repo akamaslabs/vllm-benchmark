@@ -1,0 +1,14 @@
+kind: component
+system: vLLM_Benchmark_47_G7_KV_Offload
+
+name: vllm
+description: >-
+  The vLLM server (Deployment vllm, one pod, namespace kv-offload), Qwen/Qwen3-8B-FP8 served as
+  qwen3-8b. Carries every tuned parameter (CPU KV offload size, KV cache dtype, memory
+  utilization, batching, block size) and is the component the goal, the constraint and the
+  KPIs read.
+componentType: vLLM
+properties:
+  prometheus:
+    pod: ^vllm-.*
+    model: qwen3-8b

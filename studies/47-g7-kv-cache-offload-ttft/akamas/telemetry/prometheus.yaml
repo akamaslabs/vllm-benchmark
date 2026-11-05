@@ -1,0 +1,189 @@
+# Prometheus telemetry for 47-g7-kv-cache-offload-ttft (Akamas 4.1).
+# - vLLM queries: study 46's (study 26's catalog), unchanged; they read $POD$ / $MODEL$ from the
+#   component properties (keys without underscore, study 25 lesson).
+# - Four CPU KV offload metrics (vLLM pack 1.15.0), PromQL from the pack README. The prefix
+#   cache counters, including vllm:external_prefix_cache_*, exist with offload off too (value 0,
+#   seen in the 2026-11-05 calibration);
+# - All three hit rates are in percent (study 46's prefix_cache_hit_rate was a 0-1 ratio).
+# the kv_offload byte counters exist only with offload on,
+#   hence "or vector(0)".
+# - Kubernetes Container queries: study 46's, scoped to namespace="kv-offload".
+# - No GPU (DCGM) metrics: no dcgm-exporter pod lands on this node group, and the goal does not
+#   need them.
+kind: telemetry-instance
+system: vLLM_Benchmark_47_G7_KV_Offload
+name: Prometheus_47_G7_KV_Offload
+provider: Prometheus
+config:
+  address: kube-prometheus-stack-prometheus.monitoring.svc.cluster.local
+  port: 9090
+  logLevel: DETAILED
+  duration: 30
+metrics:
+- metric: e2e_request_latency_p95
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:e2e_request_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000
+  scale: 1
+- metric: e2e_request_latency_avg
+  datasourceMetric: (sum(rate(vllm:e2e_request_latency_seconds_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:e2e_request_latency_seconds_count{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])),
+    1e-9))*1000
+  scale: 1
+- metric: request_success_rate
+  datasourceMetric: sum(rate(vllm:request_success_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))
+- metric: time_to_first_token_p95
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:time_to_first_token_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000
+  scale: 1
+- metric: time_to_first_token_avg
+  datasourceMetric: (sum(rate(vllm:time_to_first_token_seconds_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:time_to_first_token_seconds_count{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])),
+    1e-9))*1000
+  scale: 1
+- metric: prefill_token_throughput
+  datasourceMetric: sum(rate(vllm:prompt_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))
+- metric: inter_token_latency_p95
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000
+  scale: 1
+- metric: inter_token_latency_avg
+  datasourceMetric: (sum(rate(vllm:inter_token_latency_seconds_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:inter_token_latency_seconds_count{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])),
+    1e-9))*1000
+  scale: 1
+- metric: decode_token_throughput
+  datasourceMetric: sum(rate(vllm:generation_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))
+- metric: total_token_throughput
+  datasourceMetric: sum(rate(vllm:prompt_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) + sum(rate(vllm:generation_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))
+- metric: request_queue_time_p95
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:request_queue_time_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000
+  scale: 1
+- metric: num_requests_running
+  datasourceMetric: sum(vllm:num_requests_running{model_name=~"$MODEL$", pod=~"$POD$"})
+- metric: num_requests_waiting
+  datasourceMetric: sum(vllm:num_requests_waiting{model_name=~"$MODEL$", pod=~"$POD$"})
+- metric: kv_cache_usage_avg
+  datasourceMetric: avg(vllm:kv_cache_usage_perc{model_name=~"$MODEL$", pod=~"$POD$"})
+- metric: kv_cache_usage_max
+  datasourceMetric: max(vllm:kv_cache_usage_perc{model_name=~"$MODEL$", pod=~"$POD$"})
+- metric: preemption_rate
+  datasourceMetric: sum(rate(vllm:num_preemptions_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))
+- metric: prefix_cache_hit_rate
+  datasourceMetric: 100 * sum(rate(vllm:prefix_cache_hits_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:prefix_cache_queries_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])),
+    1)
+- metric: active_dp_engines
+  datasourceMetric: count(count by (pod, engine) (vllm:cache_config_info{pod=~"$POD$"}))
+- metric: input_sequence_length_p95
+  datasourceMetric: histogram_quantile(0.95, sum by(le)(rate(vllm:request_prompt_tokens_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m])))
+- metric: input_sequence_length_avg
+  datasourceMetric: sum(rate(vllm:request_prompt_tokens_sum{model_name=~"$MODEL$", pod=~"$POD$"}[5m])) / clamp_min(sum(rate(vllm:request_prompt_tokens_count{model_name=~"$MODEL$", pod=~"$POD$"}[5m])), 1e-9)
+- metric: output_sequence_length_p95
+  datasourceMetric: histogram_quantile(0.95, sum by(le)(rate(vllm:request_generation_tokens_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m])))
+- metric: output_sequence_length_avg
+  datasourceMetric: sum(rate(vllm:request_generation_tokens_sum{model_name=~"$MODEL$", pod=~"$POD$"}[5m])) / clamp_min(sum(rate(vllm:request_generation_tokens_count{model_name=~"$MODEL$", pod=~"$POD$"}[5m])),
+    1e-9)
+- metric: fleet_e2e_latency_percentile
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:e2e_request_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m]))))*1000
+  scale: 1
+- metric: fleet_inter_token_latency_percentile
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m]))))*1000
+  scale: 1
+- metric: fleet_request_success_rate
+  datasourceMetric: sum(rate(vllm:request_success_total{model_name=~"$MODEL$", pod=~"$POD$"}[5m]))
+- metric: fleet_kv_cache_usage_avg
+  datasourceMetric: avg(vllm:kv_cache_usage_perc{model_name=~"$MODEL$", pod=~"$POD$"})
+- metric: inter_token_latency_p95_5m
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m]))))*1000
+  scale: 1
+- metric: inter_token_latency_p95_max_per_pod
+  datasourceMetric: (max(histogram_quantile(0.95, sum by(pod, le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m])))))*1000
+  scale: 1
+- metric: inter_token_latency_p95_min_per_pod
+  datasourceMetric: (min(histogram_quantile(0.95, sum by(pod, le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m])))))*1000
+  scale: 1
+- metric: estimated_flops_per_gpu
+  datasourceMetric: sum(rate(vllm:estimated_flops_per_gpu_total{model_name=~"$MODEL$", pod=~"$POD$"}[1m])) / 1e12
+- metric: estimated_read_bytes_per_gpu
+  datasourceMetric: sum(rate(vllm:estimated_read_bytes_per_gpu_total{model_name=~"$MODEL$", pod=~"$POD$"}[1m])) / 1e9
+- metric: estimated_write_bytes_per_gpu
+  datasourceMetric: sum(rate(vllm:estimated_write_bytes_per_gpu_total{model_name=~"$MODEL$", pod=~"$POD$"}[1m])) / 1e9
+- metric: time_to_first_token_p90
+  datasourceMetric: (histogram_quantile(0.90, sum by(le)(rate(vllm:time_to_first_token_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000
+  scale: 1
+- metric: inter_token_latency_p90
+  datasourceMetric: (histogram_quantile(0.90, sum by(le)(rate(vllm:inter_token_latency_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000
+  scale: 1
+- metric: time_per_output_token_p95
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:request_time_per_output_token_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000
+  scale: 1
+- metric: time_per_output_token_avg
+  datasourceMetric: (sum(rate(vllm:request_time_per_output_token_seconds_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:request_time_per_output_token_seconds_count{model_name=~"$MODEL$",
+    pod=~"$POD$"}[$DURATION$])), 1e-9))*1000
+  scale: 1
+- metric: request_prefill_time_p95
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:request_prefill_time_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000
+  scale: 1
+- metric: request_decode_time_p95
+  datasourceMetric: (histogram_quantile(0.95, sum by(le)(rate(vllm:request_decode_time_seconds_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))))*1000
+  scale: 1
+- metric: request_queue_time_avg
+  datasourceMetric: (sum(rate(vllm:request_queue_time_seconds_sum{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:request_queue_time_seconds_count{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])),
+    1e-9))*1000
+  scale: 1
+- metric: cpu_offload_prefix_hit_rate
+  datasourceMetric: 100 * sum(rate(vllm:external_prefix_cache_hits_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) / clamp_min(sum(rate(vllm:prompt_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])),
+    1)
+- metric: prefix_cache_hit_rate_with_offload
+  datasourceMetric: 100 * (sum(rate(vllm:prefix_cache_hits_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) + (sum(rate(vllm:external_prefix_cache_hits_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$]))
+    or vector(0))) / clamp_min(sum(rate(vllm:prompt_tokens_total{model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])), 1)
+- metric: kv_offload_gpu_to_cpu_throughput
+  datasourceMetric: (sum(rate(vllm:kv_offload_total_bytes_total{transfer_type="GPU_to_CPU", model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) or vector(0)) / 1e9
+- metric: kv_offload_cpu_to_gpu_throughput
+  datasourceMetric: (sum(rate(vllm:kv_offload_total_bytes_total{transfer_type="CPU_to_GPU", model_name=~"$MODEL$", pod=~"$POD$"}[$DURATION$])) or vector(0)) / 1e9
+- metric: container_cpu_pressure_some
+  datasourceMetric: sum(rate(container_pressure_cpu_waiting_seconds_total{namespace="kv-offload", pod=~"$POD$", container!=""}[2m]))
+- metric: container_cpu_pressure_full
+  datasourceMetric: sum(rate(container_pressure_cpu_stalled_seconds_total{namespace="kv-offload", pod=~"$POD$", container!=""}[2m]))
+- metric: container_memory_pressure_some
+  datasourceMetric: sum(rate(container_pressure_memory_waiting_seconds_total{namespace="kv-offload", pod=~"$POD$", container!=""}[2m]))
+- metric: container_memory_pressure_full
+  datasourceMetric: sum(rate(container_pressure_memory_stalled_seconds_total{namespace="kv-offload", pod=~"$POD$", container!=""}[2m]))
+- metric: container_io_pressure_some
+  datasourceMetric: sum(rate(container_pressure_io_waiting_seconds_total{namespace="kv-offload", pod=~"$POD$", container!=""}[2m]))
+- metric: container_io_pressure_full
+  datasourceMetric: sum(rate(container_pressure_io_stalled_seconds_total{namespace="kv-offload", pod=~"$POD$", container!=""}[2m]))
+- metric: container_cpu_used
+  datasourceMetric: 1000 * sum(rate(container_cpu_usage_seconds_total{namespace="kv-offload", pod=~"$POD$", container!=""}[2m]))
+- metric: container_cpu_used_max
+  datasourceMetric: 1000 * max(sum by(pod)(rate(container_cpu_usage_seconds_total{namespace="kv-offload", pod=~"$POD$", container!=""}[2m])))
+- metric: container_cpu_util
+  datasourceMetric: sum(rate(container_cpu_usage_seconds_total{namespace="kv-offload", pod=~"$POD$", container!=""}[2m])) / clamp_min(sum(kube_pod_container_resource_limits{resource="cpu", namespace="kv-offload",
+    pod=~"$POD$", container!=""}), 1e-9)
+- metric: container_cpu_util_max
+  datasourceMetric: max(sum by(pod)(rate(container_cpu_usage_seconds_total{namespace="kv-offload", pod=~"$POD$", container!=""}[2m])) / clamp_min(sum by(pod)(kube_pod_container_resource_limits{resource="cpu",
+    namespace="kv-offload", pod=~"$POD$", container!=""}), 1e-9))
+- metric: container_cpu_throttle_time
+  datasourceMetric: sum(rate(container_cpu_cfs_throttled_periods_total{namespace="kv-offload", pod=~"$POD$", container!=""}[2m])) / clamp_min(sum(rate(container_cpu_cfs_periods_total{namespace="kv-offload",
+    pod=~"$POD$", container!=""}[2m])), 1e-9)
+- metric: container_cpu_request
+  datasourceMetric: 1000 * sum(kube_pod_container_resource_requests{resource="cpu", namespace="kv-offload", pod=~"$POD$", container!=""})
+- metric: container_cpu_limit
+  datasourceMetric: 1000 * sum(kube_pod_container_resource_limits{resource="cpu", namespace="kv-offload", pod=~"$POD$", container!=""})
+- metric: container_memory_used
+  datasourceMetric: sum(container_memory_usage_bytes{namespace="kv-offload", pod=~"$POD$", container!=""})
+- metric: container_memory_used_max
+  datasourceMetric: max(sum by(pod)(container_memory_usage_bytes{namespace="kv-offload", pod=~"$POD$", container!=""}))
+- metric: container_memory_util
+  datasourceMetric: sum(container_memory_working_set_bytes{namespace="kv-offload", pod=~"$POD$", container!=""}) / clamp_min(sum(kube_pod_container_resource_limits{resource="memory", namespace="kv-offload",
+    pod=~"$POD$", container!=""}), 1e-9)
+- metric: container_memory_util_max
+  datasourceMetric: max(sum by(pod)(container_memory_working_set_bytes{namespace="kv-offload", pod=~"$POD$", container!=""}) / clamp_min(sum by(pod)(kube_pod_container_resource_limits{resource="memory",
+    namespace="kv-offload", pod=~"$POD$", container!=""}), 1e-9))
+- metric: container_memory_working_set
+  datasourceMetric: sum(container_memory_working_set_bytes{namespace="kv-offload", pod=~"$POD$", container!=""})
+- metric: container_memory_resident_set
+  datasourceMetric: sum(container_memory_rss{namespace="kv-offload", pod=~"$POD$", container!=""})
+- metric: container_memory_cache
+  datasourceMetric: sum(container_memory_cache{namespace="kv-offload", pod=~"$POD$", container!=""})
+- metric: container_memory_request
+  datasourceMetric: sum(kube_pod_container_resource_requests{resource="memory", namespace="kv-offload", pod=~"$POD$", container!=""})
+- metric: container_memory_limit
+  datasourceMetric: sum(kube_pod_container_resource_limits{resource="memory", namespace="kv-offload", pod=~"$POD$", container!=""})
+- metric: container_restarts
+  datasourceMetric: sum(kube_pod_container_status_restarts_total{namespace="kv-offload", pod=~"$POD$", container!=""})
+- metric: container_oom_kills_count
+  datasourceMetric: sum(container_oom_events_total{namespace="kv-offload", pod=~"$POD$", container!=""})

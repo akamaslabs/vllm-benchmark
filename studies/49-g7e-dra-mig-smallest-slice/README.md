@@ -102,6 +102,11 @@ Run these on the cluster, after the node is up, with the user's go:
 3. **One short Load** (`LOAD_SECONDS=120`) per layout. Every client must return a result, and
    `RESULT customer` / `RESULT neighbours` must be printed.
 4. **dcgm-exporter** runs on the 4xlarge node, and is restarted after each re-layout.
+   `apply_config.sh` waits for it, then checks the customer-slice framebuffer in Prometheus
+   before the load (exit 7 if empty).
+5. **Empty KPIs:** in the whole-GPU layout (baseline and repeat), "Neighbours TTFT P95" and
+   `gpu_neighbours` are empty because there are no neighbours. Check that Akamas 4.1 still
+   scores those experiments.
 
 ## Results
 

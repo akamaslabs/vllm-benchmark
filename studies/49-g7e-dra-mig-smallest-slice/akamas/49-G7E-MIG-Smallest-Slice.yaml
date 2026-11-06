@@ -73,7 +73,7 @@ parameterConstraints:
   - name: max_num_batched_tokens must be at least max_num_seqs
     formula: vllm.max_num_batched_tokens >= vllm.max_num_seqs
 kpis:
-  - name: Customer slice GiB
+  - name: Customer slice MiB
     formula: gpu_customer.gpu_fb_total
     direction: minimize
   - name: Customer TTFT P95

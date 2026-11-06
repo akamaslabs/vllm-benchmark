@@ -36,5 +36,19 @@ WHOLE='    MIG Mode
     GPU Instance ID                       : N/A'
 [ -z "$(echo "$WHOLE" | parse_gpu_instance_id)" ] && ok || ko "parse: whole GPU -> empty"
 
+# A writer that keeps writing after the id (kubectl exec streaming nvidia-smi -q in frames) must
+# not get SIGPIPE: under set -o pipefail that would abort apply_config.sh with rc 141 (review).
+RC=$(bash -c 'set -o pipefail; source "$1"; { echo "        GPU Instance ID : 5"; sleep 0.3; seq 1 200000; } | parse_gpu_instance_id >/dev/null; echo $?' _ "$HERE/lib_roles.sh")
+[ "$RC" = 0 ] && ok || ko "parse: no SIGPIPE on a late writer (rc $RC)"
+
+# gpu_instance_id must not fail when kubectl exec fails: empty id, then roles_metrics -> exit 7.
+OUT=$(bash -c 'set -euo pipefail; kubectl() { return 1; }; source "$1"; X=$(gpu_instance_id ns pod); echo "rc=0 id=[$X]"' _ "$HERE/lib_roles.sh" 2>&1)
+[ "$OUT" = "rc=0 id=[]" ] && ok || ko "gpu_instance_id tolerates exec failure ($OUT)"
+
+# Prometheus answer -> scalar (the pre-load join check in apply_config.sh).
+J='{"status":"success","data":{"resultType":"vector","result":[{"metric":{},"value":[1762430000.1,"24064"]}]}}'
+[ "$(echo "$J" | parse_prom_value)" = 24064 ] && ok || ko "prom: value"
+[ -z "$(echo '{"status":"success","data":{"resultType":"vector","result":[]}}' | parse_prom_value)" ] && ok || ko "prom: empty result -> empty"
+[ -z "$(echo 'garbage' | parse_prom_value)" ] && ok || ko "prom: garbage -> empty"
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" = 0 ]

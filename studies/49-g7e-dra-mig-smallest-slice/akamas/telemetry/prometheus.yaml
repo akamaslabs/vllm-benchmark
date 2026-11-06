@@ -69,8 +69,6 @@ metrics:
   datasourceMetric: 'count(kube_pod_status_ready{namespace="dra-mig-49", pod=~"$POD$", condition="true"} == 1)'
 - metric: active_dp_engines
   datasourceMetric: 'count(count by (pod, engine) (vllm:cache_config_info{pod=~"$POD$"}))'
-- metric: gpu_memory_allocated_gb
-  datasourceMetric: 'sum((DCGM_FI_DEV_FB_USED{exported_pod=~"$POD$"} * on(GPU_I_ID) group_left max by(GPU_I_ID)(study49_slice_role{role=~"$SLICE$"})) > 1024) * 1048576 / 1e9'
 - metric: input_sequence_length_p95
   datasourceMetric: 'histogram_quantile(0.95, sum by(le)(rate(vllm:request_prompt_tokens_bucket{model_name=~"$MODEL$", pod=~"$POD$"}[5m])))'
 - metric: input_sequence_length_avg

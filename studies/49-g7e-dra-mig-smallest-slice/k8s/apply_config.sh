@@ -186,7 +186,13 @@ set -e
 [ $ROLLOUT_EXIT -eq 0 ] || exit $ROLLOUT_EXIT
 
 # --- 5. dcgm-exporter re-reads the MIG layout only at start (Phase 0) -------------------
-kubectl -n monitoring delete pod -l app.kubernetes.io/name=dcgm-exporter --field-selector spec.nodeName="$GPU_NODE" --wait=false >/dev/null || true
+kubectl -n monitoring delete pod -l app.kubernetes.io/name=dcgm-exporter --field-selector spec.nodeName="$GPU_NODE" --wait=true >/dev/null || true
+T0=$SECONDS
+until kubectl -n monitoring get pods -l app.kubernetes.io/name=dcgm-exporter --field-selector spec.nodeName="$GPU_NODE" \
+        -o jsonpath='{.items[*].status.containerStatuses[0].ready}' 2>/dev/null | grep -q true; do
+  [ $((SECONDS - T0)) -gt 300 ] && die "dcgm-exporter not Ready on $GPU_NODE after 300 s: no per-slice GPU metrics, no goal" 7
+  sleep 5
+done
 t "dcgm-exporter restarted on $GPU_NODE"
 
 # --- 5b. Slice roles: which GPU instance is the customer's (DCGM has no pod label under DRA) --
@@ -194,7 +200,8 @@ CUST_ID=$(gpu_instance_id $NS vllm-customer-0)
 NB_IDS=()
 for i in $(seq 0 $((NEIGHBOURS - 1))); do NB_IDS+=("$(gpu_instance_id $NS vllm-neighbour-$i)"); done
 t "GPU instance ids: customer=${CUST_ID:-none} neighbours=${NB_IDS[*]:-none}"
-ROLES=$(roles_metrics "$MIG_PROFILE" "$CUST_ID" "${NB_IDS[@]}") \
+# ${NB_IDS[@]+...}: an empty array under set -u (layout none) on bash < 4.4.
+ROLES=$(roles_metrics "$MIG_PROFILE" "$CUST_ID" ${NB_IDS[@]+"${NB_IDS[@]}"}) \
   || die "cannot map the vLLM pods to their GPU instances (nvidia-smi -q in the pods): the goal would read the wrong slice" 7
 echo "$ROLES"
 echo "$ROLES" > "$K8S/slice-roles.prom"
@@ -202,6 +209,16 @@ kubectl -n $NS create configmap slice-roles --from-file=metrics="$K8S/slice-role
   | kubectl apply -f - >/dev/null || die "could not update the slice-roles ConfigMap" 7
 kubectl -n $NS rollout restart deployment/slice-roles >/dev/null
 kubectl -n $NS rollout status deployment/slice-roles --timeout=300s || die "slice-roles exporter not ready" 7
+# Check the goal's join once before the load (final review): a slice id that does not match DCGM's
+# GPU_I_ID would otherwise show up only as an empty goal after the whole Load task.
+T0=$SECONDS; FB=""
+while [ $((SECONDS - T0)) -lt 240 ]; do
+  FB=$(customer_fb_mib)
+  [ -n "$FB" ] && break
+  sleep 10
+done
+[ -n "$FB" ] || die "the customer slice's framebuffer (DCGM x slice-roles join) is empty in Prometheus after 240 s: the goal would be empty" 7
+t "customer slice framebuffer in Prometheus: $FB MiB"
 
 # --- 6. AIPerf clients ready (pip install + ShareGPT download, ~1 min) -------------------
 if ! kubectl -n $NS rollout status statefulset/aiperf-client --timeout=600s; then

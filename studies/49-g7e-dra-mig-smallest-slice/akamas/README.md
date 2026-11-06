@@ -60,7 +60,7 @@ slices; the header of `telemetry/prometheus.yaml` explains why.
   3. `whole GPU repeat`.
   4. `optimize`: AKAMAS, 4 init, 15 experiments, 6 failures max.
 - **8 KPIs:**
-  - customer slice GiB;
+  - customer slice MiB;
   - customer TTFT p95 and ITL p95;
   - customer tokens/s;
   - neighbours TTFT p95;

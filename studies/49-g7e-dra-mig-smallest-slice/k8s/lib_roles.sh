@@ -5,14 +5,18 @@
 # (03-slice-roles.yaml) that the Akamas telemetry joins to DCGM.
 
 # parse_gpu_instance_id: stdin = `nvidia-smi -q` from inside a pod; prints the MIG GPU instance
-# id, or nothing for a whole GPU ("N/A" or no such line).
+# id, or nothing for a whole GPU ("N/A" or no such line). Reads all of stdin (no early exit): a
+# writer still streaming would get SIGPIPE, and under pipefail apply_config.sh would die with
+# rc 141 and no message (final review).
 parse_gpu_instance_id() {
-  awk -F: '/GPU Instance ID/ { gsub(/[ \t]/, "", $2); if ($2 ~ /^[0-9]+$/) { print $2; exit } }'
+  awk -F: '/GPU Instance ID/ && id == "" { v = $2; gsub(/[ \t]/, "", v); if (v ~ /^[0-9]+$/) id = v } END { if (id != "") print id }'
 }
 
 # gpu_instance_id NAMESPACE POD: the GPU instance id of the pod's slice (empty for a whole GPU).
+# A failed exec gives an empty id (roles_metrics then fails -> apply_config.sh exit 7), never a
+# silent abort under set -e.
 gpu_instance_id() {
-  kubectl -n "$1" exec "$2" -- nvidia-smi -q 2>/dev/null | parse_gpu_instance_id
+  { kubectl -n "$1" exec "$2" -- nvidia-smi -q 2>/dev/null || true; } | parse_gpu_instance_id
 }
 
 # roles_metrics LAYOUT CUSTOMER_ID [NEIGHBOUR_ID...]: the exporter file on stdout.
@@ -44,4 +48,26 @@ roles_metrics() {
   done
   echo "study49_slice_role{GPU_I_ID=\"$cust\",role=\"customer\"} 1"
   for id in "$@"; do echo "study49_slice_role{GPU_I_ID=\"$id\",role=\"neighbour\"} 1"; done
+}
+
+# parse_prom_value: stdin = a Prometheus /api/v1/query JSON answer; prints the first sample's
+# value, or nothing (empty result, error, unparsable).
+parse_prom_value() {
+  python3 -c '
+import json, sys
+try:
+    r = json.load(sys.stdin)["data"]["result"]
+    if r: print(r[0]["value"][1])
+except Exception:
+    pass'
+}
+
+# customer_fb_mib: the customer slice's framebuffer (MiB) through the same DCGM x slice-roles join
+# the Akamas goal uses; empty if the join matches nothing. PROM_URL overridable for tests.
+customer_fb_mib() {
+  local j q
+  j='* on(GPU_I_ID) group_left max by(GPU_I_ID)(study49_slice_role{role="customer"})'
+  q="sum((DCGM_FI_DEV_FB_USED{modelName=~\".*RTX PRO 6000.*\"} $j) + (DCGM_FI_DEV_FB_FREE{modelName=~\".*RTX PRO 6000.*\"} $j))"
+  { curl -s --max-time 10 "${PROM_URL:-http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090}/api/v1/query" \
+      --data-urlencode "query=$q" || true; } | parse_prom_value
 }

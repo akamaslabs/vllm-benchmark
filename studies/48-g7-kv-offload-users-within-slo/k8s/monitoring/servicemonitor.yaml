@@ -1,0 +1,14 @@
+# Prometheus scrape of the study 47/48 vLLM pod (namespace kv-offload), 5 s like the other vLLM
+# ServiceMonitors. Applied by apply_config.sh (idempotent). Without it every vllm:* query, i.e.
+# the goal and the constraint, is empty.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vllm-kv-offload
+  namespace: monitoring
+  labels: {app: vllm}
+spec:
+  endpoints:
+  - {interval: 5s, path: /metrics, port: http, scrapeTimeout: 4s}
+  namespaceSelector: {matchNames: [kv-offload]}
+  selector: {matchLabels: {app: vllm}}

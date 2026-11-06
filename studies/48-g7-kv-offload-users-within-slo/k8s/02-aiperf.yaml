@@ -1,0 +1,23 @@
+# Study 48 load generator: one long-lived AIPerf 0.11.0 pod on the GPU node (4 CPU / 8 GiB for up to 128 users;
+# vLLM keeps 10 of the 15.9 allocatable CPUs). Applied idempotently by apply_config.sh and kept
+# across experiments, so aiperf is installed once. run_level (lib_load.sh) starts each run with kubectl exec.
+# The synthetic dataset needs no download. Results in /work (emptyDir); run_level deletes each
+# run's output after printing what it needs.
+apiVersion: v1
+kind: Pod
+metadata: {name: aiperf, namespace: kv-offload, labels: {app: aiperf}}
+spec:
+  nodeSelector: {node-role: llm-serving-g7-kv}
+  tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+  terminationGracePeriodSeconds: 5
+  containers:
+  - name: aiperf
+    image: python:3.12-slim
+    workingDir: /work
+    command: ["sh", "-c", "pip install --quiet aiperf==0.11.0 && touch /work/ready && exec sleep infinity"]
+    readinessProbe: {exec: {command: [test, -f, /work/ready]}, periodSeconds: 5}
+    resources:
+      requests: {cpu: "4", memory: 8Gi}
+      limits: {cpu: "4", memory: 8Gi}
+    volumeMounts: [{name: work, mountPath: /work}]
+  volumes: [{name: work, emptyDir: {}}]

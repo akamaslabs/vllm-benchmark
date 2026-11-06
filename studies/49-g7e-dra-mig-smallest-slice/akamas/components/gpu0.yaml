@@ -1,0 +1,15 @@
+kind: component
+system: vLLM_Benchmark_49_G7E_MIG_Smallest_Slice
+
+name: gpu0
+description: >-
+  The physical RTX PRO 6000 Blackwell Server Edition. Carries mig_profile (GPU pack 1.4.0):
+  none (whole GPU), 2g.48gb or 1g.24gb, the customer's slice size, created per claim by the
+  DRA driver. Its DCGM queries take every series (slice regex .+): whole-GPU power,
+  temperature, clocks and all slices.
+componentType: GPU
+properties:
+  prometheus:
+    gpu: "0"
+    gpumodel: .*RTX PRO 6000.*
+    slice: .+

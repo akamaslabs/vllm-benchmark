@@ -1,0 +1,13 @@
+kind: component
+system: vLLM_Benchmark_49_G7E_MIG_Smallest_Slice
+
+name: vllm
+description: >-
+  The customer's vLLM (StatefulSet vllm-customer, pod vllm-customer-0, namespace dra-mig-49),
+  Qwen/Qwen3-8B-FP8 served as qwen3-8b-dra, at 128 closed-loop users. Carries every tuned
+  vLLM parameter; the SLA constraints and the latency KPIs read it.
+componentType: vLLM
+properties:
+  prometheus:
+    pod: ^vllm-customer-0$
+    model: qwen3-8b-dra

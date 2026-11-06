@@ -1,0 +1,13 @@
+kind: component
+system: vLLM_Benchmark_49_G7E_MIG_Smallest_Slice
+
+name: gpu_neighbours
+description: >-
+  The neighbours' slices only, through the slice-roles join on GPU_I_ID: how busy the rest of
+  the GPU is during the customer's measurement.
+componentType: GPU
+properties:
+  prometheus:
+    gpu: "0"
+    gpumodel: .*RTX PRO 6000.*
+    slice: neighbour

@@ -1,0 +1,180 @@
+kind: study
+name: 49-G7E-MIG-Smallest-Slice
+description: >-
+  Lab case for a customer running a small model on a whole H100: Qwen/Qwen3-8B-FP8 (vLLM 0.29.0)
+  on one RTX PRO 6000 Blackwell 96 GB (g7e.4xlarge, 4.00 USD/h). The customer vLLM runs on a MIG
+  slice requested through Kubernetes DRA (whole GPU, 2g.48gb or 1g.24gb) with busy neighbour
+  vLLMs on the other slices, at a fixed 128 closed-loop users (AIPerf, ShareGPT). Goal: the
+  smallest slice that serves those users within TTFT p95 1.5 s / ITL p95 300 ms, with the
+  customer's vLLM tuned. Requires GPU pack 1.4.0, vLLM pack 1.15.0, Kubernetes pack 1.9.0. Design:
+  docs/superpowers/specs/2026-11-06-study-49-g7e-mig-smallest-slice-design.md.
+system: vLLM_Benchmark_49_G7E_MIG_Smallest_Slice
+workflow: 49-G7E-MIG-Smallest-Slice-Workflow
+goal:
+  objective: minimize
+  function:
+    # GiB of GPU memory in the customer's slice (DCGM framebuffer of that MIG instance, or of the
+    # whole GPU with no MIG; ~24 / ~48 / ~96), plus TTFT p95 in ms / 1e6 as a tie-break inside a
+    # slice size (<= 0.0015 under the SLA). The whole GPU competes: a slice wins only if it meets
+    # the SLA (design, "Fairness").
+    formula: gpu_customer.gpu_fb_total / 1024 + vllm.time_to_first_token_p95 / 1000000
+    unit: GiB
+  constraints:
+    absolute:
+      # Study 46's SLA, on the customer's vLLM only (server-side histograms). Completed >= 95 %
+      # and busy neighbours are enforced client-side by run_load.sh (exit 6: the trial fails).
+      - name: TTFT P95 SLA
+        formula: vllm.time_to_first_token_p95 <= 1500
+      - name: ITL P95 SLA
+        formula: vllm.inter_token_latency_p95 <= 300
+# Only the Load task. Start trim 90s: AIPerf start-up (~25 s with the 10k ShareGPT subset) +
+# 20 s warm-up + the dip at the warm-up/profiling switch (~57 s in study 46's smoke test); end
+# trim 60s: grace period, parsing and the log dumps of up to 4 clients. One unit per value.
+windowing:
+  type: trim
+  trim: [90s, 60s]
+  task: Load
+numberOfTrials: 1
+parametersSelection:
+  - name: gpu0.mig_profile
+    categories: [none, 2g.48gb, 1g.24gb]
+  # The customer's vLLM only (neighbours run defaults). Study 46's set: studies 36/38 minus what
+  # does not apply to a dense FP8 model without MTP heads (k8s/params.env.template). Domains fit
+  # the vLLM pack 1.14.0 ones (study 46, 2026-11-04); pack 1.15.0 only added offload.
+  - name: vllm.gpu_memory_utilization
+    domain: [0.80, 0.94]
+  # Up to 1024 as study 46 (128 users need >= 128 sequences in flight to avoid queueing).
+  - name: vllm.max_num_seqs
+    domain: [16, 1024]
+  - name: vllm.max_num_batched_tokens
+    domain: [1024, 16384]
+  - name: vllm.kv_cache_dtype
+    categories: [auto, fp8]
+  - name: vllm.performance_mode
+    categories: [balanced, interactivity, throughput]
+  - name: vllm.optimization_level
+    domain: [1, 3]
+  - name: vllm.async_scheduling
+    categories: ["true", "false"]
+  - name: vllm.max_cudagraph_capture_size
+    domain: [16, 1024]
+  # Powers of two only: 48/80/96/112 ran on the L40S (Triton attention) in 36/38, but here
+  # (SM 12.0, FlashInfer / FlashAttention) they are not known to be supported.
+  - name: vllm.block_size
+    categories: ["16", "32", "64", "128"]
+  - name: vllm.watermark
+    domain: [0.0, 0.10]
+  - name: vllm.scheduler_reserve_full_isl
+    categories: ["true", "false"]
+  - name: vllm.stream_interval
+    domain: [1, 16]
+parameterConstraints:
+  # vLLM 0.29.0 config/scheduler.py raises ValueError otherwise.
+  - name: max_num_batched_tokens must be at least max_num_seqs
+    formula: vllm.max_num_batched_tokens >= vllm.max_num_seqs
+kpis:
+  - name: Customer slice GiB
+    formula: gpu_customer.gpu_fb_total
+    direction: minimize
+  - name: Customer TTFT P95
+    formula: vllm.time_to_first_token_p95
+    direction: minimize
+  - name: Customer ITL P95
+    formula: vllm.inter_token_latency_p95
+    direction: minimize
+  - name: Customer token throughput
+    formula: vllm.total_token_throughput
+    direction: maximize
+  - name: Neighbours TTFT P95
+    formula: vllm_neighbours.time_to_first_token_p95
+    direction: minimize
+  - name: Customer slice SM active
+    formula: gpu_customer.gpu_sm_active
+    direction: maximize
+  - name: GPU power
+    formula: gpu0.gpu_power_usage
+    direction: minimize
+  # CPU-fairness guard (design anti-goal).
+  - name: vLLM CPU throttled
+    formula: container.container_cpu_throttle_time
+    direction: minimize
+# Baseline = the customer today: whole GPU, vLLM defaults (gmu 0.90 and max_num_seqs 256 /
+# mnbt 2048 rendered explicitly as in study 46). Every non-rendered parameter is vLLM's default.
+steps:
+  - name: baseline
+    type: baseline
+    numberOfTrials: 1
+    values:
+      gpu0.mig_profile: none
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+      vllm.gpu_memory_utilization: 0.90
+      vllm.kv_cache_dtype: auto
+    doNotRenderParameters:
+      - vllm.performance_mode
+      - vllm.optimization_level
+      - vllm.async_scheduling
+      - vllm.max_cudagraph_capture_size
+      - vllm.block_size
+      - vllm.watermark
+      - vllm.scheduler_reserve_full_isl
+      - vllm.stream_interval
+  # Presets: the customer's defaults on smaller slices, neighbours busy.
+  - name: MIG half GPU
+    type: preset
+    values:
+      gpu0.mig_profile: 2g.48gb
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+      vllm.gpu_memory_utilization: 0.90
+      vllm.kv_cache_dtype: auto
+    doNotRenderParameters:
+      - vllm.performance_mode
+      - vllm.optimization_level
+      - vllm.async_scheduling
+      - vllm.max_cudagraph_capture_size
+      - vllm.block_size
+      - vllm.watermark
+      - vllm.scheduler_reserve_full_isl
+      - vllm.stream_interval
+  - name: MIG quarter GPU
+    type: preset
+    values:
+      gpu0.mig_profile: 1g.24gb
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+      vllm.gpu_memory_utilization: 0.90
+      vllm.kv_cache_dtype: auto
+    doNotRenderParameters:
+      - vllm.performance_mode
+      - vllm.optimization_level
+      - vllm.async_scheduling
+      - vllm.max_cudagraph_capture_size
+      - vllm.block_size
+      - vllm.watermark
+      - vllm.scheduler_reserve_full_isl
+      - vllm.stream_interval
+  # The baseline again: a drift check before trusting the gaps (study 26 saw ~5 %).
+  - name: whole GPU repeat
+    type: preset
+    values:
+      gpu0.mig_profile: none
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+      vllm.gpu_memory_utilization: 0.90
+      vllm.kv_cache_dtype: auto
+    doNotRenderParameters:
+      - vllm.performance_mode
+      - vllm.optimization_level
+      - vllm.async_scheduling
+      - vllm.max_cudagraph_capture_size
+      - vllm.block_size
+      - vllm.watermark
+      - vllm.scheduler_reserve_full_isl
+      - vllm.stream_interval
+  - name: optimize
+    type: optimize
+    optimizer: AKAMAS
+    numberOfInitExperiments: 4
+    numberOfExperiments: 15
+    maxFailedExperiments: 6

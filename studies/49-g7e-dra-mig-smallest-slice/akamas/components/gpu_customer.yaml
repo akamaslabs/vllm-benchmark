@@ -1,0 +1,13 @@
+kind: component
+system: vLLM_Benchmark_49_G7E_MIG_Smallest_Slice
+
+name: gpu_customer
+description: >-
+  The customer's slice only (or the whole GPU with no MIG), through the slice-roles join on
+  GPU_I_ID. Its gpu_fb_total (MiB) is the goal: the GPU memory the customer occupies.
+componentType: GPU
+properties:
+  prometheus:
+    gpu: "0"
+    gpumodel: .*RTX PRO 6000.*
+    slice: customer

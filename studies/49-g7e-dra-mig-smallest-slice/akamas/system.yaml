@@ -1,0 +1,9 @@
+kind: system
+name: vLLM_Benchmark_49_G7E_MIG_Smallest_Slice
+description: >-
+  One NVIDIA RTX PRO 6000 Blackwell Server Edition 96 GB (g7e.4xlarge, node group
+  llm-serving-g7e-4xl), a lab stand-in for a customer's H100 serving a small model. A customer
+  vLLM (Qwen/Qwen3-8B-FP8, vllm/vllm-openai:v0.29.0) runs on a MIG slice requested through
+  Kubernetes DRA (DynamicMIG): whole GPU, 2g.48gb or 1g.24gb, with busy neighbour vLLMs on the
+  other slices. Goal: the smallest slice serving 128 users within TTFT p95 1.5 s / ITL p95
+  300 ms. Requires GPU pack 1.4.0, vLLM pack 1.15.0, Kubernetes pack 1.9.0. Created 2026-11-06.

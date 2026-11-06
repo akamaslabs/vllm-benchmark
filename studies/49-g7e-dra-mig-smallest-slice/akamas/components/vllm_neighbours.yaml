@@ -1,0 +1,13 @@
+kind: component
+system: vLLM_Benchmark_49_G7E_MIG_Smallest_Slice
+
+name: vllm_neighbours
+description: >-
+  The neighbour vLLMs (StatefulSet vllm-neighbour, pods vllm-neighbour-N, 0, 1 or 3 of them):
+  other tenants on the remaining slices, vLLM defaults (gmu 0.90), never tuned, 64 users per
+  quarter of GPU. Read only to show the rest of the GPU is usable.
+componentType: vLLM
+properties:
+  prometheus:
+    pod: ^vllm-neighbour-[0-9]+$
+    model: qwen3-8b-dra

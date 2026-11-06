@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_49_G7E_MIG_Smallest_Slice
+
+name: container
+description: >-
+  The customer's vLLM container (pod vllm-customer-0, namespace dra-mig-49). CPU request =
+  limit = (node allocatable - 400m) / pods, so container_cpu_throttle_time is the
+  CPU-fairness guard (design anti-goal).
+componentType: Kubernetes Container
+properties:
+  prometheus:
+    pod: ^vllm-customer-0$

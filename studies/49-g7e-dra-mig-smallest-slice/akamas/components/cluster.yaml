@@ -1,0 +1,10 @@
+kind: component
+system: vLLM_Benchmark_49_G7E_MIG_Smallest_Slice
+
+name: cluster
+description: >-
+  The GPU node (node group llm-serving-g7e-4xl, one g7e.4xlarge, 16 vCPU / 128 GiB).
+componentType: Kubernetes Cluster
+properties:
+  prometheus:
+    noderole: llm-serving-g7e-4xl

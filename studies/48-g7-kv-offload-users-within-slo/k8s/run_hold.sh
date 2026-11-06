@@ -5,7 +5,7 @@
 # requests/s - TTFT p95 / 1000 from Prometheus; TTFT <= 600 ms and ITL <= 120 ms are Akamas
 # constraints. This script fails the trial (exit 6) only if errors >= 1 %, completed < 95 % or
 # the load fell behind (the SLO itself was judged by the Ramp), exit 5 if vLLM restarted, 4 if
-# level.current is missing.
+# level.current is missing, 7 if no Ramp level met the SLO.
 set -uo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 export SCRIPT_NAME=run_hold
@@ -20,7 +20,8 @@ source "${LIB_LOAD:-$HERE/lib_load.sh}"
 LEVEL_FILE=${LEVEL_FILE:-$HERE/level.current}
 
 [ -s "$LEVEL_FILE" ] || die "no $LEVEL_FILE: the Ramp task did not complete" 4
-L=$(cat "$LEVEL_FILE")
+grep -qx 'best=none' "$LEVEL_FILE" && die "no Ramp level met the SLO: nothing to hold (the experiment must not score)" 7
+L=$(head -1 "$LEVEL_FILE")
 R0=$(restarts)
 t "holding $L users for ${LEVEL_SECONDS} s (+60 s grace)"
 OUT=$(run_level "$L" "$LEVEL_SECONDS" "hold-$L"); RC=$?

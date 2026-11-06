@@ -17,8 +17,11 @@ run_level() {
   echo "$1" > "$STUB_DIR/last"
   local v="STUB_TTFT_$1"; local x="${!v:-100}"
   [ "$x" = rcfail ] && { echo "aiperf crashed"; return 1; }
-  local n; n=$(expected_sent "$1")
+  [ "$x" = killed ] && { echo "Killed"; return 137; }
+  local n rc=0; n=$(expected_sent "$1")
+  [ "$x" = rc1result ] && { x=100; rc=1; }
   echo "RESULT sent=$n completed=$n errors=0 ttft_p50_ms=50 ttft_p95_ms=$x itl_p95_ms=15"
+  return $rc
 }
 EOF
 PASS=0; FAIL=0
@@ -36,14 +39,28 @@ ramp STUB_TTFT_48=700
   && [ "$(cat "$TMP/rc")" = 0 ] && ok || ko "ramp stops at first fail"
 
 ramp STUB_TTFT_16=700
-[ "$(cat "$TMP/level")" = 16 ] && grep -q 'RESULT ramp best=none hold=16' "$TMP/out" && ok || ko "ramp none passes"
+[ "$(head -1 "$TMP/level")" = 16 ] && grep -qx 'best=none' "$TMP/level" && grep -q 'RESULT ramp best=none hold=16' "$TMP/out" && ok || ko "ramp none passes"
 
 ramp
 [ "$(cat "$TMP/level")" = 128 ] && grep -q WARNING "$TMP/out" && grep -q 'RESULT ramp best=128 hold=128' "$TMP/out" \
   && ok || ko "ramp top passes"
 
 ramp STUB_TTFT_24=rcfail
-[ "$(cat "$TMP/level")" = 16 ] && grep -q 'RAMP level=24 fail' "$TMP/out" && ok || ko "ramp aiperf failure"
+[ "$(cat "$TMP/rc")" = 6 ] && ok || ko "ramp aiperf crash without RESULT -> exit 6 (rc $(cat "$TMP/rc"))"
+
+ramp STUB_TTFT_24=killed
+[ "$(cat "$TMP/rc")" = 6 ] && ok || ko "ramp aiperf killed (rc 137) -> exit 6 (rc $(cat "$TMP/rc"))"
+
+ramp STUB_TTFT_24=rc1result
+[ "$(cat "$TMP/rc")" = 0 ] && [ "$(cat "$TMP/level")" = 16 ] && grep -q 'RAMP level=24 fail' "$TMP/out" \
+  && ok || ko "ramp aiperf rc 1 with RESULT -> level fails"
+
+# Hold: a ramp where no level passed must not score.
+hold() { env LIB_LOAD="$TMP/stub_lib.sh" STUB_DIR="$TMP" LEVEL_FILE="$TMP/level" bash "$HERE/run_hold.sh" > "$TMP/out" 2>&1; echo $? > "$TMP/rc"; }
+ramp STUB_TTFT_16=700; hold
+[ "$(cat "$TMP/rc")" = 7 ] && ok || ko "hold after no passing level -> exit 7 (rc $(cat "$TMP/rc"))"
+ramp STUB_TTFT_48=700; hold
+[ "$(cat "$TMP/rc")" = 0 ] && grep -q 'RESULT hold users=32' "$TMP/out" && ok || ko "hold at the passing level"
 
 ramp STUB_RESTART_AT=24
 [ "$(cat "$TMP/rc")" = 5 ] && ok || ko "ramp restart -> exit 5 (rc $(cat "$TMP/rc"))"

@@ -54,6 +54,13 @@ Each user holds ~3.9k tokens of live history.
   - A Hold whose TTFT lands between 500 and 600 ms is VALID in Akamas but **flagged in the
     results**.
 - **Granularity:** above 32 users the steps are 16 users. If 128 passes, the result is "≥ 128".
+- **Read the score by level, not by decimals.** The rate is read over 30 s, so the "users" term
+  is noisy by about ±0.5 user over the window, as large as the TTFT tie-break. Only differences
+  across levels are findings; within a level, compare TTFT directly (final review, 2026-11-06).
+- **Failures that must not score:**
+  - AIPerf killed (exit ≥ 128, e.g. OOM) or crashed without a RESULT line fails the Ramp (exit
+    6), instead of being taken as an SLO failure.
+  - If no level passes, the Hold exits 7 instead of scoring the first level.
 - **Every load prints** the RESULT line, the TTFT per minute, the vLLM prefix and offload
   counter deltas, and the AIPerf log tail. Before each load, stale AIPerf processes are killed:
   the study 47 reaper, now in `run_level`.

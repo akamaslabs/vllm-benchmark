@@ -1,0 +1,59 @@
+kind: workflow
+name: 48-G7-KV-Offload-Users-Workflow
+# Four tasks, all on the akamas-41 toolbox (study copied to /work/study48 with tar, as 45-47):
+#   Write config  render params.env from the experiment's parameters
+#   Apply config  vLLM Deployment with the tuned flags, /dev/shm and memory sized from the CPU
+#                 offload; AIPerf pod kept; vLLM logs dumped to stdout
+#   Ramp          levels 16-128 users (workload.env), one fresh 16 min AIPerf run each, judged on
+#                 client TTFT p95 <= 500 ms; stops at the first failing level; writes level.current
+#   Hold          the chosen level re-run fresh; the study windows on this task
+# Every load prints its client-side RESULT, per-minute TTFT, vLLM counters and AIPerf log tail.
+tasks:
+  # ignoreUnsubstitutedTokens false on purpose: every token must resolve.
+  - name: Write config
+    operator: FileConfigurator
+    arguments:
+      ignoreUnsubstitutedTokens: false
+      source:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/study48/48-g7-kv-offload-users-within-slo/k8s/params.env.template
+      target:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+        path: /work/study48/48-g7-kv-offload-users-within-slo/k8s/params.env
+  - name: Apply config
+    operator: Executor
+    arguments:
+      retries: 0
+      # Above apply_config.sh's own 2400 s vLLM wait + 600 s AIPerf wait, so its log dump runs.
+      timeout: 60m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/study48/48-g7-kv-offload-users-within-slo/k8s/apply_config.sh
+  - name: Ramp
+    operator: Executor
+    arguments:
+      retries: 0
+      # 9 levels x (960 s load + 60 s grace + start-up and parsing ~40 s) = ~159 min.
+      timeout: 180m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/study48/48-g7-kv-offload-users-within-slo/k8s/run_ramp.sh
+  - name: Hold
+    operator: Executor
+    arguments:
+      retries: 0
+      # 960 s load + 60 s grace + start-up, parsing and log dump.
+      timeout: 25m
+      host:
+        hostname: toolbox
+        username: akamas
+        key: /home/akamas/.ssh/id_rsa
+      command: bash /work/study48/48-g7-kv-offload-users-within-slo/k8s/run_hold.sh

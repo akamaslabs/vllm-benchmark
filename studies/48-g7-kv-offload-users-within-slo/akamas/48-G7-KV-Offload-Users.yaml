@@ -1,0 +1,151 @@
+kind: study
+name: 48-G7-KV-Offload-Users
+description: >-
+  Users within a TTFT SLO under KV memory pressure: Qwen/Qwen3-8B-FP8 (vLLM 0.29.0, prefix
+  caching on) on one RTX PRO 4500 32 GB (g7.4xlarge, 3.04 USD/h), AIPerf multi-turn chat with
+  study 47's per-user load (one turn every 64 s, 10 turns, history re-sent). A Ramp task finds
+  the most users (levels 16-128) served with client TTFT p95 <= 500 ms; a Hold task re-runs that
+  level and Akamas scores it. Tuning CPU KV offload with FP8 KV, memory utilization, batching,
+  block size; presets measure each lever alone. Requires vLLM pack 1.15.0, Kubernetes pack
+  1.9.0. Design: docs/superpowers/specs/2026-11-06-study-48-kv-offload-users-within-slo-design.md.
+system: vLLM_Benchmark_48_G7_KV_Offload_Users
+workflow: 48-G7-KV-Offload-Users-Workflow
+goal:
+  objective: maximize
+  function:
+    # Users held = 64 x completed requests/s over the Hold window (one turn per user every 64 s:
+    # the completed rate is users / 64 whenever the server keeps up, which the Ramp checked),
+    # minus TTFT p95 in seconds as a tie-break (at most 0.6 under the constraint, below one level
+    # step), so configurations reaching the same level are ranked by TTFT (design, builder check).
+    formula: 64 * vllm.request_success_rate - vllm.time_to_first_token_p95 / 1000
+    unit: users
+  constraints:
+    absolute:
+      # The 500 ms SLO is judged client-side by the Ramp. This server-side net is looser (600 ms)
+      # so run-to-run noise on a fresh Hold at the cache edge does not discard the best
+      # configurations; the README flags every Hold between 500 and 600 ms (design).
+      - name: TTFT P95 safety net
+        formula: vllm.time_to_first_token_p95 <= 600
+      # Study 47's threshold (server-side histogram: every gap between two tokens).
+      - name: ITL P95 not degraded
+        formula: vllm.inter_token_latency_p95 <= 120
+# Only the Hold task. Start trim 620s: AIPerf start-up (~13 s in study 47) + STEADY_FROM 600 s of
+# warm-up (conversations at full size); end trim 90s: grace period, parsing and log dump. One
+# unit per value (study 46: "1m30s" breaks scoring).
+windowing:
+  type: trim
+  trim: [620s, 90s]
+  task: Hold
+numberOfTrials: 1
+parametersSelection:
+  # 0 = offload off (no flag). 28 GiB max: 28 + 20 GiB (vLLM) + 6 GiB (AIPerf) fits the 57 GiB
+  # allocatable of the g7.4xlarge (the design said 0-32; apply_config.sh refuses > 28).
+  - name: vllm.kv_offloading_size
+    domain: [0, 28]
+  - name: vllm.kv_cache_dtype
+    categories: [auto, fp8]
+  - name: vllm.gpu_memory_utilization
+    domain: [0.80, 0.94]
+  - name: vllm.max_num_seqs
+    domain: [16, 256]
+  - name: vllm.max_num_batched_tokens
+    domain: [1024, 16384]
+  # Powers of two only (as study 46: other sizes not known to be supported on SM 12.0).
+  - name: vllm.block_size
+    categories: ["16", "32", "64", "128"]
+parameterConstraints:
+  # vLLM 0.29.0 config/scheduler.py raises ValueError otherwise.
+  - name: max_num_batched_tokens must be at least max_num_seqs
+    formula: vllm.max_num_batched_tokens >= vllm.max_num_seqs
+kpis:
+  - name: Users within SLO
+    formula: 64 * vllm.request_success_rate
+    direction: maximize
+  - name: Tokens per second
+    formula: vllm.total_token_throughput
+    direction: maximize
+  - name: TTFT P95
+    formula: vllm.time_to_first_token_p95
+    direction: minimize
+  - name: ITL P95
+    formula: vllm.inter_token_latency_p95
+    direction: minimize
+  - name: Prompt from GPU prefix cache
+    formula: vllm.prefix_cache_hit_rate
+    direction: maximize
+  - name: Prompt from CPU offload
+    formula: vllm.cpu_offload_prefix_hit_rate
+    direction: maximize
+  - name: KV cache usage
+    formula: vllm.kv_cache_usage_max
+    direction: maximize
+  - name: vLLM CPU throttled
+    formula: container.container_cpu_throttle_time
+    direction: minimize
+# Steps as study 47. Baseline = vLLM 0.29.0's own defaults on this GPU (study 47 calibration 2026-11-05: vLLM log,
+# vllm:cache_config_info and EngineArgs.get_batch_defaults for a 32 GB GPU): gmu 0.92,
+# max_num_seqs 256, max_num_batched_tokens 2048, kv auto, block 16, no offload. Akamas 4.1 refuses
+# a parameter both in `values` and in doNotRenderParameters, so the defaults are rendered as
+# explicit flags (same configuration, and the optimizer knows the starting point); only
+# block_size stays unrendered (an explicit --block-size may change vLLM's attention backend
+# choice). Presets change one lever at a time, then both (design: offload must not be favoured
+# by construction).
+steps:
+  - name: baseline
+    type: baseline
+    values:
+      vllm.kv_offloading_size: 0
+      vllm.kv_cache_dtype: auto
+      vllm.gpu_memory_utilization: 0.92
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+    doNotRenderParameters:
+      - vllm.block_size
+  - name: Offload only
+    type: preset
+    values:
+      vllm.kv_offloading_size: 24
+      vllm.kv_cache_dtype: auto
+      vllm.gpu_memory_utilization: 0.92
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+    doNotRenderParameters:
+      - vllm.block_size
+  - name: FP8 KV only
+    type: preset
+    values:
+      vllm.kv_offloading_size: 0
+      vllm.kv_cache_dtype: fp8
+      vllm.gpu_memory_utilization: 0.92
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+    doNotRenderParameters:
+      - vllm.block_size
+  - name: Offload and FP8
+    type: preset
+    values:
+      vllm.kv_offloading_size: 24
+      vllm.kv_cache_dtype: fp8
+      vllm.gpu_memory_utilization: 0.92
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+    doNotRenderParameters:
+      - vllm.block_size
+  # The baseline again: drift check before trusting the gaps.
+  - name: Baseline repeat
+    type: preset
+    values:
+      vllm.kv_offloading_size: 0
+      vllm.kv_cache_dtype: auto
+      vllm.gpu_memory_utilization: 0.92
+      vllm.max_num_seqs: 256
+      vllm.max_num_batched_tokens: 2048
+    doNotRenderParameters:
+      - vllm.block_size
+  - name: optimize
+    type: optimize
+    optimizer: AKAMAS
+    # Short: in study 47 the optimizer added 3 % over the best preset (design).
+    numberOfInitExperiments: 3
+    numberOfExperiments: 10
+    maxFailedExperiments: 5

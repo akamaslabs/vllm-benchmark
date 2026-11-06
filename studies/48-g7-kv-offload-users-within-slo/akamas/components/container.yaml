@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_48_G7_KV_Offload_Users
+
+name: container
+description: >-
+  The vLLM container (pod vllm-*, namespace kv-offload), 10 CPU, memory = offload + 20 GiB
+  (requests = limits). container_cpu_throttle_time guards against a CPU-starved vLLM;
+  container_memory_used shows the offload buffer (/dev/shm counts in the pod's memory).
+componentType: Kubernetes Container
+properties:
+  prometheus:
+    pod: ^vllm-.*

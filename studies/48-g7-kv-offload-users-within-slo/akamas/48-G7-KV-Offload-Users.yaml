@@ -58,8 +58,9 @@ parameterConstraints:
   - name: max_num_batched_tokens must be at least max_num_seqs
     formula: vllm.max_num_batched_tokens >= vllm.max_num_seqs
 kpis:
-  - name: Users within SLO
-    formula: 64 * vllm.request_success_rate
+  # Akamas 4.1 accepts only <component>.<metric> in a KPI formula: users = 64 x this.
+  - name: Completed requests per s
+    formula: vllm.request_success_rate
     direction: maximize
   - name: Tokens per second
     formula: vllm.total_token_throughput

@@ -225,7 +225,7 @@ Akamas 4.1 (`akamas-41`, toolbox), vLLM pack 1.15.0, Kubernetes pack 1.9.0, EKS 
 
   All paths are under `/work/study48/48-g7-kv-offload-users-within-slo/k8s/`.
 - Study: goal, constraints, windowing, parameters and steps from Global Constraints. 8 KPIs:
-  - Users: `64 * vllm.request_success_rate`;
+  - completed requests/s: `vllm.request_success_rate` (users = 64 × this; a KPI takes one metric only);
   - `vllm.total_token_throughput`;
   - `vllm.time_to_first_token_p95`;
   - `vllm.inter_token_latency_p95`;

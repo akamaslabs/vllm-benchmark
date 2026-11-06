@@ -15,3 +15,19 @@ check_result() {
     }
     END { if (!found) { print "no RESULT line"; exit 1 } exit bad }'
 }
+
+# check_level SUMMARY EXPECTED_SENT SLO_MS (study 48 Ramp): the trial checks above, then client
+# TTFT p95 <= SLO_MS. 0 = the level passes; 1 = it fails (reason on stdout). A missing or
+# non-numeric TTFT fails.
+check_level() {
+  local why
+  why=$(check_result "$1" "$2") || { echo "$why"; return 1; }
+  echo "$1" | awk -v slo="$3" '
+    /^RESULT/ { for (k = 2; k <= NF; k++) { split($k, a, "="); v[a[1]] = a[2] } }
+    END {
+      x = v["ttft_p95_ms"]
+      if (x !~ /^[0-9]+(\.[0-9]+)?$/) { print "client TTFT p95 not available (" x ")"; exit 1 }
+      if (x + 0 > slo + 0) { print "client TTFT p95 " x " ms > " slo " ms"; exit 1 }
+      print "client TTFT p95 " x " ms <= " slo " ms"
+    }'
+}

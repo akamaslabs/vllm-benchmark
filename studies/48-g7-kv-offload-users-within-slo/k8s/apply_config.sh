@@ -19,7 +19,7 @@ NODE_ROLE=llm-serving-g7-kv
 K8S=$STUDY_DIR/k8s
 PARAMS=$K8S/params.env
 HERE=$(cd "$(dirname "$0")" && pwd)   # manifests live next to the script
-OFFLOAD_MAX=28   # GiB: 28 + 20 (vLLM) + 8 (AIPerf) = 56 fits the node's 57 GiB allocatable
+OFFLOAD_MAX=28   # GiB: 28 + 20 (vLLM) + 6 (AIPerf request) = 54 fits the node 54.5 GiB allocatable
 
 t() { echo "$(date -u +%T) apply_config: $*"; }
 die() { echo "error: $*" >&2; exit "${2:-2}"; }

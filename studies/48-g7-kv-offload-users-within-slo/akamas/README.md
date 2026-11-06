@@ -15,7 +15,7 @@ ramp rules are in:
   - Kubernetes **1.9.0**.
 - **Workload:** `vllm/vllm-openai:v0.29.0`, `Qwen/Qwen3-8B-FP8` served as `qwen3-8b`.
 - **Load generator:** AIPerf 0.11.0, in a `python:3.12-slim` pod on the GPU node with 4 CPU and
-  8 GiB.
+  memory request 6 GiB / limit 8 GiB (node: 54.5 GiB allocatable).
 - **Telemetry:** Prometheus (kube-prometheus-stack).
   - Address: `kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090`, in the
     cluster.

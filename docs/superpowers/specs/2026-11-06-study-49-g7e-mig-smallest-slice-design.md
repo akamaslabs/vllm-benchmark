@@ -133,6 +133,34 @@ So 1/2 should pass and 1/4 is the open question the optimizer answers.
 - **Cost:** ~25–30 min per experiment, i.e. MIG re-layout, vLLM start and 10 min of load.
   ~19 experiments ≈ 10 h ≈ 40 USD of g7e.4xlarge plus ~5 USD for the m8a load node.
 
+## NVIDIA metrics for later analysis (user, 2026-11-06)
+
+The study collects NVIDIA DCGM metrics so the results can be analysed afterwards, not only
+scored. Most of them are telemetry metrics rather than KPIs, because a study holds at most 8
+KPIs. They are visible in the Akamas UI and in the export.
+
+- **Whole GPU, `gpu0` component (GPU pack 1.4.0):** study 46's DCGM catalog.
+  - power usage and power limit;
+  - GPU and memory temperature;
+  - power and thermal violation time;
+  - `GPU_UTIL`;
+  - `PROF_SM_ACTIVE`, `PROF_SM_OCCUPANCY`, `PROF_PIPE_TENSOR_ACTIVE`, `PROF_PIPE_FP16_ACTIVE`,
+    `PROF_DRAM_ACTIVE`;
+  - framebuffer used and total;
+  - PCIe replay.
+- **Per MIG instance:** dcgm-exporter publishes one series per instance (`GPU_I_ID`,
+  `GPU_I_PROFILE`), after an exporter restart following each re-layout, as study 46 does.
+  - The study adds per-slice queries for the **customer slice** and for the **neighbour
+    slices**: SM active, tensor active, DRAM active, framebuffer used.
+  - Under DRA the series carry no pod label (study 46), so the apply script must make the
+    customer replica identifiable. Either pin the customer to a known `GPU_I_ID`, or record the
+    customer's MIG UUID and map it to the DCGM `UUID`/`GPU_I_ID` labels. The builder chooses
+    and verifies it in a smoke run.
+- **At the end:** the full DCGM series for the study window are pulled from Prometheus into
+  `results/` (Prometheus keeps ~10 days), next to the Akamas export.
+- **Prerequisite:** dcgm-exporter's node affinity includes the g7e node group. Study 46 did
+  this; re-check it on the 4xlarge node group.
+
 ## Goals
 
 1. Find the smallest fraction (1/4, 1/2, 1/1) that serves 128 users within the SLA with busy
@@ -165,5 +193,6 @@ So 1/2 should pass and 1/4 is the open question the optimizer answers.
 - How neighbours are deployed and loaded: extra StatefulSet replicas and AIPerf jobs, as in
   study 46.
 - The KPI list (≤ 8): fraction, customer TTFT/ITL p95, customer tokens/s, neighbour TTFT p95,
-  KV usage, GPU power, vLLM CPU throttle.
+  GPU power, customer-slice SM active, vLLM CPU throttle. Every other DCGM metric stays as
+  telemetry (see "NVIDIA metrics").
 - Exact windowing trim.

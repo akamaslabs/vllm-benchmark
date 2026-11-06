@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Client-side trial checks for run_ramp.sh / run_hold.sh (study 48, from study 47). Sourced, not executed.
 # check_result SUMMARY EXPECTED_SENT: 0 if the steady window is healthy, 1 otherwise (reason on
 # stdout). Fails when no request fell in the window, errors >= 1 %, completed < 95 % of sent, or

@@ -1,0 +1,123 @@
+# Study 49 vLLM serving, rendered by apply_config.sh (copied from study 46's StatefulSet and split
+# in two). Every pod gets its own DRA ResourceClaim from the ResourceClaimTemplate @CLAIM@
+# (00-claims.yaml), so all pods sit on slices of the same profile (or the whole GPU):
+#   vllm-customer   1 replica, the customer: tuned flags (@TUNED_ARGS@)
+#   vllm-neighbour  @NEIGHBOURS@ replicas (0 / 1 / 3), the other tenants: fixed flags, vLLM
+#                   defaults with gmu 0.90 as study 46's baseline (we do not tune them)
+# Tokens (between two at-signs): CLAIM NEIGHBOURS NODE_ROLE CPU MEM TUNED_ARGS.
+# requests == limits for cpu and memory (Guaranteed QoS, study 46's CPU-fairness guard).
+# The Service `vllm` (label app: vllm) is what the ServiceMonitor vllm-dra-mig-49 scrapes; the
+# headless Services give each AIPerf client a stable DNS name.
+apiVersion: v1
+kind: Service
+metadata: {name: vllm, namespace: dra-mig-49, labels: {app: vllm}}
+spec:
+  selector: {app: vllm}
+  ports: [{name: http, port: 8000, targetPort: 8000}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: vllm-customer, namespace: dra-mig-49, labels: {app: vllm-headless}}
+spec:
+  clusterIP: None
+  selector: {app: vllm, role: customer}
+  ports: [{name: http, port: 8000, targetPort: 8000}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: vllm-neighbour, namespace: dra-mig-49, labels: {app: vllm-headless}}
+spec:
+  clusterIP: None
+  selector: {app: vllm, role: neighbour}
+  ports: [{name: http, port: 8000, targetPort: 8000}]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: vllm-customer, namespace: dra-mig-49}
+spec:
+  serviceName: vllm-customer
+  replicas: 1
+  selector: {matchLabels: {app: vllm, role: customer}}
+  template:
+    metadata: {labels: {app: vllm, role: customer}}
+    spec:
+      enableServiceLinks: false
+      nodeSelector: {node-role: @NODE_ROLE@}
+      tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+      terminationGracePeriodSeconds: 30
+      resourceClaims: [{name: gpu, resourceClaimTemplateName: @CLAIM@}]
+      containers:
+      - name: vllm
+        image: vllm/vllm-openai:v0.29.0
+        args:
+        - "--model=Qwen/Qwen3-8B-FP8"
+        - "--served-model-name=qwen3-8b-dra"
+        - "--port=8000"
+        - "--host=0.0.0.0"
+        - "--no-enable-prefix-caching"
+        - "--max-model-len=4096"
+        # Tuned flags, written by apply_config.sh: one line per flag, none for a parameter left
+        # to vLLM's default.
+        @TUNED_ARGS@
+        env:
+        - {name: HF_HOME, value: /hf-cache}
+        - {name: VLLM_USE_V2_MODEL_RUNNER, value: "0"}
+        ports: [{name: http, containerPort: 8000}]
+        resources:
+          claims: [{name: gpu}]
+          requests: {cpu: "@CPU@m", memory: "@MEM@Gi"}
+          limits: {cpu: "@CPU@m", memory: "@MEM@Gi"}
+        volumeMounts:
+        - {name: hf-cache, mountPath: /hf-cache}
+        - {name: shm, mountPath: /dev/shm}
+        startupProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10, failureThreshold: 120}
+        readinessProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10, failureThreshold: 3}
+      volumes:
+      - {name: hf-cache, hostPath: {path: /var/lib/hf-cache-study49, type: DirectoryOrCreate}}
+      - {name: shm, emptyDir: {medium: Memory, sizeLimit: 1Gi}}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: vllm-neighbour, namespace: dra-mig-49}
+spec:
+  serviceName: vllm-neighbour
+  replicas: @NEIGHBOURS@
+  # OrderedReady: started after the customer (apply_config.sh waits for it), so the hostPath HF
+  # cache is already filled.
+  podManagementPolicy: OrderedReady
+  selector: {matchLabels: {app: vllm, role: neighbour}}
+  template:
+    metadata: {labels: {app: vllm, role: neighbour}}
+    spec:
+      enableServiceLinks: false
+      nodeSelector: {node-role: @NODE_ROLE@}
+      tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+      terminationGracePeriodSeconds: 30
+      resourceClaims: [{name: gpu, resourceClaimTemplateName: @CLAIM@}]
+      containers:
+      - name: vllm
+        image: vllm/vllm-openai:v0.29.0
+        args:
+        - "--model=Qwen/Qwen3-8B-FP8"
+        - "--served-model-name=qwen3-8b-dra"
+        - "--port=8000"
+        - "--host=0.0.0.0"
+        - "--no-enable-prefix-caching"
+        - "--max-model-len=4096"
+        - "--gpu-memory-utilization=0.90"
+        env:
+        - {name: HF_HOME, value: /hf-cache}
+        - {name: VLLM_USE_V2_MODEL_RUNNER, value: "0"}
+        ports: [{name: http, containerPort: 8000}]
+        resources:
+          claims: [{name: gpu}]
+          requests: {cpu: "@CPU@m", memory: "@MEM@Gi"}
+          limits: {cpu: "@CPU@m", memory: "@MEM@Gi"}
+        volumeMounts:
+        - {name: hf-cache, mountPath: /hf-cache}
+        - {name: shm, mountPath: /dev/shm}
+        startupProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10, failureThreshold: 120}
+        readinessProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10, failureThreshold: 3}
+      volumes:
+      - {name: hf-cache, hostPath: {path: /var/lib/hf-cache-study49, type: DirectoryOrCreate}}
+      - {name: shm, emptyDir: {medium: Memory, sizeLimit: 1Gi}}

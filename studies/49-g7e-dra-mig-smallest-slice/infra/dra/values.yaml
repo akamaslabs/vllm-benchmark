@@ -1,0 +1,34 @@
+# Helm values for dra-driver-nvidia-gpu v0.5.1 (kubernetes-sigs, released 2026-10-12),
+# study 46. Chart: oci://registry.k8s.io/dra-driver-nvidia/charts/dra-driver-nvidia-gpu
+#
+# - GPU allocation on (the chart keeps the GPU kubelet plugin off unless overridden).
+# - DynamicMIG (alpha): the driver creates/destroys MIG partitions per ResourceClaim.
+#   Needs DRAPartitionableDevices, on by default from Kubernetes 1.36 (vllm-bench: 1.36.5).
+#   Mutually exclusive with MPSSupport / NVMLDeviceHealthCheck / PassthroughSupport.
+# - ComputeDomains off: they need Multi-Node NVLink (GB200/GB300), which we don't have.
+# - Kubelet plugin only on this study's node: the chart's default affinity keys on NFD /
+#   GPU Operator labels this cluster doesn't set, so pin it by node-role instead.
+# - nvidiaDriverRoot "/": the EKS AL2023 NVIDIA AMI installs the driver on the host root.
+nvidiaDriverRoot: /
+gpuResourcesEnabledOverride: true
+featureGates:
+  DynamicMIG: true
+resources:
+  gpus:
+    enabled: true
+  computeDomains:
+    enabled: false
+kubeletPlugin:
+  nodeSelector: {}
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-role
+            operator: In
+            values: [llm-serving-g7e-2xl, llm-serving-g7e-4xl]
+  tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule

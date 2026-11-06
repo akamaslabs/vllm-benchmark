@@ -1,0 +1,56 @@
+# Study 49 (copied from study 46): one ResourceClaimTemplate per profile. RTX PRO 6000 Blackwell
+# Server Edition MIG profiles: 1g.24gb x4, 2g.48gb x2, 4g.96gb x1 (NVIDIA MIG user guide).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dra-mig-49
+---
+apiVersion: resource.k8s.io/v1
+kind: ResourceClaimTemplate
+metadata: {namespace: dra-mig-49, name: mig-1g24gb}
+spec:
+  spec:
+    devices:
+      requests:
+      - name: gpu
+        exactly:
+          deviceClassName: mig.nvidia.com
+          selectors:
+          - cel: {expression: "device.attributes['gpu.nvidia.com'].profile == '1g.24gb'"}
+---
+apiVersion: resource.k8s.io/v1
+kind: ResourceClaimTemplate
+metadata: {namespace: dra-mig-49, name: mig-2g48gb}
+spec:
+  spec:
+    devices:
+      requests:
+      - name: gpu
+        exactly:
+          deviceClassName: mig.nvidia.com
+          selectors:
+          - cel: {expression: "device.attributes['gpu.nvidia.com'].profile == '2g.48gb'"}
+---
+apiVersion: resource.k8s.io/v1
+kind: ResourceClaimTemplate
+metadata: {namespace: dra-mig-49, name: mig-4g96gb}
+spec:
+  spec:
+    devices:
+      requests:
+      - name: gpu
+        exactly:
+          deviceClassName: mig.nvidia.com
+          selectors:
+          - cel: {expression: "device.attributes['gpu.nvidia.com'].profile == '4g.96gb'"}
+---
+apiVersion: resource.k8s.io/v1
+kind: ResourceClaimTemplate
+metadata: {namespace: dra-mig-49, name: gpu-full}
+spec:
+  spec:
+    devices:
+      requests:
+      - name: gpu
+        exactly:
+          deviceClassName: gpu.nvidia.com

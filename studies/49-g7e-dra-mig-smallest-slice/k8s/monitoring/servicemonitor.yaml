@@ -1,0 +1,30 @@
+# Prometheus scrapes for study 49 (namespace dra-mig-49), applied by apply_config.sh
+# (idempotent). Without them the goal and the constraints are empty.
+# - vllm-dra-mig-49: the Service `vllm` (label app: vllm) in front of the customer and
+#   neighbour pods, 5 s like the other vLLM ServiceMonitors (headless Services carry
+#   app: vllm-headless, so no pod is scraped twice).
+# - slice-roles-49: the slice-roles exporter (../03-slice-roles.yaml), joined to DCGM by
+#   GPU_I_ID. honorLabels keeps its GPU_I_ID / role labels as written.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vllm-dra-mig-49
+  namespace: monitoring
+  labels: {app: vllm}
+spec:
+  endpoints:
+  - {interval: 5s, path: /metrics, port: http, scrapeTimeout: 4s}
+  namespaceSelector: {matchNames: [dra-mig-49]}
+  selector: {matchLabels: {app: vllm}}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: slice-roles-49
+  namespace: monitoring
+  labels: {app: slice-roles}
+spec:
+  endpoints:
+  - {interval: 5s, path: /metrics, port: metrics, scrapeTimeout: 4s, honorLabels: true}
+  namespaceSelector: {matchNames: [dra-mig-49]}
+  selector: {matchLabels: {app: slice-roles}}

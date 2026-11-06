@@ -30,7 +30,8 @@ Created 2026-11-05 with the `akamas-study-manager` plugin (0.3.0), for **Akamas 
 
 - **Goal:** minimize `vllm.time_to_first_token_p95` (server-side histogram) over the `Load` task,
   trimmed `[360s, 90s]` (steady state).
-- **Constraint:** `vllm.inter_token_latency_p95 <= 50` ms. Errors ≥ 1 % or < 95 % of the sent
+- **Constraint:** `vllm.inter_token_latency_p95 <= 120` ms (server-side histogram; 50 ms flagged
+  the baseline itself, see `../README.md`). Errors ≥ 1 % or < 95 % of the sent
   requests completed fail the trial in `run_load.sh` (exit 6).
 - **Parameters:**
 

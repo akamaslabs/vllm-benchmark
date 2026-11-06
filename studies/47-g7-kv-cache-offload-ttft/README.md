@@ -1,6 +1,6 @@
 # 47-g7-kv-cache-offload-ttft
 
-**Status:** RUNNING (started 2026-11-05 11:53 UTC on akamas-41; restarted from scratch 12:26 UTC after the ITL constraint fix and again 12:59 UTC after a contaminated baseline, see below). **Design:**
+**Status:** DONE (Akamas 4.1, akamas-41). Started 2026-11-05 11:53 UTC, restarted from scratch at 12:26 UTC after the ITL constraint fix and again at 12:59 UTC after a contaminated baseline (see below). Finished 2026-11-06 01:15 UTC: 30 of 30 experiments valid. Node group scaled to 0 at ~05:00 UTC. **Design:**
 `docs/superpowers/specs/2026-11-05-study-47-kv-cache-offload-design.md`. **Plan:**
 `docs/superpowers/plans/2026-11-05-study-47-kv-cache-offload.md`. **Spike:**
 `docs/spikes/2026-11-05-kv-offload/README.md`.
@@ -26,7 +26,8 @@ run (design, "Fairness"), so offload is not favoured by construction.
 
 **Constraints:**
 
-- ITL p95 ≤ 50 ms (Akamas constraint).
+- ITL p95 ≤ 120 ms (Akamas constraint, server-side histogram; first set at 50 ms, see "ITL
+  constraint fix").
 - Errors < 1 % and ≥ 95 % of the sent requests completed. `run_load.sh` fails the trial
   otherwise (the load is open-loop).
 
@@ -146,8 +147,106 @@ Each experiment takes ~27 min (vLLM restart + 21 min of load).
 
 ## Results
 
-TODO (study-recap at the end).
+Raw data in `results/`:
+
+- `export.tar.gz`: Akamas export with `study.json` and the per-metric timeseries.
+- `experiments.csv`: one row per experiment. It holds the 6 tuned parameters, the score, and the
+  window averages of the main metrics. The `client_*` columns are AIPerf's own RESULT line over
+  minutes 6–20 of the load, taken from the Load task log.
+
+All 30 experiments are VALID. The ITL constraint never bound: the highest value was 99 ms (the
+baseline), and every configuration with FP8 KV stayed at ~25 ms. Every run completed at least 838
+of its ~840 requests. Two runs (experiments 9 and 11) had 1 error each, below the 1 % limit.
+
+**Best: experiment 18. TTFT p95 227 ms server-side (222 ms client-side), −74.1 % vs the baseline
+(877 ms).**
+
+| Parameter | Baseline (vLLM default) | Best (exp 18) |
+|---|---|---|
+| `kv_offloading_size` | 0 (off) | 22 GiB |
+| `kv_cache_dtype` | auto (bf16) | fp8 |
+| `gpu_memory_utilization` | 0.92 | 0.94 |
+| `max_num_seqs` | 256 | 16 |
+| `max_num_batched_tokens` | 2048 | 16384 |
+| `block_size` | 16 | 32 |
+
+Presets, one lever at a time. Hit rates are percentages of prompt tokens from the vLLM counters
+over the whole run; client TTFT is the AIPerf RESULT line.
+
+| Exp | Configuration | TTFT p95 server | TTFT p95 / p50 client | GPU prefix hits | CPU offload hits |
+|---|---|---|---|---|---|
+| 1 | Baseline (defaults) | 877 ms | 882 / 408 ms | 2.5 % | – |
+| 2 | Offload 24 GiB only | 864 ms (−1.5 %) | 887 / 411 ms | 2.5 % | 5 % |
+| 3 | FP8 KV only | 738 ms (−15.9 %) | 834 / 369 ms | 18.7 % | – |
+| 4 | Offload 24 GiB + FP8 | 234 ms (−73.4 %) | 229 / 187 ms | 18.8 % | 74 % |
+| 5 | Baseline repeat | 872 ms (−0.6 %) | 886 / 405 ms | 2.5 % | – |
+
+The baseline repeat is within 0.6 % of the baseline, so the run-to-run noise is ~1 %.
+
+The optimize step (experiments 6–30) found 15 configurations within 227–242 ms, plus preset 4.
+Every one combines FP8 KV with an offload of 21–28 GiB:
+
+| Exp | Offload | KV | gmu | mns | mnbt | block | TTFT p95 server | client p95 |
+|---|---|---|---|---|---|---|---|---|
+| 18 | 22 | fp8 | 0.94 | 16 | 16384 | 32 | **226.9** | 222 |
+| 21 | 28 | fp8 | 0.94 | 16 | 1024 | 32 | 227.2 | 223 |
+| 15 | 23 | fp8 | 0.94 | 256 | 1024 | 32 | 228.2 | 228 |
+| 4 | 24 | fp8 | 0.92 | 256 | 2048 | 16 | 233.6 | 229 |
+| 12 | 22 | fp8 | 0.83 | 71 | 13151 | 32 | 235.1 | 225 |
+| 29 | 23 | fp8 | 0.94 | 256 | 16384 | 64 | 236.2 | 231 |
+
+Each lever alone:
+
+- **Offload size: a step, not a slope.**
+  - With FP8, 21–28 GiB all land at 227–242 ms.
+  - 18 GiB gave 605 ms, 16 GiB 601 ms, 14 GiB 758 ms and 7 GiB 605 ms.
+  - Without FP8 (bf16), no size up to 24 GiB helped (exps 2, 7, 16, 30: 791–874 ms). The 28 GiB
+    cap was never tried with bf16.
+  - In the runs that miss the band, the offload hit-rate metric reads ~0 % over the scoring window.
+    In those runs the CPU buffer thrashes: experiment 2 moved 574 GB from GPU to CPU and reused 5 %
+    of the prompt tokens.
+- **FP8 KV** is required for offload to pay. It doubles both the GPU KV cache (123k → 241k
+  tokens) and the number of tokens that fit in the same offload size.
+- **gpu_memory_utilization, max_num_seqs, max_num_batched_tokens, block size:** second order,
+  ≤ 6 % inside the good band.
+  - The top 3 share gmu 0.94 and block 32.
+  - Blocks 64 and 128 in otherwise similar configurations gave 236–240 ms.
+  - `max_num_seqs` 16 vs 256 made no consistent difference: about 7 requests run at once under
+    this load.
+  - The optimizer's gain over the preset (234 → 227 ms, −3 %) is a few times the run-to-run noise
+    but small in absolute terms.
+
+**Telemetry caveat.** Akamas's `prefix_cache_hit_rate` and `cpu_offload_prefix_hit_rate` are
+averages of 5-s ratios over the scoring window. They do not match the whole-run counter ratios
+above: for example, 0 % vs 2.5 % GPU hits on the baseline, and 67 % vs 74 % offload hits on
+experiment 4. Use the counters from the Load task log for hit rates.
 
 ## Conclusions
 
-TODO.
+- **CPU KV offload is worth it only when all the live conversations fit in GPU + CPU KV.** Here the
+  live context was ~250k tokens:
+  - offload alone (bf16, 24 GiB, ~175k tokens in RAM): −1.5 %;
+  - FP8 alone (241k tokens on GPU, just under the live context): −16 %;
+  - both: −74 %, with 74 % of the prompt tokens reloaded from RAM instead of recomputed.
+
+  Below the band, the LRU buffer evicts exactly the conversations that come back next. It then
+  costs PCIe traffic and RAM for nothing. This generalizes as a sizing rule, not a number:
+  estimate the live context (users × average history), and size offload so that the GPU KV
+  cache plus the RAM buffer holds it, in the KV dtype you run.
+- **Tune the KV memory first and the batching flags second.** On this stack, gmu, batching and
+  block size moved TTFT by a few percent once offload + FP8 fit the context.
+- **The preset was nearly as good as the optimizer.** A 5-preset design, one lever at a time, found
+  97 % of the gain in the first 2 hours. The optimizer added the gmu 0.94 / block 32 refinement.
+  With hindsight, the 25-experiment optimize step could have been ~10.
+- **Specific to this stack:**
+  - Qwen3-8B-FP8 on one 32 GB RTX PRO 4500, vLLM 0.29.0 native offload backend;
+  - 64 users, 600/200-token turns, 10 turns;
+  - 57 GiB of allocatable RAM, so 28 GiB was the offload cap.
+
+  A bigger model, a longer context, or the `lmcache` backend can move the band.
+- **Next:**
+  - repeat with load growing past the band (more users) to see how TTFT degrades once
+    GPU + CPU no longer fits;
+  - try the `lmcache` backend (in the pack, not tuned here);
+  - try offload with long shared system prompts (RAG/agents), where reuse is across users and
+    not only within a conversation.

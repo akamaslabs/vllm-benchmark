@@ -1,6 +1,6 @@
 #!/bin/bash
 # Scales the existing CPU node group m8a-2xlarge (m8a.2xlarge, 8 vCPU / 32 GiB, taint
-# dedicated=m8a-2xlarge:NoSchedule, subnets 2a/2b/2c) used by the AIPerf clients of studies 46 and 49.
+# dedicated=m8a-2xlarge:NoSchedule, subnets 2a/2b/2c) used by study 49's AIPerf clients and slice-roles exporter (copied from study 46).
 # Usage: AWS_PROFILE=lab ./load-node.sh up|down
 #   up   desiredSize 1, wait Ready, tag ASG + instance AlwaysOn=true (17:00 UTC stop)
 #   down desiredSize 0, remove the ASG AlwaysOn tag

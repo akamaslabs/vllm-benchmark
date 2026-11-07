@@ -114,30 +114,29 @@ Estimated total: ~30 h, ~90 USD.
 ## Results
 
 Raw data in `results/`: `export.tar.gz` (Akamas export) and `experiments.csv` (parameters, score
-and Hold aggregates per experiment). The ramp levels below come from the Ramp task logs.
+and Hold aggregates per experiment). The ramp levels below come from the Ramp/Hold task logs, parsed into `results/ramp.json` (client TTFT p50/p95, ITL, sent/completed per level and experiment).
 
 **Best: 80 users within client TTFT p95 ≤ 500 ms, vs 24 for the baseline (3.3×, +233 %).**
-96 users fails in every configuration (client TTFT p95 846–1013 ms).
+96 users fails in every configuration that reached it (client TTFT p95 837–4060 ms; 4060 ms is exp 11, whose max_num_seqs 16 queues the overflow).
 
 | Exp | Source | Offload GiB | KV dtype | gmu | mns | mnbt | block | Users (first failing level) | Tokens/s at Hold |
 |---|---|---|---|---|---|---|---|---|---|
-| 1 | baseline | 0 | auto | 0.92 | 256 | 2048 | 16 | 24 (32: 842 ms) | 1776 |
+| 1 | baseline | 0 | auto | 0.92 | 256 | 2048 | 16 | 24 (32: 840 ms) | 1776 |
 | 2 | Offload only | 24 | auto | 0.92 | 256 | 2048 | 16 | 32 (48: 854 ms) | 2283 |
 | 3 | FP8 KV only | 0 | fp8 | 0.92 | 256 | 2048 | 16 | 48 (64: 847 ms) | 3455 |
 | 4 | Offload and FP8 | 24 | fp8 | 0.92 | 256 | 2048 | 16 | 64 (80: 838 ms) | 4578 |
 | 5 | Baseline repeat | 0 | auto | 0.92 | 256 | 2048 | 16 | 24 (32: 842 ms) | 1732 |
 | 6 | optimize | 14 | fp8 | 0.87 | 136 | 8704 | 64 | 48 (64: 818 ms) | 3563 |
-| 7 | optimize | 7 | auto | 0.905 | 196 | 4864 | 128 | 24 | 1759 |
-| 8 | optimize | 21 | fp8 | 0.835 | 76 | 12544 | 32 | 64 | 4569 |
+| 7 | optimize | 7 | auto | 0.905 | 196 | 4864 | 128 | 24 (32: 829 ms) | 1759 |
+| 8 | optimize | 21 | fp8 | 0.835 | 76 | 12544 | 32 | 64 (80: 821 ms) | 4569 |
 | 9 | optimize | 0 | fp8 | 0.80 | 17 | 1024 | 128 | 32 (48: 848 ms) | 2256 |
 | **10** | optimize (Akamas best) | **28** | **fp8** | **0.94** | **256** | **16382** | **16** | **80 (96: 846 ms)** | **5722** |
-| 11 | optimize | 28 | fp8 | 0.80 | 16 | 16384 | 64 | 80 | 5759 |
+| 11 | optimize | 28 | fp8 | 0.80 | 16 | 16384 | 64 | 80 (96: 4060 ms) | 5759 |
 | 12 | optimize | 28 | fp8 | 0.94 | 256 | 1024 | 128 | 80 (96: 1013 ms) | 5811 |
-| 13 | optimize | 28 | auto | 0.94 | 256 | 16384 | 64 | 32 | 2415 |
-| 14 | optimize | 28 | fp8 | 0.80 | 256 | 16384 | 64 | 80 | 5745 |
-| 15 | optimize | 28 | fp8 | 0.80 | 256 | 16384 | 128 | 80 | 5803 |
+| 13 | optimize | 28 | auto | 0.94 | 256 | 16384 | 64 | 32 (48: 829 ms) | 2415 |
+| 14 | optimize | 28 | fp8 | 0.80 | 256 | 16384 | 64 | 80 (96: 842 ms) | 5745 |
+| 15 | optimize | 28 | fp8 | 0.80 | 256 | 16384 | 128 | 80 (96: 837 ms) | 5803 |
 
-Where no failing level is given, the ramp log kept only the passing result.
 
 - **Best configuration** (Akamas pick, exp 10): `--kv-offloading-size 28`, `--kv-cache-dtype fp8`,
   `--gpu-memory-utilization 0.94`, `--max-num-seqs 256`, `--max-num-batched-tokens 16382`,

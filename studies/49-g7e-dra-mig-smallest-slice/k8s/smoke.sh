@@ -5,7 +5,7 @@
 # Study 49 smoke checks 1-3: apply + short load for each layout.
 K=${STUDY_DIR:-/work/study49/49-g7e-dra-mig-smallest-slice}/k8s
 for L in ${LAYOUTS:-1g.24gb 2g.48gb none}; do
-  cat > $K/params.env <<P
+  cat > "$K"/params.env <<P
 MIG_PROFILE=$L
 GPU_MEMORY_UTILIZATION=0.90
 MAX_NUM_SEQS=256
@@ -21,13 +21,13 @@ SCHEDULER_RESERVE_FULL_ISL=
 STREAM_INTERVAL=
 P
   echo "===== SMOKE layout=$L apply $(date -u +%T)"
-  bash $K/apply_config.sh; rc=$?
+  bash "$K"/apply_config.sh; rc=$?
   echo "===== SMOKE layout=$L apply rc=$rc $(date -u +%T)"
   [ $rc = 0 ] || exit $rc
-  cat $K/layout.current 2>/dev/null
+  cat "$K"/layout.current 2>/dev/null
   kubectl -n dra-mig-49 get cm slice-roles -o jsonpath='{.data.metrics}'; echo
   echo "===== SMOKE layout=$L load $(date -u +%T)"
-  LOAD_SECONDS=120 bash $K/run_load.sh; rc=$?
+  LOAD_SECONDS=120 bash "$K"/run_load.sh; rc=$?
   echo "===== SMOKE layout=$L load rc=$rc $(date -u +%T)"
   [ $rc = 0 ] || exit $rc
 done

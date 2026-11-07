@@ -120,8 +120,9 @@ requests: the optimization has to recover it (FP8 KV ≈ 140k tokens, batching).
    `apply_config.sh` waits for it, then checks the customer-slice framebuffer in Prometheus
    before the load (exit 7 if empty).
 5. **Empty KPIs:** in the whole-GPU layout (baseline and repeat), "Neighbours TTFT P95" and
-   `gpu_neighbours` are empty because there are no neighbours. Check that Akamas 4.1 still
-   scores those experiments.
+   `gpu_neighbours` are empty because there are no neighbours. **Passed:** Akamas 4.1 scored
+   experiment 1 (baseline) VALID, 94.97 GiB (97 249 MiB / 1024 + the TTFT tie-break); the
+   neighbour KPI simply has no value.
 
 ## Results
 

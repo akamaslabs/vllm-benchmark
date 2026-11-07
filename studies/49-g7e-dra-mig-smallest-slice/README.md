@@ -1,7 +1,7 @@
 # 49-g7e-dra-mig-smallest-slice
 
-**Status:** TODO. Built locally on 2026-11-06. Not yet run: it waits for a g7e.4xlarge
-capacity probe (needs the user's go) and the smoke checks below.
+**Status:** RUNNING (Akamas 4.1, akamas-41; started 2026-11-07 19:44 UTC after the smoke checks
+below; g7e.4xlarge had capacity in every AZ that day).
 
 - **Design:** `docs/superpowers/specs/2026-11-06-study-49-g7e-mig-smallest-slice-design.md`
   (approved 2026-11-06).
@@ -89,7 +89,22 @@ Cost estimate: ~19 experiments × ~30 min ≈ 10 h ≈ 40 USD of g7e, plus ~5 US
 
 ## Before starting: smoke checks
 
-Run these on the cluster, after the node is up, with the user's go:
+Run on the cluster after the node is up (`k8s/smoke.sh` in the toolbox covers 1–4; 5 is read
+from Akamas once the baseline is scored). **Done on 2026-11-07, all passed:**
+
+| Layout | GPU instance ids (pod = DCGM) | Customer FB in Prometheus | 120 s load, customer 128 users (defaults) | Neighbours |
+|---|---|---|---|---|
+| `1g.24gb` | 3 / 4 5 6 | 24 192 MiB | TTFT p95 18 626 ms, ITL p95 106 ms, 518 req, 0 err: SLA missed | 3 × 64 users, TTFT p95 512–604 ms |
+| `2g.48gb` | 1 / 2 | 48 512 MiB | TTFT p95 824 ms, ITL p95 64 ms, 1044 req: SLA met | 1 × 128 users, 952 ms |
+| `none` | – | 97 249 MiB | TTFT p95 462 ms, ITL p95 34 ms, 1787 req: SLA met | – |
+
+In MIG mode DCGM publishes only the per-instance series (no whole-GPU framebuffer), so
+`gpu0.gpu_fb_total` does not double count. The first try failed on scheduling: study 46's
+`vllm-0` (56 GiB, 7.7 CPU) and two AIPerf clients in `dra-mig` had come back with the node and
+were scaled to 0.
+
+The quarter slice with vLLM defaults (bf16 KV, ~9.6 GiB of KV ≈ 70k tokens) queues 128 in-flight
+requests: the optimization has to recover it (FP8 KV ≈ 140k tokens, batching).
 
 1. **GPU instance ids.** For each of `none`, `2g.48gb` and `1g.24gb`, `apply_config.sh` must
    print a GPU instance id per pod. `nvidia-smi -q` must show `GPU Instance ID` inside a MIG pod.

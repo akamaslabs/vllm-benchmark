@@ -30,6 +30,8 @@ PARAMS=$K8S/params.env
 t() { echo "$(date -u +%T) apply_config: $*"; }
 # shellcheck disable=SC1091
 source "$(dirname "$0")/lib_roles.sh"
+# shellcheck disable=SC1091
+source "$(dirname "$0")/lib_render.sh"
 die() { echo "error: $*" >&2; exit "${2:-2}"; }
 
 # --- 0. Parameters -------------------------------------------------------------------
@@ -125,18 +127,15 @@ AMEM_GI=$(( ${AMEM%Ki} / 1048576 ))
 # Fair split of the node: allocatable minus 400m / 6 GiB for the DaemonSets, divided evenly.
 CPU=$(( (ACPU - 400) / PODS )); MEM=$(( (AMEM_GI - 6) / PODS ))
 t "per replica: cpu ${CPU}m, memory ${MEM}Gi (node allocatable ${ACPU}m / ${AMEM_GI}Gi)"
-INDENT=$(grep -m1 '@TUNED_ARGS@' "$K8S/01-vllm_template.yaml" | sed 's/@TUNED_ARGS@.*//')
-[ -n "$INDENT" ] || die "01-vllm_template.yaml has no @TUNED_ARGS@ line"
-for a in "${ARGS[@]}"; do printf '%s- "%s"\n' "$INDENT" "$a"; done > "$K8S/tuned-args.tmp"
-sed -e "s/@CLAIM@/$CLAIM/g" -e "s/@NEIGHBOURS@/$NEIGHBOURS/g" -e "s/@NODE_ROLE@/$NODE_ROLE/g" \
-    -e "s/@CPU@/$CPU/g" -e "s/@MEM@/$MEM/g" \
-    -e "/@TUNED_ARGS@/r $K8S/tuned-args.tmp" -e '/@TUNED_ARGS@/d' \
-    "$K8S/01-vllm_template.yaml" > "$K8S/01-vllm.yaml"
-rm -f "$K8S/tuned-args.tmp"
+# lib_render.sh: the flags replace the line holding only @TUNED_ARGS@ (the first run of the study
+# took the indent from the header comment mentioning the token and rendered every flag as a
+# comment: 23 experiments at vLLM's defaults). The rendered file is checked before the apply.
+render_vllm_manifest "$K8S/01-vllm_template.yaml" "$CLAIM" "$NEIGHBOURS" "$NODE_ROLE" "$CPU" "$MEM" "${ARGS[@]}" > "$K8S/01-vllm.yaml" \
+  || die "rendering 01-vllm_template.yaml failed"
+check_rendered_args "$K8S/01-vllm.yaml" "${ARGS[@]}" || die "01-vllm.yaml does not carry the tuned flags — refusing to benchmark vLLM's defaults"
+t "customer args in 01-vllm.yaml: $(awk '/name: vllm-customer, namespace/,/name: vllm-neighbour, namespace/' "$K8S/01-vllm.yaml" | grep -E '^[[:space:]]*- "--' | tr -d ' "' | tr '\n' ' ')"
 sed -e "s/@CLIENTS@/$PODS/g" "$K8S/02-aiperf-clients_template.yaml" > "$K8S/02-aiperf-clients.yaml"
-for f in 01-vllm.yaml 02-aiperf-clients.yaml; do
-  grep -q '@[A-Z_]*@' "$K8S/$f" && die "$f still has a token: $(grep -o '@[A-Z_]*@' "$K8S/$f" | sort -u | tr '\n' ' ')"
-done
+grep -q '@[A-Z_]*@' "$K8S/02-aiperf-clients.yaml" && die "02-aiperf-clients.yaml still has a token: $(grep -o '@[A-Z_]*@' "$K8S/02-aiperf-clients.yaml" | sort -u | tr '\n' ' ')"
 kubectl apply -f "$K8S/01-vllm.yaml" || die "kubectl apply failed — refusing to benchmark a stale configuration" 3
 kubectl apply -f "$K8S/02-aiperf-clients.yaml" || die "kubectl apply of the AIPerf clients failed" 3
 
@@ -184,6 +183,12 @@ for p in $VLLM_PODS; do
 done
 set -e
 [ $ROLLOUT_EXIT -eq 0 ] || exit $ROLLOUT_EXIT
+# --- 4b. The running customer pod must carry the tuned flags (smoke check 6). The first run of
+# the study had a correct params.env and a rendered file that "looked fine" while the pod ran
+# vLLM's defaults: only the pod proves the experiment.
+POD_ARGS=$(kubectl -n $NS get pod vllm-customer-0 -o jsonpath='{.spec.containers[0].args}')
+args_carry_flags "$POD_ARGS" "${ARGS[@]}" || die "vllm-customer-0 is not running the tuned flags — refusing to benchmark vLLM's defaults" 8
+t "vllm-customer-0 args verified: $POD_ARGS"
 
 # --- 5. dcgm-exporter re-reads the MIG layout only at start (Phase 0) -------------------
 kubectl -n monitoring delete pod -l app.kubernetes.io/name=dcgm-exporter --field-selector spec.nodeName="$GPU_NODE" --wait=true >/dev/null || true

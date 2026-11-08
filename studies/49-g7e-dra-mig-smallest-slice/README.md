@@ -1,7 +1,10 @@
 # 49-g7e-dra-mig-smallest-slice
 
-**Status:** RUNNING (Akamas 4.1, akamas-41; started 2026-11-07 19:44 UTC after the smoke checks
-below; g7e.4xlarge had capacity in every AZ that day).
+**Status:** FINISHED on Akamas 4.1 (akamas-41, 2026-11-07 19:44 → 2026-11-08 03:10 UTC, 23
+experiments, ~35 USD of g7e) **but invalid for its goal: the customer's tuned flags were never
+applied** (every experiment ran the customer at vLLM's defaults; only the MIG layout changed). The
+rendering bug is fixed and tested locally (`k8s/lib_render.sh`, not yet synced to the toolbox); a
+rerun as a new study is pending the user's decision. See Results.
 
 - **Design:** `docs/superpowers/specs/2026-11-06-study-49-g7e-mig-smallest-slice-design.md`
   (approved 2026-11-06).
@@ -123,11 +126,99 @@ requests: the optimization has to recover it (FP8 KV ≈ 140k tokens, batching).
    `gpu_neighbours` are empty because there are no neighbours. **Passed:** Akamas 4.1 scored
    experiment 1 (baseline) VALID, 94.97 GiB (97 249 MiB / 1024 + the TTFT tie-break); the
    neighbour KPI simply has no value.
+6. **The running customer pod carries the tuned flags** (added 2026-11-08, after the first run).
+   `kubectl -n dra-mig-49 get pod vllm-customer-0 -o jsonpath='{.spec.containers[0].args}'` must
+   list every flag printed by `apply_config.sh` ("customer vLLM flags: ..."), and
+   `vllm:cache_config_info{pod="vllm-customer-0"}` in Prometheus must show the experiment's
+   `gpu_memory_utilization`, `cache_dtype` and `block_size`. `apply_config.sh` now checks the
+   rendered customer block before `kubectl apply` and the pod's args after the rollout (exit 8).
+   **Not passed by the first run:** checks 1–5 looked at the layout, the DCGM join and the load,
+   never at the pod's effective configuration, and the `RENDER_ONLY` tests stop before the
+   manifest is rendered.
 
 ## Results
 
-TODO (study-recap at the end).
+Raw data in `results/`: `export.tar.gz` (Akamas export, md5 0c4cd0ea…), `experiments.csv` (per
+experiment: step, state, score, the parameters **Akamas intended**, the Load-window aggregates,
+the client-side RESULT lines, the KV capacity the customer actually ran with) and
+`dcgm-prometheus.json.gz` (the raw DCGM series of the study window, per GPU instance, 15 s step,
+pulled from Prometheus after the study).
+
+### Data limitation: the customer ran vLLM's defaults in every experiment
+
+`k8s/01-vllm_template.yaml`'s header comment mentioned `@TUNED_ARGS@` literally, and
+`apply_config.sh` took the indent of the tuned flags from the *first* line matching the token:
+that comment. Every flag was therefore rendered as a YAML comment, the placeholder line was
+deleted, the "no token left" check passed, and the customer StatefulSet got only the fixed args
+(`--model`, `--served-model-name`, `--port`, `--host`, `--no-enable-prefix-caching`,
+`--max-model-len 4096`). Evidence: the StatefulSet's args after the last experiment, and
+`vllm:cache_config_info{pod="vllm-customer-0"}` reporting `gpu_memory_utilization` 0.92,
+`cache_dtype` auto and `block_size` 16 in all 23 experiments (the neighbours, whose
+`--gpu-memory-utilization=0.90` is fixed in the template, report 0.9). `params.env` was rendered
+correctly by Akamas every time, so the parameter columns in `experiments.csv` are what the
+optimizer asked for, not what ran.
+
+Consequences:
+
+- **Only `gpu0.mig_profile` was really tuned.** The 13 vLLM parameters had no effect, so Akamas's
+  "best configuration" (2g.48gb, fp8, `max_num_seqs` 1024, …) is one of 14 tied half-GPU runs
+  separated by the TTFT tie-break only; it means nothing.
+- **The study's question, whether tuning recovers the quarter slice, is unanswered.** What the
+  data settles is the three layouts at vLLM's defaults, repeated 3 / 14 / 5 times.
+- Customer and neighbours did not run the same settings: vLLM's own default (0.92 per
+  `cache_config_info`) against the neighbours' 0.90.
+- Fixed on 2026-11-08: `k8s/lib_render.sh` replaces only the line holding the token alone,
+  `apply_config.sh` checks the rendered customer block before the apply and the pod's args after
+  the rollout (smoke check 6), `k8s/test_render.sh` (12 cases) covers the real template, a comment
+  mentioning the token and a pod at defaults. The toolbox still has the old scripts.
+
+### What the 23 experiments measured (customer at vLLM's defaults, 128 users, 600 s)
+
+| Layout | Exps | Score (GiB) | Goal state | Client TTFT p95 | Client ITL p95 | Server TTFT p95 | Server ITL p95 | Tokens/s | Running / waiting | KV usage | Customer KV capacity | Neighbours (client TTFT p95) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| whole GPU | 1, 4, 6 | 94.970 | VALID | 170–173 ms | 33.4–33.6 ms | 233 ms | 69–70 ms | 12 660–12 750 | 127 / 0 | 19 % | 542 768 tokens | – |
+| `2g.48gb` (half) | 2, 5, 8, 9, 13–23 | 47.374–47.375 | VALID | 380–407 ms | 69.9–72.7 ms | 424–545 ms | 138–142 ms | 6 450–6 540 | 127 / 0 | 44–45 % | 232 544 tokens | 1 × 128 users: 379–413 ms |
+| `1g.24gb` (quarter) | 3, 7, 10–12 | 23.646–23.648 | CONSTRAINTS_VIOLATED | 27.97–29.35 s | 106.8–108.1 ms | 21.6–23.6 s | 318–321 ms | 2 620–2 710 | 88–90 / 37–39 | 98 % | 73 392 tokens | 3 × 64 users: 506–533 ms |
+
+- **Repeatability:** the three whole-GPU runs and the fourteen half-GPU runs are within 2 % of
+  each other on every column; the five quarter runs within 5 %. No drift across the 7.5 h.
+- **Half GPU meets the SLA with margin at defaults:** TTFT p95 ~440 ms server-side against 1500,
+  ITL ~140 ms against 300, with a neighbour serving 128 users on the other half at the same
+  latency. Score 47.37 GiB against the baseline's 94.97 (Akamas: −50.12 %).
+- **Quarter GPU misses both constraints at defaults, by far:** TTFT p95 ~22 s (15× the limit) and
+  ITL p95 ~320 ms (just above 300). The KV cache (73 392 tokens bf16 at gmu 0.92) holds ~89 of
+  the 128 in-flight requests; the other ~38 queue (TTFT = queue time) and ~1 preemption/s
+  recomputes evicted contexts. The three neighbours at 64 users each stay at ~510 ms.
+- **Power:** the half-GPU layouts drew 570–580 W (customer + neighbour both busy) against
+  529–537 W with the whole GPU serving the customer alone, and 526–534 W with the four quarters
+  busy. A fully busy GPU draws more than a partly idle one, whatever the split.
+- **GPU pack / DCGM under DRA:** the slice-roles join worked in every layout (customer
+  framebuffer 97 249 / 48 512 / 24 192 MiB, SM active 0.84 / 0.91 / 0.88).
+- **Akamas 4.1 ran 19 optimize experiments for `numberOfExperiments: 15`:** 15 VALID plus the 4
+  CONSTRAINTS_VIOLATED quarter runs. Observed once; it reads as if only valid experiments count
+  towards the budget. After experiment 12 the optimizer never proposed the quarter again.
+- **CPU fairness guard:** `container_cpu_throttle_time` was 0 in every experiment.
 
 ## Conclusions
 
-TODO.
+- **At vLLM's defaults, 128 closed-loop ShareGPT users of Qwen3-8B-FP8 fit in half an RTX PRO
+  6000 (2g.48gb) within TTFT p95 1.5 s / ITL p95 300 ms, with 3.5× margin on TTFT and 2× on ITL,
+  next to a busy neighbour.** The whole GPU is not needed for this load; the other half is free.
+- **The quarter (1g.24gb) does not fit at defaults, and not marginally:** the KV cache holds
+  ~89 of the 128 contexts, the rest queue for ~20 s, and ITL p95 already sits at the limit with
+  1/4 of the SMs. Whether tuning recovers it is open: FP8 KV doubles the capacity (~147k tokens,
+  enough for 128 × ~800 tokens) and would remove the queue, but ITL p95 at 128 concurrent
+  sequences on a quarter of the compute may still bind. This is what the rerun has to resolve;
+  the margin to the SLA cannot be quantified from this run.
+- **A smoke check must read the effective configuration where it runs** (the pod's args,
+  `vllm:cache_config_info`), not the rendered file: a correct `params.env`, a manifest with no
+  token left and a healthy load hid 23 experiments at defaults. `RENDER_ONLY` tests that stop
+  before the manifest is rendered do not cover the rendering.
+- **Next:** a rerun with the fixed scripts synced to the toolbox and smoke check 6 run before the
+  start. On 4.1 `finish` + `start` restarts this study from zero and deletes its 23 experiments
+  on Akamas (they stay in `results/export.tar.gz`); a new study keeps this run visible next to
+  the valid one. Either the same manifest
+  (~19 experiments, ~7.5 h, ~35 USD of g7e plus the load node) or a quarter-focused one:
+  baseline whole GPU, quarter at defaults, quarter with FP8 KV and `max_num_seqs` ≥ 128, then a
+  short optimize with `mig_profile` pinned to `1g.24gb` (~4 h). Keep the whole-GPU and
+  half-GPU numbers above as the reference for the defaults.

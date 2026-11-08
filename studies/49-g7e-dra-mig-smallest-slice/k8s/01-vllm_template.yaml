@@ -1,10 +1,12 @@
 # Study 49 vLLM serving, rendered by apply_config.sh (copied from study 46's StatefulSet and split
 # in two). Every pod gets its own DRA ResourceClaim from the ResourceClaimTemplate @CLAIM@
 # (00-claims.yaml), so all pods sit on slices of the same profile (or the whole GPU):
-#   vllm-customer   1 replica, the customer: tuned flags (@TUNED_ARGS@)
-#   vllm-neighbour  @NEIGHBOURS@ replicas (0 / 1 / 3), the other tenants: fixed flags, vLLM
+#   vllm-customer   1 replica, the customer: tuned flags (the TUNED_ARGS placeholder line)
+#   vllm-neighbour  NEIGHBOURS replicas (0 / 1 / 3), the other tenants: fixed flags, vLLM
 #                   defaults with gmu 0.90 as study 46's baseline (we do not tune them)
-# Tokens (between two at-signs): CLAIM NEIGHBOURS NODE_ROLE CPU MEM TUNED_ARGS.
+# Tokens (between two at-signs): CLAIM NEIGHBOURS NODE_ROLE CPU MEM TUNED_ARGS. Never write a
+# token with its at-signs in a comment: the first run of the study rendered every tuned flag
+# as a comment because the indent was read from the line above (lib_render.sh).
 # requests == limits for cpu and memory (Guaranteed QoS, study 46's CPU-fairness guard).
 # The Service `vllm` (label app: vllm) is what the ServiceMonitor vllm-dra-mig-49 scrapes; the
 # headless Services give each AIPerf client a stable DNS name.

@@ -3,8 +3,12 @@
 **Status:** FINISHED on Akamas 4.1 (akamas-41, 2026-11-07 19:44 → 2026-11-08 03:10 UTC, 23
 experiments, ~35 USD of g7e) **but invalid for its goal: the customer's tuned flags were never
 applied** (every experiment ran the customer at vLLM's defaults; only the MIG layout changed). The
-rendering bug is fixed and tested locally (`k8s/lib_render.sh`, not yet synced to the toolbox); a
-rerun as a new study is pending the user's decision. See Results.
+rendering bug is fixed and tested (`k8s/lib_render.sh`), the scripts were synced to the toolbox
+on 2026-11-10 (render and apply tests green there too), smoke check 6 passed (below), and the
+**rerun started on 2026-11-10 17:51 UTC as a new study, `49-G7E-MIG-Smallest-Slice-Rerun`**
+(first start at 17:42 produced no experiment in 9 min, the 4.1 DAG-timeout case: finish + start)
+(`akamas/49-G7E-MIG-Smallest-Slice-Rerun.yaml`: same system, workflow, goal and steps; the first
+run stays visible on Akamas for comparison). See Results for the first run.
 
 - **Design:** `docs/superpowers/specs/2026-11-06-study-49-g7e-mig-smallest-slice-design.md`
   (approved 2026-11-06).
@@ -135,6 +139,11 @@ requests: the optimization has to recover it (FP8 KV ≈ 140k tokens, batching).
    **Not passed by the first run:** checks 1–5 looked at the layout, the DCGM join and the load,
    never at the pod's effective configuration, and the `RENDER_ONLY` tests stop before the
    manifest is rendered.
+   **Passed on 2026-11-10 before the rerun:** whole GPU with `gpu_memory_utilization 0.85`,
+   `kv_cache_dtype fp8`, `block_size 32`, `max_num_seqs 200`, `max_num_batched_tokens 4096`:
+   `apply_config.sh` exit 0 (rollout 154 s), the pod's args list all five flags, and
+   `vllm:cache_config_info{pod="vllm-customer-0"}` reports gmu 0.85 / fp8 / block 32 /
+   31 291 GPU blocks (the first run always showed 0.92 / auto / 16).
 
 ## Results
 
@@ -214,11 +223,10 @@ Consequences:
   `vllm:cache_config_info`), not the rendered file: a correct `params.env`, a manifest with no
   token left and a healthy load hid 23 experiments at defaults. `RENDER_ONLY` tests that stop
   before the manifest is rendered do not cover the rendering.
-- **Next:** a rerun with the fixed scripts synced to the toolbox and smoke check 6 run before the
-  start. On 4.1 `finish` + `start` restarts this study from zero and deletes its 23 experiments
-  on Akamas (they stay in `results/export.tar.gz`); a new study keeps this run visible next to
-  the valid one. Either the same manifest
-  (~19 experiments, ~7.5 h, ~35 USD of g7e plus the load node) or a quarter-focused one:
-  baseline whole GPU, quarter at defaults, quarter with FP8 KV and `max_num_seqs` ≥ 128, then a
-  short optimize with `mig_profile` pinned to `1g.24gb` (~4 h). Keep the whole-GPU and
-  half-GPU numbers above as the reference for the defaults.
+- **Next (done 2026-11-10):** the rerun runs as a new study with the same manifest
+  (`49-G7E-MIG-Smallest-Slice-Rerun`, ~19 experiments, ~7.5 h, ~35 USD of g7e plus the load
+  node), after the toolbox sync and smoke check 6. On 4.1 `finish` + `start` would have
+  restarted this study from zero and deleted its 23 experiments on Akamas (they stay in
+  `results/export.tar.gz`); the new study keeps this run visible next to the valid one. The
+  whole-GPU and half-GPU numbers above stay as the reference for the defaults. Its results go
+  in a "Rerun" section of this README.

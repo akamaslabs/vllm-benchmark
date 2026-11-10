@@ -4,8 +4,10 @@ Created on 2026-11-06 with the `akamas-study-manager` plugin (0.3.0), for **Akam
 (`akamas-41`). Adapted from study 46. Goal and design: `../README.md` and
 `docs/superpowers/specs/2026-11-06-study-49-g7e-mig-smallest-slice-design.md`.
 
-**Status: built locally, not yet created on Akamas.** `akamas create` validation is pending
-the user's go: g7e capacity probe first.
+**Status:** created on akamas-41 and run on 2026-11-07 (`49-G7E-MIG-Smallest-Slice`, FINISHED,
+invalid: see `../README.md`). **Rerun:** `49-G7E-MIG-Smallest-Slice-Rerun.yaml` (same file with a
+new name and a description note), created and started on 2026-11-10 against the same system,
+components, telemetry instance and workflow.
 
 ## Versions
 

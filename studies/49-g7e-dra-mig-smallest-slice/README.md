@@ -5,10 +5,13 @@ experiments, ~35 USD of g7e) **but invalid for its goal: the customer's tuned fl
 applied** (every experiment ran the customer at vLLM's defaults; only the MIG layout changed). The
 rendering bug is fixed and tested (`k8s/lib_render.sh`), the scripts were synced to the toolbox
 on 2026-11-10 (render and apply tests green there too), smoke check 6 passed (below), and the
-**rerun started on 2026-11-10 17:51 UTC as a new study, `49-G7E-MIG-Smallest-Slice-Rerun`**
-(first start at 17:42 produced no experiment in 9 min, the 4.1 DAG-timeout case: finish + start)
-(`akamas/49-G7E-MIG-Smallest-Slice-Rerun.yaml`: same system, workflow, goal and steps; the first
-run stays visible on Akamas for comparison). See Results for the first run.
+rerun was started on 2026-11-10 17:51 UTC as a new study, `49-G7E-MIG-Smallest-Slice-Rerun`
+(`akamas/49-G7E-MIG-Smallest-Slice-Rerun.yaml`: same system, workflow, goal and steps), and
+**stopped by hand at 19:15 UTC during experiment 5**: the user wanted study 50 to run that
+night, not this rerun. Only the four default presets finished (they repeat the first run: whole
+94.97, half 47.37, quarter 23.65 CONSTRAINTS_VIOLATED, whole repeat 94.97); no tuned experiment
+completed, so **the open question (does tuning recover the quarter) is still open and the rerun
+is still pending**. Both studies stay on Akamas. See Results for the first run.
 
 - **Design:** `docs/superpowers/specs/2026-11-06-study-49-g7e-mig-smallest-slice-design.md`
   (approved 2026-11-06).
@@ -223,9 +226,11 @@ Consequences:
   `vllm:cache_config_info`), not the rendered file: a correct `params.env`, a manifest with no
   token left and a healthy load hid 23 experiments at defaults. `RENDER_ONLY` tests that stop
   before the manifest is rendered do not cover the rendering.
-- **Next (done 2026-11-10):** the rerun runs as a new study with the same manifest
-  (`49-G7E-MIG-Smallest-Slice-Rerun`, ~19 experiments, ~7.5 h, ~35 USD of g7e plus the load
-  node), after the toolbox sync and smoke check 6. On 4.1 `finish` + `start` would have
+- **Next (still pending; started and stopped on 2026-11-10, see Status):** the rerun runs as
+  a new study with the same manifest (~19 experiments, ~7.5 h, ~35 USD of g7e plus the load
+  node); the toolbox sync and smoke check 6 are done. `49-G7E-MIG-Smallest-Slice-Rerun` holds
+  only four default presets, so the next attempt is a third study name (or a `finish` + `start`
+  of the rerun study, which restarts it from zero). On 4.1 `finish` + `start` would have
   restarted this study from zero and deleted its 23 experiments on Akamas (they stay in
   `results/export.tar.gz`); the new study keeps this run visible next to the valid one. The
   whole-GPU and half-GPU numbers above stay as the reference for the defaults. Its results go

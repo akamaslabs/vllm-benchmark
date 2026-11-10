@@ -1,6 +1,6 @@
 # Study 50 — MoE parallelism layouts across two GPU nodes over EFA (design)
 
-**Date:** 2026-11-09 · **Status:** draft, builder check pending · **Study folder (to create):**
+**Date:** 2026-11-09 · **Status:** go given by the user on 2026-11-10 ("Vai ... tira su nodo che lo facciamo girare di notte", then "non dovevamo provare con la mig": study 50, not the study 49 rerun); open questions closed with the defaults below · **Study folder (to create):**
 `studies/50-g7e-efa-moe-parallelism-users-ramp/`
 
 ## Intent and the why
@@ -377,3 +377,16 @@ fits one card, known from studies 15/16; same layouts, no Nsight since Ada is no
 - Level floor 32; ITL safety net 200 ms; optimize-step ramp steps down when "best − 1" fails.
 - `max_model_len` 16384; two-client aggregation = max TTFT p95, sum of requests.
 - NetworkPolicy applied but not enforced cluster-wide if the CNI agent is off.
+
+## Open questions closed on 2026-11-10 (defaults taken under the user's go, for the user to veto)
+
+The user gave the go without answering the four questions one by one, so each takes the cheaper
+or more conservative default:
+
+1. **Scope:** presets only (L1…L7 + smoke + the two manual TCP controls, ~235 USD). The optimize
+   step is not run; it can be added afterwards as a second study on the same system.
+2. **Fallback:** if no AZ offers two g7e.8xlarge, wait and re-probe. No switch to g6e + Qwen3-30B
+   without the user.
+3. **Sequencing:** study 50 first (the user's explicit correction). The study 49 rerun, started
+   by mistake on 2026-11-10, was stopped after its four default presets and stays pending.
+4. **Capacity type:** spot for the spike, on-demand for the study, as agreed on 2026-11-09.

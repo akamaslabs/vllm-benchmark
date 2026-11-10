@@ -1,0 +1,31 @@
+# EFA spike for study 50: two g6.8xlarge SPOT nodes (1x L4, 32 vCPU, EFA, 25 Gbps) in one AZ.
+# eksctl (not the repo's AWS-CLI scripts) because `efaEnabled: true` creates the launch template
+# with the EFA interface, the cluster placement group and the self-referencing security-group
+# rules, and installs the EFA device plugin.
+# Create:  AWS_PROFILE=lab eksctl create nodegroup -f nodegroup-g6-8xl-efa-spot.yaml
+# Delete:  AWS_PROFILE=lab eksctl delete nodegroup -f nodegroup-g6-8xl-efa-spot.yaml --approve
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+metadata:
+  name: vllm-bench
+  region: us-east-2
+managedNodeGroups:
+  - name: llm-serving-g6-8xl-efa-spot
+    instanceType: g6.8xlarge
+    spot: true
+    minSize: 0
+    maxSize: 2
+    desiredCapacity: 2
+    availabilityZones: ["us-east-2a"]
+    privateNetworking: true        # private subnet + NAT: an EFA primary interface gets no public IP
+    efaEnabled: true
+    volumeSize: 200
+    labels:
+      node-role: llm-serving-g6-8xl-efa-spot
+    taints:
+      - key: nvidia.com/gpu
+        value: present
+        effect: NoSchedule
+    tags:
+      Project: vllm-bench
+      Study: 50-efa-spike

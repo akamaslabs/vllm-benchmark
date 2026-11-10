@@ -7,7 +7,8 @@ Created on 2026-11-06 with the `akamas-study-manager` plugin (0.3.0), for **Akam
 **Status:** created on akamas-41 and run on 2026-11-07 (`49-G7E-MIG-Smallest-Slice`, FINISHED,
 invalid: see `../README.md`). **Rerun:** `49-G7E-MIG-Smallest-Slice-Rerun.yaml` (same file with a
 new name and a description note), created and started on 2026-11-10 against the same system,
-components, telemetry instance and workflow.
+components, telemetry instance and workflow; stopped by hand after the four default presets
+(`../README.md`, Status), so the rerun is still pending.
 
 ## Versions
 

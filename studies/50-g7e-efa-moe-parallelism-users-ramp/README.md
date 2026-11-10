@@ -4,7 +4,9 @@
 (`docs/spikes/2026-11-10-efa-eks/README.md`). The scripts are tested locally (214 assertions).
 **Waiting for capacity:** no availability zone of us-east-2 had two g7e.8xlarge on the evening
 of 2026-11-10 (probed every 5 minutes from 20:34 UTC). Nothing of this study has run on real
-nodes yet: the smoke checks below are still to do, and the Akamas resources are not created.
+nodes yet: the smoke checks below are still to do. The Akamas resources exist on akamas-41 since
+2026-11-10 (every file accepted by `akamas create`, study not started), and Prometheus parses
+all 115 telemetry queries; whether each returns data is smoke check 6.
 
 - **Design:** `docs/superpowers/specs/2026-11-09-study-50-g7e-efa-moe-parallelism-design.md`
   (go on 2026-11-10).

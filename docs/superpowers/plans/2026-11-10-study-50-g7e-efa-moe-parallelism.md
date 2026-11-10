@@ -75,8 +75,9 @@ vLLM 1.15.0, GPU 1.4.0, Kubernetes 1.9.0.
 
 - [x] System, eight components, telemetry (115 metrics), workflow, study with seven presets.
 - [x] Structural check: template parameters = study parameters, steps satisfy the constraints.
-- [ ] Sync to the toolbox (`/work/study50`) and `akamas create` each resource. Expected: every
-  resource accepted by Akamas 4.1.0.
+- [x] Sync to the toolbox (`/work/study50`) and `akamas create` each resource. Expected: every
+  resource accepted by Akamas 4.1.0. Done 2026-11-10; the five script tests also pass in the
+  toolbox (bash 5.3), and Prometheus parses all 115 telemetry queries.
 
 ### Task 4: Nodes
 

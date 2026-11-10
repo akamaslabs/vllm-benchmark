@@ -1,0 +1,55 @@
+# EFA spike: two long-lived pods, one per g6.8xlarge node, each with the node's GPU and its
+# EFA device. They only sleep: every test (fi_info, nccl_bench.py, vllm serve) is started with
+# kubectl exec so the same pods serve the whole spike. Stable names efa-spike-0 / efa-spike-1,
+# DNS efa-spike-N.efa-spike.efa-spike.svc (headless service) for the torch.distributed rendezvous.
+# Image: the AWS Deep Learning Container for vLLM 0.29.0 (the registry is readable with the node role).
+apiVersion: v1
+kind: Namespace
+metadata: {name: efa-spike}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: efa-spike, namespace: efa-spike}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector: {app: efa-spike}
+  ports: [{name: http, port: 8000}]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: efa-spike, namespace: efa-spike}
+spec:
+  serviceName: efa-spike
+  replicas: 2
+  podManagementPolicy: Parallel
+  selector: {matchLabels: {app: efa-spike}}
+  template:
+    metadata: {labels: {app: efa-spike}}
+    spec:
+      enableServiceLinks: false
+      nodeSelector: {node-role: llm-serving-g6-8xl-efa}
+      tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+      terminationGracePeriodSeconds: 5
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector: {matchLabels: {app: efa-spike}}
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - name: vllm
+        image: @IMAGE@
+        command: ["sleep", "infinity"]
+        env:
+        - {name: HF_HOME, value: /hf-cache}
+        ports: [{name: http, containerPort: 8000}]
+        securityContext: {capabilities: {add: [IPC_LOCK]}}
+        resources:
+          requests: {cpu: "24", memory: 96Gi, nvidia.com/gpu: 1, vpc.amazonaws.com/efa: 1@HUGEPAGES@}
+          limits: {cpu: "24", memory: 96Gi, nvidia.com/gpu: 1, vpc.amazonaws.com/efa: 1@HUGEPAGES@}
+        volumeMounts:
+        - {name: hf-cache, mountPath: /hf-cache}
+        - {name: shm, mountPath: /dev/shm}
+      volumes:
+      - {name: hf-cache, hostPath: {path: /var/lib/hf-cache-efa-spike, type: DirectoryOrCreate}}
+      - {name: shm, emptyDir: {medium: Memory, sizeLimit: 16Gi}}

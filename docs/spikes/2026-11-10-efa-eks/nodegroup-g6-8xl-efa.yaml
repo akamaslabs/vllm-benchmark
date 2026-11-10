@@ -1,0 +1,34 @@
+# EFA spike for study 50: two g6.8xlarge ON-DEMAND nodes (1x L4, 32 vCPU, EFA, 25 Gbps) in one AZ.
+# Used because on 2026-11-10 no AZ of us-east-2 had spot capacity for a single g6.8xlarge (nor g5/g4dn
+# 8xlarge); the spot variant is nodegroup-g6-8xl-efa-spot.yaml.
+# eksctl (not the repo's AWS-CLI scripts) because `efaEnabled: true` creates the launch template
+# with the EFA interface, the cluster placement group and the self-referencing security-group
+# rules, and installs the EFA device plugin.
+# Create:  AWS_PROFILE=lab eksctl create nodegroup -f nodegroup-g6-8xl-efa.yaml
+# Delete:  AWS_PROFILE=lab eksctl delete nodegroup -f nodegroup-g6-8xl-efa.yaml --approve
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+metadata:
+  name: vllm-bench
+  region: us-east-2
+managedNodeGroups:
+  - name: llm-serving-g6-8xl-efa
+    instanceType: g6.8xlarge
+    minSize: 0
+    maxSize: 2
+    desiredCapacity: 2
+    availabilityZones: ["us-east-2a"]
+    privateNetworking: true        # private subnet + NAT: an EFA primary interface gets no public IP
+    efaEnabled: true
+    volumeSize: 200
+    labels:
+      node-role: llm-serving-g6-8xl-efa
+    # The eksctl EFA device plugin does not tolerate this taint: on the spike it was removed from
+    # the two nodes by hand (kubectl taint ... nvidia.com/gpu-) to get vpc.amazonaws.com/efa. See README.md.
+    taints:
+      - key: nvidia.com/gpu
+        value: present
+        effect: NoSchedule
+    tags:
+      Project: vllm-bench
+      Study: 50-efa-spike

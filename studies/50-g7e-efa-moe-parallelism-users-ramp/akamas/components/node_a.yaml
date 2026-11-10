@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_50_G7E_EFA_MoE_Parallelism
+
+name: node_a
+description: >-
+  The g7e.8xlarge node a (study50/role=a, 32 vCPU, 256 GiB, node group llm-serving-g7e-8xl-efa):
+  CPU, memory, ENA network bytes and TCP retransmissions from node-exporter. EFA traffic bypasses
+  the kernel and is on the gpu_a component instead.
+componentType: Kubernetes Node
+properties:
+  prometheus:
+    role: a

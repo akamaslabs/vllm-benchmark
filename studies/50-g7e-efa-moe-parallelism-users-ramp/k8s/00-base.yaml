@@ -1,0 +1,33 @@
+# Study 50 base objects (namespace moe-efa), applied by apply_config.sh on every experiment
+# (idempotent). The two vLLM StatefulSets come from 01-vllm_template.yaml.
+# - vllm: the only Service labelled app: vllm, so the ServiceMonitor vllm-moe-efa scrapes each
+#   serving pod once. It selects the pods that run an API server (label study50/serving "true"):
+#   a headless worker has no /metrics.
+# - vllm-a / vllm-b: one headless Service per node role, the address of each AIPerf client
+#   (http://vllm-a.moe-efa.svc:8000). They carry app: vllm-role, so they are not scraped.
+apiVersion: v1
+kind: Namespace
+metadata: {name: moe-efa}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: vllm, namespace: moe-efa, labels: {app: vllm}}
+spec:
+  selector: {app: vllm, study50/serving: "true"}
+  ports: [{name: http, port: 8000, targetPort: 8000}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: vllm-a, namespace: moe-efa, labels: {app: vllm-role}}
+spec:
+  clusterIP: None
+  selector: {app: vllm, study50/role: a}
+  ports: [{name: http, port: 8000, targetPort: 8000}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: vllm-b, namespace: moe-efa, labels: {app: vllm-role}}
+spec:
+  clusterIP: None
+  selector: {app: vllm, study50/role: b}
+  ports: [{name: http, port: 8000, targetPort: 8000}]

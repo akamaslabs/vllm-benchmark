@@ -1,0 +1,15 @@
+kind: component
+system: vLLM_Benchmark_50_G7E_EFA_MoE_Parallelism
+
+name: vllm
+description: >-
+  gpt-oss-120b on vLLM 0.29.0, seen as one service whatever the layout: pods vllm-a-0 (node a, the
+  head) and vllm-b-0 (node b) in namespace moe-efa. Carries the layout parameters (tensor, data,
+  pipeline parallel size, expert parallelism) and the vLLM flags, and is the component the goal,
+  the constraints and most KPIs read. Rates sum over the pods with an API server; percentiles
+  take the worst pod.
+componentType: vLLM
+properties:
+  prometheus:
+    pod: vllm-[ab]-0
+    model: gpt-oss-120b

@@ -1,0 +1,64 @@
+# Study 50 vLLM pod, one StatefulSet per node role (vllm-a on node A, vllm-b on node B), rendered
+# twice by apply_config.sh (lib_render.sh). Tokens are written between two at-signs: ROLE,
+# SERVING, LAYOUT, APPLIED_AT, and two placeholder lines that hold only their token, TUNED_ARGS
+# (one list item per flag) and EXTRA_ENV (zero or more env items, the TCP control). Never write
+# a token with its at-signs in a comment: study 49's first run lost every flag that way.
+# - Image: the AWS Deep Learning Container, which ships libfabric, aws-ofi-nccl and vLLM 0.29.0
+#   (EFA spike 2026-11-10: NCCL picks EFA with no setting).
+# - EFA needs the EFA device, 2 MiB huge pages, IPC_LOCK and a memory-backed /dev/shm.
+# - SERVING "false" = headless worker (no API server): the probe passes at once and the pod is
+#   left out of the Service vllm. The head's /health covers the whole engine.
+# - requests == limits (Guaranteed QoS); a g7e.8xlarge has 32 vCPU and 256 GiB.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: vllm-@ROLE@, namespace: moe-efa, labels: {app: vllm, study50/role: "@ROLE@"}}
+spec:
+  serviceName: vllm-@ROLE@
+  replicas: 1
+  selector: {matchLabels: {app: vllm, study50/role: "@ROLE@"}}
+  template:
+    metadata:
+      labels: {app: vllm, study50/role: "@ROLE@", study50/serving: "@SERVING@", study50/layout: "@LAYOUT@"}
+      annotations: {study50/applied-at: "@APPLIED_AT@"}
+    spec:
+      enableServiceLinks: false
+      nodeSelector: {node-role: llm-serving-g7e-8xl-efa, study50/role: "@ROLE@"}
+      tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: vllm
+        image: 763104351884.dkr.ecr.us-east-2.amazonaws.com/vllm:0.29.0-gpu-py312-cu130-ubuntu24.04-ec2
+        command: ["vllm", "serve", "openai/gpt-oss-120b"]
+        args:
+        - "--served-model-name=gpt-oss-120b"
+        - "--port=8000"
+        - "--host=0.0.0.0"
+        - "--max-model-len=16384"
+        - "--enable-prefix-caching"
+        @TUNED_ARGS@
+        env:
+        - {name: HF_HOME, value: /hf-cache}
+        - {name: NCCL_DEBUG, value: INFO}
+        - {name: SERVING, value: "@SERVING@"}
+        - {name: POD_IP, valueFrom: {fieldRef: {fieldPath: status.podIP}}}
+        @EXTRA_ENV@
+        ports: [{name: http, containerPort: 8000}]
+        securityContext: {capabilities: {add: [IPC_LOCK]}}
+        resources:
+          requests: {cpu: "26", memory: 160Gi, nvidia.com/gpu: 1, vpc.amazonaws.com/efa: 1, hugepages-2Mi: 5120Mi}
+          limits: {cpu: "26", memory: 160Gi, nvidia.com/gpu: 1, vpc.amazonaws.com/efa: 1, hugepages-2Mi: 5120Mi}
+        volumeMounts:
+        - {name: hf-cache, mountPath: /hf-cache}
+        - {name: shm, mountPath: /dev/shm}
+        # 240 x 10 s = 2400 s: the 65 GB model read from a cold disk, twice on two nodes.
+        startupProbe:
+          exec: {command: [sh, -c, '[ "$SERVING" = false ] || curl -sf -o /dev/null localhost:8000/health']}
+          periodSeconds: 10
+          failureThreshold: 240
+        readinessProbe:
+          exec: {command: [sh, -c, '[ "$SERVING" = false ] || curl -sf -o /dev/null localhost:8000/health']}
+          periodSeconds: 10
+          failureThreshold: 3
+      volumes:
+      - {name: hf-cache, hostPath: {path: /var/lib/hf-cache-study50, type: DirectoryOrCreate}}
+      - {name: shm, emptyDir: {medium: Memory, sizeLimit: 16Gi}}

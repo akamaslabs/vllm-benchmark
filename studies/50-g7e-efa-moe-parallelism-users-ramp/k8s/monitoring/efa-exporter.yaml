@@ -1,0 +1,109 @@
+# Study 50 EFA exporter. The EFA byte counters exist only on the host, under
+# /sys/class/infiniband/<device>/ports/<port>/hw_counters/ (spike 2026-11-10): node-exporter
+# does not export them and EFA traffic does not show in the ENA interface counters. One pod per
+# GPU node (a DaemonSet per node role, so the pod knows its role) reads them from the host /sys
+# and serves
+#   study50_node_role{node="<node>",hostname="<node>",nodename="<node>",role="a|b"} 1
+#   study50_efa_hw_counter_total{node,role,device,port,counter} <value>
+# The role series lets the telemetry join other exporters to a role without label_replace: it
+# repeats the node name under the label each of them uses, `hostname` for dcgm-exporter and
+# `nodename` for node-exporter's node_uname_info (both checked on this cluster's Prometheus).
+# Stdlib Python only, no host network, /sys mounted read-only.
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: efa-exporter-script, namespace: moe-efa}
+data:
+  exporter.py: |
+    import glob, http.server, os
+    NODE, ROLE = os.environ["NODE_NAME"], os.environ["ROLE"]
+    def body():
+        out = ['study50_node_role{node="%s",hostname="%s",nodename="%s",role="%s"} 1' % (NODE, NODE, NODE, ROLE)]
+        for f in sorted(glob.glob("/host/sys/class/infiniband/*/ports/*/hw_counters/*")):
+            p = f.split("/")
+            if p[9] == "lifespan":
+                continue
+            try:
+                v = int(open(f).read().strip())
+            except (OSError, ValueError):
+                continue
+            out.append('study50_efa_hw_counter_total{node="%s",role="%s",device="%s",port="%s",counter="%s"} %d'
+                       % (NODE, ROLE, p[5], p[7], p[9], v))
+        return ("\n".join(out) + "\n").encode()
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            ok = self.path == "/metrics"
+            self.send_response(200 if ok else 404)
+            self.send_header("Content-Type", "text/plain; version=0.0.4")
+            self.end_headers()
+            self.wfile.write(body() if ok else b"")
+        def log_message(self, *a):
+            pass
+    http.server.HTTPServer(("", 9400), H).serve_forever()
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata: {name: efa-exporter-a, namespace: moe-efa}
+spec:
+  selector: {matchLabels: {app: efa-exporter, study50/role: a}}
+  template:
+    metadata: {labels: {app: efa-exporter, study50/role: a}}
+    spec:
+      nodeSelector: {node-role: llm-serving-g7e-8xl-efa, study50/role: a}
+      tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+      terminationGracePeriodSeconds: 2
+      containers:
+      - name: exporter
+        image: python:3.12-slim
+        command: ["python3", "/app/exporter.py"]
+        env:
+        - {name: NODE_NAME, valueFrom: {fieldRef: {fieldPath: spec.nodeName}}}
+        - {name: ROLE, value: a}
+        ports: [{name: metrics, containerPort: 9400}]
+        readinessProbe: {httpGet: {path: /metrics, port: 9400}, periodSeconds: 5}
+        resources:
+          requests: {cpu: 20m, memory: 64Mi}
+          limits: {cpu: 200m, memory: 128Mi}
+        volumeMounts:
+        - {name: sys, mountPath: /host/sys, readOnly: true}
+        - {name: script, mountPath: /app}
+      volumes:
+      - {name: sys, hostPath: {path: /sys}}
+      - {name: script, configMap: {name: efa-exporter-script}}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata: {name: efa-exporter-b, namespace: moe-efa}
+spec:
+  selector: {matchLabels: {app: efa-exporter, study50/role: b}}
+  template:
+    metadata: {labels: {app: efa-exporter, study50/role: b}}
+    spec:
+      nodeSelector: {node-role: llm-serving-g7e-8xl-efa, study50/role: b}
+      tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+      terminationGracePeriodSeconds: 2
+      containers:
+      - name: exporter
+        image: python:3.12-slim
+        command: ["python3", "/app/exporter.py"]
+        env:
+        - {name: NODE_NAME, valueFrom: {fieldRef: {fieldPath: spec.nodeName}}}
+        - {name: ROLE, value: b}
+        ports: [{name: metrics, containerPort: 9400}]
+        readinessProbe: {httpGet: {path: /metrics, port: 9400}, periodSeconds: 5}
+        resources:
+          requests: {cpu: 20m, memory: 64Mi}
+          limits: {cpu: 200m, memory: 128Mi}
+        volumeMounts:
+        - {name: sys, mountPath: /host/sys, readOnly: true}
+        - {name: script, mountPath: /app}
+      volumes:
+      - {name: sys, hostPath: {path: /sys}}
+      - {name: script, configMap: {name: efa-exporter-script}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: efa-exporter, namespace: moe-efa, labels: {app: efa-exporter}}
+spec:
+  clusterIP: None
+  selector: {app: efa-exporter}
+  ports: [{name: metrics, port: 9400, targetPort: 9400}]

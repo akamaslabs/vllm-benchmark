@@ -1,0 +1,11 @@
+kind: component
+system: vLLM_Benchmark_50_G7E_EFA_MoE_Parallelism
+
+name: container
+description: >-
+  The vLLM containers (pods vllm-a-0 and vllm-b-0, namespace moe-efa), 26 CPU and 160 GiB each
+  (requests = limits). container_cpu_throttle_time guards against a CPU-starved vLLM.
+componentType: Kubernetes Container
+properties:
+  prometheus:
+    pod: ^vllm-[ab]-0$

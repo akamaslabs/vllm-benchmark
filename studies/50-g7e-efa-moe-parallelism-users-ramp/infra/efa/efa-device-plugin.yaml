@@ -1,0 +1,36 @@
+# Study 50's own copy of the AWS EFA Kubernetes device plugin, for the g7e.8xlarge pair only.
+# Why a copy: the DaemonSet eksctl installs (kube-system/aws-efa-k8s-device-plugin v0.5.4) has a
+# node affinity listing 121 instance types without any g7e, and does not tolerate the node
+# group's nvidia.com/gpu taint (spike 2026-11-10). This one is the same container spec, selected
+# by node-role and tolerating every taint. It advertises vpc.amazonaws.com/efa on the node.
+# The shared DaemonSet is left alone: its affinity keeps it off these nodes.
+# The namespace moe-efa is created by nodegroups.sh create (not here: deleting this file must not
+# delete the study's namespace).
+apiVersion: apps/v1
+kind: DaemonSet
+metadata: {name: study50-efa-device-plugin, namespace: moe-efa}
+spec:
+  selector: {matchLabels: {name: study50-efa-device-plugin}}
+  updateStrategy: {type: RollingUpdate, rollingUpdate: {maxUnavailable: 1}}
+  template:
+    metadata: {labels: {name: study50-efa-device-plugin}}
+    spec:
+      nodeSelector: {node-role: llm-serving-g7e-8xl-efa}
+      tolerations: [{operator: Exists}]
+      hostNetwork: true
+      priorityClassName: system-node-critical
+      containers:
+      - name: aws-efa-k8s-device-plugin
+        image: 602401143452.dkr.ecr.us-east-2.amazonaws.com/eks/aws-efa-k8s-device-plugin:v0.5.4
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: {drop: [ALL]}
+          runAsNonRoot: false
+        resources: {requests: {cpu: 10m, memory: 20Mi}}
+        volumeMounts:
+        - {name: device-plugin, mountPath: /var/lib/kubelet/device-plugins}
+        - {name: infiniband-volume, mountPath: /dev/infiniband/}
+      volumes:
+      - {name: device-plugin, hostPath: {path: /var/lib/kubelet/device-plugins}}
+      - {name: infiniband-volume, hostPath: {path: /dev/infiniband/}}

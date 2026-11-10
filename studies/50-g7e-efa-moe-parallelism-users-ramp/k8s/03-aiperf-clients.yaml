@@ -1,0 +1,39 @@
+# Study 50 load generator: two long-lived AIPerf client pods on the m8a-2xlarge load node, each
+# driving half of the users of a level. aiperf-client-0 always targets node A (vllm-a); client 1
+# targets node B when its pod runs an API server (two replicas, data parallel with external
+# load balancing), node A otherwise. The runs are started by lib_load.sh with kubectl exec.
+# Results stay in the pod's /work (emptyDir) and are deleted after every level: no PVC to fill
+# up (study 41's lesson); the scripts print what they need to stdout.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: aiperf-client, namespace: moe-efa}
+spec:
+  serviceName: aiperf-client
+  replicas: 2
+  podManagementPolicy: Parallel
+  selector: {matchLabels: {app: aiperf-client}}
+  template:
+    metadata: {labels: {app: aiperf-client}}
+    spec:
+      nodeSelector: {node-role: m8a-2xlarge}
+      tolerations: [{key: dedicated, operator: Equal, value: m8a-2xlarge, effect: NoSchedule}]
+      terminationGracePeriodSeconds: 5
+      containers:
+      - name: aiperf
+        image: python:3.12-slim
+        workingDir: /work
+        command: ["sh", "-c"]
+        args:
+        - |
+          set -e
+          pip install --quiet aiperf==0.11.0
+          touch /work/ready
+          exec sleep infinity
+        readinessProbe: {exec: {command: [test, -f, /work/ready]}, periodSeconds: 5}
+        env:
+        - {name: AIPERF_TIMING_RATE_RAMP_UPDATE_INTERVAL, value: "10"}
+        resources:
+          requests: {cpu: "3", memory: 6Gi}
+          limits: {cpu: 3500m, memory: 12Gi}
+        volumeMounts: [{name: work, mountPath: /work}]
+      volumes: [{name: work, emptyDir: {}}]

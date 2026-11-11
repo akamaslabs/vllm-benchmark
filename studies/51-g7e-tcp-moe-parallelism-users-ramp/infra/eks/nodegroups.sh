@@ -59,7 +59,7 @@ case ${1:-} in
       aws ec2 describe-placement-groups --region $REGION --group-names $PG >/dev/null 2>&1 \
         || aws ec2 create-placement-group --region $REGION --group-name $PG --strategy cluster \
              --tag-specifications "ResourceType=placement-group,Tags=[{Key=Project,Value=vllm-bench},{Key=Study,Value=51-g7e-tcp-moe-parallelism}]" \
-             --query 'PlacementGroup.GroupName' --output text
+             --query 'PlacementGroup.GroupName' --output text >&2   # stdout is eksctl's config
       sed "s/@AZ@/$AZ/" "$HERE/nodegroups.yaml"
     fi | eksctl create nodegroup -f - --install-nvidia-plugin=false
     kubectl create namespace moe-tcp --dry-run=client -o yaml | kubectl apply -f - ;;

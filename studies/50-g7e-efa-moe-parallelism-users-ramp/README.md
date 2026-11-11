@@ -5,10 +5,11 @@
 **Blocked on capacity:** no availability zone of us-east-2 had two g7e.8xlarge for ten hours,
 from 20:34 UTC on 2026-11-10 to 06:29 UTC on 2026-11-11 (`nodegroups.sh wait-up 10`, one probe
 every 5 minutes, 111 probes, none with room). The wait ended without creating anything. A second
-wait (`wait-up 24`) started at 08:07 UTC on 2026-11-11 and had found no capacity by 08:44 UTC.
+wait (`wait-up 24`) started at 08:07 UTC on 2026-11-11, found no capacity and was stopped at
+08:58 UTC, before study 51's nodes were created (nothing created, no reservation left).
 **Fallback chosen by the user on 2026-11-11:** the same design without EFA on two g7e.4xlarge,
 as study 51 (`../51-g7e-tcp-moe-parallelism-users-ramp/README.md`). The lab's G quota (64 vCPU)
-does not hold both pairs: the second wait is stopped when study 51's nodes are created. This
+does not hold both pairs: start the wait again only after study 51's teardown. This
 study stays built for when a g7e.8xlarge pair is available. Nothing of this study has run on real
 nodes yet: the smoke checks below are still to do. The Akamas resources exist on akamas-41 since
 2026-11-10 (every file accepted by `akamas create`, study not started), and Prometheus parses

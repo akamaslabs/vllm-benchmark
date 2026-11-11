@@ -2,8 +2,10 @@
 
 **Status:** BUILT locally on 2026-11-10, not started. The EFA spike passed
 (`docs/spikes/2026-11-10-efa-eks/README.md`). The scripts are tested locally (214 assertions).
-**Waiting for capacity:** no availability zone of us-east-2 had two g7e.8xlarge on the evening
-of 2026-11-10 (probed every 5 minutes from 20:34 UTC). Nothing of this study has run on real
+**Blocked on capacity:** no availability zone of us-east-2 had two g7e.8xlarge for ten hours,
+from 20:34 UTC on 2026-11-10 to 06:29 UTC on 2026-11-11 (`nodegroups.sh wait-up 10`, one probe
+every 5 minutes, 111 probes, none with room). The wait ended without creating anything; it is
+not running any more. Nothing of this study has run on real
 nodes yet: the smoke checks below are still to do. The Akamas resources exist on akamas-41 since
 2026-11-10 (every file accepted by `akamas create`, study not started), and Prometheus parses
 all 115 telemetry queries; whether each returns data is smoke check 6.

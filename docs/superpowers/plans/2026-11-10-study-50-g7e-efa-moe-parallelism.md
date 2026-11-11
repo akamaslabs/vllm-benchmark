@@ -82,7 +82,8 @@ vLLM 1.15.0, GPU 1.4.0, Kubernetes 1.9.0.
 ### Task 4: Nodes
 
 - [ ] `nodegroups.sh wait-up 10`. Expected: two nodes Ready, labelled `study50/role=a|b`.
-  Blocked on 2026-11-10: no capacity in any zone of us-east-2.
+  Blocked: no capacity in any zone of us-east-2 from 20:34 UTC on 2026-11-10 to 06:29 UTC on
+  2026-11-11 (111 probes). The wait is over and has to be started again.
 - [ ] `load-node.sh up`, `nodegroups.sh status`. Expected per node: `nvidia.com/gpu: 1`,
   `vpc.amazonaws.com/efa: 1`, `hugepages-2Mi` >= 5120Mi, a dcgm-exporter pod.
 - [ ] `kubectl apply -f k8s/00-base.yaml -f k8s/02-model-download.yaml`. Expected: both download

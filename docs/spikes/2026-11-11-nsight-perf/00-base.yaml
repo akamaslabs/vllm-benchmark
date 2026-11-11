@@ -1,0 +1,83 @@
+# Nsight Perf SDK for AI spike, everything on the one probe node (node-role nsight-probe-g7e-2xl):
+# the namespace, the model download, the Nsight pod and the AIPerf client.
+# - nsight: Ubuntu 24.04 with the CUDA 13.5 toolkit (the SDK's build needs it). It builds the SDK
+#   (build.sh), runs the service and the capture tools. hostPID because the service must sit in
+#   the host PID namespace to correlate the driver's host PIDs with containerised workloads;
+#   privileged for the GPU performance counters (CAP_PERFMON). The node's driver is not touched.
+# - /run/nvidia/nsight-perf is the service's global endpoint: service, workload and consumer
+#   must see it at the same path, so it is a hostPath shared with the vLLM pod.
+# - /var/lib/nsight on the node holds the SDK build, the traces and the CUDA 13.5 compatibility
+#   libraries copied out of this image for the vLLM pod (driver 580 run).
+# - aiperf: the load generator of study 51 (AIPerf 0.11.0), on the same node so that the spike
+#   never touches the study's client pods.
+apiVersion: v1
+kind: Namespace
+metadata: {name: nsight-probe}
+---
+apiVersion: batch/v1
+kind: Job
+metadata: {name: model-download, namespace: nsight-probe}
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector: {node-role: nsight-probe-g7e-2xl}
+      tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+      containers:
+      - name: download
+        image: 763104351884.dkr.ecr.us-east-2.amazonaws.com/vllm:0.29.0-gpu-py312-cu130-ubuntu24.04-ec2
+        command: ["bash", "-c", "hf download openai/gpt-oss-120b --exclude 'original/*' --exclude 'metal/*' && du -sh /hf-cache"]
+        env: [{name: HF_HOME, value: /hf-cache}]
+        resources: {requests: {cpu: "1", memory: 4Gi}}
+        volumeMounts: [{name: hf-cache, mountPath: /hf-cache}]
+      volumes:
+      - {name: hf-cache, hostPath: {path: /var/lib/hf-cache-nsight, type: DirectoryOrCreate}}
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: nsight, namespace: nsight-probe, labels: {app: nsight}}
+spec:
+  hostPID: true
+  nodeSelector: {node-role: nsight-probe-g7e-2xl}
+  tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+  terminationGracePeriodSeconds: 5
+  containers:
+  - name: nsight
+    image: nvidia/cuda:13.5.0-devel-ubuntu24.04
+    command: ["sleep", "infinity"]
+    securityContext: {privileged: true}
+    env:
+    - {name: NVIDIA_VISIBLE_DEVICES, value: all}
+    - {name: NVIDIA_DRIVER_CAPABILITIES, value: all}
+    volumeMounts:
+    - {name: sock, mountPath: /run/nvidia/nsight-perf}
+    - {name: work, mountPath: /work}
+  volumes:
+  - {name: sock, hostPath: {path: /run/nvidia/nsight-perf, type: DirectoryOrCreate}}
+  - {name: work, hostPath: {path: /var/lib/nsight, type: DirectoryOrCreate}}
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: aiperf, namespace: nsight-probe, labels: {app: aiperf}}
+spec:
+  nodeSelector: {node-role: nsight-probe-g7e-2xl}
+  tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+  terminationGracePeriodSeconds: 5
+  containers:
+  - name: aiperf
+    image: python:3.12-slim
+    workingDir: /work
+    command: ["sh", "-c"]
+    args:
+    - |
+      set -e
+      pip install --quiet aiperf==0.11.0
+      touch /work/ready
+      exec sleep infinity
+    readinessProbe: {exec: {command: [test, -f, /work/ready]}, periodSeconds: 5}
+    env:
+    - {name: AIPERF_TIMING_RATE_RAMP_UPDATE_INTERVAL, value: "10"}
+    resources: {requests: {cpu: "1", memory: 2Gi}, limits: {cpu: "4", memory: 14Gi}}   # 7 cohorts of 64 users: ~8.1 GB, CPU bursts at each cohort start
+    volumeMounts: [{name: work, mountPath: /work}]
+  volumes: [{name: work, emptyDir: {}}]

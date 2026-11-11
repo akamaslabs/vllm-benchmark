@@ -1,0 +1,33 @@
+# Nsight Perf SDK for AI spike: ONE g7e.2xlarge on demand (1x RTX PRO 6000 Blackwell 96 GB,
+# 8 vCPU, 64 GiB; 3.36 USD/h), apart from study 51's pair so the running study is not touched.
+# Created with: eksctl create nodegroup -f nodegroup-g7e-2xl-nsight.yaml --install-nvidia-plugin=false
+# (eksctl would otherwise overwrite the cluster's shared NVIDIA device plugin DaemonSet).
+# No AlwaysOn tag on purpose: the lab's 17:00 UTC stop is the cost guard of this spike.
+# Deleted with: eksctl delete nodegroup -f nodegroup-g7e-2xl-nsight.yaml --approve --wait
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+metadata:
+  name: vllm-bench
+  region: us-east-2
+managedNodeGroups:
+  - name: nsight-probe-g7e-2xl
+    instanceType: g7e.2xlarge
+    minSize: 0
+    maxSize: 1
+    desiredCapacity: 1
+    availabilityZones: ["us-east-2a"]
+    privateNetworking: true
+    # gpt-oss-120b is ~65 GB on disk, plus the CUDA 13.5 development image and the traces.
+    volumeSize: 300
+    volumeType: gp3
+    volumeIOPS: 6000
+    volumeThroughput: 1000
+    labels:
+      node-role: nsight-probe-g7e-2xl
+    taints:
+      - key: nvidia.com/gpu
+        value: present
+        effect: NoSchedule
+    tags:
+      Project: vllm-bench
+      Study: spike-nsight-perf

@@ -1,0 +1,3 @@
+# Nsight captures are large binaries: kept locally, not committed.
+*
+!.gitignore

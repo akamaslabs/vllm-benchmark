@@ -1,0 +1,2 @@
+# Per-request AIPerf records (tens of MB): kept locally, the summaries next to them are in git.
+*.jsonl

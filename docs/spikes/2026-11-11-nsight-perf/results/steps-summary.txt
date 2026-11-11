@@ -1,0 +1,245 @@
+== ramp-step1-64users: 10.00 s
+  slices cuda_gpu_kernel_launch: 98144/s, 970 ms per second of trace
+  slices cuda_driver: 6783/s, 815 ms per second of trace
+  slices cuda_gpu_command: 2267/s, 1 ms per second of trace
+  slices system_info: 0/s, 3000 ms per second of trace
+  slices gpu_grctx: 0/s, 1000 ms per second of trace
+  counter Compute Warp Occupancy (Utilization) (GPU Metric): mean 16.22, max 100.00 (10000 samples)
+  counter DRAM Read (Utilization) (GPU Metric): mean 59.75, max 100.00 (10000 samples)
+  counter DRAM Write (Utilization) (GPU Metric): mean 0.84, max 100.00 (10000 samples)
+  counter GPC Clock (Hz) (GPU Metric): mean 2412995881.11, max 2429972250.26 (9999 samples)
+  counter GPU 0 - DRAM Bandwidth: mean 60.58, max 88.45 (9999 samples)
+  counter GPU 0 - GPU Activity: mean 99.57, max 100.00 (9999 samples)
+  counter GPU 0 - GPU Clocks: mean 2412995881.11, max 2429972250.26 (9999 samples)
+  counter GPU 0 - PCIe Bandwidth: mean 0.03, max 0.11 (9999 samples)
+  counter GR Active (Utilization) (GPU Metric): mean 99.57, max 100.00 (10000 samples)
+  counter PCIe RX (Utilization) (GPU Metric): mean 0.03, max 100.00 (10000 samples)
+  counter PCIe TX (Utilization) (GPU Metric): mean 0.04, max 100.00 (10000 samples)
+  counter SM Active (Utilization) (GPU Metric): mean 74.40, max 100.00 (10000 samples)
+  counter SM Issue (Utilization) (GPU Metric): mean 11.77, max 100.00 (10000 samples)
+  counter SYS Clock (Hz) (GPU Metric): mean 2172437002.05, max 2212423514.60 (9999 samples)
+  counter Tensor Active (Utilization) (GPU Metric): mean 5.99, max 100.00 (10000 samples)
+  kernel  38.5 % of kernel time   373.2 ms/s    11188/s  marlin_moe_wna16::Marlin
+  kernel  29.8 % of kernel time   289.4 ms/s    12065/s  internal::gemvx::kernel
+  kernel  14.9 % of kernel time   144.5 ms/s     4872/s  cutlass::Kernel2
+  kernel   5.6 % of kernel time    54.6 ms/s     5594/s  kernel_mha
+  kernel   2.1 % of kernel time    20.0 ms/s     5594/s  vllm::moe::topkGating
+  kernel   1.6 % of kernel time    15.5 ms/s     5594/s  vllm::moe::moe_align_block_size_kernel
+  kernel   1.0 % of kernel time     9.8 ms/s     5594/s  vllm::swigluoai_and_mul_kernel
+  kernel   1.0 % of kernel time     9.8 ms/s     5594/s  vllm::reshape_and_cache_flash_kernel
+  kernel   1.0 % of kernel time     9.4 ms/s     5594/s  triton_red_fused_fused_add_rms_norm_0
+  kernel   0.9 % of kernel time     8.6 ms/s     5594/s  triton_red_fused_fused_add_rms_norm_slice_2
+  kernel   0.6 % of kernel time     6.0 ms/s     5594/s  vllm::moe::moe_sum_vec_kernel
+  kernel   0.6 % of kernel time     5.9 ms/s     5439/s  triton_poi_fused_3
+  kernel   0.5 % of kernel time     5.1 ms/s     5594/s  vllm::moe::count_and_sort_expert_tokens_kernel
+  kernel   0.4 % of kernel time     4.2 ms/s     6061/s  at::native::vectorized_elementwise_kernel
+== ramp-step2-128users: 10.00 s
+  slices cuda_gpu_kernel_launch: 59653/s, 974 ms per second of trace
+  slices cuda_driver: 4417/s, 866 ms per second of trace
+  slices cuda_gpu_command: 3777/s, 1 ms per second of trace
+  slices system_info: 0/s, 3000 ms per second of trace
+  slices gpu_grctx: 0/s, 1000 ms per second of trace
+  counter Compute Warp Occupancy (Utilization) (GPU Metric): mean 15.33, max 100.00 (10000 samples)
+  counter DRAM Read (Utilization) (GPU Metric): mean 67.44, max 100.00 (10000 samples)
+  counter DRAM Write (Utilization) (GPU Metric): mean 1.45, max 100.00 (10000 samples)
+  counter GPC Clock (Hz) (GPU Metric): mean 2404997287.83, max 2430054249.50 (9999 samples)
+  counter GPU 0 - DRAM Bandwidth: mean 68.88, max 88.49 (9999 samples)
+  counter GPU 0 - GPU Activity: mean 99.39, max 100.00 (9999 samples)
+  counter GPU 0 - GPU Clocks: mean 2404997287.83, max 2430054249.50 (9999 samples)
+  counter GPU 0 - PCIe Bandwidth: mean 0.03, max 0.15 (9999 samples)
+  counter GR Active (Utilization) (GPU Metric): mean 99.39, max 100.00 (10000 samples)
+  counter PCIe RX (Utilization) (GPU Metric): mean 0.02, max 100.00 (10000 samples)
+  counter PCIe TX (Utilization) (GPU Metric): mean 0.04, max 100.00 (10000 samples)
+  counter SM Active (Utilization) (GPU Metric): mean 80.73, max 100.00 (10000 samples)
+  counter SM Issue (Utilization) (GPU Metric): mean 13.81, max 100.00 (10000 samples)
+  counter SYS Clock (Hz) (GPU Metric): mean 2179742707.48, max 2212456514.29 (9999 samples)
+  counter Tensor Active (Utilization) (GPU Metric): mean 11.08, max 100.00 (10000 samples)
+  kernel  57.1 % of kernel time   556.3 ms/s     6671/s  marlin_moe_wna16::Marlin
+  kernel  29.1 % of kernel time   283.7 ms/s    10099/s  cutlass::Kernel2
+  kernel   5.6 % of kernel time    54.4 ms/s     3336/s  kernel_mha
+  kernel   1.4 % of kernel time    13.8 ms/s     3336/s  vllm::moe::topkGating
+  kernel   1.0 % of kernel time     9.4 ms/s     3336/s  vllm::moe::moe_align_block_size_kernel
+  kernel   0.8 % of kernel time     7.5 ms/s     3336/s  vllm::swigluoai_and_mul_kernel
+  kernel   0.8 % of kernel time     7.4 ms/s     3336/s  triton_red_fused_fused_add_rms_norm_0
+  kernel   0.7 % of kernel time     7.1 ms/s       72/s  flashinfer::BatchPrefillWithPagedKVCacheKernel
+  kernel   0.6 % of kernel time     5.9 ms/s     3336/s  triton_red_fused_fused_add_rms_norm_slice_2
+  kernel   0.6 % of kernel time     5.9 ms/s     3336/s  vllm::reshape_and_cache_flash_kernel
+  kernel   0.4 % of kernel time     4.2 ms/s     3336/s  vllm::moe::moe_sum_vec_kernel
+  kernel   0.4 % of kernel time     3.8 ms/s     3243/s  triton_poi_fused_3
+  kernel   0.3 % of kernel time     3.0 ms/s     3336/s  vllm::moe::count_and_sort_expert_tokens_kernel
+  kernel   0.3 % of kernel time     2.5 ms/s     3614/s  at::native::vectorized_elementwise_kernel
+== ramp-step3-192users: 10.00 s
+  slices cuda_gpu_kernel_launch: 20355/s, 988 ms per second of trace
+  slices cuda_driver: 3346/s, 884 ms per second of trace
+  slices cuda_gpu_command: 1231/s, 0 ms per second of trace
+  slices system_info: 0/s, 3000 ms per second of trace
+  slices gpu_grctx: 0/s, 1000 ms per second of trace
+  counter Compute Warp Occupancy (Utilization) (GPU Metric): mean 19.42, max 100.00 (10000 samples)
+  counter DRAM Read (Utilization) (GPU Metric): mean 54.83, max 100.00 (10000 samples)
+  counter DRAM Write (Utilization) (GPU Metric): mean 4.51, max 100.00 (10000 samples)
+  counter GPC Clock (Hz) (GPU Metric): mean 2407197077.59, max 2430000000.00 (9999 samples)
+  counter GPU 0 - DRAM Bandwidth: mean 59.33, max 90.99 (9999 samples)
+  counter GPU 0 - GPU Activity: mean 99.51, max 100.00 (9999 samples)
+  counter GPU 0 - GPU Clocks: mean 2407197077.59, max 2430000000.00 (9999 samples)
+  counter GPU 0 - PCIe Bandwidth: mean 0.03, max 0.29 (9999 samples)
+  counter GR Active (Utilization) (GPU Metric): mean 99.51, max 100.00 (10000 samples)
+  counter PCIe RX (Utilization) (GPU Metric): mean 0.02, max 100.00 (10000 samples)
+  counter PCIe TX (Utilization) (GPU Metric): mean 0.03, max 100.00 (10000 samples)
+  counter SM Active (Utilization) (GPU Metric): mean 91.62, max 100.00 (10000 samples)
+  counter SM Issue (Utilization) (GPU Metric): mean 19.88, max 100.00 (10000 samples)
+  counter SYS Clock (Hz) (GPU Metric): mean 2186906952.19, max 2212432514.51 (9999 samples)
+  counter Tensor Active (Utilization) (GPU Metric): mean 34.39, max 100.00 (10000 samples)
+  kernel  70.6 % of kernel time   697.8 ms/s     2087/s  marlin_moe_wna16::Marlin
+  kernel  12.6 % of kernel time   124.7 ms/s     3160/s  cutlass::Kernel2
+  kernel   7.0 % of kernel time    69.5 ms/s     1043/s  kernel_mha
+  kernel   3.1 % of kernel time    30.6 ms/s      104/s  flashinfer::BatchPrefillWithPagedKVCacheKernel
+  kernel   2.0 % of kernel time    19.4 ms/s     1043/s  vllm::swigluoai_and_mul_kernel
+  kernel   0.8 % of kernel time     8.4 ms/s     1043/s  vllm::moe::moe_sum_vec_kernel
+  kernel   0.7 % of kernel time     6.6 ms/s     1043/s  triton_red_fused_fused_add_rms_norm_slice_2
+  kernel   0.5 % of kernel time     5.1 ms/s     1044/s  triton_red_fused_fused_add_rms_norm_0
+  kernel   0.4 % of kernel time     4.4 ms/s     1044/s  vllm::moe::topkGating
+  kernel   0.4 % of kernel time     3.6 ms/s       29/s  _gumbel_sample_kernel
+  kernel   0.4 % of kernel time     3.5 ms/s     1894/s  cublasLt::splitKreduce_kernel
+  kernel   0.3 % of kernel time     3.4 ms/s     1043/s  vllm::reshape_and_cache_flash_kernel
+  kernel   0.3 % of kernel time     3.4 ms/s     1014/s  triton_poi_fused_3
+  kernel   0.3 % of kernel time     3.3 ms/s     1044/s  vllm::moe::moe_align_block_size_kernel
+== ramp-step4-256users: 10.00 s
+  slices cuda_gpu_kernel_launch: 9426/s, 993 ms per second of trace
+  slices cuda_driver: 2970/s, 890 ms per second of trace
+  slices cuda_gpu_command: 242/s, 0 ms per second of trace
+  slices system_info: 0/s, 3000 ms per second of trace
+  slices gpu_grctx: 0/s, 1000 ms per second of trace
+  counter Compute Warp Occupancy (Utilization) (GPU Metric): mean 19.45, max 100.00 (10000 samples)
+  counter DRAM Read (Utilization) (GPU Metric): mean 44.44, max 100.00 (10000 samples)
+  counter DRAM Write (Utilization) (GPU Metric): mean 5.83, max 100.00 (10000 samples)
+  counter GPC Clock (Hz) (GPU Metric): mean 2403386961.33, max 2430011499.89 (9999 samples)
+  counter GPU 0 - DRAM Bandwidth: mean 50.26, max 91.63 (9999 samples)
+  counter GPU 0 - GPU Activity: mean 99.52, max 100.00 (9999 samples)
+  counter GPU 0 - GPU Clocks: mean 2403386961.33, max 2430011499.89 (9999 samples)
+  counter GPU 0 - PCIe Bandwidth: mean 0.03, max 0.54 (9999 samples)
+  counter GR Active (Utilization) (GPU Metric): mean 99.52, max 100.00 (10000 samples)
+  counter PCIe RX (Utilization) (GPU Metric): mean 0.02, max 100.00 (10000 samples)
+  counter PCIe TX (Utilization) (GPU Metric): mean 0.03, max 100.00 (10000 samples)
+  counter SM Active (Utilization) (GPU Metric): mean 94.27, max 100.00 (10000 samples)
+  counter SM Issue (Utilization) (GPU Metric): mean 22.01, max 100.00 (10000 samples)
+  counter SYS Clock (Hz) (GPU Metric): mean 2185579708.24, max 2212439514.45 (9999 samples)
+  counter Tensor Active (Utilization) (GPU Metric): mean 44.17, max 100.00 (10000 samples)
+  kernel  68.6 % of kernel time   680.6 ms/s      973/s  marlin_moe_wna16::Marlin
+  kernel  11.1 % of kernel time   110.6 ms/s     1473/s  cutlass::Kernel2
+  kernel   9.1 % of kernel time    90.2 ms/s      487/s  kernel_mha
+  kernel   4.5 % of kernel time    44.5 ms/s      119/s  flashinfer::BatchPrefillWithPagedKVCacheKernel
+  kernel   2.6 % of kernel time    26.2 ms/s      487/s  vllm::swigluoai_and_mul_kernel
+  kernel   1.1 % of kernel time    11.0 ms/s      487/s  vllm::moe::moe_sum_vec_kernel
+  kernel   0.8 % of kernel time     8.3 ms/s      487/s  triton_red_fused_fused_add_rms_norm_slice_2
+  kernel   0.5 % of kernel time     4.7 ms/s      487/s  triton_red_fused_fused_add_rms_norm_0
+  kernel   0.4 % of kernel time     3.9 ms/s      473/s  triton_poi_fused_3
+  kernel   0.3 % of kernel time     3.2 ms/s      487/s  vllm::reshape_and_cache_flash_kernel
+  kernel   0.2 % of kernel time     2.1 ms/s      487/s  vllm::moe::topkGating
+  kernel   0.2 % of kernel time     1.9 ms/s      487/s  vllm::moe::moe_align_block_size_kernel
+  kernel   0.2 % of kernel time     1.6 ms/s      738/s  cublasLt::splitKreduce_kernel
+  kernel   0.1 % of kernel time     1.1 ms/s       13/s  _gumbel_sample_kernel
+== ramp-step5-320users: 10.00 s
+  slices cuda_gpu_kernel_launch: 5424/s, 994 ms per second of trace
+  slices cuda_driver: 2484/s, 903 ms per second of trace
+  slices cuda_gpu_command: 355/s, 0 ms per second of trace
+  slices system_info: 0/s, 3000 ms per second of trace
+  slices gpu_grctx: 0/s, 1000 ms per second of trace
+  counter Compute Warp Occupancy (Utilization) (GPU Metric): mean 19.60, max 100.00 (10000 samples)
+  counter DRAM Read (Utilization) (GPU Metric): mean 38.04, max 100.00 (10000 samples)
+  counter DRAM Write (Utilization) (GPU Metric): mean 6.55, max 100.00 (10000 samples)
+  counter GPC Clock (Hz) (GPU Metric): mean 2399202480.54, max 2430006166.61 (9999 samples)
+  counter GPU 0 - DRAM Bandwidth: mean 44.57, max 93.31 (9999 samples)
+  counter GPU 0 - GPU Activity: mean 99.60, max 100.00 (9999 samples)
+  counter GPU 0 - GPU Clocks: mean 2399202480.54, max 2430006166.61 (9999 samples)
+  counter GPU 0 - PCIe Bandwidth: mean 0.03, max 0.87 (9999 samples)
+  counter GR Active (Utilization) (GPU Metric): mean 99.60, max 100.00 (10000 samples)
+  counter PCIe RX (Utilization) (GPU Metric): mean 0.02, max 100.00 (10000 samples)
+  counter PCIe TX (Utilization) (GPU Metric): mean 0.03, max 100.00 (10000 samples)
+  counter SM Active (Utilization) (GPU Metric): mean 95.99, max 100.00 (10000 samples)
+  counter SM Issue (Utilization) (GPU Metric): mean 23.03, max 100.00 (10000 samples)
+  counter SYS Clock (Hz) (GPU Metric): mean 2184251173.12, max 2212476514.11 (9999 samples)
+  counter Tensor Active (Utilization) (GPU Metric): mean 48.74, max 100.00 (10000 samples)
+  kernel  65.6 % of kernel time   652.4 ms/s      581/s  marlin_moe_wna16::Marlin
+  kernel  11.1 % of kernel time   110.3 ms/s      880/s  cutlass::Kernel2
+  kernel  10.8 % of kernel time   107.7 ms/s      290/s  kernel_mha
+  kernel   5.1 % of kernel time    51.0 ms/s      110/s  flashinfer::BatchPrefillWithPagedKVCacheKernel
+  kernel   3.1 % of kernel time    30.4 ms/s      290/s  vllm::swigluoai_and_mul_kernel
+  kernel   1.3 % of kernel time    13.1 ms/s      290/s  vllm::moe::moe_sum_vec_kernel
+  kernel   1.0 % of kernel time    10.2 ms/s      290/s  triton_red_fused_fused_add_rms_norm_slice_2
+  kernel   0.5 % of kernel time     4.7 ms/s      290/s  triton_red_fused_fused_add_rms_norm_0
+  kernel   0.5 % of kernel time     4.6 ms/s      282/s  triton_poi_fused_3
+  kernel   0.3 % of kernel time     3.4 ms/s      290/s  vllm::reshape_and_cache_flash_kernel
+  kernel   0.1 % of kernel time     1.5 ms/s      290/s  vllm::moe::moe_align_block_size_kernel
+  kernel   0.1 % of kernel time     1.3 ms/s      290/s  vllm::moe::topkGating
+  kernel   0.1 % of kernel time     0.9 ms/s      290/s  vllm::moe::count_and_sort_expert_tokens_kernel
+  kernel   0.1 % of kernel time     0.9 ms/s        8/s  _gumbel_sample_kernel
+== ramp-step6-384users: 10.00 s
+  slices cuda_gpu_kernel_launch: 5211/s, 994 ms per second of trace
+  slices cuda_driver: 2828/s, 890 ms per second of trace
+  slices cuda_gpu_command: 371/s, 0 ms per second of trace
+  slices system_info: 0/s, 3000 ms per second of trace
+  slices gpu_grctx: 0/s, 1000 ms per second of trace
+  counter Compute Warp Occupancy (Utilization) (GPU Metric): mean 19.37, max 100.00 (10000 samples)
+  counter DRAM Read (Utilization) (GPU Metric): mean 37.38, max 100.00 (10000 samples)
+  counter DRAM Write (Utilization) (GPU Metric): mean 6.59, max 100.00 (10000 samples)
+  counter GPC Clock (Hz) (GPU Metric): mean 2398156234.96, max 2430005249.95 (9999 samples)
+  counter GPU 0 - DRAM Bandwidth: mean 43.96, max 93.21 (9999 samples)
+  counter GPU 0 - GPU Activity: mean 99.54, max 100.00 (9999 samples)
+  counter GPU 0 - GPU Clocks: mean 2398156234.96, max 2430005249.95 (9999 samples)
+  counter GPU 0 - PCIe Bandwidth: mean 0.03, max 0.91 (9999 samples)
+  counter GR Active (Utilization) (GPU Metric): mean 99.54, max 100.00 (10000 samples)
+  counter PCIe RX (Utilization) (GPU Metric): mean 0.02, max 100.00 (10000 samples)
+  counter PCIe TX (Utilization) (GPU Metric): mean 0.03, max 100.00 (10000 samples)
+  counter SM Active (Utilization) (GPU Metric): mean 95.93, max 100.00 (10000 samples)
+  counter SM Issue (Utilization) (GPU Metric): mean 23.05, max 100.00 (10000 samples)
+  counter SYS Clock (Hz) (GPU Metric): mean 2184203123.17, max 2212481514.06 (9999 samples)
+  counter Tensor Active (Utilization) (GPU Metric): mean 49.97, max 100.00 (10000 samples)
+  kernel  65.8 % of kernel time   654.1 ms/s      559/s  marlin_moe_wna16::Marlin
+  kernel  11.2 % of kernel time   111.7 ms/s      846/s  cutlass::Kernel2
+  kernel  10.5 % of kernel time   103.9 ms/s      279/s  kernel_mha
+  kernel   5.3 % of kernel time    52.6 ms/s      125/s  flashinfer::BatchPrefillWithPagedKVCacheKernel
+  kernel   3.1 % of kernel time    30.3 ms/s      279/s  vllm::swigluoai_and_mul_kernel
+  kernel   1.3 % of kernel time    12.9 ms/s      279/s  vllm::moe::moe_sum_vec_kernel
+  kernel   1.0 % of kernel time     9.6 ms/s      279/s  triton_red_fused_fused_add_rms_norm_slice_2
+  kernel   0.5 % of kernel time     4.7 ms/s      279/s  triton_red_fused_fused_add_rms_norm_0
+  kernel   0.4 % of kernel time     4.5 ms/s      272/s  triton_poi_fused_3
+  kernel   0.3 % of kernel time     3.3 ms/s      279/s  vllm::reshape_and_cache_flash_kernel
+  kernel   0.1 % of kernel time     1.5 ms/s      279/s  vllm::moe::moe_align_block_size_kernel
+  kernel   0.1 % of kernel time     1.3 ms/s      279/s  vllm::moe::topkGating
+  kernel   0.1 % of kernel time     0.9 ms/s      279/s  vllm::moe::count_and_sort_expert_tokens_kernel
+  kernel   0.1 % of kernel time     0.9 ms/s        8/s  _gumbel_sample_kernel
+== ramp-step7-448users: 10.00 s
+  slices cuda_gpu_kernel_launch: 4594/s, 993 ms per second of trace
+  slices cuda_driver: 2922/s, 889 ms per second of trace
+  slices cuda_gpu_command: 339/s, 0 ms per second of trace
+  slices system_info: 0/s, 3000 ms per second of trace
+  slices gpu_grctx: 0/s, 1000 ms per second of trace
+  counter Compute Warp Occupancy (Utilization) (GPU Metric): mean 19.43, max 100.00 (10000 samples)
+  counter DRAM Read (Utilization) (GPU Metric): mean 34.92, max 100.00 (10000 samples)
+  counter DRAM Write (Utilization) (GPU Metric): mean 6.93, max 100.00 (10000 samples)
+  counter GPC Clock (Hz) (GPU Metric): mean 2396883863.11, max 2430021833.13 (9999 samples)
+  counter GPU 0 - DRAM Bandwidth: mean 41.83, max 93.02 (9999 samples)
+  counter GPU 0 - GPU Activity: mean 99.47, max 100.00 (9999 samples)
+  counter GPU 0 - GPU Clocks: mean 2396883863.11, max 2430021833.13 (9999 samples)
+  counter GPU 0 - PCIe Bandwidth: mean 0.03, max 0.93 (9999 samples)
+  counter GR Active (Utilization) (GPU Metric): mean 99.47, max 100.00 (10000 samples)
+  counter PCIe RX (Utilization) (GPU Metric): mean 0.02, max 100.00 (10000 samples)
+  counter PCIe TX (Utilization) (GPU Metric): mean 0.03, max 100.00 (10000 samples)
+  counter SM Active (Utilization) (GPU Metric): mean 96.14, max 100.00 (10000 samples)
+  counter SM Issue (Utilization) (GPU Metric): mean 23.43, max 100.00 (10000 samples)
+  counter SYS Clock (Hz) (GPU Metric): mean 2183405762.18, max 2212444514.40 (9999 samples)
+  counter Tensor Active (Utilization) (GPU Metric): mean 52.02, max 100.00 (10000 samples)
+  kernel  66.5 % of kernel time   660.5 ms/s      489/s  marlin_moe_wna16::Marlin
+  kernel  11.4 % of kernel time   112.8 ms/s      741/s  cutlass::Kernel2
+  kernel   9.2 % of kernel time    91.4 ms/s      245/s  kernel_mha
+  kernel   5.4 % of kernel time    53.4 ms/s      137/s  flashinfer::BatchPrefillWithPagedKVCacheKernel
+  kernel   3.2 % of kernel time    32.1 ms/s      245/s  vllm::swigluoai_and_mul_kernel
+  kernel   1.4 % of kernel time    13.6 ms/s      245/s  vllm::moe::moe_sum_vec_kernel
+  kernel   1.0 % of kernel time    10.2 ms/s      245/s  triton_red_fused_fused_add_rms_norm_slice_2
+  kernel   0.5 % of kernel time     4.9 ms/s      245/s  triton_red_fused_fused_add_rms_norm_0
+  kernel   0.5 % of kernel time     4.5 ms/s      238/s  triton_poi_fused_3
+  kernel   0.3 % of kernel time     3.5 ms/s      245/s  vllm::reshape_and_cache_flash_kernel
+  kernel   0.1 % of kernel time     1.4 ms/s      245/s  vllm::moe::moe_align_block_size_kernel
+  kernel   0.1 % of kernel time     1.1 ms/s      245/s  vllm::moe::topkGating
+  kernel   0.1 % of kernel time     0.9 ms/s      245/s  vllm::moe::count_and_sort_expert_tokens_kernel
+  kernel   0.1 % of kernel time     0.9 ms/s        7/s  _gumbel_sample_kernel

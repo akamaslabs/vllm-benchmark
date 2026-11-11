@@ -1,0 +1,55 @@
+# Nsight spike: one vLLM pod with study 51's one-GPU flags (experiment 1), sized for a
+# g7e.2xlarge (8 vCPU, 64 GiB). Started only after the Nsight service is ready: the CUDA driver
+# connects to the service when the process initialises CUDA.
+# - /run/nvidia/nsight-perf: the service's endpoint, at the same path as in the nsight pod.
+# - COMPAT_DIR: /nsight-compat, so that vLLM loads the CUDA 13.5 user-mode driver (libcuda
+#   620.70.06) from the compatibility package instead of the host's 580 libcuda. The kernel
+#   driver stays 580.178.04. Empty = the host's libcuda (no tracing).
+apiVersion: v1
+kind: Service
+metadata: {name: vllm, namespace: nsight-probe}
+spec:
+  selector: {app: vllm}
+  ports: [{name: http, port: 8000, targetPort: 8000}]
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: vllm, namespace: nsight-probe, labels: {app: vllm}}
+spec:
+  enableServiceLinks: false
+  nodeSelector: {node-role: nsight-probe-g7e-2xl}
+  tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+  terminationGracePeriodSeconds: 30
+  restartPolicy: Never
+  containers:
+  - name: vllm
+    image: 763104351884.dkr.ecr.us-east-2.amazonaws.com/vllm:0.29.0-gpu-py312-cu130-ubuntu24.04-ec2
+    command: ["bash", "-c"]
+    args:
+    - |
+      if [ -n "$COMPAT_DIR" ]; then export LD_LIBRARY_PATH="$COMPAT_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"; fi
+      echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"; ls -l /run/nvidia/nsight-perf/ || true
+      exec vllm serve openai/gpt-oss-120b --served-model-name=gpt-oss-120b --port=8000 --host=0.0.0.0 \
+        --max-model-len=16384 --enable-prefix-caching --gpu-memory-utilization=0.90000 \
+        --max-num-seqs=512 --max-num-batched-tokens=8192 --kv-cache-dtype=auto
+    env:
+    - {name: HF_HOME, value: /hf-cache}
+    - {name: COMPAT_DIR, value: "@COMPAT_DIR@"}
+    ports: [{name: http, containerPort: 8000}]
+    resources:
+      requests: {cpu: "5", memory: 44Gi, nvidia.com/gpu: 1}
+      limits: {cpu: "5", memory: 44Gi, nvidia.com/gpu: 1}
+    volumeMounts:
+    - {name: hf-cache, mountPath: /hf-cache}
+    - {name: shm, mountPath: /dev/shm}
+    - {name: sock, mountPath: /run/nvidia/nsight-perf}
+    - {name: compat, mountPath: /nsight-compat, readOnly: true}
+    startupProbe:
+      exec: {command: [sh, -c, 'curl -sf -o /dev/null localhost:8000/health']}
+      periodSeconds: 10
+      failureThreshold: 180
+  volumes:
+  - {name: hf-cache, hostPath: {path: /var/lib/hf-cache-nsight, type: DirectoryOrCreate}}
+  - {name: shm, emptyDir: {medium: Memory, sizeLimit: 16Gi}}
+  - {name: sock, hostPath: {path: /run/nvidia/nsight-perf, type: DirectoryOrCreate}}
+  - {name: compat, hostPath: {path: /var/lib/nsight/compat, type: DirectoryOrCreate}}

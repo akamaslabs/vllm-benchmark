@@ -1,0 +1,9 @@
+15:16:51 ramp-step1-64users: 43 MB, export 5.83s, peak 1373248 KB
+15:16:58 ramp-step2-128users: 28 MB, export 3.73s, peak 1009916 KB
+15:17:01 ramp-step3-192users: 12 MB, export 1.77s, peak 607044 KB
+15:17:04 ramp-step4-256users: 7 MB, export 1.26s, peak 503920 KB
+15:17:06 ramp-step5-320users: 5 MB, export 1.21s, peak 451276 KB
+15:17:08 ramp-step6-384users: 5 MB, export 1.20s, peak 452420 KB
+15:17:09 ramp-step7-448users: 5 MB, export 1.24s, peak 448988 KB
+15:17:26 steady-64users-30s: 126 MB, export 16.33s, peak 3357212 KB
+15:17:26 post done

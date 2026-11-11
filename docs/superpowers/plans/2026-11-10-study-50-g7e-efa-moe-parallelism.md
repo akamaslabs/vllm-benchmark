@@ -83,7 +83,11 @@ vLLM 1.15.0, GPU 1.4.0, Kubernetes 1.9.0.
 
 - [ ] `nodegroups.sh wait-up 10`. Expected: two nodes Ready, labelled `study50/role=a|b`.
   Blocked: no capacity in any zone of us-east-2 from 20:34 UTC on 2026-11-10 to 06:29 UTC on
-  2026-11-11 (111 probes). The wait is over and has to be started again.
+  2026-11-11 (111 probes). A second wait (`wait-up 24`) started at 08:07 UTC on 2026-11-11, no
+  capacity by 08:44 UTC. Fallback chosen by the user on 2026-11-11: the same design without EFA
+  on two g7e.4xlarge, as study 51 (`studies/51-g7e-tcp-moe-parallelism-users-ramp`). The second
+  wait is stopped when study 51's nodes are created (64 vCPU of G quota); start it again for
+  this study after study 51's teardown.
 - [ ] `load-node.sh up`, `nodegroups.sh status`. Expected per node: `nvidia.com/gpu: 1`,
   `vpc.amazonaws.com/efa: 1`, `hugepages-2Mi` >= 5120Mi, a dcgm-exporter pod.
 - [ ] `kubectl apply -f k8s/00-base.yaml -f k8s/02-model-download.yaml`. Expected: both download

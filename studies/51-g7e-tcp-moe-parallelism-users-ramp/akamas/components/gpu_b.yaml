@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_51_G7E_TCP_MoE_Parallelism
+
+name: gpu_b
+description: >-
+  The RTX PRO 6000 Blackwell Server Edition 96 GB of node b (study51/role=b; pod vllm-b-0, idle in the one-GPU layout).
+  DCGM series joined to the node role.
+componentType: GPU
+properties:
+  prometheus:
+    role: b
+    gpumodel: .*RTX PRO 6000.*

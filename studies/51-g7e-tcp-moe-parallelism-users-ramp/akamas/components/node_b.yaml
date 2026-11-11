@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_51_G7E_TCP_MoE_Parallelism
+
+name: node_b
+description: >-
+  The g7e.4xlarge node b (study51/role=b, 16 vCPU, 128 GiB, node group llm-serving-g7e-4xl-tcp):
+  CPU, memory, ENA network bytes and TCP retransmissions from node-exporter. The traffic
+  between the two vLLM pods (NCCL on TCP) is in these network counters.
+componentType: Kubernetes Node
+properties:
+  prometheus:
+    role: b

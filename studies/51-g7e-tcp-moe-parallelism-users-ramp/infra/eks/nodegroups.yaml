@@ -1,0 +1,38 @@
+# Study 51 GPU pair: two g7e.4xlarge ON-DEMAND nodes (1x RTX PRO 6000 Blackwell 96 GB, 16 vCPU,
+# 128 GiB, 50 Gbit/s, no EFA; 4.00 USD/h each) in ONE availability zone, in one cluster placement
+# group (a single TCP flow reaches 10 Gbit/s inside one, 5 Gbit/s outside: study 44).
+# eksctl, as in study 50, so the two studies differ in instance size and transport only.
+# Rendered by nodegroups.sh create <az>: the AZ token is replaced with the AZ the capacity probe
+# found, and the placement line is dropped with PLACEMENT=none. The placement group itself is
+# created by nodegroups.sh (eksctl only references it). Always created with
+# --install-nvidia-plugin=false: on the EFA spike eksctl overwrote the cluster's shared NVIDIA
+# device plugin DaemonSet (docs/spikes/2026-11-10-efa-eks/README.md).
+# Created at desiredCapacity 0; nodegroups.sh up scales to 2.
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+metadata:
+  name: vllm-bench
+  region: us-east-2
+managedNodeGroups:
+  - name: llm-serving-g7e-4xl-tcp
+    instanceType: g7e.4xlarge
+    minSize: 0
+    maxSize: 2
+    desiredCapacity: 0
+    availabilityZones: ["@AZ@"]
+    privateNetworking: true
+    placement: {groupName: study51-g7e-4xl-tcp}
+    # gpt-oss-120b is ~65 GB on disk: gp3 at 1000 MiB/s loads it in about a minute.
+    volumeSize: 300
+    volumeType: gp3
+    volumeIOPS: 6000
+    volumeThroughput: 1000
+    labels:
+      node-role: llm-serving-g7e-4xl-tcp
+    taints:
+      - key: nvidia.com/gpu
+        value: present
+        effect: NoSchedule
+    tags:
+      Project: vllm-bench
+      Study: 51-g7e-tcp-moe-parallelism

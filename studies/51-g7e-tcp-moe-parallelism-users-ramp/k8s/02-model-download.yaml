@@ -1,0 +1,46 @@
+# Study 51 model pre-download: one Job per GPU node, run once after the node group is up
+# (kubectl apply -f, then kubectl -n moe-tcp wait --for=condition=complete job --all). Each
+# fills the node's /var/lib/hf-cache-study51 with openai/gpt-oss-120b (public, about 65 GB
+# without the original/ and metal/ copies) and pulls the vLLM image, so the first experiment
+# does not spend its start-up budget on downloads. No GPU is requested.
+apiVersion: batch/v1
+kind: Job
+metadata: {name: model-download-a, namespace: moe-tcp}
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector: {node-role: llm-serving-g7e-4xl-tcp, study51/role: a}
+      tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+      containers:
+      - name: download
+        image: 763104351884.dkr.ecr.us-east-2.amazonaws.com/vllm:0.29.0-gpu-py312-cu130-ubuntu24.04-ec2
+        command: ["bash", "-c", "hf download openai/gpt-oss-120b --exclude 'original/*' --exclude 'metal/*' && du -sh /hf-cache"]
+        env: [{name: HF_HOME, value: /hf-cache}]
+        resources: {requests: {cpu: "2", memory: 4Gi}}
+        volumeMounts: [{name: hf-cache, mountPath: /hf-cache}]
+      volumes:
+      - {name: hf-cache, hostPath: {path: /var/lib/hf-cache-study51, type: DirectoryOrCreate}}
+---
+apiVersion: batch/v1
+kind: Job
+metadata: {name: model-download-b, namespace: moe-tcp}
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector: {node-role: llm-serving-g7e-4xl-tcp, study51/role: b}
+      tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+      containers:
+      - name: download
+        image: 763104351884.dkr.ecr.us-east-2.amazonaws.com/vllm:0.29.0-gpu-py312-cu130-ubuntu24.04-ec2
+        command: ["bash", "-c", "hf download openai/gpt-oss-120b --exclude 'original/*' --exclude 'metal/*' && du -sh /hf-cache"]
+        env: [{name: HF_HOME, value: /hf-cache}]
+        resources: {requests: {cpu: "2", memory: 4Gi}}
+        volumeMounts: [{name: hf-cache, mountPath: /hf-cache}]
+      volumes:
+      - {name: hf-cache, hostPath: {path: /var/lib/hf-cache-study51, type: DirectoryOrCreate}}

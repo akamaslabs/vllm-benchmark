@@ -1,0 +1,93 @@
+# Study 51 role exporter. One pod per GPU node (a DaemonSet per node role, so the pod knows its
+# role) serves
+#   study51_node_role{node="<node>",hostname="<node>",nodename="<node>",role="a|b"} 1
+# The series lets the telemetry join other exporters to a role without label_replace: it repeats
+# the node name under the label each of them uses, `hostname` for dcgm-exporter and `nodename`
+# for node-exporter's node_uname_info (both checked on this cluster's Prometheus).
+# Study 50's exporter also read the EFA byte counters from the host: a g7e.4xlarge has no EFA,
+# and the traffic between the nodes is TCP on the ENA interface, which node-exporter exports.
+# Stdlib Python only, no host network, no host mount.
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: role-exporter-script, namespace: moe-tcp}
+data:
+  exporter.py: |
+    import http.server, os
+    NODE, ROLE = os.environ["NODE_NAME"], os.environ["ROLE"]
+    def body():
+        out = ['study51_node_role{node="%s",hostname="%s",nodename="%s",role="%s"} 1' % (NODE, NODE, NODE, ROLE)]
+        return ("\n".join(out) + "\n").encode()
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            ok = self.path == "/metrics"
+            self.send_response(200 if ok else 404)
+            self.send_header("Content-Type", "text/plain; version=0.0.4")
+            self.end_headers()
+            self.wfile.write(body() if ok else b"")
+        def log_message(self, *a):
+            pass
+    http.server.HTTPServer(("", 9400), H).serve_forever()
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata: {name: role-exporter-a, namespace: moe-tcp}
+spec:
+  selector: {matchLabels: {app: role-exporter, study51/role: a}}
+  template:
+    metadata: {labels: {app: role-exporter, study51/role: a}}
+    spec:
+      nodeSelector: {node-role: llm-serving-g7e-4xl-tcp, study51/role: a}
+      tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+      terminationGracePeriodSeconds: 2
+      containers:
+      - name: exporter
+        image: python:3.12-slim
+        command: ["python3", "/app/exporter.py"]
+        env:
+        - {name: NODE_NAME, valueFrom: {fieldRef: {fieldPath: spec.nodeName}}}
+        - {name: ROLE, value: a}
+        ports: [{name: metrics, containerPort: 9400}]
+        readinessProbe: {httpGet: {path: /metrics, port: 9400}, periodSeconds: 5}
+        resources:
+          requests: {cpu: 20m, memory: 64Mi}
+          limits: {cpu: 200m, memory: 128Mi}
+        volumeMounts:
+        - {name: script, mountPath: /app}
+      volumes:
+      - {name: script, configMap: {name: role-exporter-script}}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata: {name: role-exporter-b, namespace: moe-tcp}
+spec:
+  selector: {matchLabels: {app: role-exporter, study51/role: b}}
+  template:
+    metadata: {labels: {app: role-exporter, study51/role: b}}
+    spec:
+      nodeSelector: {node-role: llm-serving-g7e-4xl-tcp, study51/role: b}
+      tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+      terminationGracePeriodSeconds: 2
+      containers:
+      - name: exporter
+        image: python:3.12-slim
+        command: ["python3", "/app/exporter.py"]
+        env:
+        - {name: NODE_NAME, valueFrom: {fieldRef: {fieldPath: spec.nodeName}}}
+        - {name: ROLE, value: b}
+        ports: [{name: metrics, containerPort: 9400}]
+        readinessProbe: {httpGet: {path: /metrics, port: 9400}, periodSeconds: 5}
+        resources:
+          requests: {cpu: 20m, memory: 64Mi}
+          limits: {cpu: 200m, memory: 128Mi}
+        volumeMounts:
+        - {name: script, mountPath: /app}
+      volumes:
+      - {name: script, configMap: {name: role-exporter-script}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: role-exporter, namespace: moe-tcp, labels: {app: role-exporter}}
+spec:
+  clusterIP: None
+  selector: {app: role-exporter}
+  ports: [{name: metrics, port: 9400, targetPort: 9400}]

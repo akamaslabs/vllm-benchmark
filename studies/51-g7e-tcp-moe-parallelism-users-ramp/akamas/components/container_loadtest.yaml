@@ -1,0 +1,11 @@
+kind: component
+system: vLLM_Benchmark_51_G7E_TCP_MoE_Parallelism
+
+name: container_loadtest
+description: >-
+  The two AIPerf client pods (aiperf-client-0/1, namespace moe-tcp, node group m8a-2xlarge), so a
+  starved client shows up as such instead of as a slower server.
+componentType: Kubernetes Container
+properties:
+  prometheus:
+    pod: ^aiperf-client-[0-9]+$

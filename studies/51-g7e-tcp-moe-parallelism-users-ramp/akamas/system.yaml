@@ -1,0 +1,10 @@
+kind: system
+
+name: vLLM_Benchmark_51_G7E_TCP_MoE_Parallelism
+description: >-
+  Two g7e.4xlarge nodes (one NVIDIA RTX PRO 6000 Blackwell 96 GB each, no EFA, one cluster
+  placement group) serving openai/gpt-oss-120b with vLLM 0.29.0 (AWS Deep Learning Container) in seven
+  layouts: one GPU, two replicas, DP2, DP2 + expert parallel, TP2, TP2 + expert parallel, PP2,
+  NCCL over TCP. Load: AIPerf 0.11.0 multi-turn chat ramped in users. Goal: most users within
+  client TTFT p95 <= 500 ms. Requires vLLM pack 1.15.0, GPU pack 1.4.0, Kubernetes pack 1.9.0.
+  Created 2026-11-11 (study 51, the TCP run of study 50's design).

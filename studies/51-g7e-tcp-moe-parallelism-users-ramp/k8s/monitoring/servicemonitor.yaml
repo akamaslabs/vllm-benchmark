@@ -1,0 +1,30 @@
+# Prometheus scrapes for study 51 (namespace moe-tcp), applied by apply_config.sh (idempotent).
+# Without them the goal and the constraints are empty.
+# - vllm-moe-tcp: the Service `vllm` (label app: vllm) in front of the pods that run an API
+#   server, 5 s like the other vLLM ServiceMonitors. The per-role headless Services carry
+#   app: vllm-role, so no pod is scraped twice.
+# - role-exporter-51: the node roles (role-exporter.yaml). honorLabels keeps its
+#   node / role labels as written.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vllm-moe-tcp
+  namespace: monitoring
+  labels: {app: vllm}
+spec:
+  endpoints:
+  - {interval: 5s, path: /metrics, port: http, scrapeTimeout: 4s}
+  namespaceSelector: {matchNames: [moe-tcp]}
+  selector: {matchLabels: {app: vllm}}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: role-exporter-51
+  namespace: monitoring
+  labels: {app: role-exporter}
+spec:
+  endpoints:
+  - {interval: 5s, path: /metrics, port: metrics, scrapeTimeout: 4s, honorLabels: true}
+  namespaceSelector: {matchNames: [moe-tcp]}
+  selector: {matchLabels: {app: role-exporter}}

@@ -1,0 +1,33 @@
+# Study 51 base objects (namespace moe-tcp), applied by apply_config.sh on every experiment
+# (idempotent). The two vLLM StatefulSets come from 01-vllm_template.yaml.
+# - vllm: the only Service labelled app: vllm, so the ServiceMonitor vllm-moe-tcp scrapes each
+#   serving pod once. It selects the pods that run an API server (label study51/serving "true"):
+#   a headless worker has no /metrics.
+# - vllm-a / vllm-b: one headless Service per node role, the address of each AIPerf client
+#   (http://vllm-a.moe-tcp.svc:8000). They carry app: vllm-role, so they are not scraped.
+apiVersion: v1
+kind: Namespace
+metadata: {name: moe-tcp}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: vllm, namespace: moe-tcp, labels: {app: vllm}}
+spec:
+  selector: {app: vllm, study51/serving: "true"}
+  ports: [{name: http, port: 8000, targetPort: 8000}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: vllm-a, namespace: moe-tcp, labels: {app: vllm-role}}
+spec:
+  clusterIP: None
+  selector: {app: vllm, study51/role: a}
+  ports: [{name: http, port: 8000, targetPort: 8000}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: vllm-b, namespace: moe-tcp, labels: {app: vllm-role}}
+spec:
+  clusterIP: None
+  selector: {app: vllm, study51/role: b}
+  ports: [{name: http, port: 8000, targetPort: 8000}]

@@ -1,0 +1,13 @@
+kind: component
+system: vLLM_Benchmark_51_G7E_TCP_MoE_Parallelism
+
+name: vllm_workload
+description: >-
+  The two single-replica StatefulSets vllm-a and vllm-b (namespace moe-tcp) seen as one workload.
+  Carries replicas: 2 = two independent vLLM servers, one per node (layout "replicas"); 1 = one
+  vLLM, on one node or spread over both by the vllm component's parallelism parameters.
+componentType: Kubernetes Workload
+properties:
+  prometheus:
+    pod: vllm-[ab]-0
+    workload: vllm-[ab]

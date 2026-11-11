@@ -1,0 +1,209 @@
+kind: study
+name: 51-G7E-TCP-MoE-Parallelism
+description: >-
+  MoE parallelism layouts across two GPU nodes over TCP (no EFA): openai/gpt-oss-120b (vLLM
+  0.29.0, AWS Deep Learning Container, prefix caching on) on two g7e.4xlarge (one RTX PRO 6000
+  96 GB each, 4.00 USD/h each, one cluster placement group). Seven presets: one GPU, two replicas, DP2, DP2 + expert parallel, TP2, TP2 +
+  expert parallel, PP2. AIPerf multi-turn chat (one turn every 64 s per user, 10 turns, history
+  re-sent) on two clients. A Ramp task finds the most users (levels 32-768) served with client
+  TTFT p95 <= 500 ms; a Hold task re-runs that level and Akamas scores it. Presets only, no
+  optimize step. Requires vLLM pack 1.15.0, GPU pack 1.4.0, Kubernetes pack 1.9.0. Same design
+  as study 50 (docs/superpowers/specs/2026-11-09-study-50-g7e-efa-moe-parallelism-design.md),
+  run without EFA because no g7e.8xlarge pair was available.
+system: vLLM_Benchmark_51_G7E_TCP_MoE_Parallelism
+workflow: 51-G7E-TCP-MoE-Parallelism-Workflow
+goal:
+  objective: maximize
+  function:
+    # Users held = 64 x completed requests/s over the Hold window (one turn per user every 64 s:
+    # the completed rate is users / 64 whenever the server keeps up, which the Ramp checked),
+    # summed over the pods with an API server, minus TTFT p95 in seconds as a tie-break (at most
+    # 0.6 under the constraint, far below one level step), so layouts reaching the same level are
+    # ranked by TTFT (as study 48).
+    formula: 64 * vllm.request_success_rate - vllm.time_to_first_token_p95 / 1000
+    unit: users
+  constraints:
+    absolute:
+      # The 500 ms SLO is judged client-side by the Ramp. This server-side net is looser (600 ms)
+      # so run-to-run noise on a fresh Hold does not discard a layout (as study 48). With two API
+      # servers the percentile is the worse pod's.
+      - name: TTFT P95 safety net
+        formula: vllm.time_to_first_token_p95 <= 600
+      # 200 ms, not study 48's 120: across nodes the inter-token latency is the finding, and a
+      # tight net would turn a layout's user count into a violation (design).
+      - name: ITL P95 safety net
+        formula: vllm.inter_token_latency_p95 <= 200
+# Only the Hold task. Start trim 620s: AIPerf start-up + STEADY_FROM 600 s of warm-up
+# (conversations at full size); end trim 90s: grace period, parsing and log dump. One unit per
+# value (study 46: "1m30s" breaks scoring).
+windowing:
+  type: trim
+  trim: [620s, 90s]
+  task: Hold
+numberOfTrials: 1
+# The space a follow-up optimize study would search (design); this study runs presets only, and
+# every preset value lies inside these domains. Two GPUs, one per node.
+parametersSelection:
+  - name: vllm_workload.replicas
+    domain: [1, 2]
+  - name: vllm.tensor_parallel_size
+    domain: [1, 2]
+  - name: vllm.data_parallel_size
+    domain: [1, 2]
+  - name: vllm.pipeline_parallel_size
+    domain: [1, 2]
+  - name: vllm.enable_expert_parallel
+    categories: ["true", "false"]
+  - name: vllm.gpu_memory_utilization
+    domain: [0.80, 0.92]
+  - name: vllm.max_num_seqs
+    domain: [128, 1024]
+  - name: vllm.max_num_batched_tokens
+    domain: [2048, 32768]
+  - name: vllm.kv_cache_dtype
+    categories: [auto, fp8]
+  - name: vllm.moe_backend
+    categories: [auto, triton, marlin, flashinfer_cutlass]
+parameterConstraints:
+  # vLLM 0.29.0 config/scheduler.py raises ValueError otherwise.
+  - name: max_num_batched_tokens must be at least max_num_seqs
+    formula: vllm.max_num_batched_tokens >= vllm.max_num_seqs
+  # One GPU per node, two nodes; apply_config.sh refuses anything else (exit 2).
+  - name: At most two GPUs in a layout
+    formula: vllm_workload.replicas * vllm.tensor_parallel_size * vllm.data_parallel_size * vllm.pipeline_parallel_size <= 2
+  - name: Expert parallelism needs tensor or data parallel size 2
+    formula: vllm.enable_expert_parallel == "false" || vllm.tensor_parallel_size * vllm.data_parallel_size >= 2
+kpis:
+  # Akamas 4.1 accepts only <component>.<metric> in a KPI formula: users = 64 x this.
+  - name: Completed requests per s
+    formula: vllm.request_success_rate
+    direction: maximize
+  - name: Tokens per second
+    formula: vllm.total_token_throughput
+    direction: maximize
+  - name: TTFT P95
+    formula: vllm.time_to_first_token_p95
+    direction: minimize
+  - name: ITL P95
+    formula: vllm.inter_token_latency_p95
+    direction: minimize
+  - name: Prompt from prefix cache
+    formula: vllm.prefix_cache_hit_rate
+    direction: maximize
+  # Bytes per second sent by node a on its ENA interfaces (node-exporter): what the layout costs
+  # on the wire. NCCL runs on TCP here, so its traffic is in these counters. The receive side
+  # and node b stay as telemetry.
+  - name: Network bytes sent by node a
+    formula: node_a.k8s_node_network_out_bytes
+    direction: minimize
+  - name: GPU a utilization
+    formula: gpu_a.gpu_util
+    direction: maximize
+  - name: GPU b utilization
+    formula: gpu_b.gpu_util
+    direction: maximize
+# Seven layouts (k8s/lib_layout.sh), the vLLM flags the same in all of them: memory utilization
+# 0.90, max_num_seqs 512, max_num_batched_tokens 8192, KV cache dtype and MoE backend left to
+# vLLM (auto = no flag). Akamas 4.1 refuses a parameter both in `values` and in
+# doNotRenderParameters, so every step pins all ten parameters of params.env.template.
+# The baseline is the one-GPU layout: every other step reads as "what the second node adds".
+# Every cross-node layout runs NCCL on TCP (NCCL_NET=Socket, fixed in the pod template).
+steps:
+  # L1 single: one GPU on node a, node b idle.
+  - name: baseline
+    type: baseline
+    values:
+      vllm_workload.replicas: 1
+      vllm.tensor_parallel_size: 1
+      vllm.data_parallel_size: 1
+      vllm.pipeline_parallel_size: 1
+      vllm.enable_expert_parallel: "false"
+      vllm.gpu_memory_utilization: 0.90
+      vllm.max_num_seqs: 512
+      vllm.max_num_batched_tokens: 8192
+      vllm.kv_cache_dtype: auto
+      vllm.moe_backend: auto
+  # L2 replicas: two independent vLLM servers, no traffic between the nodes.
+  - name: Two replicas
+    type: preset
+    values:
+      vllm_workload.replicas: 2
+      vllm.tensor_parallel_size: 1
+      vllm.data_parallel_size: 1
+      vllm.pipeline_parallel_size: 1
+      vllm.enable_expert_parallel: "false"
+      vllm.gpu_memory_utilization: 0.90
+      vllm.max_num_seqs: 512
+      vllm.max_num_batched_tokens: 8192
+      vllm.kv_cache_dtype: auto
+      vllm.moe_backend: auto
+  # L3 dp2: one vLLM, two data-parallel engines, external load balancing (one client per node).
+  - name: DP two
+    type: preset
+    values:
+      vllm_workload.replicas: 1
+      vllm.tensor_parallel_size: 1
+      vllm.data_parallel_size: 2
+      vllm.pipeline_parallel_size: 1
+      vllm.enable_expert_parallel: "false"
+      vllm.gpu_memory_utilization: 0.90
+      vllm.max_num_seqs: 512
+      vllm.max_num_batched_tokens: 8192
+      vllm.kv_cache_dtype: auto
+      vllm.moe_backend: auto
+  # L4 dp2ep: as L3 with the experts split over the two engines (all-to-all every layer).
+  - name: DP two expert parallel
+    type: preset
+    values:
+      vllm_workload.replicas: 1
+      vllm.tensor_parallel_size: 1
+      vllm.data_parallel_size: 2
+      vllm.pipeline_parallel_size: 1
+      vllm.enable_expert_parallel: "true"
+      vllm.gpu_memory_utilization: 0.90
+      vllm.max_num_seqs: 512
+      vllm.max_num_batched_tokens: 8192
+      vllm.kv_cache_dtype: auto
+      vllm.moe_backend: auto
+  # L5 tp2: tensor parallel across the nodes (all-reduce every layer).
+  - name: TP two
+    type: preset
+    values:
+      vllm_workload.replicas: 1
+      vllm.tensor_parallel_size: 2
+      vllm.data_parallel_size: 1
+      vllm.pipeline_parallel_size: 1
+      vllm.enable_expert_parallel: "false"
+      vllm.gpu_memory_utilization: 0.90
+      vllm.max_num_seqs: 512
+      vllm.max_num_batched_tokens: 8192
+      vllm.kv_cache_dtype: auto
+      vllm.moe_backend: auto
+  # L6 tp2ep: as L5 with the experts split over the two ranks.
+  - name: TP two expert parallel
+    type: preset
+    values:
+      vllm_workload.replicas: 1
+      vllm.tensor_parallel_size: 2
+      vllm.data_parallel_size: 1
+      vllm.pipeline_parallel_size: 1
+      vllm.enable_expert_parallel: "true"
+      vllm.gpu_memory_utilization: 0.90
+      vllm.max_num_seqs: 512
+      vllm.max_num_batched_tokens: 8192
+      vllm.kv_cache_dtype: auto
+      vllm.moe_backend: auto
+  # L7 pp2: pipeline parallel, half the layers per node (activations between the stages only).
+  - name: PP two
+    type: preset
+    values:
+      vllm_workload.replicas: 1
+      vllm.tensor_parallel_size: 1
+      vllm.data_parallel_size: 1
+      vllm.pipeline_parallel_size: 2
+      vllm.enable_expert_parallel: "false"
+      vllm.gpu_memory_utilization: 0.90
+      vllm.max_num_seqs: 512
+      vllm.max_num_batched_tokens: 8192
+      vllm.kv_cache_dtype: auto
+      vllm.moe_backend: auto

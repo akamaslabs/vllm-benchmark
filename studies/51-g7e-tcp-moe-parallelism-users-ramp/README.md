@@ -1,8 +1,9 @@
 # 51-g7e-tcp-moe-parallelism-users-ramp
 
-**Status:** BUILT locally on 2026-11-11, not started. The scripts are tested locally (215
-assertions). Nothing of this study has run on real nodes yet: the smoke checks below are still
-to do.
+**Status:** RUNNING on akamas-41 since 11:05 UTC on 2026-11-11 (study
+`51-G7E-TCP-MoE-Parallelism`, seven preset experiments, no optimize step). The nodes came up at
+09:02 UTC in us-east-2a, inside the placement group. Every smoke check below passed before the
+start, except the two noted as not done. The scripts are tested locally (215 assertions).
 
 This is **study 50's design run without EFA**. Study 50 needs two g7e.8xlarge (the smallest g7e
 with EFA) and us-east-2 had no such pair from 20:34 UTC on 2026-11-10 onwards. On 2026-11-11 the
@@ -139,28 +140,52 @@ experiment), Nsight Perf SDK for AI as a one-hour non-blocking attempt.
 
 ## Before starting: smoke checks
 
-None done yet. Each must pass on the real pair before `akamas start study`, and each prints its
-evidence. `k8s/smoke.sh [layout ...]` applies a layout at the presets' flags and runs one short
-level.
+Done on 2026-11-11 on the real pair, before `akamas start study`. `k8s/smoke.sh [layout ...]`
+applies a layout at the presets' flags and runs one short level (32 users).
 
-1. **Nodes:** both Ready and labelled `study51/role`, `nvidia.com/gpu: 1`, in the placement
-   group, a dcgm-exporter pod on each, the model on both (`02-model-download.yaml`).
-2. **One GPU:** `smoke.sh single`. Effective pod arguments and `cache_config_info` read by
-   `apply_config.sh`; AIPerf's output token count per request is 200 (else a `min_tokens` trial).
-3. **Cross-node layouts:** `smoke.sh dp2 dp2ep tp2 tp2ep pp2`. NCCL transport `Socket` on both
-   pods, expert parallelism line where asked, the 65 GB load inside the 2400 s wait. If `dp2`
-   without expert parallelism does not start under external load balancing: `DP_MODE=internal`
-   for both DP layouts.
-4. **Two replicas:** `smoke.sh replicas`, the two clients produce one RESULT.
-5. **Telemetry:** every query of `akamas/telemetry/prometheus.yaml` returns data for vLLM, both
-   GPUs and both nodes; the toolbox may apply the role exporter and the ServiceMonitors; AIPerf
-   client CPU below its limit at the top levels.
-6. **Nsight:** one hour, non-blocking.
+1. **Nodes: passed.** Both Ready and labelled `study51/role` (`ip-192-168-174-92` = a,
+   `ip-192-168-182-253` = b), `nvidia.com/gpu: 1` each, both instances in the placement group
+   `study51-g7e-4xl-tcp` (us-east-2a), a dcgm-exporter pod on each (Helm revision 28), the model
+   on both (61 GB, 3 minutes per download Job).
+2. **One GPU: passed.** The pod's arguments equal the preset's flags; `vllm:cache_config_info`
+   shows `gpu_memory_utilization` 0.9 and prefix caching on; GPU KV cache 231,902 tokens.
+   `vllm:generation_tokens_total` gives exactly 200 output tokens per request (AIPerf's own
+   tokenizer counts about 191): no `min_tokens` needed.
+3. **Cross-node layouts: passed**, all five. NCCL logged `Socket` on both pods (32 "Using network
+   Socket" lines, no OFI or IB line), both ranks assigned, the expert parallelism line on both
+   pods of the two EP layouts (64 local of 128 experts). `dp2` without expert parallelism started
+   under external load balancing: `DP_MODE=internal` not needed. vLLM was ready in 142 to 190 s.
+4. **Two replicas: passed.** A ten-minute level: the two clients produced one RESULT (269 of 269
+   requests).
+5. **Telemetry: passed.** Checked while both replicas were under load: 111 of the 113 queries of
+   `akamas/telemetry/prometheus.yaml` return data. The two empty ones are `gpu_xid_errors` and
+   `gpu_fan_speed`: the lab's dcgm-exporter exports neither series for any GPU, and neither is
+   in the goal, the constraints or the KPIs. The toolbox applied the role exporter and the
+   ServiceMonitors. **Not checked yet:** AIPerf client CPU at the top levels (read during the
+   study).
+6. **Nsight: not done.** The smoke time went to the checks above.
+
+One level of 32 users per layout (3 minutes, 10 for the two replicas), SLO client TTFT p95
+≤ 500 ms. These are smoke numbers, not results:
+
+| Layout | vLLM ready (s) | Requests completed | Client TTFT p95 (ms) | Client ITL p95 (ms) |
+|---|---|---|---|---|
+| One GPU | 140 | 60 of 60 | 144 | 8.0 |
+| Two replicas | 143 | 269 of 269 | 90 | 6.1 |
+| DP2 | 190 | 61 of 61 | 456 | 21.7 |
+| DP2 + expert parallel | 190 | 61 of 61 | 433 | 14.1 |
+| TP2 | 174 | 59 of 59 | 407 | 15.6 |
+| TP2 + expert parallel | 174 | 60 of 60 | 441 | 14.9 |
+| PP2 | 142 | 58 of 58 | 149 | 6.9 |
+
+**Start:** the first `akamas start study` (10:59 UTC) left the study RUNNING with no experiment
+(the late Airflow DAG of Akamas 4.1). `akamas finish study` and a second start at 11:05 UTC
+created experiment 1.
 
 ## Results
 
-Not run yet.
+Running.
 
 ## Conclusions
 
-Not run yet.
+Running.

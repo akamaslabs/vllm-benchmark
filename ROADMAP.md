@@ -973,6 +973,19 @@ minimum MIG slice that satisfies it — the sub-GPU-granularity complement to st
       <https://gitlab.com/akamas/optimization-packs/vllm>. Deliberately NOT bundled into
       study #15: 6 more categorical/integer parameters on top of its 14 would make the
       topology question unanswerable in one campaign.
+      Extended 2026-11-11 (user: have the studies tune NCCL) to the two-node case of
+      studies #50/#51: add `NCCL_SOCKET_NTHREADS` and `NCCL_NSOCKS_PERTHREAD` (product at
+      most 64) for the TCP transport. Study #51's `apply_config.sh` already passes extra
+      NCCL variables to both pods through `NCCL_ENV`, by hand only. Expectation to test,
+      from the EFA spike: more sockets fill the link on large messages but do not shorten
+      a 4-64 KB all_reduce, so the gain on TP over TCP may be small. Candidate follow-up
+      once #51 names its best cross-node layout: fix that layout and search only the NCCL
+      variables.
+      Pack side opened 2026-11-11: MR vllm!14 (pack 1.16.0, branch `feature/nccl-tunables`)
+      adds `nccl_allreduce_algo`, `nccl_proto`, `nccl_p2p_level`, `nccl_buffsize`,
+      `nccl_min_ctas`, `nccl_max_ctas`, `nccl_socket_nthreads`, `nccl_nsocks_perthread`;
+      built locally, not merged, not installed. Still to do in a study: the env passthrough
+      that drops the variable for `auto` / 0.
       Also worth pack-modelling for the same phase, already discussed in the thread:
       `disable_custom_all_reduce` (**already in the pack**, 1.9.1) — but check first
       whether it is a no-op on this node, since vLLM disables custom all-reduce by itself

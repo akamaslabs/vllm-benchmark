@@ -1,0 +1,1181 @@
+@timestamp,study,workspace,workflow,workflowExecutionDate,workflowTaskName,workflowDagId,workflowOperator,trial,system,service,loglevel,workflowTaskTryNumber,exp,workflowRunId,workflowJobId,message,stackTrace
+2026-11-11T17:27:40.421,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Write_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,FileConfiguratorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b2-7a6e-b5fa-3623b9f8cde9,Extracted information about system 'vLLM_Benchmark_51_G7E_TCP_MoE_Parallelism',
+2026-11-11T17:27:40.422,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Write_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,FileConfiguratorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b2-7a6e-b5fa-3623b9f8cde9,Extracting parameters configuration of experiment 6 of study '51-G7E-TCP-MoE-Parallelism',
+2026-11-11T17:27:40.447,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Write_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,FileConfiguratorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b2-7a6e-b5fa-3623b9f8cde9,"Parameters to replace:
+vllm.moe_backend: auto, vllm.max_num_seqs: 512, vllm.kv_cache_dtype: auto, vllm_workload.replicas: 1, vllm.data_parallel_size: 1, vllm.tensor_parallel_size: 2, vllm.enable_expert_parallel: true, vllm.gpu_memory_utilization: 0.9, vllm.max_num_batched_tokens: 8192, vllm.pipeline_parallel_size: 1",
+2026-11-11T17:27:40.539,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Write_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,FileConfiguratorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b2-7a6e-b5fa-3623b9f8cde9,Connecting to host toolbox with user akamas to get input file /work/study51/51-g7e-tcp-moe-parallelism-users-ramp/k8s/params.env.template,
+2026-11-11T17:27:40.631,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Write_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,FileConfiguratorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b2-7a6e-b5fa-3623b9f8cde9,"The parameters available in this experiment for replacement are: vllm.moe_backend: auto, vllm.max_num_seqs: 512, vllm.kv_cache_dtype: auto, vllm_workload.replicas: 1, vllm.data_parallel_size: 1, vllm.tensor_parallel_size: 2, vllm.enable_expert_parallel: true, vllm.gpu_memory_utilization: 0.9, vllm.max_num_batched_tokens: 8192, vllm.pipeline_parallel_size: 1",
+2026-11-11T17:27:40.632,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Write_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,FileConfiguratorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b2-7a6e-b5fa-3623b9f8cde9,"The study info available for replacement are: ak-study.name: 51-G7E-TCP-MoE-Parallelism, ak-study.id: 140aebcf-cf03-4bce-9970-89a907c3f435, ak-step.name: TP two expert parallel, ak-experiment.id: 6, ak-trial.id: 1, ak-trial.start_time: 2026-11-11T17:27:36.349, ak-task.retry: 1, ak-task.start_time: 2026-11-11T17:27:38.233",
+2026-11-11T17:27:40.634,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Write_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,FileConfiguratorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b2-7a6e-b5fa-3623b9f8cde9,Replacing tokens in input template with parameter values,
+2026-11-11T17:27:40.635,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Write_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,FileConfiguratorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b2-7a6e-b5fa-3623b9f8cde9,All available parameters were replaced in the template file,
+2026-11-11T17:27:40.636,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Write_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,FileConfiguratorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b2-7a6e-b5fa-3623b9f8cde9,Checking the output file for tokens that could not be replaced..,
+2026-11-11T17:27:40.637,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Write_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,FileConfiguratorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b2-7a6e-b5fa-3623b9f8cde9,Connecting to host toolbox with user akamas to copy the file with replaced token to /work/study51/51-g7e-tcp-moe-parallelism-users-ramp/k8s/params.env,
+2026-11-11T17:27:40.726,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Write_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,FileConfiguratorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b2-7a6e-b5fa-3623b9f8cde9,Copying completed successfully,
+2026-11-11T17:27:43.072,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,Extracted information about system 'vLLM_Benchmark_51_G7E_TCP_MoE_Parallelism',
+2026-11-11T17:27:43.074,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,Extracting parameters configuration of experiment 6 of study '51-G7E-TCP-MoE-Parallelism',
+2026-11-11T17:27:43.140,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,Connecting to host toolbox with user akamas to execute command 'bash /work/study51/51-g7e-tcp-moe-parallelism-users-ramp/k8s/apply_config.sh',
+2026-11-11T17:27:43.142,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,No templates found in the command. Skipping substitution,
+2026-11-11T17:27:43.236,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"17:27:43 apply_config: params.env as rendered: REPLICAS=1 TENSOR_PARALLEL_SIZE=2 DATA_PARALLEL_SIZE=1 PIPELINE_PARALLEL_SIZE=1 ENABLE_EXPERT_PARALLEL=true GPU_MEMORY_UTILIZATION=0.90000 MAX_NUM_SEQS=512 MAX_NUM_BATCHED_TOKENS=8192 KV_CACHE_DTYPE=auto MOE_BACKEND=auto 
+",
+2026-11-11T17:27:43.239,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"17:27:43 apply_config: layout tp2ep (pods: a b; node b serving: false; NCCL check: required, expecting Socket; DP mode: external)
+",
+2026-11-11T17:27:43.242,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"17:27:43 apply_config: flags a: --gpu-memory-utilization=0.90000 --max-num-seqs=512 --max-num-batched-tokens=8192 --kv-cache-dtype=auto --tensor-parallel-size=2 --enable-expert-parallel --nnodes=2 --node-rank=0 --master-addr=$(POD_IP)
+",
+2026-11-11T17:27:43.315,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"17:27:43 apply_config: flags b: --gpu-memory-utilization=0.90000 --max-num-seqs=512 --max-num-batched-tokens=8192 --kv-cache-dtype=auto --tensor-parallel-size=2 --enable-expert-parallel --nnodes=2 --node-rank=1 --master-addr=HEAD_IP --headless
+",
+2026-11-11T17:28:01.452,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"statefulset.apps/vllm-a created
+",
+2026-11-11T17:28:03.643,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"17:28:03 apply_config: head pod IP 192.168.185.165
+",
+2026-11-11T17:28:04.028,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"statefulset.apps/vllm-b created
+",
+2026-11-11T17:30:57.840,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"17:30:57 apply_config: vLLM rollout exit=0 after 173 s
+",
+2026-11-11T17:30:58.040,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"NAME       READY   STATUS    RESTARTS   AGE     IP                NODE                                            NOMINATED NODE   READINESS GATES
+vllm-a-0   1/1     Running   0          2m57s   192.168.185.165   ip-192-168-174-92.us-east-2.compute.internal    <none>           <none>
+vllm-b-0   1/1     Running   0          2m54s   192.168.168.199   ip-192-168-182-253.us-east-2.compute.internal   <none>           <none>
+",
+2026-11-11T17:30:58.240,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"17:30:58 apply_config: vllm-a-0 args: [""--served-model-name=gpt-oss-120b"",""--port=8000"",""--host=0.0.0.0"",""--max-model-len=16384"",""--enable-prefix-caching"",""--gpu-memory-utilization=0.90000"",""--max-num-seqs=512"",""--max-num-batched-tokens=8192"",""--kv-cache-dtype=auto"",""--tensor-parallel-size=2"",""--enable-expert-parallel"",""--nnodes=2"",""--node-rank=0"",""--master-addr=$(POD_IP)""]
+",
+2026-11-11T17:30:58.440,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"17:30:58 apply_config: vllm-b-0 args: [""--served-model-name=gpt-oss-120b"",""--port=8000"",""--host=0.0.0.0"",""--max-model-len=16384"",""--enable-prefix-caching"",""--gpu-memory-utilization=0.90000"",""--max-num-seqs=512"",""--max-num-batched-tokens=8192"",""--kv-cache-dtype=auto"",""--tensor-parallel-size=2"",""--enable-expert-parallel"",""--nnodes=2"",""--node-rank=1"",""--master-addr=192.168.185.165"",""--headless""]
+",
+2026-11-11T17:30:58.684,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"vllm-a-0 vllm:cache_config_info{_block_size_resolved=""True"",block_size=""16"",cache_dtype=""auto"",enable_prefix_caching=""True"",engine=""0"",gpu_memory_utilization=""0.9"",is_attention_free=""False"",kv_cache_dtype_skip_layers=""[]"",kv_cache_layout=""None"",kv_cache_max_concurrency=""85.61737432894094"",kv_cache_memory_bytes=""None"",kv_cache_size_tokens=""1402755"",kv_offloading_backend=""native"",kv_offloading_size=""None"",kv_sharing_fast_prefill=""False"",mamba_block_size=""None"",mamba_cache_dtype=""auto"",mamba_cache_mode=""none"",mamba_page_size_padded=""None"",mamba_ssm_cache_dtype=""auto"",num_cpu_blocks=""None"",num_gpu_blocks=""175430"",num_gpu_blocks_override=""None"",prefix_cache_retention_interval=""0"",prefix_caching_hash_algo=
+",
+2026-11-11T17:30:59.691,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"vllm-a-0 warm-up request rc=0: {""id"":""chatcmpl-8d3bf8285d5f1739"",""object"":""chat.completion"",""created"":1794418259,""model"":""gpt-oss-120b"",""choices"":[{""index"":0,""message"":{""role"":""assistant"",""content"":null,""refusal"":null,""annotations"":null,""audio"":null,""function_call"":null,""reasoning"":""User says: \""Say hi.\"" They want a greeting. Simple""},""logprobs"":null,""finish_reason"":""length"",""stop_reason"":null,""token_ids"":null,""routed_experts""
+",
+2026-11-11T17:30:59.855,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"vllm-a-0 rank 0 in world size 2 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank 0, EPLB rank N/A
+",
+2026-11-11T17:30:59.859,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"vllm-a-0 Expert parallelism is enabled. Expert placement strategy: linear. Local/global number of experts: 64/128. Experts local to global index map: 0->0, 1->1, 2->2, 3->3, 4->4, 5->5, 6->6, 7->7, 8->8, 9->9,
+",
+2026-11-11T17:30:59.914,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"vllm-a-0 NCCL transport: Socket (expected Socket, check required)
+",
+2026-11-11T17:31:00.124,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"vllm-b-0 rank 1 in world size 2 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 1, EP rank 1, EPLB rank N/A
+",
+2026-11-11T17:31:00.128,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"vllm-b-0 Expert parallelism is enabled. Expert placement strategy: linear. Local/global number of experts: 64/128. Experts local to global index map: 0->64, 1->65, 2->66, 3->67, 4->68, 5->69, 6->70, 7->71, 8->
+",
+2026-11-11T17:31:00.132,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"vllm-b-0 NCCL transport: Socket (expected Socket, check required)
+",
+2026-11-11T17:31:00.134,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"--- vllm-a-0: startup summary ---
+",
+2026-11-11T17:31:00.364,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"(APIServer pid=1) INFO 11-11 17:28:16 [api_utils.py:286] non-default args: {'model_tag': 'openai/gpt-oss-120b', 'host': '0.0.0.0', 'model': 'openai/gpt-oss-120b', 'max_model_len': 16384, 'served_model_name': ['gpt-oss-120b'], 'master_addr': '192.168.185.165', 'nnodes': 2, 'tensor_parallel_size': 2, 'enable_expert_parallel': True, 'gpu_memory_utilization': 0.9, 'enable_prefix_caching': True, 'max_num_batched_tokens': 8192, 'max_num_seqs': 512}
+vllm-a-0:332:332 [0] NCCL INFO Using network Socket
+(Worker pid=332) INFO 11-11 17:29:21 [parallel_state.py:2119] rank 0 in world size 2 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank 0, EPLB rank N/A
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:29:21 [expert_map_manager.py:245] [EP Rank 0/2] Expert parallelism is enabled. Expert placement strategy: linear. Local/global number of experts: 64/128. Experts local to global index map: 0->0, 1->1, 2->2, 3->3, 4->4, 5->5, 6->6, 7->7, 8->8, 9->9, 10->10, 11->11, 12->12, 13->13, 14->14, 15-",
+2026-11-11T17:31:00.366,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,">15, 16->16, 17->17, 18->18, 19->19, 20->20, 21->21, 22->22, 23->23, 24->24, 25->25, 26->26, 27->27, 28->28, 29->29, 30->30, 31->31, 32->32, 33->33, 34->34, 35->35, 36->36, 37->37, 38->38, 39->39, 40->40, 41->41, 42->42, 43->43, 44->44, 45->45, 46->46, 47->47, 48->48, 
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:29:21 [mxfp4.py:601] Using 'MARLIN' Mxfp4 MoE backend.
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:29:27 [model_runner.py:404] Model loading took 33.1 GiB memory and 5.676081 seconds
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:30:21 [gpu_worker.py:625] Available KV cache memory: 48.18 GiB
+(EngineCore pid=255) INFO 11-11 17:30:21 [kv_cache_utils.py:2032] GPU KV cache size: 1,402,755 tokens, Maximum concurrency for 16,384 tokens per request: 85.62x
+--- vllm-a-0: full log ---
+",
+2026-11-11T17:31:00.557,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"(APIServer pid=1) INFO 11-11 17:28:16 [api_utils.py:347] 
+(APIServer pid=1) INFO 11-11 17:28:16 [api_utils.py:347]        █     █     █▄   ▄█
+(APIServer pid=1) INFO 11-11 17:28:16 [api_utils.py:347]  ▄▄ ▄█ █     █     █ ▀▄▀ █  version 0.29.0
+(APIServer pid=1) INFO 11-11 17:28:16 [api_utils.py:347]   █▄█▀ █     █     █     █  model   openai/gpt-oss-120b
+(APIServer pid=1) INFO 11-11 17:28:16 [api_utils.py:347]    ▀▀  ▀▀▀▀▀ ▀▀▀▀▀ ▀     ▀
+(APIServer pid=1) INFO 11-11 17:28:16 [api_utils.py:347] 
+(APIServer pid=1) INFO 11-11 17:28:16 [api_utils.py:286] non-default args: {'model_tag': 'openai/gpt-oss-120b', 'host': '0.0.0.0', 'model': 'openai/gpt-oss-120b', 'max_model_len': 16384, 'served_model_name': ['gpt-oss-120b'], 'master_addr': '192.168.185.165', 'nnodes': 2, 'tensor_parallel_size': 2, 'enable_expert_parallel': True, 'gpu_memory_utilization': 0.9, 'enable_prefix_caching': True, 'max_num_batched_tokens': 8192,",
+2026-11-11T17:31:00.559,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443," 'max_num_seqs': 512}
+(APIServer pid=1) Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+(APIServer pid=1) INFO 11-11 17:28:34 [model.py:684] Resolved architecture: GptOssForCausalLM
+(APIServer pid=1) Parse safetensors files:   0%|          | 0/15 [00:00<?, ?it/s]Parse safetensors files:   7%|▋         | 1/15 [00:00<00:01,  8.05it/s]Parse safetensors files: 100%|██████████| 15/15 [00:00<00:00, 81.15it/s]
+(APIServer pid=1) INFO 11-11 17:28:35 [model.py:2021] Using max model len 16384
+(APIServer pid=1) INFO 11-11 17:28:39 [arg_utils.py:2276] Inferred data_parallel_rank 0 from node_rank 0
+(APIServer pid=1) INFO 11-11 17:28:39 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=8192.
+(APIServer pid=1) INFO 11-11 17:28:39 [config.py:420] Overriding max cuda graph capture size to 1024 for performance.
+(APIServer pid=1) INFO 11-11 17:28:39 [kernel.py:369] Fin",
+2026-11-11T17:31:00.560,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"al IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(EngineCore pid=255) INFO 11-11 17:28:59 [core.py:123] Initializing a V1 LLM engine (v0.29.0) with config: model='openai/gpt-oss-120b', speculative_config=None, tokenizer='openai/gpt-oss-120b', skip_tokenizer_init=False, tokenizer_mode=auto, revision=main, tokenizer_revision=main, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=16384, download_dir=None, load_format=auto, tensor_parallel_size=2, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=gpt_oss_mxfp4, quantization_config=None, enforce_eager=False, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='openai_gptoss', reasoning_par",
+2026-11-11T17:31:00.561,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"ser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, per_request_spec_decode_metrics='none', kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False, jit_monitor_mode='warn', jit_monitor_verbose=False), seed=0, served_model_name=gpt-oss-120b, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.VLLM_COMPILE: 3>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['none'], 'ir_enable_torch_wrap': True, 'splitting_ops': ['vllm::unified_attention_with_output', 'vllm::unified_mla_attention_with_output', 'vllm::mamba_mixer2', 'vllm::mamba_mixer', 'vllm::short_conv', 'vllm::qwen4",
+2026-11-11T17:31:00.563,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,": [1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 128, 136, 144, 152, 160, 168, 176, 184, 192, 200, 208, 216, 224, 232, 240, 248, 256, 272, 288, 304, 320, 336, 352, 368, 384, 400, 416, 432, 448, 464, 480, 496, 512, 528, 544, 560, 576, 592, 608, 624, 640, 656, 672, 688, 704, 720, 736, 752, 768, 784, 800, 816, 832, 848, 864, 880, 896, 912, 928, 944, 960, 976, 992, 1008, 1024], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': False, 'fuse_act_quant': False, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': False, 'enable_qk_norm_rope_fusion': False, 'fuse_rope_kvcache_cat_mla': False, 'fuse_act_padding': False, 'fuse_qk_norm_rope_kvcache': False}, 'max_cudagraph_capture_size': 1024, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': ",
+2026-11-11T17:31:00.563,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"_exp_compute_ple_ngram_ids', 'vllm::qwen4_exp_ple_short_conv', 'vllm::qwen4_exp_qsa_with_output', 'vllm::linear_attention', 'vllm::qwen_gdn_attention_core', 'vllm::qwen_gdn_attention_core_fused_norm_packed', 'vllm::gdn_attention_core_xpu', 'vllm::olmo_hybrid_gdn_full_forward', 'vllm::sparse_attn_indexer', 'vllm::rocm_aiter_sparse_attn_indexer', 'vllm::deepseek_v4_attention', 'vllm::hpc_rope_norm_forward', 'vllm::unified_kv_cache_update', 'vllm::unified_mla_kv_cache_update'], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'compile_sizes': [], 'compile_ranges_endpoints': [8192], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 1, 'cudagraph_capture_sizes'",
+2026-11-11T17:31:00.565,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native']), enable_flashinfer_autotune=True, enable_cutedsl_warmup=True, enable_jit_warmup=True, enable_bf16x3_router_gemm=False, moe_backend='auto', linear_backend='auto')
+(EngineCore pid=255) INFO 11-11 17:28:59 [multiproc_executor.py:153] DP group leader: node_rank=0, node_rank_within_dp=0, master_addr=192.168.185.165, mq_connect_ip=192.168.185.165 (local), world_size=2, local_world_size=1
+(Worker pid=332) INFO 11-11 17:29:17 [parallel_state.py:1775] world_size=2 rank=0 local_rank=0 distributed_init_method=tcp://192.168.185.165:29501 backend=nccl
+vllm-a-0:332:332 [0] NCCL INFO ncclOsDlopen(libnccl-env.so) failed: libnccl-env.so: cannot open shared object file: No such file or directory
+vllm-a-0:332:332 [0] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so
+vllm-a-0:332:332 [0] NCCL INFO NCCL_SOCKET_IFNAME set by env",
+2026-11-11T17:31:00.566,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"ironment to ^docker0,lo
+vllm-a-0:332:332 [0] NCCL INFO Bootstrap: Using eth0:192.168.185.165<0>
+vllm-a-0:332:437 [0] NCCL INFO Socket handshake magic 0x564ab9f2fc4b9d6c (built-in default)
+(Worker pid=332) INFO 11-11 17:29:20 [pynccl.py:113] vLLM is using nccl==2.30.7
+vllm-a-0:332:332 [0] NCCL INFO cudaDriverVersion 13000
+vllm-a-0:332:332 [0] NCCL INFO NCCL version 2.30.7+cuda13.3
+vllm-a-0:332:332 [0] NCCL INFO NCCL git version HEAD a5187fa2e
+vllm-a-0:332:332 [0] NCCL INFO NET/Plugin: Loaded net plugin Libfabric (v11)
+vllm-a-0:332:332 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v11) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v11
+vllm-a-0:332:332 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v10) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v10
+vllm-a-0:332:332 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v9) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v9
+vllm-a-0:332:3",
+2026-11-11T17:31:00.566,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"32 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v8) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v8
+vllm-a-0:332:332 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v7) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v7
+vllm-a-0:332:332 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v6) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v6
+vllm-a-0:332:332 [0] NCCL INFO Successfully loaded external network plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so
+vllm-a-0:332:332 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^docker0,lo
+vllm-a-0:332:332 [0] NCCL INFO NET/Socket : Using [0]eth0:192.168.185.165<0>
+vllm-a-0:332:332 [0] NCCL INFO Initialized NET plugin Socket
+vllm-a-0:332:332 [0] NCCL INFO Assigned NET plugin Socket to comm
+vllm-a-0:332:332 [0] NCCL INFO ncclOsDlopen(libnccl-rma.so) failed: libnccl-rma.so: cannot open shared object file: No such file or directory
+vllm-a-0:3",
+2026-11-11T17:31:00.567,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"32:332 [0] NCCL INFO RMA/Plugin: Could not find: libnccl-rma.so
+vllm-a-0:332:332 [0] NCCL INFO RMA/Plugin: Failed to load external plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so, dlHandle: (nil), ncclRma: (nil)
+vllm-a-0:332:332 [0] NCCL INFO ncclOsDlsym(ncclRmaPlugin_v13) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclRmaPlugin_v13
+vllm-a-0:332:332 [0] NCCL INFO ncclOsDlsym(ncclGinPlugin_v13) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclGinPlugin_v13
+vllm-a-0:332:332 [0] NCCL INFO RMA/Plugin: Failed to load external plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so, dlHandle: 0x4008b6e0, ncclRma: (nil)
+vllm-a-0:332:332 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^docker0,lo
+vllm-a-0:332:332 [0] NCCL INFO NET/IB : No device found.
+vllm-a-0:332:332 [0] NCCL INFO NET/IB : Using [RO]; OOB eth0:192.168.185.165<0>
+vllm-a-0:332:332 [0] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+vllm-a-0:332:332 [0] NCCL INFO ncclOsDlopen(lib",
+2026-11-11T17:31:00.568,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"FO RAS client listening socket at ::1<28028>
+vllm-a-0:332:332 [0] NCCL INFO Bootstrap timings total 0.039035 (create 0.000023, send 0.000124, recv 0.000316, ring 0.037354, delay 0.000000)
+vllm-a-0:332:332 [0] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 0 is 0-15. (GPU affinity = 0-15 ; CPU affinity = 0-15).
+vllm-a-0:332:332 [0] NCCL INFO Rank 0: 1 Net devices
+vllm-a-0:332:332 [0] NCCL INFO Rank 0: 0 CollNet devices
+vllm-a-0:332:332 [0] NCCL INFO Local Net device counts across ranks: min 1 max 1
+vllm-a-0:332:332 [0] NCCL INFO Local CollNet device counts across ranks: min 0 max 0
+vllm-a-0:332:332 [0] NCCL INFO comm 0x37f63c00 rank 0 nRanks 2 nNodes 2 localRanks 1 localRank 0 MNNVL 0
+vllm-a-0:332:332 [0] NCCL INFO Channel 00/02 : 0 1
+vllm-a-0:332:332 [0] NCCL INFO Channel 01/02 : 0 1
+vllm-a-0:332:332 [0] NCCL INFO Trees [0] 1/-1/-1->0->-1 [1] -1/-1/-1->0->1
+vllm-a-0:332:332 [0] NCCL INFO P2P Chunksize set to 131072
+vllm-a-0:332:332 [0] NCCL INFO Tuning P2P operations with maxP2pPee",
+2026-11-11T17:31:00.568,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"nccl-gin.so) failed: libnccl-gin.so: cannot open shared object file: No such file or directory
+vllm-a-0:332:332 [0] NCCL INFO GIN/Plugin: Could not find: libnccl-gin.so
+vllm-a-0:332:332 [0] NCCL INFO GIN/Plugin: Failed to load external plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so, dlHandle: (nil), ncclGin: (nil)
+vllm-a-0:332:332 [0] NCCL INFO ncclOsDlsym(ncclGinPlugin_v13) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclGinPlugin_v13
+vllm-a-0:332:332 [0] NCCL INFO GIN/Plugin: Failed to load external plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so, dlHandle: 0x4008b6e0, ncclGin: (nil)
+vllm-a-0:332:332 [0] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+vllm-a-0:332:332 [0] NCCL INFO Using network Socket
+vllm-a-0:332:332 [0] NCCL INFO Loaded NVML from libnvidia-ml.so.1
+vllm-a-0:332:332 [0] NCCL INFO [Rank 0] ncclCommInitRank comm 0x37f63c00 rank 0 nranks 2 cudaDev 0 nvmlDev 0 busId 2f000 commId 0x850c5661b05c3b33 - Init START
+vllm-a-0:332:332 [0] NCCL IN",
+2026-11-11T17:31:00.569,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"rs = 2
+vllm-a-0:332:332 [0] NCCL INFO ncclOsDlopen(libnccl-profiler.so) failed: libnccl-profiler.so: cannot open shared object file: No such file or directory
+vllm-a-0:332:332 [0] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so
+vllm-a-0:332:332 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v6) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v6
+vllm-a-0:332:332 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v5) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v5
+vllm-a-0:332:332 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v4) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v4
+vllm-a-0:332:332 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v3) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v3
+vllm-a-0:332:332 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v2) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v2
+vllm-a-0:332:332 [0] NCCL INFO ncclOsDlsym",
+2026-11-11T17:31:00.570,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"(ncclProfiler_v1) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v1
+vllm-a-0:332:332 [0] NCCL INFO Check P2P Type isAllDirectP2p 1 directMode 0 isAllCudaP2p 1
+vllm-a-0:332:440 [0] NCCL INFO [Proxy Service] Device 0 CPU core 5
+vllm-a-0:332:441 [0] NCCL INFO [Proxy Service UDS] Device 0 CPU core 7
+vllm-a-0:332:440 [0] NCCL INFO proxy listening socket at 192.168.185.165<57947>
+vllm-a-0:332:332 [0] NCCL INFO ncclOsDlopen(libnccl-tuner.so) failed: libnccl-tuner.so: cannot open shared object file: No such file or directory
+vllm-a-0:332:332 [0] NCCL INFO TUNER/Plugin: Could not find: libnccl-tuner.so
+vllm-a-0:332:332 [0] NCCL INFO ncclOsDlsym(ncclTunerPlugin_v5) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclTunerPlugin_v5
+vllm-a-0:332:332 [0] NCCL INFO ncclOsDlsym(ncclTunerPlugin_v4) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclTunerPlugin_v4
+vllm-a-0:332:332 [0] NCCL INFO TUNER/Plugin: Using nccl_ofi_tuner (v",
+2026-11-11T17:31:00.571,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"3)
+vllm-a-0:332:332 [0] NCCL INFO NET/OFI Tuner selected platform: AWS
+vllm-a-0:332:332 [0] NCCL INFO NET/OFI NCCL_OFI_TUNER is not available for platform : g7e.4xlarge, Fall back to NCCL's tuner
+vllm-a-0:332:332 [0] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+vllm-a-0:332:332 [0] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 1 p2p channels per peer
+vllm-a-0:332:332 [0] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+vllm-a-0:332:332 [0] NCCL INFO CC Off, workFifoBytes 1048576
+vllm-a-0:332:332 [0] NCCL INFO ncclCommInitRank comm 0x37f63c00 rank 0 nranks 2 cudaDev 0 nvmlDev 0 busId 2f000 commId 0x850c5661b05c3b33 - Init COMPLETE
+vllm-a-0:332:332 [0] NCCL INFO Init timings - ncclCommInitRank: rank 0 nranks 2 total 0.27 (kernels 0.21, alloc 0.00, bootstrap 0.04, allgathers 0.00, topo 0.00, graphs 0.00, connections 0.02, rest 0.00)
+vllm-a-0:332:442 [0] NCCL INFO [Proxy Progress] Device 0 CPU cor",
+2026-11-11T17:31:00.573,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"e 8
+vllm-a-0:332:332 [0] NCCL INFO Channel 00/0 : 1[0] -> 0[0] [receive] via NET/Socket/0
+vllm-a-0:332:332 [0] NCCL INFO Channel 01/0 : 1[0] -> 0[0] [receive] via NET/Socket/0
+vllm-a-0:332:332 [0] NCCL INFO Channel 00/0 : 0[0] -> 1[0] [send] via NET/Socket/0
+vllm-a-0:332:332 [0] NCCL INFO Channel 01/0 : 0[0] -> 1[0] [send] via NET/Socket/0
+vllm-a-0:332:332 [0] NCCL INFO Connected all rings, use ring PXN 0 GDR 0
+(Worker pid=332) WARNING 11-11 17:29:20 [symm_mem.py:67] SymmMemCommunicator: Device capability 12.0 not supported, communicator is not available.
+(Worker pid=332) WARNING 11-11 17:29:21 [flashinfer_all_reduce.py:383] FlashInfer All Reduce is disabled because it is not supported for world_size=2.
+(Worker pid=332) WARNING 11-11 17:29:21 [custom_all_reduce.py:201] Custom collectives are disabled because this multi-node group does not have MNNVL-capable GPUs on every rank.
+(Worker pid=332) INFO 11-11 17:29:21 [cuda_communicator.py:269] Using ['PYNCCL'] all-reduce backends (in dispa",
+2026-11-11T17:31:00.573,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"tch order) for group 'tp:0' out of potential backends: ['FLASHINFER', 'NCCL_SYMM_MEM', 'QUICK_REDUCE', 'AITER_CUSTOM', 'CUSTOM', 'SYMM_MEM', 'PYNCCL'].
+vllm-a-0:332:332 [0] NCCL INFO Initialized NET plugin Socket
+vllm-a-0:332:332 [0] NCCL INFO Assigned NET plugin Socket to comm
+vllm-a-0:332:332 [0] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+vllm-a-0:332:332 [0] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+vllm-a-0:332:332 [0] NCCL INFO Using network Socket
+vllm-a-0:332:332 [0] NCCL INFO [Rank 0] ncclCommInitRank comm 0x4132d5d0 rank 0 nranks 2 cudaDev 0 nvmlDev 0 busId 2f000 commId 0xffe82259547b73ba - Init START
+vllm-a-0:332:332 [0] NCCL INFO Bootstrap timings total 0.000740 (create 0.000019, send 0.000082, recv 0.000179, ring 0.000049, delay 0.000000)
+vllm-a-0:332:332 [0] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 0 is 0-15. (GPU affinity = 0-15 ; CPU affinity = 0-15).
+vllm-a-0:332:332 [0] NCCL INFO Rank 0: 1 Net devices
+vllm-a-0:332:332 [0] NCCL INFO ",
+2026-11-11T17:31:00.574,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"Rank 0: 0 CollNet devices
+vllm-a-0:332:332 [0] NCCL INFO Local Net device counts across ranks: min 1 max 1
+vllm-a-0:332:332 [0] NCCL INFO Local CollNet device counts across ranks: min 0 max 0
+vllm-a-0:332:332 [0] NCCL INFO comm 0x4132d5d0 rank 0 nRanks 2 nNodes 2 localRanks 1 localRank 0 MNNVL 0
+vllm-a-0:332:332 [0] NCCL INFO Channel 00/02 : 0 1
+vllm-a-0:332:332 [0] NCCL INFO Channel 01/02 : 0 1
+vllm-a-0:332:332 [0] NCCL INFO Trees [0] 1/-1/-1->0->-1 [1] -1/-1/-1->0->1
+vllm-a-0:332:332 [0] NCCL INFO P2P Chunksize set to 131072
+vllm-a-0:332:332 [0] NCCL INFO Tuning P2P operations with maxP2pPeers = 2
+vllm-a-0:332:332 [0] NCCL INFO Check P2P Type isAllDirectP2p 1 directMode 0 isAllCudaP2p 1
+vllm-a-0:332:471 [0] NCCL INFO [Proxy Service] Device 0 CPU core 6
+vllm-a-0:332:471 [0] NCCL INFO proxy listening socket at 192.168.185.165<47273>
+vllm-a-0:332:472 [0] NCCL INFO [Proxy Service UDS] Device 0 CPU core 12
+vllm-a-0:332:332 [0] NCCL INFO NET/OFI NCCL_OFI_TUNER is not available for platform",
+2026-11-11T17:31:00.575,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"ive] via NET/Socket/0
+vllm-a-0:332:332 [0] NCCL INFO Channel 00/0 : 0[0] -> 1[0] [send] via NET/Socket/0
+vllm-a-0:332:332 [0] NCCL INFO Channel 01/0 : 0[0] -> 1[0] [send] via NET/Socket/0
+vllm-a-0:332:332 [0] NCCL INFO Connected all rings, use ring PXN 0 GDR 0
+(Worker pid=332) INFO 11-11 17:29:21 [cuda_communicator.py:269] Using ['PYNCCL'] all-reduce backends (in dispatch order) for group 'ep:0' out of potential backends: ['FLASHINFER', 'NCCL_SYMM_MEM', 'QUICK_REDUCE', 'AITER_CUSTOM', 'CUSTOM', 'SYMM_MEM', 'PYNCCL'].
+(Worker pid=332) INFO 11-11 17:29:21 [parallel_state.py:2119] rank 0 in world size 2 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank 0, EPLB rank N/A
+(Worker pid=332) INFO 11-11 17:29:21 [gpu_worker.py:429] Using V2 Model Runner
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:29:21 [model_runner.py:382] Loading model from scratch...
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:29:21 [cuda.py:492] Using FLASHINFER attention backend out of potential backends: ['FLASHINF",
+2026-11-11T17:31:00.575,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443," : g7e.4xlarge, Fall back to NCCL's tuner
+vllm-a-0:332:332 [0] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+vllm-a-0:332:332 [0] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 1 p2p channels per peer
+vllm-a-0:332:332 [0] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+vllm-a-0:332:332 [0] NCCL INFO CC Off, workFifoBytes 1048576
+vllm-a-0:332:332 [0] NCCL INFO ncclCommInitRank comm 0x4132d5d0 rank 0 nranks 2 cudaDev 0 nvmlDev 0 busId 2f000 commId 0xffe82259547b73ba - Init COMPLETE
+vllm-a-0:332:332 [0] NCCL INFO Init timings - ncclCommInitRank: rank 0 nranks 2 total 0.01 (kernels 0.00, alloc 0.00, bootstrap 0.00, allgathers 0.00, topo 0.00, graphs 0.00, connections 0.00, rest 0.00)
+vllm-a-0:332:473 [0] NCCL INFO [Proxy Progress] Device 0 CPU core 9
+vllm-a-0:332:332 [0] NCCL INFO Channel 00/0 : 1[0] -> 0[0] [receive] via NET/Socket/0
+vllm-a-0:332:332 [0] NCCL INFO Channel 01/0 : 1[0] -> 0[0] [rece",
+2026-11-11T17:31:00.577,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"ER', 'TRITON_ATTN'].
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:29:21 [expert_map_manager.py:245] [EP Rank 0/2] Expert parallelism is enabled. Expert placement strategy: linear. Local/global number of experts: 64/128. Experts local to global index map: 0->0, 1->1, 2->2, 3->3, 4->4, 5->5, 6->6, 7->7, 8->8, 9->9, 10->10, 11->11, 12->12, 13->13, 14->14, 15->15, 16->16, 17->17, 18->18, 19->19, 20->20, 21->21, 22->22, 23->23, 24->24, 25->25, 26->26, 27->27, 28->28, 29->29, 30->30, 31->31, 32->32, 33->33, 34->34, 35->35, 36->36, 37->37, 38->38, 39->39, 40->40, 41->41, 42->42, 43->43, 44->44, 45->45, 46->46, 47->47, 48->48, 49->49, 50->50, 51->51, 52->52, 53->53, 54->54, 55->55, 56->56, 57->57, 58->58, 59->59, 60->60, 61->61, 62->62, 63->63.
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:29:21 [mxfp4.py:601] Using 'MARLIN' Mxfp4 MoE backend.
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:29:22 [weight_utils.py:863] Filesystem type for checkpoints: XFS. Checkpoint size: 60.77 GiB. Available RAM: 96.42 GiB.
+(Worke",
+2026-11-11T17:31:00.578,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"r_TP0_EP0 pid=332) INFO 11-11 17:29:22 [weight_utils.py:886] Auto-prefetch is disabled because the filesystem (XFS) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+(Worker_TP0_EP0 pid=332) Loading safetensors checkpoint shards:   0% Completed | 0/15 [00:00<?, ?it/s]
+(Worker_TP0_EP0 pid=332) Loading safetensors checkpoint shards:   7% Completed | 1/15 [00:00<00:03,  4.02it/s]
+(Worker_TP0_EP0 pid=332) Loading safetensors checkpoint shards:  13% Completed | 2/15 [00:00<00:02,  4.36it/s]
+(Worker_TP0_EP0 pid=332) Loading safetensors checkpoint shards:  20% Completed | 3/15 [00:00<00:02,  4.31it/s]
+(Worker_TP0_EP0 pid=332) Loading safetensors checkpoint shards:  27% Completed | 4/15 [00:00<00:02,  4.48it/s]
+(Worker_TP0_EP0 pid=332) Loading safetensors checkpoint shards:  33% Completed | 5/15 [00:01<00:02,  4.38it/s]
+(Worker_TP0_EP0 pid=332) Loading safetensors checkpoint shards:  40% Completed | 6/15 ",
+2026-11-11T17:31:00.579,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"leted | 15/15 [00:03<00:00,  4.58it/s]
+(Worker_TP0_EP0 pid=332) Loading safetensors checkpoint shards: 100% Completed | 15/15 [00:03<00:00,  4.49it/s]
+(Worker_TP0_EP0 pid=332) 
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:29:25 [default_loader.py:430] Loading weights took 3.34 seconds
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:29:25 [mxfp4.py:1949] Using MoEPrepareAndFinalizeNoDPEPModular
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:29:25 [mxfp4.py:1950] Using MarlinExperts
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:29:27 [model_runner.py:404] Model loading took 33.1 GiB memory and 5.676081 seconds
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:29:27 [topk_topp_sampler.py:62] Using FlashInfer for top-p & top-k sampling.
+(EngineCore pid=255) INFO 11-11 17:29:27 [torch_utils.py:277] Reducing Torch threads from 13 to 1 for serving. Set OMP_NUM_THREADS in the external environment to override.
+(EngineCore pid=255) INFO 11-11 17:29:27 [utils.py:306] Using LBNHC KV cache layout.
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:2",
+2026-11-11T17:31:00.579,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"[00:01<00:01,  4.50it/s]
+(Worker_TP0_EP0 pid=332) Loading safetensors checkpoint shards:  47% Completed | 7/15 [00:01<00:01,  4.43it/s]
+(Worker_TP0_EP0 pid=332) Loading safetensors checkpoint shards:  53% Completed | 8/15 [00:01<00:01,  4.55it/s]
+(Worker_TP0_EP0 pid=332) Loading safetensors checkpoint shards:  60% Completed | 9/15 [00:02<00:01,  4.47it/s]
+(Worker_TP0_EP0 pid=332) Loading safetensors checkpoint shards:  67% Completed | 10/15 [00:02<00:01,  4.54it/s]
+(Worker_TP0_EP0 pid=332) Loading safetensors checkpoint shards:  73% Completed | 11/15 [00:02<00:00,  4.45it/s]
+(Worker_TP0_EP0 pid=332) Loading safetensors checkpoint shards:  80% Completed | 12/15 [00:02<00:00,  4.53it/s]
+(Worker_TP0_EP0 pid=332) Loading safetensors checkpoint shards:  87% Completed | 13/15 [00:02<00:00,  4.64it/s]
+(Worker_TP0_EP0 pid=332) Loading safetensors checkpoint shards:  93% Completed | 14/15 [00:03<00:00,  4.51it/s]
+(Worker_TP0_EP0 pid=332) Loading safetensors checkpoint shards: 100% Comp",
+2026-11-11T17:31:00.581,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"9:33 [backends.py:1094] Using cache directory: /root/.cache/vllm/torch_compile_cache/ca54cd3483/rank_0_0/backbone for vLLM's torch.compile
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:29:33 [backends.py:1155] Dynamo bytecode transform time: 5.58 s
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:29:39 [backends.py:393] Compiling a graph for compile range (1, 8192) takes 5.82 s
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:29:42 [backends.py:920] collected artifacts: 37 entries, 3 artifacts, 4792365 bytes total
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:29:42 [decorators.py:719] saved AOT compiled function to /root/.cache/vllm/torch_compile_cache/torch_aot_compile/28c7a6aeb15e48c4643294d54c886a786208fd31098b5a92328a235fe5b7e2fe/rank_0_0/model
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:29:42 [monitor.py:53] torch.compile took 14.23 s in total
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:29:42 [monitor.py:81] Initial profiling/warmup run took 0.17 s
+vllm-a-0:332:332 [0] NCCL INFO Symmetric VA size=96GB
+(Worker_TP0_EP0 pid=33",
+2026-11-11T17:31:00.582,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"2) INFO 11-11 17:29:45 [flashinfer.py:910] FlashInfer resolved query dtypes: prefill=torch.bfloat16, decode=torch.bfloat16, decode_backend=xqa, kv_cache_dtype=torch.bfloat16, arch=sm120
+(Worker_TP0_EP0 pid=332) Capturing CUDA graphs (PIECEWISE):   0%|          | 0/83 [00:00<?, ?it/s]Capturing CUDA graphs (PIECEWISE):   1%|          | 1/83 [00:21<29:55, 21.90s/it]Capturing CUDA graphs (PIECEWISE):   2%|▏         | 2/83 [00:22<12:21,  9.16s/it]Capturing CUDA graphs (PIECEWISE):   4%|▎         | 3/83 [00:22<06:46,  5.08s/it]Capturing CUDA graphs (PIECEWISE):   5%|▍         | 4/83 [00:22<04:10,  3.17s/it]Capturing CUDA graphs (PIECEWISE):   6%|▌         | 5/83 [00:22<02:44,  2.11s/it]Capturing CUDA graphs (PIECEWISE):   7%|▋         | 6/83 [00:23<01:53,  1.47s/it]Capturing CUDA graphs (PIECEWISE):   8%|▊         | 7/83 [00:23<01:20,  1.06s/it]Capturing CUDA graphs (PIECEWISE):  10%|▉         | 8/83 [00:23<00:59,  1.26it/s]Capturing CUDA graphs (PIECEWISE):  11%|█ ",
+2026-11-11T17:31:00.582,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"        | 9/83 [00:23<00:45,  1.62it/s]Capturing CUDA graphs (PIECEWISE):  12%|█▏        | 10/83 [00:23<00:36,  2.03it/s]Capturing CUDA graphs (PIECEWISE):  13%|█▎        | 11/83 [00:24<00:29,  2.45it/s]Capturing CUDA graphs (PIECEWISE):  14%|█▍        | 12/83 [00:24<00:24,  2.87it/s]Capturing CUDA graphs (PIECEWISE):  16%|█▌        | 13/83 [00:24<00:21,  3.26it/s]Capturing CUDA graphs (PIECEWISE):  17%|█▋        | 14/83 [00:24<00:19,  3.63it/s]Capturing CUDA graphs (PIECEWISE):  18%|█▊        | 15/83 [00:25<00:17,  3.94it/s]Capturing CUDA graphs (PIECEWISE):  19%|█▉        | 16/83 [00:25<00:15,  4.20it/s]Capturing CUDA graphs (PIECEWISE):  20%|██        | 17/83 [00:25<00:14,  4.43it/s]Capturing CUDA graphs (PIECEWISE):  22%|██▏       | 18/83 [00:25<00:14,  4.63it/s]Capturing CUDA graphs (PIECEWISE):  23%|██▎       | 19/83 [00:25<00:13,  4.77it/s]Capturing CUDA graphs (PIECEWISE):  24%|██▍       | 20/83 [00:25<00:12,  4.92it/",
+2026-11-11T17:31:00.583,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"s]Capturing CUDA graphs (PIECEWISE):  25%|██▌       | 21/83 [00:26<00:12,  5.05it/s]Capturing CUDA graphs (PIECEWISE):  27%|██▋       | 22/83 [00:26<00:11,  5.17it/s]Capturing CUDA graphs (PIECEWISE):  28%|██▊       | 23/83 [00:26<00:11,  5.27it/s]Capturing CUDA graphs (PIECEWISE):  29%|██▉       | 24/83 [00:26<00:11,  5.29it/s]Capturing CUDA graphs (PIECEWISE):  30%|███       | 25/83 [00:26<00:10,  5.41it/s]Capturing CUDA graphs (PIECEWISE):  31%|███▏      | 26/83 [00:27<00:10,  5.50it/s]Capturing CUDA graphs (PIECEWISE):  33%|███▎      | 27/83 [00:27<00:09,  5.62it/s]Capturing CUDA graphs (PIECEWISE):  34%|███▎      | 28/83 [00:27<00:09,  5.72it/s]Capturing CUDA graphs (PIECEWISE):  35%|███▍      | 29/83 [00:27<00:09,  5.80it/s]Capturing CUDA graphs (PIECEWISE):  36%|███▌      | 30/83 [00:27<00:08,  5.92it/s]Capturing CUDA graphs (PIECEWISE):  37%|███▋      | 31/83 [00:27<00:08,  6.03it/s]Captur",
+2026-11-11T17:31:00.583,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"ing CUDA graphs (PIECEWISE):  39%|███▊      | 32/83 [00:28<00:08,  6.12it/s]Capturing CUDA graphs (PIECEWISE):  40%|███▉      | 33/83 [00:28<00:07,  6.27it/s]Capturing CUDA graphs (PIECEWISE):  41%|████      | 34/83 [00:28<00:07,  6.40it/s]Capturing CUDA graphs (PIECEWISE):  42%|████▏     | 35/83 [00:28<00:07,  6.49it/s]Capturing CUDA graphs (PIECEWISE):  43%|████▎     | 36/83 [00:28<00:07,  6.63it/s]Capturing CUDA graphs (PIECEWISE):  45%|████▍     | 37/83 [00:28<00:06,  6.75it/s]Capturing CUDA graphs (PIECEWISE):  46%|████▌     | 38/83 [00:28<00:06,  6.87it/s]Capturing CUDA graphs (PIECEWISE):  47%|████▋     | 39/83 [00:29<00:06,  6.98it/s]Capturing CUDA graphs (PIECEWISE):  48%|████▊     | 40/83 [00:29<00:06,  7.12it/s]Capturing CUDA graphs (PIECEWISE):  49%|████▉     | 41/83 [00:29<00:05,  7.24it/s]Capturing CUDA graphs (PIECEWISE):  51%|█████     | 42/83 [00:29<00:05, ",
+2026-11-11T17:31:00.585,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443," 7.37it/s]Capturing CUDA graphs (PIECEWISE):  52%|█████▏    | 43/83 [00:29<00:05,  7.52it/s]Capturing CUDA graphs (PIECEWISE):  53%|█████▎    | 44/83 [00:29<00:05,  7.65it/s]Capturing CUDA graphs (PIECEWISE):  54%|█████▍    | 45/83 [00:29<00:04,  7.76it/s]Capturing CUDA graphs (PIECEWISE):  55%|█████▌    | 46/83 [00:29<00:04,  7.73it/s]Capturing CUDA graphs (PIECEWISE):  57%|█████▋    | 47/83 [00:30<00:04,  7.92it/s]Capturing CUDA graphs (PIECEWISE):  58%|█████▊    | 48/83 [00:30<00:04,  8.08it/s]Capturing CUDA graphs (PIECEWISE):  59%|█████▉    | 49/83 [00:30<00:04,  8.13it/s]Capturing CUDA graphs (PIECEWISE):  60%|██████    | 50/83 [00:30<00:03,  8.29it/s]Capturing CUDA graphs (PIECEWISE):  61%|██████▏   | 51/83 [00:30<00:03,  8.49it/s]Capturing CUDA graphs (PIECEWISE):  63%|██████▎   | 52/83 [00:30<00:03,  8.57it/s]Capturing CUDA graphs (PIECEWISE): ",
+2026-11-11T17:31:00.585,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443," 64%|██████▍   | 53/83 [00:30<00:03,  8.62it/s]Capturing CUDA graphs (PIECEWISE):  65%|██████▌   | 54/83 [00:30<00:03,  8.67it/s]Capturing CUDA graphs (PIECEWISE):  66%|██████▋   | 55/83 [00:31<00:03,  8.55it/s]Capturing CUDA graphs (PIECEWISE):  67%|██████▋   | 56/83 [00:31<00:03,  8.70it/s]Capturing CUDA graphs (PIECEWISE):  69%|██████▊   | 57/83 [00:31<00:02,  8.83it/s]Capturing CUDA graphs (PIECEWISE):  70%|██████▉   | 58/83 [00:31<00:02,  8.94it/s]Capturing CUDA graphs (PIECEWISE):  71%|███████   | 59/83 [00:31<00:02,  8.94it/s]Capturing CUDA graphs (PIECEWISE):  72%|███████▏  | 60/83 [00:31<00:02,  8.97it/s]Capturing CUDA graphs (PIECEWISE):  73%|███████▎  | 61/83 [00:31<00:02,  8.89it/s]Capturing CUDA graphs (PIECEWISE):  75%|███████▍  | 62/83 [00:31<00:02,  9.02it/s]Capturing CUDA graphs (PIECEWISE):  76%|██████�",
+2026-11-11T17:31:00.586,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"��▌  | 63/83 [00:31<00:02,  9.05it/s]Capturing CUDA graphs (PIECEWISE):  77%|███████▋  | 64/83 [00:32<00:02,  8.92it/s]Capturing CUDA graphs (PIECEWISE):  78%|███████▊  | 65/83 [00:32<00:02,  8.95it/s]Capturing CUDA graphs (PIECEWISE):  80%|███████▉  | 66/83 [00:32<00:01,  9.01it/s]Capturing CUDA graphs (PIECEWISE):  81%|████████  | 67/83 [00:32<00:01,  8.93it/s]Capturing CUDA graphs (PIECEWISE):  82%|████████▏ | 68/83 [00:32<00:01,  8.81it/s]Capturing CUDA graphs (PIECEWISE):  83%|████████▎ | 69/83 [00:32<00:01,  8.77it/s]Capturing CUDA graphs (PIECEWISE):  84%|████████▍ | 70/83 [00:32<00:01,  8.73it/s]Capturing CUDA graphs (PIECEWISE):  86%|████████▌ | 71/83 [00:32<00:01,  8.85it/s]Capturing CUDA graphs (PIECEWISE):  87%|████████▋ | 72/83 [00:32<00:01,  8.92it/s]Capturing CUDA graphs (PIECEWISE):  88%|██████�",
+2026-11-11T17:31:00.587,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"100%|██████████| 83/83 [00:34<00:00,  9.13it/s]Capturing CUDA graphs (PIECEWISE): 100%|██████████| 83/83 [00:34<00:00,  2.43it/s]
+(Worker_TP0_EP0 pid=332) Capturing CUDA graphs (FULL):   0%|          | 0/2 [00:00<?, ?it/s]Capturing CUDA graphs (FULL):  50%|█████     | 1/2 [00:00<00:00,  7.40it/s]Capturing CUDA graphs (FULL): 100%|██████████| 2/2 [00:00<00:00,  7.61it/s]Capturing CUDA graphs (FULL): 100%|██████████| 2/2 [00:00<00:00,  7.57it/s]
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:30:20 [model_runner.py:960] Graph capturing finished in 35 secs, took 2.40 GiB
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:30:21 [gpu_worker.py:625] Available KV cache memory: 48.18 GiB
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:30:21 [gpu_worker.py:640] CUDA graph memory profiling is enabled (default since v0.21.0). The current --gpu-memory-utilization=0.9000 is equivalent to --gpu-memory-utilization=0.8738 without CUDA gr",
+2026-11-11T17:31:00.587,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"��█▊ | 73/83 [00:33<00:01,  8.51it/s]Capturing CUDA graphs (PIECEWISE):  89%|████████▉ | 74/83 [00:33<00:01,  8.73it/s]Capturing CUDA graphs (PIECEWISE):  90%|█████████ | 75/83 [00:33<00:00,  8.92it/s]Capturing CUDA graphs (PIECEWISE):  92%|█████████▏| 76/83 [00:33<00:00,  8.93it/s]Capturing CUDA graphs (PIECEWISE):  93%|█████████▎| 77/83 [00:33<00:00,  9.05it/s]Capturing CUDA graphs (PIECEWISE):  94%|█████████▍| 78/83 [00:33<00:00,  9.12it/s]Capturing CUDA graphs (PIECEWISE):  95%|█████████▌| 79/83 [00:33<00:00,  9.08it/s]Capturing CUDA graphs (PIECEWISE):  96%|█████████▋| 80/83 [00:33<00:00,  9.16it/s]Capturing CUDA graphs (PIECEWISE):  98%|█████████▊| 81/83 [00:33<00:00,  9.23it/s]Capturing CUDA graphs (PIECEWISE):  99%|█████████▉| 82/83 [00:34<00:00,  9.35it/s]Capturing CUDA graphs (PIECEWISE): ",
+2026-11-11T17:31:00.588,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"aph memory profiling. To maintain the same effective KV cache size as before, increase --gpu-memory-utilization to 0.9262. To disable, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=0.
+(EngineCore pid=255) INFO 11-11 17:30:21 [kv_cache_utils.py:2032] GPU KV cache size: 1,402,755 tokens, Maximum concurrency for 16,384 tokens per request: 85.62x
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:30:21 [kernel_warmup.py:124] JIT kernel warmup starting.
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:30:21 [kernel_warmup.py:134] JIT kernel warmup finished in 0.00s.
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:30:21 [kernel_warmup.py:309] Using FlashInfer autotune cache file: /root/.cache/vllm/flashinfer_autotune_cache/0.6.18/120f/d3e248f8551e84e872546ec8c7215d0137fef4a077bc1708944dc901f47fc022/autotune_configs.json
+(Worker_TP0_EP0 pid=332) 2026-11-11 17:30:21,708 - INFO - autotuner.py:972 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:30:21 [kernel_warmup.py:266] Ru",
+2026-11-11T17:31:00.589,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"nning FlashInfer autotune with 8192 tokens.
+(Worker_TP0_EP0 pid=332) 2026-11-11 17:30:21,758 - INFO - autotuner.py:995 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP0_EP0 pid=332) 2026-11-11 17:30:21,766 - INFO - autotuner.py:2652 - flashinfer.jit: [Autotuner]: Saved 0 configs to /root/.cache/vllm/flashinfer_autotune_cache/0.6.18/120f/d3e248f8551e84e872546ec8c7215d0137fef4a077bc1708944dc901f47fc022/autotune_configs.json (0 new, 0 from previous config)
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:30:21 [kernel_warmup.py:219] Warming up FlashInfer attention.
+(Worker_TP0_EP0 pid=332) Capturing CUDA graphs (PIECEWISE):   0%|          | 0/83 [00:00<?, ?it/s]Capturing CUDA graphs (PIECEWISE):   1%|          | 1/83 [00:00<00:19,  4.15it/s]Capturing CUDA graphs (PIECEWISE):   2%|▏         | 2/83 [00:00<00:19,  4.16it/s]Capturing CUDA graphs (PIECEWISE):   4%|▎         | 3/83 [00:00<00:19,  4.19it/s]Capturing CUDA graphs (PIECEWISE):   5%|▍         | 4/83 [00:00<00:18,  ",
+2026-11-11T17:31:00.590,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"4.22it/s]Capturing CUDA graphs (PIECEWISE):   6%|▌         | 5/83 [00:01<00:18,  4.25it/s]Capturing CUDA graphs (PIECEWISE):   7%|▋         | 6/83 [00:01<00:17,  4.29it/s]Capturing CUDA graphs (PIECEWISE):   8%|▊         | 7/83 [00:01<00:17,  4.32it/s]Capturing CUDA graphs (PIECEWISE):  10%|▉         | 8/83 [00:01<00:17,  4.35it/s]Capturing CUDA graphs (PIECEWISE):  11%|█         | 9/83 [00:02<00:16,  4.38it/s]Capturing CUDA graphs (PIECEWISE):  12%|█▏        | 10/83 [00:02<00:16,  4.42it/s]Capturing CUDA graphs (PIECEWISE):  13%|█▎        | 11/83 [00:02<00:16,  4.47it/s]Capturing CUDA graphs (PIECEWISE):  14%|█▍        | 12/83 [00:02<00:15,  4.46it/s]Capturing CUDA graphs (PIECEWISE):  16%|█▌        | 13/83 [00:02<00:15,  4.52it/s]Capturing CUDA graphs (PIECEWISE):  17%|█▋        | 14/83 [00:03<00:15,  4.59it/s]Capturing CUDA graphs (PIECEWISE):  18%|█▊        | 15/83 [00:03<00:14,  4.66it/s]Capturing CUDA graphs (PIECEWISE):  19%|█▉  ",
+2026-11-11T17:31:00.591,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"      | 16/83 [00:03<00:14,  4.72it/s]Capturing CUDA graphs (PIECEWISE):  20%|██        | 17/83 [00:03<00:13,  4.78it/s]Capturing CUDA graphs (PIECEWISE):  22%|██▏       | 18/83 [00:03<00:13,  4.85it/s]Capturing CUDA graphs (PIECEWISE):  23%|██▎       | 19/83 [00:04<00:13,  4.90it/s]Capturing CUDA graphs (PIECEWISE):  24%|██▍       | 20/83 [00:04<00:12,  4.96it/s]Capturing CUDA graphs (PIECEWISE):  25%|██▌       | 21/83 [00:04<00:12,  5.03it/s]Capturing CUDA graphs (PIECEWISE):  27%|██▋       | 22/83 [00:04<00:11,  5.09it/s]Capturing CUDA graphs (PIECEWISE):  28%|██▊       | 23/83 [00:04<00:11,  5.09it/s]Capturing CUDA graphs (PIECEWISE):  29%|██▉       | 24/83 [00:05<00:11,  5.17it/s]Capturing CUDA graphs (PIECEWISE):  30%|███       | 25/83 [00:05<00:11,  5.24it/s]Capturing CUDA graphs (PIECEWISE):  31%|███▏      | 26/83 [00:05<00:10,  5.30it/s]Capturing CUDA graphs (PIECEWISE):  33%|███▎      | 27/83 [00:0",
+2026-11-11T17:31:00.592,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"5<00:10,  5.36it/s]Capturing CUDA graphs (PIECEWISE):  34%|███▎      | 28/83 [00:05<00:10,  5.43it/s]Capturing CUDA graphs (PIECEWISE):  35%|███▍      | 29/83 [00:06<00:09,  5.51it/s]Capturing CUDA graphs (PIECEWISE):  36%|███▌      | 30/83 [00:06<00:09,  5.57it/s]Capturing CUDA graphs (PIECEWISE):  37%|███▋      | 31/83 [00:06<00:09,  5.64it/s]Capturing CUDA graphs (PIECEWISE):  39%|███▊      | 32/83 [00:06<00:08,  5.69it/s]Capturing CUDA graphs (PIECEWISE):  40%|███▉      | 33/83 [00:06<00:08,  5.80it/s]Capturing CUDA graphs (PIECEWISE):  41%|████      | 34/83 [00:06<00:08,  5.90it/s]Capturing CUDA graphs (PIECEWISE):  42%|████▏     | 35/83 [00:07<00:07,  6.03it/s]Capturing CUDA graphs (PIECEWISE):  43%|████▎     | 36/83 [00:07<00:07,  6.12it/s]Capturing CUDA graphs (PIECEWISE):  45%|████▍     | 37/83 [00:07<00:07,  6.23it/s]Capturing CUDA graphs (PIECEWISE):  46%|████▌     | 38",
+2026-11-11T17:31:00.593,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"/83 [00:07<00:07,  6.34it/s]Capturing CUDA graphs (PIECEWISE):  47%|████▋     | 39/83 [00:07<00:06,  6.44it/s]Capturing CUDA graphs (PIECEWISE):  48%|████▊     | 40/83 [00:07<00:06,  6.55it/s]Capturing CUDA graphs (PIECEWISE):  49%|████▉     | 41/83 [00:07<00:06,  6.67it/s]Capturing CUDA graphs (PIECEWISE):  51%|█████     | 42/83 [00:08<00:06,  6.75it/s]Capturing CUDA graphs (PIECEWISE):  52%|█████▏    | 43/83 [00:08<00:05,  6.81it/s]Capturing CUDA graphs (PIECEWISE):  53%|█████▎    | 44/83 [00:08<00:05,  6.75it/s]Capturing CUDA graphs (PIECEWISE):  54%|█████▍    | 45/83 [00:08<00:05,  6.84it/s]Capturing CUDA graphs (PIECEWISE):  55%|█████▌    | 46/83 [00:08<00:05,  6.95it/s]Capturing CUDA graphs (PIECEWISE):  57%|█████▋    | 47/83 [00:08<00:05,  6.98it/s]Capturing CUDA graphs (PIECEWISE):  58%|█████▊    | 48/83 [00:08<00:04,  7.11it/s]Capturing CUDA graphs (PIECEW",
+2026-11-11T17:31:00.594,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"ISE):  59%|█████▉    | 49/83 [00:09<00:04,  7.16it/s]Capturing CUDA graphs (PIECEWISE):  60%|██████    | 50/83 [00:09<00:04,  7.12it/s]Capturing CUDA graphs (PIECEWISE):  61%|██████▏   | 51/83 [00:09<00:04,  7.08it/s]Capturing CUDA graphs (PIECEWISE):  63%|██████▎   | 52/83 [00:09<00:04,  7.23it/s]Capturing CUDA graphs (PIECEWISE):  64%|██████▍   | 53/83 [00:09<00:04,  7.35it/s]Capturing CUDA graphs (PIECEWISE):  65%|██████▌   | 54/83 [00:09<00:03,  7.46it/s]Capturing CUDA graphs (PIECEWISE):  66%|██████▋   | 55/83 [00:09<00:03,  7.30it/s]Capturing CUDA graphs (PIECEWISE):  67%|██████▋   | 56/83 [00:10<00:03,  7.30it/s]Capturing CUDA graphs (PIECEWISE):  69%|██████▊   | 57/83 [00:10<00:03,  7.42it/s]Capturing CUDA graphs (PIECEWISE):  70%|██████▉   | 58/83 [00:10<00:03,  7.51it/s]Capturing CUDA graphs (PIECEWISE):  71%|███████  ",
+2026-11-11T17:31:00.595,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443," | 59/83 [00:10<00:03,  7.58it/s]Capturing CUDA graphs (PIECEWISE):  72%|███████▏  | 60/83 [00:10<00:03,  7.66it/s]Capturing CUDA graphs (PIECEWISE):  73%|███████▎  | 61/83 [00:10<00:02,  7.66it/s]Capturing CUDA graphs (PIECEWISE):  75%|███████▍  | 62/83 [00:10<00:02,  7.80it/s]Capturing CUDA graphs (PIECEWISE):  76%|███████▌  | 63/83 [00:10<00:02,  7.83it/s]Capturing CUDA graphs (PIECEWISE):  77%|███████▋  | 64/83 [00:11<00:02,  7.77it/s]Capturing CUDA graphs (PIECEWISE):  78%|███████▊  | 65/83 [00:11<00:02,  7.79it/s]Capturing CUDA graphs (PIECEWISE):  80%|███████▉  | 66/83 [00:11<00:02,  7.70it/s]Capturing CUDA graphs (PIECEWISE):  81%|████████  | 67/83 [00:11<00:02,  7.65it/s]Capturing CUDA graphs (PIECEWISE):  82%|████████▏ | 68/83 [00:11<00:01,  7.75it/s]Capturing CUDA graphs (PIECEWISE):  83%|████████▎ | 69/",
+2026-11-11T17:31:00.596,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"83 [00:11<00:01,  7.76it/s]Capturing CUDA graphs (PIECEWISE):  84%|████████▍ | 70/83 [00:11<00:01,  7.71it/s]Capturing CUDA graphs (PIECEWISE):  86%|████████▌ | 71/83 [00:11<00:01,  7.74it/s]Capturing CUDA graphs (PIECEWISE):  87%|████████▋ | 72/83 [00:12<00:01,  7.79it/s]Capturing CUDA graphs (PIECEWISE):  88%|████████▊ | 73/83 [00:12<00:01,  7.74it/s]Capturing CUDA graphs (PIECEWISE):  89%|████████▉ | 74/83 [00:12<00:01,  7.75it/s]Capturing CUDA graphs (PIECEWISE):  90%|█████████ | 75/83 [00:12<00:01,  7.73it/s]Capturing CUDA graphs (PIECEWISE):  92%|█████████▏| 76/83 [00:12<00:00,  7.64it/s]Capturing CUDA graphs (PIECEWISE):  93%|█████████▎| 77/83 [00:12<00:00,  7.60it/s]Capturing CUDA graphs (PIECEWISE):  94%|█████████▍| 78/83 [00:12<00:00,  7.56it/s]Capturing CUDA graphs (PIECEWISE):  95%|█████�",
+2026-11-11T17:31:00.597,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"�███▌| 79/83 [00:13<00:00,  7.52it/s]Capturing CUDA graphs (PIECEWISE):  96%|█████████▋| 80/83 [00:13<00:00,  7.55it/s]Capturing CUDA graphs (PIECEWISE):  98%|█████████▊| 81/83 [00:13<00:00,  7.57it/s]Capturing CUDA graphs (PIECEWISE):  99%|█████████▉| 82/83 [00:13<00:00,  7.57it/s]Capturing CUDA graphs (PIECEWISE): 100%|██████████| 83/83 [00:13<00:00,  7.62it/s]Capturing CUDA graphs (PIECEWISE): 100%|██████████| 83/83 [00:13<00:00,  6.12it/s]
+(Worker_TP0_EP0 pid=332) Capturing CUDA graphs (FULL):   0%|          | 0/51 [00:00<?, ?it/s]Capturing CUDA graphs (FULL):   2%|▏         | 1/51 [00:00<00:06,  7.60it/s]Capturing CUDA graphs (FULL):   4%|▍         | 2/51 [00:00<00:06,  7.20it/s]Capturing CUDA graphs (FULL):   6%|▌         | 3/51 [00:00<00:07,  6.50it/s]Capturing CUDA graphs (FULL):   8%|▊         | 4/51 [00:00<00:06,  7.00it/s]Capturing CUDA graphs (FULL)",
+2026-11-11T17:31:00.598,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,":  10%|▉         | 5/51 [00:00<00:06,  7.37it/s]Capturing CUDA graphs (FULL):  12%|█▏        | 6/51 [00:00<00:05,  7.65it/s]Capturing CUDA graphs (FULL):  14%|█▎        | 7/51 [00:00<00:05,  8.02it/s]Capturing CUDA graphs (FULL):  16%|█▌        | 8/51 [00:01<00:05,  8.21it/s]Capturing CUDA graphs (FULL):  18%|█▊        | 9/51 [00:01<00:04,  8.46it/s]Capturing CUDA graphs (FULL):  20%|█▉        | 10/51 [00:01<00:04,  8.64it/s]Capturing CUDA graphs (FULL):  22%|██▏       | 11/51 [00:01<00:04,  8.92it/s]Capturing CUDA graphs (FULL):  24%|██▎       | 12/51 [00:01<00:04,  9.13it/s]Capturing CUDA graphs (FULL):  27%|██▋       | 14/51 [00:01<00:03,  9.47it/s]Capturing CUDA graphs (FULL):  31%|███▏      | 16/51 [00:01<00:03,  9.93it/s]Capturing CUDA graphs (FULL):  35%|███▌      | 18/51 [00:02<00:03, 10.08it/s]Capturing CUDA graphs (FULL):  39%|███▉      | 20/51 [00:02<00:02, 10.48it/s]Capturing CUDA graphs (FULL):  43",
+2026-11-11T17:31:00.599,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"%|████▎     | 22/51 [00:02<00:02, 10.97it/s]Capturing CUDA graphs (FULL):  47%|████▋     | 24/51 [00:02<00:02, 10.88it/s]Capturing CUDA graphs (FULL):  51%|█████     | 26/51 [00:02<00:02, 10.81it/s]Capturing CUDA graphs (FULL):  55%|█████▍    | 28/51 [00:02<00:02, 10.64it/s]Capturing CUDA graphs (FULL):  59%|█████▉    | 30/51 [00:03<00:01, 11.31it/s]Capturing CUDA graphs (FULL):  63%|██████▎   | 32/51 [00:03<00:01, 11.77it/s]Capturing CUDA graphs (FULL):  67%|██████▋   | 34/51 [00:03<00:01, 12.12it/s]Capturing CUDA graphs (FULL):  71%|███████   | 36/51 [00:03<00:01, 12.41it/s]Capturing CUDA graphs (FULL):  75%|███████▍  | 38/51 [00:03<00:01, 12.67it/s]Capturing CUDA graphs (FULL):  78%|███████▊  | 40/51 [00:03<00:00, 12.91it/s]Capturing CUDA graphs (FULL):  82%|████████▏ | 42/51 [00:04<00:00, 13.09it/s]Capturing CUDA graphs (FULL):",
+2026-11-11T17:31:00.600,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"  86%|████████▋ | 44/51 [00:04<00:00, 13.23it/s]Capturing CUDA graphs (FULL):  90%|█████████ | 46/51 [00:04<00:00, 13.39it/s]Capturing CUDA graphs (FULL):  94%|█████████▍| 48/51 [00:04<00:00, 13.67it/s]Capturing CUDA graphs (FULL):  98%|█████████▊| 50/51 [00:04<00:00, 13.88it/s]Capturing CUDA graphs (FULL): 100%|██████████| 51/51 [00:04<00:00, 10.94it/s]
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:30:41 [model_runner.py:960] Graph capturing finished in 19 secs, took 0.69 GiB
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:30:41 [gpu_worker.py:797] CUDA graph pool memory: 0.69 GiB (actual), 2.48 GiB (estimated), difference: 1.8 GiB (262.4%).
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:30:41 [gpu_worker.py:860] Free memory on device (94.04/94.97 GiB) on startup. Desired GPU memory utilization is (0.9, 85.47 GiB). Actual usage is 34.28 GiB for consumed memory (weights + non-torch), 3.01 GiB for peak activatio",
+2026-11-11T17:31:00.601,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"n, and 0.69 GiB for CUDAGraph memory. Replace gpu_memory_utilization config with `--kv-cache-memory=50843241677` (47.35 GiB) to fit into requested memory, or `--kv-cache-memory=60046311424` (55.92 GiB) to fully utilize gpu memory. Current kv cache memory in use is 48.18 GiB.
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:30:44 [jit_monitor.py:85] Kernel JIT monitor activated; monitored JIT compilations during inference will use mode=warn.
+(Worker_TP0_EP0 pid=332) INFO 11-11 17:30:44 [torch_utils.py:277] Reducing Torch threads from 8 to 1 for serving. Set OMP_NUM_THREADS in the external environment to override.
+(EngineCore pid=255) INFO 11-11 17:30:44 [core.py:361] init engine (profile, create kv cache, warmup model) took 77.69 s (compilation: 14.23 s)
+(EngineCore pid=255) INFO 11-11 17:30:47 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(APIServer pid=1) INFO 11-11 17:30:47 [entry.py:135] Supported t",
+2026-11-11T17:31:00.602,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"ncher.py:70] Route: /version, Methods: GET
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /health, Methods: GET
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /metrics, Methods: GET
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /tokenize, Methods: POST
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /detokenize, Methods: POST
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /v1/models, Methods: GET
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /ping, Methods: GET
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /ping, Methods: POST
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /invocations, Methods: POST
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /v1/chat/completions, Methods: POST
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /v1/chat/completions/batch, Methods: POST
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /v1/re",
+2026-11-11T17:31:00.602,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"asks: ['generate']
+(APIServer pid=1) INFO 11-11 17:30:48 [hf.py:547] Detected the chat template content format to be 'string'. You can set `--chat-template-content-format` to override this.
+(APIServer pid=1) WARNING 11-11 17:30:48 [serving.py:215] For gpt-oss, we ignore --enable-auto-tool-choice and always enable tool use.
+(APIServer pid=1) INFO 11-11 17:30:49 [entry.py:139] Starting vLLM server on http://0.0.0.0:8000
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:61] Available routes are:
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /openapi.json, Methods: HEAD, GET
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /docs, Methods: HEAD, GET
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /docs/oauth2-redirect, Methods: HEAD, GET
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /redoc, Methods: HEAD, GET
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /load, Methods: GET
+(APIServer pid=1) INFO 11-11 17:30:49 [lau",
+2026-11-11T17:31:00.603,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"sponses, Methods: POST
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /v1/responses/{response_id}, Methods: GET
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /v1/responses/{response_id}/cancel, Methods: POST
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /v1/completions, Methods: POST
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /v1/messages, Methods: POST
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /v1/messages/count_tokens, Methods: POST
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /generative_scoring, Methods: POST
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /scale_elastic_ep, Methods: POST
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /is_scaling_elastic_ep, Methods: POST
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /v1/chat/completions/render, Methods: POST
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /v1/messages/ren",
+2026-11-11T17:31:00.604,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"der, Methods: POST
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /v1/completions/render, Methods: POST
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /v1/chat/completions/derender, Methods: POST
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /v1/completions/derender, Methods: POST
+(APIServer pid=1) INFO 11-11 17:30:49 [launcher.py:70] Route: /inference/v1/generate, Methods: POST
+(APIServer pid=1) INFO:     Started server process [1]
+(APIServer pid=1) INFO:     Waiting for application startup.
+(APIServer pid=1) INFO:     Application startup complete.
+(APIServer pid=1) INFO:     192.168.105.190:59738 - ""GET /metrics HTTP/1.1"" 200 OK
+(APIServer pid=1) INFO:     127.0.0.1:36890 - ""GET /health HTTP/1.1"" 200 OK
+(APIServer pid=1) INFO:     127.0.0.1:36906 - ""GET /health HTTP/1.1"" 200 OK
+(APIServer pid=1) INFO:     192.168.105.190:59738 - ""GET /metrics HTTP/1.1"" 200 OK
+(APIServer pid=1) INFO:     127.0.0.1:36912 - ""GET /metrics HTTP/1.1"" 200 OK
+(AP",
+2026-11-11T17:31:00.606,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"IServer pid=1) INFO 11-11 17:30:59 [loggers.py:310] Engine 000: Avg prompt throughput: 5.7 tokens/s, Avg generation throughput: 0.1 tokens/s, Running: 1 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.0%, Prefix cache hit rate: 0.0%
+(APIServer pid=1) INFO:     127.0.0.1:36924 - ""POST /v1/chat/completions HTTP/1.1"" 200 OK
+(APIServer pid=1) INFO:     192.168.105.190:59738 - ""GET /metrics HTTP/1.1"" 200 OK
+--- vllm-b-0: startup summary ---
+",
+2026-11-11T17:31:00.759,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"vllm-b-0:255:255 [0] NCCL INFO Using network Socket
+(Worker pid=255) INFO 11-11 17:29:21 [parallel_state.py:2119] rank 1 in world size 2 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 1, EP rank 1, EPLB rank N/A
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:29:21 [expert_map_manager.py:245] [EP Rank 1/2] Expert parallelism is enabled. Expert placement strategy: linear. Local/global number of experts: 64/128. Experts local to global index map: 0->64, 1->65, 2->66, 3->67, 4->68, 5->69, 6->70, 7->71, 8->72, 9->73, 10->74, 11->75, 12->76, 13->77, 14->78, 15->79, 16->80, 17->81, 18->82, 19->83, 20->84, 21->85, 22->86, 23->87, 24->88, 25->89, 26->90, 27->91, 28->92, 29->93, 30->94, 31->95, 32->96, 33->97, 34->98, 35->99, 36->100, 37->101, 38->102, 39->103, 40->104, 41->105, 42->106, 43->107, 44->108, 45->109, 46->
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:29:21 [mxfp4.py:601] Using 'MARLIN' Mxfp4 MoE backend.
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:29:26 [model_runner.py:404] Model loading to",
+2026-11-11T17:31:00.761,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"ok 33.1 GiB memory and 5.236890 seconds
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:30:21 [gpu_worker.py:625] Available KV cache memory: 48.18 GiB
+--- vllm-b-0: full log ---
+",
+2026-11-11T17:31:00.978,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+INFO 11-11 17:28:36 [model.py:684] Resolved architecture: GptOssForCausalLM
+Parse safetensors files:   0%|          | 0/15 [00:00<?, ?it/s]Parse safetensors files:  13%|█▎        | 2/15 [00:00<00:00, 18.55it/s]Parse safetensors files: 100%|██████████| 15/15 [00:00<00:00, 89.99it/s]
+INFO 11-11 17:28:36 [model.py:2021] Using max model len 16384
+INFO 11-11 17:28:40 [arg_utils.py:2276] Inferred data_parallel_rank 0 from node_rank 1
+INFO 11-11 17:28:40 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=8192.
+INFO 11-11 17:28:40 [config.py:420] Overriding max cuda graph capture size to 1024 for performance.
+INFO 11-11 17:28:40 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+INFO 11-11 17:28:40 [serve.py:217] Launchi",
+2026-11-11T17:31:00.980,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"ng vLLM (v0.29.0) headless multiproc executor, with head node address 192.168.185.165:29501 for torch.distributed process group.
+(Worker pid=255) INFO 11-11 17:28:57 [parallel_state.py:1775] world_size=2 rank=1 local_rank=0 distributed_init_method=tcp://192.168.185.165:29501 backend=nccl
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlopen(libnccl-env.so) failed: libnccl-env.so: cannot open shared object file: No such file or directory
+vllm-b-0:255:255 [0] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so
+vllm-b-0:255:255 [0] NCCL INFO cudaDriverVersion 13000
+vllm-b-0:255:255 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^docker0,lo
+vllm-b-0:255:255 [0] NCCL INFO Bootstrap: Using eth0:192.168.168.199<0>
+vllm-b-0:255:255 [0] NCCL INFO NCCL version 2.30.7+cuda13.3
+vllm-b-0:255:255 [0] NCCL INFO NCCL git version HEAD a5187fa2e
+vllm-b-0:255:255 [0] NCCL INFO NET/Plugin: Loaded net plugin Libfabric (v11)
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v11) failed: /opt/amazo",
+2026-11-11T17:31:00.981,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"n/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v11
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v10) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v10
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v9) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v9
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v8) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v8
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v7) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v7
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v6) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v6
+vllm-b-0:255:255 [0] NCCL INFO Successfully loaded external network plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so
+vllm-b-0:255:255 [0] NCCL INFO NCCL_SOCKET_IFNA",
+2026-11-11T17:31:00.982,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"ME set by environment to ^docker0,lo
+vllm-b-0:255:255 [0] NCCL INFO NET/Socket : Using [0]eth0:192.168.168.199<0>
+vllm-b-0:255:255 [0] NCCL INFO Initialized NET plugin Socket
+vllm-b-0:255:255 [0] NCCL INFO Assigned NET plugin Socket to comm
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlopen(libnccl-rma.so) failed: libnccl-rma.so: cannot open shared object file: No such file or directory
+vllm-b-0:255:255 [0] NCCL INFO RMA/Plugin: Could not find: libnccl-rma.so
+vllm-b-0:255:255 [0] NCCL INFO RMA/Plugin: Failed to load external plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so, dlHandle: (nil), ncclRma: (nil)
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclRmaPlugin_v13) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclRmaPlugin_v13
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclGinPlugin_v13) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclGinPlugin_v13
+vllm-b-0:255:255 [0] NCCL INFO RMA/Plugin: Failed to load external plugin /opt/amazon/ofi-nccl/lib/lib",
+2026-11-11T17:31:00.983,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"nccl-net.so, dlHandle: 0x55c51000, ncclRma: (nil)
+vllm-b-0:255:255 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^docker0,lo
+vllm-b-0:255:255 [0] NCCL INFO NET/IB : No device found.
+vllm-b-0:255:255 [0] NCCL INFO NET/IB : Using [RO]; OOB eth0:192.168.168.199<0>
+vllm-b-0:255:255 [0] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlopen(libnccl-gin.so) failed: libnccl-gin.so: cannot open shared object file: No such file or directory
+vllm-b-0:255:255 [0] NCCL INFO GIN/Plugin: Could not find: libnccl-gin.so
+vllm-b-0:255:255 [0] NCCL INFO GIN/Plugin: Failed to load external plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so, dlHandle: (nil), ncclGin: (nil)
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclGinPlugin_v13) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclGinPlugin_v13
+vllm-b-0:255:255 [0] NCCL INFO GIN/Plugin: Failed to load external plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so, dlHandle: 0x55c51000, ncclGin",
+2026-11-11T17:31:00.984,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,": (nil)
+vllm-b-0:255:255 [0] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+vllm-b-0:255:255 [0] NCCL INFO Using network Socket
+vllm-b-0:255:255 [0] NCCL INFO Loaded NVML from libnvidia-ml.so.1
+vllm-b-0:255:255 [0] NCCL INFO [Rank 1] ncclCommInitRank comm 0x4db29570 rank 1 nranks 2 cudaDev 0 nvmlDev 0 busId 2f000 commId 0x850c5661b05c3b33 - Init START
+vllm-b-0:255:255 [0] NCCL INFO Socket handshake magic 0x564ab9f2fc4b9d6c (built-in default)
+vllm-b-0:255:255 [0] NCCL INFO RAS client listening socket at ::1<28028>
+vllm-b-0:255:255 [0] NCCL INFO Bootstrap timings total 0.092162 (create 0.000019, send 0.000331, recv 0.053999, ring 0.000063, delay 0.000000)
+vllm-b-0:255:255 [0] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 0 is 0-15. (GPU affinity = 0-15 ; CPU affinity = 0-15).
+vllm-b-0:255:255 [0] NCCL INFO Rank 1: 1 Net devices
+vllm-b-0:255:255 [0] NCCL INFO Rank 1: 0 CollNet devices
+vllm-b-0:255:255 [0] NCCL INFO comm 0x4db29570 rank 1 nRanks 2 nNodes 2 localRanks 1 loca",
+2026-11-11T17:31:00.985,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"lRank 0 MNNVL 0
+vllm-b-0:255:255 [0] NCCL INFO Trees [0] -1/-1/-1->1->0 [1] 0/-1/-1->1->-1
+vllm-b-0:255:255 [0] NCCL INFO P2P Chunksize set to 131072
+vllm-b-0:255:255 [0] NCCL INFO Tuning P2P operations with maxP2pPeers = 2
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlopen(libnccl-profiler.so) failed: libnccl-profiler.so: cannot open shared object file: No such file or directory
+vllm-b-0:255:255 [0] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v6) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v6
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v5) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v5
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v4) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v4
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v3) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: un",
+2026-11-11T17:31:00.986,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"defined symbol: ncclProfiler_v3
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v2) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v2
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v1) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v1
+vllm-b-0:255:255 [0] NCCL INFO Check P2P Type isAllDirectP2p 1 directMode 0 isAllCudaP2p 1
+vllm-b-0:255:374 [0] NCCL INFO [Proxy Service] Device 0 CPU core 1
+vllm-b-0:255:375 [0] NCCL INFO [Proxy Service UDS] Device 0 CPU core 10
+vllm-b-0:255:374 [0] NCCL INFO proxy listening socket at 192.168.168.199<42847>
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlopen(libnccl-tuner.so) failed: libnccl-tuner.so: cannot open shared object file: No such file or directory
+vllm-b-0:255:255 [0] NCCL INFO TUNER/Plugin: Could not find: libnccl-tuner.so
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclTunerPlugin_v5) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclTunerPlugin_v5",
+2026-11-11T17:31:00.987,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclTunerPlugin_v4) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclTunerPlugin_v4
+vllm-b-0:255:255 [0] NCCL INFO TUNER/Plugin: Using nccl_ofi_tuner (v3)
+vllm-b-0:255:255 [0] NCCL INFO NET/OFI Tuner selected platform: AWS
+vllm-b-0:255:255 [0] NCCL INFO NET/OFI NCCL_OFI_TUNER is not available for platform : g7e.4xlarge, Fall back to NCCL's tuner
+vllm-b-0:255:255 [0] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+vllm-b-0:255:255 [0] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 1 p2p channels per peer
+vllm-b-0:255:255 [0] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+vllm-b-0:255:255 [0] NCCL INFO ncclCommInitRank comm 0x4db29570 rank 1 nranks 2 cudaDev 0 nvmlDev 0 busId 2f000 commId 0x850c5661b05c3b33 - Init COMPLETE
+vllm-b-0:255:255 [0] NCCL INFO Init timings - ncclCommInitRank: rank 1 nranks 2 total 0.32 (kernels 0.21, alloc",
+2026-11-11T17:31:00.988,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443," 0.00, bootstrap 0.09, allgathers 0.00, topo 0.00, graphs 0.00, connections 0.01, rest 0.00)
+vllm-b-0:255:376 [0] NCCL INFO [Proxy Progress] Device 0 CPU core 12
+vllm-b-0:255:255 [0] NCCL INFO Channel 00/0 : 0[0] -> 1[0] [receive] via NET/Socket/0
+vllm-b-0:255:255 [0] NCCL INFO Channel 01/0 : 0[0] -> 1[0] [receive] via NET/Socket/0
+vllm-b-0:255:255 [0] NCCL INFO Channel 00/0 : 1[0] -> 0[0] [send] via NET/Socket/0
+vllm-b-0:255:255 [0] NCCL INFO Channel 01/0 : 1[0] -> 0[0] [send] via NET/Socket/0
+vllm-b-0:255:255 [0] NCCL INFO Connected all rings, use ring PXN 0 GDR 0
+(Worker pid=255) WARNING 11-11 17:29:20 [symm_mem.py:67] SymmMemCommunicator: Device capability 12.0 not supported, communicator is not available.
+(Worker pid=255) WARNING 11-11 17:29:21 [flashinfer_all_reduce.py:383] FlashInfer All Reduce is disabled because it is not supported for world_size=2.
+(Worker pid=255) WARNING 11-11 17:29:21 [custom_all_reduce.py:201] Custom collectives are disabled because this multi-node group ",
+2026-11-11T17:31:00.990,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"does not have MNNVL-capable GPUs on every rank.
+vllm-b-0:255:255 [0] NCCL INFO Initialized NET plugin Socket
+vllm-b-0:255:255 [0] NCCL INFO Assigned NET plugin Socket to comm
+vllm-b-0:255:255 [0] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+vllm-b-0:255:255 [0] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+vllm-b-0:255:255 [0] NCCL INFO Using network Socket
+vllm-b-0:255:255 [0] NCCL INFO [Rank 1] ncclCommInitRank comm 0x56ef31e0 rank 1 nranks 2 cudaDev 0 nvmlDev 0 busId 2f000 commId 0xffe82259547b73ba - Init START
+vllm-b-0:255:255 [0] NCCL INFO Bootstrap timings total 0.000723 (create 0.000019, send 0.000172, recv 0.000325, ring 0.000057, delay 0.000000)
+vllm-b-0:255:255 [0] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 0 is 0-15. (GPU affinity = 0-15 ; CPU affinity = 0-15).
+vllm-b-0:255:255 [0] NCCL INFO Rank 1: 1 Net devices
+vllm-b-0:255:255 [0] NCCL INFO Rank 1: 0 CollNet devices
+vllm-b-0:255:255 [0] NCCL INFO comm 0x56ef31e0 rank 1 nRanks 2 nNodes 2 localR",
+2026-11-11T17:31:00.991,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"anks 1 localRank 0 MNNVL 0
+vllm-b-0:255:255 [0] NCCL INFO Trees [0] -1/-1/-1->1->0 [1] 0/-1/-1->1->-1
+vllm-b-0:255:255 [0] NCCL INFO P2P Chunksize set to 131072
+vllm-b-0:255:255 [0] NCCL INFO Tuning P2P operations with maxP2pPeers = 2
+vllm-b-0:255:255 [0] NCCL INFO Check P2P Type isAllDirectP2p 1 directMode 0 isAllCudaP2p 1
+vllm-b-0:255:404 [0] NCCL INFO [Proxy Service] Device 0 CPU core 6
+vllm-b-0:255:405 [0] NCCL INFO [Proxy Service UDS] Device 0 CPU core 0
+vllm-b-0:255:404 [0] NCCL INFO proxy listening socket at 192.168.168.199<37497>
+vllm-b-0:255:255 [0] NCCL INFO NET/OFI NCCL_OFI_TUNER is not available for platform : g7e.4xlarge, Fall back to NCCL's tuner
+vllm-b-0:255:255 [0] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+vllm-b-0:255:255 [0] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 1 p2p channels per peer
+vllm-b-0:255:255 [0] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+vllm-b-0:2",
+2026-11-11T17:31:00.992,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"rker pid=255) INFO 11-11 17:29:21 [gpu_worker.py:429] Using V2 Model Runner
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:29:21 [model_runner.py:382] Loading model from scratch...
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:29:21 [cuda.py:492] Using FLASHINFER attention backend out of potential backends: ['FLASHINFER', 'TRITON_ATTN'].
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:29:21 [expert_map_manager.py:245] [EP Rank 1/2] Expert parallelism is enabled. Expert placement strategy: linear. Local/global number of experts: 64/128. Experts local to global index map: 0->64, 1->65, 2->66, 3->67, 4->68, 5->69, 6->70, 7->71, 8->72, 9->73, 10->74, 11->75, 12->76, 13->77, 14->78, 15->79, 16->80, 17->81, 18->82, 19->83, 20->84, 21->85, 22->86, 23->87, 24->88, 25->89, 26->90, 27->91, 28->92, 29->93, 30->94, 31->95, 32->96, 33->97, 34->98, 35->99, 36->100, 37->101, 38->102, 39->103, 40->104, 41->105, 42->106, 43->107, 44->108, 45->109, 46->110, 47->111, 48->112, 49->113, 50->114, 51->115, 52->116, 53->117, 54->118",
+2026-11-11T17:31:00.992,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"55:255 [0] NCCL INFO ncclCommInitRank comm 0x56ef31e0 rank 1 nranks 2 cudaDev 0 nvmlDev 0 busId 2f000 commId 0xffe82259547b73ba - Init COMPLETE
+vllm-b-0:255:255 [0] NCCL INFO Init timings - ncclCommInitRank: rank 1 nranks 2 total 0.01 (kernels 0.00, alloc 0.00, bootstrap 0.00, allgathers 0.00, topo 0.00, graphs 0.00, connections 0.00, rest 0.00)
+vllm-b-0:255:406 [0] NCCL INFO [Proxy Progress] Device 0 CPU core 9
+vllm-b-0:255:255 [0] NCCL INFO Channel 00/0 : 0[0] -> 1[0] [receive] via NET/Socket/0
+vllm-b-0:255:255 [0] NCCL INFO Channel 01/0 : 0[0] -> 1[0] [receive] via NET/Socket/0
+vllm-b-0:255:255 [0] NCCL INFO Channel 00/0 : 1[0] -> 0[0] [send] via NET/Socket/0
+vllm-b-0:255:255 [0] NCCL INFO Channel 01/0 : 1[0] -> 0[0] [send] via NET/Socket/0
+vllm-b-0:255:255 [0] NCCL INFO Connected all rings, use ring PXN 0 GDR 0
+(Worker pid=255) INFO 11-11 17:29:21 [parallel_state.py:2119] rank 1 in world size 2 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 1, EP rank 1, EPLB rank N/A
+(Wo",
+2026-11-11T17:31:00.994,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,", 55->119, 56->120, 57->121, 58->122, 59->123, 60->124, 61->125, 62->126, 63->127.
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:29:21 [mxfp4.py:601] Using 'MARLIN' Mxfp4 MoE backend.
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:29:22 [weight_utils.py:863] Filesystem type for checkpoints: XFS. Checkpoint size: 60.77 GiB. Available RAM: 97.65 GiB.
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:29:22 [weight_utils.py:886] Auto-prefetch is disabled because the filesystem (XFS) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:29:25 [default_loader.py:430] Loading weights took 3.29 seconds
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:29:25 [mxfp4.py:1949] Using MoEPrepareAndFinalizeNoDPEPModular
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:29:25 [mxfp4.py:1950] Using MarlinExperts
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:29:26 [model_runner.py:404] Model loading took 33.1 GiB memory and 5.236890 seconds
+",
+2026-11-11T17:31:00.995,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"INFO 11-11 17:29:27 [torch_utils.py:277] Reducing Torch threads from 13 to 1 for serving. Set OMP_NUM_THREADS in the external environment to override.
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:29:33 [backends.py:1094] Using cache directory: /root/.cache/vllm/torch_compile_cache/ca54cd3483/rank_1_0/backbone for vLLM's torch.compile
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:29:33 [backends.py:1155] Dynamo bytecode transform time: 5.32 s
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:29:38 [backends.py:393] Compiling a graph for compile range (1, 8192) takes 5.55 s
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:29:41 [backends.py:920] collected artifacts: 37 entries, 3 artifacts, 4790856 bytes total
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:29:41 [decorators.py:719] saved AOT compiled function to /root/.cache/vllm/torch_compile_cache/torch_aot_compile/28c7a6aeb15e48c4643294d54c886a786208fd31098b5a92328a235fe5b7e2fe/rank_1_0/model
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:29:41 [monitor.py:53] torch.compile took 13.5",
+2026-11-11T17:31:00.995,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"7 s in total
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:29:42 [monitor.py:81] Initial profiling/warmup run took 1.02 s
+vllm-b-0:255:255 [0] NCCL INFO Symmetric VA size=96GB
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:29:44 [flashinfer.py:910] FlashInfer resolved query dtypes: prefill=torch.bfloat16, decode=torch.bfloat16, decode_backend=xqa, kv_cache_dtype=torch.bfloat16, arch=sm120
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:30:20 [model_runner.py:960] Graph capturing finished in 36 secs, took 2.40 GiB
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:30:21 [gpu_worker.py:625] Available KV cache memory: 48.18 GiB
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:30:21 [gpu_worker.py:640] CUDA graph memory profiling is enabled (default since v0.21.0). The current --gpu-memory-utilization=0.9000 is equivalent to --gpu-memory-utilization=0.8738 without CUDA graph memory profiling. To maintain the same effective KV cache size as before, increase --gpu-memory-utilization to 0.9262. To disable, set VLLM_MEMORY_PROFILER_ESTIMA",
+2026-11-11T17:31:00.996,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"TE_CUDAGRAPHS=0.
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:30:21 [kernel_warmup.py:124] JIT kernel warmup starting.
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:30:21 [kernel_warmup.py:134] JIT kernel warmup finished in 0.00s.
+(Worker_TP1_EP1 pid=255) 2026-11-11 17:30:21,708 - INFO - autotuner.py:972 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:30:21 [kernel_warmup.py:266] Running FlashInfer autotune with 8192 tokens.
+(Worker_TP1_EP1 pid=255) 2026-11-11 17:30:21,754 - INFO - autotuner.py:995 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:30:21 [kernel_warmup.py:219] Warming up FlashInfer attention.
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:30:41 [model_runner.py:960] Graph capturing finished in 19 secs, took 0.69 GiB
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:30:41 [gpu_worker.py:797] CUDA graph pool memory: 0.69 GiB (actual), 2.48 GiB (estimated), difference: 1.8 GiB (262.4%).
+(Worker_TP1_EP1 pid=255",
+2026-11-11T17:31:00.997,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,") INFO 11-11 17:30:41 [gpu_worker.py:860] Free memory on device (94.04/94.97 GiB) on startup. Desired GPU memory utilization is (0.9, 85.47 GiB). Actual usage is 34.28 GiB for consumed memory (weights + non-torch), 3.01 GiB for peak activation, and 0.69 GiB for CUDAGraph memory. Replace gpu_memory_utilization config with `--kv-cache-memory=50843241677` (47.35 GiB) to fit into requested memory, or `--kv-cache-memory=60046376960` (55.92 GiB) to fully utilize gpu memory. Current kv cache memory in use is 48.18 GiB.
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:30:44 [jit_monitor.py:85] Kernel JIT monitor activated; monitored JIT compilations during inference will use mode=warn.
+(Worker_TP1_EP1 pid=255) INFO 11-11 17:30:44 [torch_utils.py:277] Reducing Torch threads from 8 to 1 for serving. Set OMP_NUM_THREADS in the external environment to override.
+",
+2026-11-11T17:31:01.242,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"pod/aiperf-client-0 condition met
+",
+2026-11-11T17:31:01.357,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"pod/aiperf-client-1 condition met
+",
+2026-11-11T17:31:01.362,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,"17:31:01 apply_config: done: layout tp2ep on ip-192-168-174-92.us-east-2.compute.internal (a) and ip-192-168-182-253.us-east-2.compute.internal (b), AIPerf clients ready
+",
+2026-11-11T17:31:01.368,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Apply_config,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b3-72bc-ba9a-01c1acffe443,Command executed successfully,
+2026-11-11T17:31:04.242,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,Extracted information about system 'vLLM_Benchmark_51_G7E_TCP_MoE_Parallelism',
+2026-11-11T17:31:04.243,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,Extracting parameters configuration of experiment 6 of study '51-G7E-TCP-MoE-Parallelism',
+2026-11-11T17:31:04.308,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,Connecting to host toolbox with user akamas to execute command 'bash /work/study51/51-g7e-tcp-moe-parallelism-users-ramp/k8s/run_ramp.sh',
+2026-11-11T17:31:04.310,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,No templates found in the command. Skipping substitution,
+2026-11-11T17:31:04.942,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"17:31:04 run_ramp: levels: 32 64 128 192 256 384 512 768; 960 s each (+60 s grace), steady from 600 s; SLO client TTFT p95 <= 500 ms
+",
+2026-11-11T17:47:25.775,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"client 0: stale processes killed: 0, left: 0
+client 1: stale processes killed: 0, left: 0
+17:31:09 run_ramp: [ramp-32] users=32: 2 clients x 16 users, 0.2500 req/s each (one turn per user every 64 s) turns=10 isl=600 osl=200 extra=[ignore_eos:true reasoning_effort:low] duration=960s; client 0 -> http://vllm-a.moe-tcp.svc:8000, client 1 -> http://vllm-a.moe-tcp.svc:8000
+17:47:24 run_ramp: [ramp-32] client 0 aiperf exit=0
+17:47:24 run_ramp: [ramp-32] client 1 aiperf exit=0
+client 0: first request 13 s after the level started
+client 0: RESULT sent=90 completed=90 errors=0 ttft_p50_ms=416 ttft_p95_ms=430 itl_p95_ms=15.7
+client 0: per answer e2e_output_token_throughput: mean 61.7 min 53.3 max 66.6 (n=90)
+client 0: per answer input_sequence_length: mean 4259.7 min 600.0 max 7728.0 (n=90)
+client 0: per answer inter_token_latency: mean 14.2 min 13.2 max 16.7 (n=90)
+client 0: per answer output_sequence_length: mean 190.6 min 156.0 max 193.0 (n=90)
+client 0: per answer output_token_count: mean 1",
+2026-11-11T17:47:25.776,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"77.2 min 127.0 max 187.0 (n=90)
+client 0: per answer output_token_throughput_per_user: mean 70.8 min 60.0 max 76.0 (n=90)
+client 0: per answer reasoning_token_count: mean 13.3 min 4.0 max 60.0 (n=90)
+client 0: per answer time_to_first_output_token: mean 685.2 min 532.0 max 1284.7 (n=90)
+client 0: per answer time_to_first_token: mean 407.4 min 308.9 max 439.8 (n=90)
+client 0: per answer time_to_second_token: mean 14.9 min 10.7 max 26.1 (n=90)
+client 0: cpu used 41 s (0.04 cores on average), throttled 0.6 s in 6 periods
+client 0: minute  requests  ttft_p50_ms  ttft_p95_ms
+client 0:      0        15          330          350
+client 0:      1        16          407          416
+client 0:      2        14          412          423
+client 0:      3        16          414          422
+client 0:      4        15          411          424
+client 0:      5        14          419          430
+client 0:      6        16          414          422
+client 0:      7        14          408          423",
+2026-11-11T17:47:25.778,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"
+client 0:      8        16          410          425
+client 0:      9        14          411          455
+client 0:     10        16          416          426
+client 0:     11        15          416          430
+client 0:     12        15          415          431
+client 0:     13        15          416          439
+client 0:     14        15          412          428
+client 0:     15        14          416          440
+client 1: first request 12 s after the level started
+client 1: RESULT sent=89 completed=89 errors=0 ttft_p50_ms=394 ttft_p95_ms=407 itl_p95_ms=15.7
+client 1: per answer e2e_output_token_throughput: mean 61.9 min 53.6 max 66.6 (n=89)
+client 1: per answer input_sequence_length: mean 4256.5 min 600.0 max 7727.0 (n=89)
+client 1: per answer inter_token_latency: mean 14.2 min 13.2 max 16.7 (n=89)
+client 1: per answer output_sequence_length: mean 190.9 min 185.0 max 192.0 (n=89)
+client 1: per answer output_token_count: mean 178.7 min 149.0 max 187.0 (n=89)
+client 1: per answe",
+2026-11-11T17:47:25.779,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"r output_token_throughput_per_user: mean 70.4 min 60.0 max 75.5 (n=89)
+client 1: per answer reasoning_token_count: mean 12.2 min 4.0 max 42.0 (n=89)
+client 1: per answer time_to_first_output_token: mean 653.6 min 395.4 max 941.2 (n=89)
+client 1: per answer time_to_first_token: mean 386.4 min 288.8 max 415.0 (n=89)
+client 1: per answer time_to_second_token: mean 23.8 min 12.1 max 36.2 (n=89)
+client 1: cpu used 41 s (0.04 cores on average), throttled 0.2 s in 4 periods
+client 1: minute  requests  ttft_p50_ms  ttft_p95_ms
+client 1:      0        16          309          335
+client 1:      1        15          388          399
+client 1:      2        15          391          405
+client 1:      3        15          391          407
+client 1:      4        15          391          404
+client 1:      5        15          397          404
+client 1:      6        15          391          402
+client 1:      7        15          385          407
+client 1:      8        15          391          40",
+2026-11-11T17:47:25.780,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"8
+client 1:      9        15          393          411
+client 1:     10        15          394          405
+client 1:     11        15          400          415
+client 1:     12        15          393          415
+client 1:     13        15          394          405
+client 1:     14        15          394          403
+client 1:     15        14          393          401
+RESULT sent=179 completed=179 errors=0 ttft_p50_ms=416 ttft_p95_ms=430 itl_p95_ms=15.7
+--- vLLM counters during the run (end - start, summed over the serving pods) ---
+vllm:generation_tokens_total 95967
+vllm:num_preemptions_total 0
+vllm:prefix_cache_hits_total 1240672
+vllm:prefix_cache_queries_total 1614386
+vllm:prompt_tokens_total 1614386
+vllm:request_success_total 479
+--- client 0: AIPerf log (tail) ---
+│                                                                                                  │
+│  Why: Server hit EOS token before reaching requested output length.                              │
+│     ",
+2026-11-11T17:47:25.781,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"                                                                                             │
+│  Fix Options:                                                                                    │
+│    - --extra-inputs ignore_eos:true - Generate until max_tokens (vLLM, TensorRT-LLM)             │
+│    - --extra-inputs min_tokens:<N> - Set minimum output length (vLLM, TensorRT-LLM, SGLang)      │
+│    - --use-server-token-count - Use server-reported token counts if tokenizer mismatch           │
+│  suspected                                                                                       │
+│                                                                                                  │
+│  Diagnostics:                                                                                    │
+│    - Review profile_export.jsonl -> osl_mismatch_diff_pct for per-request values                 │
+│    - Adjust: AIPERF_METRICS_OSL_MISMATCH_PCT_THRESHOLD=5   ",
+2026-11-11T17:47:25.782,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"                                      │
+│    - Adjust: AIPERF_METRICS_OSL_MISMATCH_MAX_TOKEN_THRESHOLD=50                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+CLI Command: aiperf profile --model 'gpt-oss-120b' --tokenizer 'openai/gpt-oss-120b' --url 
+'http://vllm-a.moe-tcp.svc:8000' --endpoint-type 'chat' --streaming --isl 600 --isl-stddev 0 --osl 
+200 --osl-stddev 0 --extra-inputs 'ignore_eos:true' 'reasoning_effort:low' --conversation-turn-mean 
+10 --conversation-turn-stddev 0 --conversation-num 5000 --user-centric-rate 0.25 --num-users 16 
+--benchmark-duration 960 --benchmark-grace-period 60 --slice-duration 60 --ui 'simple' 
+--output-artifact-dir '/work/out/run'
+Benchmark Duration: 958.90 sec
+CSV ",
+2026-11-11T17:47:25.783,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"Export: /work/out/run/profile_export_aiperf.csv
+JSON Export: /work/out/run/profile_export_aiperf.json
+Server Metrics CSV Export: /work/out/run/server_metrics_export.csv
+Server Metrics JSON Export: /work/out/run/server_metrics_export.json
+Timeslice CSV Export: /work/out/run/profile_export_aiperf_timeslices.csv
+Timeslice JSON Export: /work/out/run/profile_export_aiperf_timeslices.json
+Log File: /work/out/run/logs/aiperf.log
+
+--- client 1: AIPerf log (tail) ---
+│                                                                                                  │
+│  Why: Server hit EOS token before reaching requested output length.                              │
+│                                                                                                  │
+│  Fix Options:                                                                                    │
+│    - --extra-inputs ignore_eos:true - Generate until max_tokens (vLLM, TensorRT-LLM)             │
+│    - --e",
+2026-11-11T17:47:25.784,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"��─────────────────────────────────────────╯
+
+CLI Command: aiperf profile --model 'gpt-oss-120b' --tokenizer 'openai/gpt-oss-120b' --url 
+'http://vllm-a.moe-tcp.svc:8000' --endpoint-type 'chat' --streaming --isl 600 --isl-stddev 0 --osl 
+200 --osl-stddev 0 --extra-inputs 'ignore_eos:true' 'reasoning_effort:low' --conversation-turn-mean 
+10 --conversation-turn-stddev 0 --conversation-num 5000 --user-centric-rate 0.25 --num-users 16 
+--benchmark-duration 960 --benchmark-grace-period 60 --slice-duration 60 --ui 'simple' 
+--output-artifact-dir '/work/out/run'
+Benchmark Duration: 958.88 sec
+CSV Export: /work/out/run/profile_export_aiperf.csv
+JSON Export: /work/out/run/profile_export_aiperf.json
+Server Metrics CSV Export: /work/out/run/server_metrics_export.csv
+Server Metrics JSON Export: /work/out/run/server_metrics_export.json
+Timeslice CSV Export: /work/out/run/profile_export_aiperf_timeslices.csv
+Timeslic",
+2026-11-11T17:47:25.784,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"xtra-inputs min_tokens:<N> - Set minimum output length (vLLM, TensorRT-LLM, SGLang)      │
+│    - --use-server-token-count - Use server-reported token counts if tokenizer mismatch           │
+│  suspected                                                                                       │
+│                                                                                                  │
+│  Diagnostics:                                                                                    │
+│    - Review profile_export.jsonl -> osl_mismatch_diff_pct for per-request values                 │
+│    - Adjust: AIPERF_METRICS_OSL_MISMATCH_PCT_THRESHOLD=5                                         │
+│    - Adjust: AIPERF_METRICS_OSL_MISMATCH_MAX_TOKEN_THRESHOLD=50                                  │
+╰────────────────────────────────────────────────────────�",
+2026-11-11T17:47:25.785,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"e JSON Export: /work/out/run/profile_export_aiperf_timeslices.json
+Log File: /work/out/run/logs/aiperf.log
+",
+2026-11-11T17:47:26.024,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"RAMP level=32 pass client TTFT p95 430 ms <= 500 ms
+",
+2026-11-11T18:03:51.720,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"client 0: stale processes killed: 0, left: 0
+client 1: stale processes killed: 0, left: 0
+17:47:30 run_ramp: [ramp-64] users=64: 2 clients x 32 users, 0.5000 req/s each (one turn per user every 64 s) turns=10 isl=600 osl=200 extra=[ignore_eos:true reasoning_effort:low] duration=960s; client 0 -> http://vllm-a.moe-tcp.svc:8000, client 1 -> http://vllm-a.moe-tcp.svc:8000
+18:03:49 run_ramp: [ramp-64] client 0 aiperf exit=0
+18:03:50 run_ramp: [ramp-64] client 1 aiperf exit=0
+client 0: first request 13 s after the level started
+client 0: RESULT sent=179 completed=179 errors=0 ttft_p50_ms=462 ttft_p95_ms=484 itl_p95_ms=36.3
+client 0: per answer e2e_output_token_throughput: mean 26.8 min 25.6 max 31.8 (n=179)
+client 0: per answer input_sequence_length: mean 4288.6 min 600.0 max 7728.0 (n=179)
+client 0: per answer inter_token_latency: mean 35.2 min 29.2 max 36.7 (n=179)
+client 0: per answer output_sequence_length: mean 191.0 min 185.0 max 197.0 (n=179)
+client 0: per answer output_token_count: ",
+2026-11-11T18:03:51.721,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"mean 178.3 min 96.0 max 197.0 (n=179)
+client 0: per answer output_token_throughput_per_user: mean 28.4 min 27.2 max 34.3 (n=179)
+client 0: per answer reasoning_token_count: mean 12.7 min 3.0 max 95.0 (n=178)
+client 0: per answer time_to_first_output_token: mean 1023.4 min 469.1 max 3760.3 (n=179)
+client 0: per answer time_to_first_token: mean 455.6 min 362.7 max 497.8 (n=179)
+client 0: per answer time_to_second_token: mean 37.2 min 25.7 max 46.9 (n=179)
+client 0: cpu used 46 s (0.05 cores on average), throttled 0.5 s in 5 periods
+client 0: minute  requests  ttft_p50_ms  ttft_p95_ms
+client 0:      0        30          378          393
+client 0:      1        31          456          470
+client 0:      2        30          458          494
+client 0:      3        30          462          488
+client 0:      4        30          459          481
+client 0:      5        30          455          488
+client 0:      6        30          459          479
+client 0:      7        30          458 ",
+2026-11-11T18:03:51.723,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"client 1: per answer output_token_throughput_per_user: mean 28.5 min 27.2 max 44.4 (n=180)
+client 1: per answer reasoning_token_count: mean 13.8 min 4.0 max 37.0 (n=180)
+client 1: per answer time_to_first_output_token: mean 1035.0 min 463.3 max 1655.5 (n=180)
+client 1: per answer time_to_first_token: mean 441.9 min 323.8 max 485.4 (n=180)
+client 1: per answer time_to_second_token: mean 28.5 min 20.7 max 43.7 (n=180)
+client 1: cpu used 46 s (0.05 cores on average), throttled 0.2 s in 6 periods
+client 1: minute  requests  ttft_p50_ms  ttft_p95_ms
+client 1:      0        30          361          381
+client 1:      1        31          439          464
+client 1:      2        30          447          476
+client 1:      3        30          442          482
+client 1:      4        30          450          469
+client 1:      5        30          443          478
+client 1:      6        30          454          471
+client 1:      7        30          448          463
+client 1:      8        3",
+2026-11-11T18:03:51.723,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"         479
+client 0:      8        30          463          483
+client 0:      9        30          457          478
+client 0:     10        29          457          480
+client 0:     11        31          460          479
+client 0:     12        30          469          487
+client 0:     13        30          466          482
+client 0:     14        30          459          486
+client 0:     15        29          462          488
+client 1: first request 13 s after the level started
+client 1: RESULT sent=180 completed=180 errors=0 ttft_p50_ms=449 ttft_p95_ms=473 itl_p95_ms=36.3
+client 1: per answer e2e_output_token_throughput: mean 26.9 min 25.6 max 41.5 (n=180)
+client 1: per answer input_sequence_length: mean 4290.5 min 600.0 max 7728.0 (n=180)
+client 1: per answer inter_token_latency: mean 35.1 min 22.5 max 36.8 (n=180)
+client 1: per answer output_sequence_length: mean 190.9 min 185.0 max 193.0 (n=180)
+client 1: per answer output_token_count: mean 177.1 min 154.0 max 187.0 (n=180)
+",
+2026-11-11T18:03:51.724,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"               │
+│                                                                                                  │
+│  Fix Options:                                                                                    │
+│    - --extra-inputs ignore_eos:true - Generate until max_tokens (vLLM, TensorRT-LLM)             │
+│    - --extra-inputs min_tokens:<N> - Set minimum output length (vLLM, TensorRT-LLM, SGLang)      │
+│    - --use-server-token-count - Use server-reported token counts if tokenizer mismatch           │
+│  suspected                                                                                       │
+│                                                                                                  │
+│  Diagnostics:                                                                                    │
+│    - Review profile_export.jsonl -> osl_mismatch_diff_pct for per-request values                 │
+│    - Adjust: AIPERF_METRICS_OSL_",
+2026-11-11T18:03:51.724,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"0          451          472
+client 1:      9        30          451          473
+client 1:     10        30          443          472
+client 1:     11        30          443          466
+client 1:     12        30          453          474
+client 1:     13        30          454          475
+client 1:     14        30          444          474
+client 1:     15        30          451          473
+RESULT sent=359 completed=359 errors=0 ttft_p50_ms=462 ttft_p95_ms=484 itl_p95_ms=36.3
+--- vLLM counters during the run (end - start, summed over the serving pods) ---
+vllm:generation_tokens_total 192196
+vllm:num_preemptions_total 0
+vllm:prefix_cache_hits_total 2491936
+vllm:prefix_cache_queries_total 3239825
+vllm:prompt_tokens_total 3239825
+vllm:request_success_total 960
+--- client 0: AIPerf log (tail) ---
+│                                                                                                  │
+│  Why: Server hit EOS token before reaching requested output length.               ",
+2026-11-11T18:03:51.725,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"MISMATCH_PCT_THRESHOLD=5                                         │
+│    - Adjust: AIPERF_METRICS_OSL_MISMATCH_MAX_TOKEN_THRESHOLD=50                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+CLI Command: aiperf profile --model 'gpt-oss-120b' --tokenizer 'openai/gpt-oss-120b' --url 
+'http://vllm-a.moe-tcp.svc:8000' --endpoint-type 'chat' --streaming --isl 600 --isl-stddev 0 --osl 
+200 --osl-stddev 0 --extra-inputs 'ignore_eos:true' 'reasoning_effort:low' --conversation-turn-mean 
+10 --conversation-turn-stddev 0 --conversation-num 5000 --user-centric-rate 0.5 --num-users 32 
+--benchmark-duration 960 --benchmark-grace-period 60 --slice-duration 60 --ui 'simple' 
+--output-artifact-dir '/work/out/run'
+Benchmark",
+2026-11-11T18:03:51.726,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f," Duration: 964.01 sec
+CSV Export: /work/out/run/profile_export_aiperf.csv
+JSON Export: /work/out/run/profile_export_aiperf.json
+Server Metrics CSV Export: /work/out/run/server_metrics_export.csv
+Server Metrics JSON Export: /work/out/run/server_metrics_export.json
+Timeslice CSV Export: /work/out/run/profile_export_aiperf_timeslices.csv
+Timeslice JSON Export: /work/out/run/profile_export_aiperf_timeslices.json
+Log File: /work/out/run/logs/aiperf.log
+
+--- client 1: AIPerf log (tail) ---
+│                                                                                                  │
+│  Why: Server hit EOS token before reaching requested output length.                              │
+│                                                                                                  │
+│  Fix Options:                                                                                    │
+│    - --extra-inputs ignore_eos:true - Generate until max_tokens (vLLM, TensorRT-LLM)   ",
+2026-11-11T18:03:51.726,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"          │
+│    - --extra-inputs min_tokens:<N> - Set minimum output length (vLLM, TensorRT-LLM, SGLang)      │
+│    - --use-server-token-count - Use server-reported token counts if tokenizer mismatch           │
+│  suspected                                                                                       │
+│                                                                                                  │
+│  Diagnostics:                                                                                    │
+│    - Review profile_export.jsonl -> osl_mismatch_diff_pct for per-request values                 │
+│    - Adjust: AIPERF_METRICS_OSL_MISMATCH_PCT_THRESHOLD=5                                         │
+│    - Adjust: AIPERF_METRICS_OSL_MISMATCH_MAX_TOKEN_THRESHOLD=50                                  │
+╰───────────────────────────────────────────────�",
+2026-11-11T18:03:51.727,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"�──────────────────────────────────────────────────╯
+
+CLI Command: aiperf profile --model 'gpt-oss-120b' --tokenizer 'openai/gpt-oss-120b' --url 
+'http://vllm-a.moe-tcp.svc:8000' --endpoint-type 'chat' --streaming --isl 600 --isl-stddev 0 --osl 
+200 --osl-stddev 0 --extra-inputs 'ignore_eos:true' 'reasoning_effort:low' --conversation-turn-mean 
+10 --conversation-turn-stddev 0 --conversation-num 5000 --user-centric-rate 0.5 --num-users 32 
+--benchmark-duration 960 --benchmark-grace-period 60 --slice-duration 60 --ui 'simple' 
+--output-artifact-dir '/work/out/run'
+Benchmark Duration: 964.61 sec
+CSV Export: /work/out/run/profile_export_aiperf.csv
+JSON Export: /work/out/run/profile_export_aiperf.json
+Server Metrics CSV Export: /work/out/run/server_metrics_export.csv
+Server Metrics JSON Export: /work/out/run/server_metrics_export.json
+Timeslice CSV Export: /work/out/run/profile_export_aiper",
+2026-11-11T18:03:51.728,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"f_timeslices.csv
+Timeslice JSON Export: /work/out/run/profile_export_aiperf_timeslices.json
+Log File: /work/out/run/logs/aiperf.log
+",
+2026-11-11T18:03:51.923,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"RAMP level=64 pass client TTFT p95 484 ms <= 500 ms
+",
+2026-11-11T18:20:20.087,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"client 0: stale processes killed: 0, left: 0
+client 1: stale processes killed: 0, left: 0
+18:03:56 run_ramp: [ramp-128] users=128: 2 clients x 64 users, 1.0000 req/s each (one turn per user every 64 s) turns=10 isl=600 osl=200 extra=[ignore_eos:true reasoning_effort:low] duration=960s; client 0 -> http://vllm-a.moe-tcp.svc:8000, client 1 -> http://vllm-a.moe-tcp.svc:8000
+18:20:18 run_ramp: [ramp-128] client 0 aiperf exit=0
+18:20:18 run_ramp: [ramp-128] client 1 aiperf exit=0
+client 0: first request 13 s after the level started
+client 0: RESULT sent=359 completed=358 errors=1 ttft_p50_ms=500 ttft_p95_ms=533 itl_p95_ms=58.4
+client 0: first error: {""type"": ""ServerDisconnectedError"", ""message"": ""ServerDisconnectedError('Server disconnected')"", ""cause_chain"": [""ServerDisconnectedError""]}
+client 0: per answer e2e_output_token_throughput: mean 17.2 min 16.2 max 25.7 (n=358)
+client 0: per answer input_sequence_length: mean 4304.6 min 600.0 max 7729.0 (n=358)
+client 0: per answer inter_token_la",
+2026-11-11T18:20:20.089,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"tency: mean 56.0 min 36.5 max 59.2 (n=358)
+client 0: per answer output_sequence_length: mean 191.0 min 189.0 max 193.0 (n=358)
+client 0: per answer output_token_count: mean 178.6 min 145.0 max 188.0 (n=358)
+client 0: per answer output_token_throughput_per_user: mean 17.9 min 16.9 max 27.4 (n=358)
+client 0: per answer reasoning_token_count: mean 12.4 min 3.0 max 46.0 (n=358)
+client 0: per answer time_to_first_output_token: mean 1432.7 min 854.3 max 3205.0 (n=358)
+client 0: per answer time_to_first_token: mean 495.2 min 334.0 max 561.5 (n=358)
+client 0: per answer time_to_second_token: mean 39.3 min 28.4 max 55.9 (n=358)
+client 0: cpu used 54 s (0.05 cores on average), throttled 0.7 s in 6 periods
+client 0: minute  requests  ttft_p50_ms  ttft_p95_ms
+client 0:      0        61          400          436
+client 0:      1        60          482          522
+client 0:      2        60          492          523
+client 0:      3        60          492          525
+client 0:      4        60    ",
+2026-11-11T18:20:20.090,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"      489          535
+client 0:      5        60          491          523
+client 0:      6        60          493          539
+client 0:      7        60          497          534
+client 0:      8        60          500          534
+client 0:      9        60          500          533
+client 0:     10        60          504          540
+client 0:     11        60          502          533
+client 0:     12        60          500          540
+client 0:     13        60          507          544
+client 0:     14        59          496          530
+client 0:     15        59          495          525
+client 1: first request 13 s after the level started
+client 1: RESULT sent=360 completed=360 errors=0 ttft_p50_ms=497 ttft_p95_ms=567 itl_p95_ms=58.5
+client 1: per answer e2e_output_token_throughput: mean 17.3 min 16.2 max 28.0 (n=360)
+client 1: per answer input_sequence_length: mean 4305.9 min 600.0 max 7728.0 (n=360)
+client 1: per answer inter_token_latency: mean 55.8 min 33.8 max 59.4 (n=",
+2026-11-11T18:20:20.092,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"360)
+client 1: per answer output_sequence_length: mean 190.9 min 167.0 max 192.0 (n=360)
+client 1: per answer output_token_count: mean 178.2 min 144.0 max 189.0 (n=360)
+client 1: per answer output_token_throughput_per_user: mean 18.0 min 16.8 max 29.6 (n=360)
+client 1: per answer reasoning_token_count: mean 12.7 min 2.0 max 47.0 (n=360)
+client 1: per answer time_to_first_output_token: mean 1434.0 min 873.1 max 3448.0 (n=360)
+client 1: per answer time_to_first_token: mean 495.9 min 330.8 max 599.5 (n=360)
+client 1: per answer time_to_second_token: mean 39.3 min 28.9 max 55.0 (n=360)
+client 1: cpu used 54 s (0.05 cores on average), throttled 0.3 s in 4 periods
+client 1: minute  requests  ttft_p50_ms  ttft_p95_ms
+client 1:      0        61          401          426
+client 1:      1        60          485          559
+client 1:      2        60          486          559
+client 1:      3        60          490          521
+client 1:      4        60          489          569
+client 1:      ",
+2026-11-11T18:20:20.093,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"5        59          488          521
+client 1:      6        61          494          573
+client 1:      7        60          495          569
+client 1:      8        60          497          570
+client 1:      9        60          494          568
+client 1:     10        60          500          578
+client 1:     11        60          499          561
+client 1:     12        60          496          577
+client 1:     13        60          504          574
+client 1:     14        60          493          567
+client 1:     15        60          495          526
+RESULT sent=719 completed=718 errors=1 ttft_p50_ms=500 ttft_p95_ms=567 itl_p95_ms=58.5
+--- vLLM counters during the run (end - start, summed over the serving pods) ---
+vllm:generation_tokens_total 383978
+vllm:num_preemptions_total 0
+vllm:prefix_cache_hits_total 4976848
+vllm:prefix_cache_queries_total 6470490
+vllm:prompt_tokens_total 6470490
+vllm:request_success_total 1919
+--- client 0: AIPerf log (tail) ---
+│                  ",
+2026-11-11T18:20:20.094,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"                                                                                │
+│  Why: Server hit EOS token before reaching requested output length.                              │
+│                                                                                                  │
+│  Fix Options:                                                                                    │
+│    - --extra-inputs ignore_eos:true - Generate until max_tokens (vLLM, TensorRT-LLM)             │
+│    - --extra-inputs min_tokens:<N> - Set minimum output length (vLLM, TensorRT-LLM, SGLang)      │
+│    - --use-server-token-count - Use server-reported token counts if tokenizer mismatch           │
+│  suspected                                                                                       │
+│                                                                                                  │
+│  Diagnostics:                                                           ",
+2026-11-11T18:20:20.095,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"                         │
+│    - Review profile_export.jsonl -> osl_mismatch_diff_pct for per-request values                 │
+│    - Adjust: AIPERF_METRICS_OSL_MISMATCH_PCT_THRESHOLD=5                                         │
+│    - Adjust: AIPERF_METRICS_OSL_MISMATCH_MAX_TOKEN_THRESHOLD=50                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+CLI Command: aiperf profile --model 'gpt-oss-120b' --tokenizer 'openai/gpt-oss-120b' --url 
+'http://vllm-a.moe-tcp.svc:8000' --endpoint-type 'chat' --streaming --isl 600 --isl-stddev 0 --osl 
+200 --osl-stddev 0 --extra-inputs 'ignore_eos:true' 'reasoning_effort:low' --conversation-turn-mean 
+10 --conversation-turn-stddev 0 --conversation-num 5000 --use",
+2026-11-11T18:20:20.096,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"r-centric-rate 1.0 --num-users 64 
+--benchmark-duration 960 --benchmark-grace-period 60 --slice-duration 60 --ui 'simple' 
+--output-artifact-dir '/work/out/run'
+Benchmark Duration: 966.43 sec
+CSV Export: /work/out/run/profile_export_aiperf.csv
+JSON Export: /work/out/run/profile_export_aiperf.json
+Server Metrics CSV Export: /work/out/run/server_metrics_export.csv
+Server Metrics JSON Export: /work/out/run/server_metrics_export.json
+Timeslice CSV Export: /work/out/run/profile_export_aiperf_timeslices.csv
+Timeslice JSON Export: /work/out/run/profile_export_aiperf_timeslices.json
+Log File: /work/out/run/logs/aiperf.log
+
+--- client 1: AIPerf log (tail) ---
+│                                                                                                  │
+│  Why: Server hit EOS token before reaching requested output length.                              │
+│                                                                                                  │
+│  Fix Options:         ",
+2026-11-11T18:20:20.097,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"                                                                           │
+│    - --extra-inputs ignore_eos:true - Generate until max_tokens (vLLM, TensorRT-LLM)             │
+│    - --extra-inputs min_tokens:<N> - Set minimum output length (vLLM, TensorRT-LLM, SGLang)      │
+│    - --use-server-token-count - Use server-reported token counts if tokenizer mismatch           │
+│  suspected                                                                                       │
+│                                                                                                  │
+│  Diagnostics:                                                                                    │
+│    - Review profile_export.jsonl -> osl_mismatch_diff_pct for per-request values                 │
+│    - Adjust: AIPERF_METRICS_OSL_MISMATCH_PCT_THRESHOLD=5                                         │
+│    - Adjust: AIPERF_METRICS_OSL_MISMATCH_MAX_TOKEN_THRESHOLD=50              ",
+2026-11-11T18:20:20.098,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+CLI Command: aiperf profile --model 'gpt-oss-120b' --tokenizer 'openai/gpt-oss-120b' --url 
+'http://vllm-a.moe-tcp.svc:8000' --endpoint-type 'chat' --streaming --isl 600 --isl-stddev 0 --osl 
+200 --osl-stddev 0 --extra-inputs 'ignore_eos:true' 'reasoning_effort:low' --conversation-turn-mean 
+10 --conversation-turn-stddev 0 --conversation-num 5000 --user-centric-rate 1.0 --num-users 64 
+--benchmark-duration 960 --benchmark-grace-period 60 --slice-duration 60 --ui 'simple' 
+--output-artifact-dir '/work/out/run'
+Benchmark Duration: 966.83 sec
+CSV Export: /work/out/run/profile_export_aiperf.csv
+JSON Export: /work/out/run/profile_export_aiperf.json
+Server Metrics CSV Exp",
+2026-11-11T18:20:20.099,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"ort: /work/out/run/server_metrics_export.csv
+Server Metrics JSON Export: /work/out/run/server_metrics_export.json
+Timeslice CSV Export: /work/out/run/profile_export_aiperf_timeslices.csv
+Timeslice JSON Export: /work/out/run/profile_export_aiperf_timeslices.json
+Log File: /work/out/run/logs/aiperf.log
+",
+2026-11-11T18:20:20.334,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"RAMP level=128 fail client TTFT p95 567 ms > 500 ms
+RESULT ramp best=64 hold=64
+",
+2026-11-11T18:20:20.338,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,"18:20:20 run_ramp: done
+",
+2026-11-11T18:20:20.346,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Ramp,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b4-7aff-ad17-a4afb9b5ad2f,Command executed successfully,
+2026-11-11T18:20:25.429,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Hold,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b5-737d-a9d2-bf8c4768b743,Extracted information about system 'vLLM_Benchmark_51_G7E_TCP_MoE_Parallelism',
+2026-11-11T18:20:25.431,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Hold,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b5-737d-a9d2-bf8c4768b743,Extracting parameters configuration of experiment 6 of study '51-G7E-TCP-MoE-Parallelism',
+2026-11-11T18:20:25.517,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Hold,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b5-737d-a9d2-bf8c4768b743,Connecting to host toolbox with user akamas to execute command 'bash /work/study51/51-g7e-tcp-moe-parallelism-users-ramp/k8s/run_hold.sh',
+2026-11-11T18:20:25.519,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Hold,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b5-737d-a9d2-bf8c4768b743,No templates found in the command. Skipping substitution,
+2026-11-11T18:20:26.140,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Hold,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b5-737d-a9d2-bf8c4768b743,"18:20:26 run_hold: holding 64 users for 960 s (+60 s grace)
+",
+2026-11-11T18:36:51.485,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Hold,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b5-737d-a9d2-bf8c4768b743,"client 0: stale processes killed: 0, left: 0
+client 1: stale processes killed: 0, left: 0
+18:20:30 run_hold: [hold-64] users=64: 2 clients x 32 users, 0.5000 req/s each (one turn per user every 64 s) turns=10 isl=600 osl=200 extra=[ignore_eos:true reasoning_effort:low] duration=960s; client 0 -> http://vllm-a.moe-tcp.svc:8000, client 1 -> http://vllm-a.moe-tcp.svc:8000
+18:36:49 run_hold: [hold-64] client 0 aiperf exit=0
+18:36:50 run_hold: [hold-64] client 1 aiperf exit=0
+client 0: first request 13 s after the level started
+client 0: RESULT sent=179 completed=179 errors=0 ttft_p50_ms=476 ttft_p95_ms=510 itl_p95_ms=36.8
+client 0: per answer e2e_output_token_throughput: mean 26.4 min 25.3 max 32.8 (n=179)
+client 0: per answer input_sequence_length: mean 4288.9 min 600.0 max 7728.0 (n=179)
+client 0: per answer inter_token_latency: mean 35.6 min 28.1 max 37.2 (n=179)
+client 0: per answer output_sequence_length: mean 190.8 min 161.0 max 192.0 (n=179)
+client 0: per answer output_token_count: ",
+2026-11-11T18:36:51.487,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Hold,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b5-737d-a9d2-bf8c4768b743,"mean 178.6 min 139.0 max 187.0 (n=179)
+client 0: per answer output_token_throughput_per_user: mean 28.1 min 26.9 max 35.6 (n=179)
+client 0: per answer reasoning_token_count: mean 12.2 min 4.0 max 51.0 (n=179)
+client 0: per answer time_to_first_output_token: mean 1028.3 min 738.5 max 2024.7 (n=179)
+client 0: per answer time_to_first_token: mean 472.6 min 375.9 max 528.3 (n=179)
+client 0: per answer time_to_second_token: mean 29.2 min 19.7 max 46.9 (n=179)
+client 0: cpu used 46 s (0.05 cores on average), throttled 1.3 s in 8 periods
+client 0: minute  requests  ttft_p50_ms  ttft_p95_ms
+client 0:      0        30          386          407
+client 0:      1        31          472          505
+client 0:      2        30          460          500
+client 0:      3        30          471          505
+client 0:      4        29          472          504
+client 0:      5        31          476          513
+client 0:      6        30          468          506
+client 0:      7        30          475",
+2026-11-11T18:36:51.488,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Hold,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b5-737d-a9d2-bf8c4768b743,"          511
+client 0:      8        30          479          514
+client 0:      9        30          476          504
+client 0:     10        30          479          514
+client 0:     11        30          481          510
+client 0:     12        30          475          515
+client 0:     13        29          479          525
+client 0:     14        30          476          505
+client 0:     15        30          473          507
+client 1: first request 13 s after the level started
+client 1: RESULT sent=180 completed=180 errors=0 ttft_p50_ms=466 ttft_p95_ms=526 itl_p95_ms=36.8
+client 1: per answer e2e_output_token_throughput: mean 26.5 min 25.2 max 42.8 (n=180)
+client 1: per answer input_sequence_length: mean 4290.4 min 600.0 max 7728.0 (n=180)
+client 1: per answer inter_token_latency: mean 35.6 min 21.9 max 37.2 (n=180)
+client 1: per answer output_sequence_length: mean 190.9 min 189.0 max 193.0 (n=180)
+client 1: per answer output_token_count: mean 178.6 min 152.0 max 187.0 (n=180)",
+2026-11-11T18:36:51.489,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Hold,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b5-737d-a9d2-bf8c4768b743,"
+client 1: per answer output_token_throughput_per_user: mean 28.2 min 26.9 max 45.7 (n=180)
+client 1: per answer reasoning_token_count: mean 12.4 min 4.0 max 39.0 (n=180)
+client 1: per answer time_to_first_output_token: mean 1033.8 min 752.0 max 1830.1 (n=180)
+client 1: per answer time_to_first_token: mean 473.2 min 312.4 max 544.3 (n=180)
+client 1: per answer time_to_second_token: mean 29.7 min 20.4 max 46.9 (n=180)
+client 1: cpu used 46 s (0.05 cores on average), throttled 0.8 s in 6 periods
+client 1: minute  requests  ttft_p50_ms  ttft_p95_ms
+client 1:      0        30          373          423
+client 1:      1        31          456          521
+client 1:      2        30          449          515
+client 1:      3        30          462          522
+client 1:      4        29          459          520
+client 1:      5        31          461          528
+client 1:      6        30          456          522
+client 1:      7        29          462          524
+client 1:      8        ",
+2026-11-11T18:36:51.490,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Hold,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b5-737d-a9d2-bf8c4768b743,"30          467          531
+client 1:      9        31          485          520
+client 1:     10        30          466          529
+client 1:     11        30          496          527
+client 1:     12        30          461          531
+client 1:     13        30          493          541
+client 1:     14        29          462          520
+client 1:     15        31          458          524
+RESULT sent=359 completed=359 errors=0 ttft_p50_ms=476 ttft_p95_ms=526 itl_p95_ms=36.8
+--- vLLM counters during the run (end - start, summed over the serving pods) ---
+vllm:generation_tokens_total 192172
+vllm:num_preemptions_total 0
+vllm:prefix_cache_hits_total 2491648
+vllm:prefix_cache_queries_total 3239748
+vllm:prompt_tokens_total 3239748
+vllm:request_success_total 960
+--- client 0: AIPerf log (tail) ---
+│                                                                                                  │
+│  Why: Server hit EOS token before reaching requested output length.              ",
+2026-11-11T18:36:51.491,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Hold,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b5-737d-a9d2-bf8c4768b743,"                │
+│                                                                                                  │
+│  Fix Options:                                                                                    │
+│    - --extra-inputs ignore_eos:true - Generate until max_tokens (vLLM, TensorRT-LLM)             │
+│    - --extra-inputs min_tokens:<N> - Set minimum output length (vLLM, TensorRT-LLM, SGLang)      │
+│    - --use-server-token-count - Use server-reported token counts if tokenizer mismatch           │
+│  suspected                                                                                       │
+│                                                                                                  │
+│  Diagnostics:                                                                                    │
+│    - Review profile_export.jsonl -> osl_mismatch_diff_pct for per-request values                 │
+│    - Adjust: AIPERF_METRICS_OSL",
+2026-11-11T18:36:51.492,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Hold,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b5-737d-a9d2-bf8c4768b743,"_MISMATCH_PCT_THRESHOLD=5                                         │
+│    - Adjust: AIPERF_METRICS_OSL_MISMATCH_MAX_TOKEN_THRESHOLD=50                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+CLI Command: aiperf profile --model 'gpt-oss-120b' --tokenizer 'openai/gpt-oss-120b' --url 
+'http://vllm-a.moe-tcp.svc:8000' --endpoint-type 'chat' --streaming --isl 600 --isl-stddev 0 --osl 
+200 --osl-stddev 0 --extra-inputs 'ignore_eos:true' 'reasoning_effort:low' --conversation-turn-mean 
+10 --conversation-turn-stddev 0 --conversation-num 5000 --user-centric-rate 0.5 --num-users 32 
+--benchmark-duration 960 --benchmark-grace-period 60 --slice-duration 60 --ui 'simple' 
+--output-artifact-dir '/work/out/run'
+Benchmar",
+2026-11-11T18:36:51.493,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Hold,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b5-737d-a9d2-bf8c4768b743,"k Duration: 963.83 sec
+CSV Export: /work/out/run/profile_export_aiperf.csv
+JSON Export: /work/out/run/profile_export_aiperf.json
+Server Metrics CSV Export: /work/out/run/server_metrics_export.csv
+Server Metrics JSON Export: /work/out/run/server_metrics_export.json
+Timeslice CSV Export: /work/out/run/profile_export_aiperf_timeslices.csv
+Timeslice JSON Export: /work/out/run/profile_export_aiperf_timeslices.json
+Log File: /work/out/run/logs/aiperf.log
+
+--- client 1: AIPerf log (tail) ---
+│                                                                                                  │
+│  Why: Server hit EOS token before reaching requested output length.                              │
+│                                                                                                  │
+│  Fix Options:                                                                                    │
+│    - --extra-inputs ignore_eos:true - Generate until max_tokens (vLLM, TensorRT-LLM)  ",
+2026-11-11T18:36:51.494,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Hold,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b5-737d-a9d2-bf8c4768b743,"           │
+│    - --extra-inputs min_tokens:<N> - Set minimum output length (vLLM, TensorRT-LLM, SGLang)      │
+│    - --use-server-token-count - Use server-reported token counts if tokenizer mismatch           │
+│  suspected                                                                                       │
+│                                                                                                  │
+│  Diagnostics:                                                                                    │
+│    - Review profile_export.jsonl -> osl_mismatch_diff_pct for per-request values                 │
+│    - Adjust: AIPERF_METRICS_OSL_MISMATCH_PCT_THRESHOLD=5                                         │
+│    - Adjust: AIPERF_METRICS_OSL_MISMATCH_MAX_TOKEN_THRESHOLD=50                                  │
+╰───────────────────────────────────────────────�",
+2026-11-11T18:36:51.495,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Hold,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b5-737d-a9d2-bf8c4768b743,"��──────────────────────────────────────────────────╯
+
+CLI Command: aiperf profile --model 'gpt-oss-120b' --tokenizer 'openai/gpt-oss-120b' --url 
+'http://vllm-a.moe-tcp.svc:8000' --endpoint-type 'chat' --streaming --isl 600 --isl-stddev 0 --osl 
+200 --osl-stddev 0 --extra-inputs 'ignore_eos:true' 'reasoning_effort:low' --conversation-turn-mean 
+10 --conversation-turn-stddev 0 --conversation-num 5000 --user-centric-rate 0.5 --num-users 32 
+--benchmark-duration 960 --benchmark-grace-period 60 --slice-duration 60 --ui 'simple' 
+--output-artifact-dir '/work/out/run'
+Benchmark Duration: 964.47 sec
+CSV Export: /work/out/run/profile_export_aiperf.csv
+JSON Export: /work/out/run/profile_export_aiperf.json
+Server Metrics CSV Export: /work/out/run/server_metrics_export.csv
+Server Metrics JSON Export: /work/out/run/server_metrics_export.json
+Timeslice CSV Export: /work/out/run/profile_export_aipe",
+2026-11-11T18:36:51.496,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Hold,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b5-737d-a9d2-bf8c4768b743,"rf_timeslices.csv
+Timeslice JSON Export: /work/out/run/profile_export_aiperf_timeslices.json
+Log File: /work/out/run/logs/aiperf.log
+",
+2026-11-11T18:36:51.641,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Hold,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b5-737d-a9d2-bf8c4768b743,"NOTE: hold client TTFT p95 526 ms above the 500 ms SLO (Ramp passed this level)
+",
+2026-11-11T18:36:51.642,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Hold,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b5-737d-a9d2-bf8c4768b743,"RESULT hold users=64
+",
+2026-11-11T18:36:51.644,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Hold,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b5-737d-a9d2-bf8c4768b743,"18:36:51 run_hold: done
+",
+2026-11-11T18:36:51.654,140aebcf-cf03-4bce-9970-89a907c3f435,ac8481d3-d031-4b6a-8ae9-c7b366f027e8,a853b4a2-b70f-402e-a956-df6cf2a46b67,2026_11_11T17_27_37_890951,Hold,DAG_Workspaceac8481d3-d031-4b6a-8ae9-c7b366f027e8_Workflowa853b4a2-b70f-402e-a956-df6cf2a46b67,ExecutorOperator,1,0261d9b2-6975-4e4d-a6e0-279720f8b687,airflow,INFO,1,6,2026-11-11T17:27:37.890951+00:00,01a1cba6-a2b5-737d-a9d2-bf8c4768b743,Command executed successfully,
+

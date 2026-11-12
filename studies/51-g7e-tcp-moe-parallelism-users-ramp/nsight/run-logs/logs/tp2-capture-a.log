@@ -1,0 +1,7 @@
+capture start 23:49:22
+NVTRACE|WRN|2026-Nov-11|23:49:22:617|ConsumeNextChunk || V1 chunk overrun detected while chasing a chunk chain.
+Stopping consumer...
+Streaming consumer completed successfully
+capture end 23:49:32
+du: cannot access '/work/traces/tp2/nsight.*': No such file or directory
+gpu: 98 %, 90079 MiB, 200.90 W

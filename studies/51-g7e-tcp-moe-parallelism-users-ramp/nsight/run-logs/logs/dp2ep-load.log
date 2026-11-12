@@ -1,0 +1,133 @@
+23:55:07 run_ramp: levels: 64; 780 s each (+60 s grace), steady from 600 s; SLO client TTFT p95 <= 500 ms
+client 0: stale processes killed: 0, left: 0
+client 1: stale processes killed: 0, left: 0
+23:55:12 run_ramp: [ramp-64] users=64: 2 clients x 32 users, 0.5000 req/s each (one turn per user every 64 s) turns=10 isl=600 osl=200 extra=[ignore_eos:true reasoning_effort:low] duration=780s; client 0 -> http://vllm-a.moe-tcp.svc:8000, client 1 -> http://vllm-b.moe-tcp.svc:8000
+00:08:29 run_ramp: [ramp-64] client 0 aiperf exit=0
+00:08:30 run_ramp: [ramp-64] client 1 aiperf exit=0
+client 0: first request 13 s after the level started
+client 0: RESULT sent=89 completed=89 errors=0 ttft_p50_ms=347 ttft_p95_ms=370 itl_p95_ms=23.2
+client 0: per answer e2e_output_token_throughput: mean 43.6 min 39.2 max 51.9 (n=89)
+client 0: per answer input_sequence_length: mean 4278.0 min 600.0 max 7728.0 (n=89)
+client 0: per answer inter_token_latency: mean 21.4 min 17.6 max 23.7 (n=89)
+client 0: per answer output_sequence_length: mean 190.9 min 189.0 max 191.0 (n=89)
+client 0: per answer output_token_count: mean 177.4 min 145.0 max 189.0 (n=89)
+client 0: per answer output_token_throughput_per_user: mean 47.0 min 42.2 max 56.8 (n=89)
+client 0: per answer reasoning_token_count: mean 13.5 min 2.0 max 44.0 (n=89)
+client 0: per answer time_to_first_output_token: mean 706.3 min 515.0 max 1321.8 (n=89)
+client 0: per answer time_to_first_token: mean 339.7 min 232.2 max 386.8 (n=89)
+client 0: per answer time_to_second_token: mean 20.5 min 13.5 max 31.1 (n=89)
+client 0: cpu used 41 s (0.05 cores on average), throttled 0.6 s in 7 periods
+client 0: minute  requests  ttft_p50_ms  ttft_p95_ms
+client 0:      0        31          242          265
+client 0:      1        30          331          344
+client 0:      2        30          331          353
+client 0:      3        30          333          351
+client 0:      4        30          343         1629
+client 0:      5        30          942         2865
+client 0:      6        30          345          368
+client 0:      7        30          344          369
+client 0:      8        30          338          362
+client 0:      9        30          342          368
+client 0:     10        30          344          370
+client 0:     11        30          350          375
+client 0:     12        29          344          368
+client 1: first request 12 s after the level started
+client 1: RESULT sent=90 completed=90 errors=0 ttft_p50_ms=462 ttft_p95_ms=486 itl_p95_ms=23.3
+client 1: per answer e2e_output_token_throughput: mean 42.7 min 38.4 max 61.8 (n=90)
+client 1: per answer input_sequence_length: mean 4286.0 min 600.0 max 7728.0 (n=90)
+client 1: per answer inter_token_latency: mean 21.3 min 14.8 max 23.7 (n=90)
+client 1: per answer output_sequence_length: mean 190.9 min 189.0 max 191.0 (n=90)
+client 1: per answer output_token_count: mean 179.1 min 146.0 max 187.0 (n=90)
+client 1: per answer output_token_throughput_per_user: mean 47.3 min 42.1 max 67.5 (n=90)
+client 1: per answer reasoning_token_count: mean 11.8 min 4.0 max 44.0 (n=90)
+client 1: per answer time_to_first_output_token: mean 795.8 min 538.5 max 1206.0 (n=90)
+client 1: per answer time_to_first_token: mean 452.0 min 278.1 max 501.3 (n=90)
+client 1: per answer time_to_second_token: mean 24.8 min 16.6 max 32.0 (n=90)
+client 1: cpu used 41 s (0.05 cores on average), throttled 0.0 s in 3 periods
+client 1: minute  requests  ttft_p50_ms  ttft_p95_ms
+client 1:      0        30          339          379
+client 1:      1        31          447          463
+client 1:      2        30          450          471
+client 1:      3        30          450          468
+client 1:      4        29          455         1717
+client 1:      5        31         1030         2063
+client 1:      6        30          460          484
+client 1:      7        30          460          488
+client 1:      8        30          457          478
+client 1:      9        30          458          483
+client 1:     10        30          457          486
+client 1:     11        30          466          487
+client 1:     12        30          458          485
+RESULT sent=179 completed=179 errors=0 ttft_p50_ms=462 ttft_p95_ms=486 itl_p95_ms=23.3
+--- vLLM counters during the run (end - start, summed over the serving pods) ---
+vllm:generation_tokens_total 155994
+vllm:num_preemptions_total 0
+vllm:prefix_cache_hits_total 1696752
+vllm:prefix_cache_queries_total 2446390
+vllm:prompt_tokens_total 2446390
+vllm:request_success_total 777
+--- client 0: AIPerf log (tail) ---
+│                                                                                                  │
+│  Why: Server hit EOS token before reaching requested output length.                              │
+│                                                                                                  │
+│  Fix Options:                                                                                    │
+│    - --extra-inputs ignore_eos:true - Generate until max_tokens (vLLM, TensorRT-LLM)             │
+│    - --extra-inputs min_tokens:<N> - Set minimum output length (vLLM, TensorRT-LLM, SGLang)      │
+│    - --use-server-token-count - Use server-reported token counts if tokenizer mismatch           │
+│  suspected                                                                                       │
+│                                                                                                  │
+│  Diagnostics:                                                                                    │
+│    - Review profile_export.jsonl -> osl_mismatch_diff_pct for per-request values                 │
+│    - Adjust: AIPERF_METRICS_OSL_MISMATCH_PCT_THRESHOLD=5                                         │
+│    - Adjust: AIPERF_METRICS_OSL_MISMATCH_MAX_TOKEN_THRESHOLD=50                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+CLI Command: aiperf profile --model 'gpt-oss-120b' --tokenizer 'openai/gpt-oss-120b' --url 
+'http://vllm-a.moe-tcp.svc:8000' --endpoint-type 'chat' --streaming --isl 600 --isl-stddev 0 --osl 
+200 --osl-stddev 0 --extra-inputs 'ignore_eos:true' 'reasoning_effort:low' --conversation-turn-mean 
+10 --conversation-turn-stddev 0 --conversation-num 5000 --user-centric-rate 0.5 --num-users 32 
+--benchmark-duration 780 --benchmark-grace-period 60 --slice-duration 60 --ui 'simple' 
+--output-artifact-dir '/work/out/run'
+Benchmark Duration: 781.66 sec
+CSV Export: /work/out/run/profile_export_aiperf.csv
+JSON Export: /work/out/run/profile_export_aiperf.json
+Server Metrics CSV Export: /work/out/run/server_metrics_export.csv
+Server Metrics JSON Export: /work/out/run/server_metrics_export.json
+Timeslice CSV Export: /work/out/run/profile_export_aiperf_timeslices.csv
+Timeslice JSON Export: /work/out/run/profile_export_aiperf_timeslices.json
+Log File: /work/out/run/logs/aiperf.log
+
+--- client 1: AIPerf log (tail) ---
+│                                                                                                  │
+│  Why: Server hit EOS token before reaching requested output length.                              │
+│                                                                                                  │
+│  Fix Options:                                                                                    │
+│    - --extra-inputs ignore_eos:true - Generate until max_tokens (vLLM, TensorRT-LLM)             │
+│    - --extra-inputs min_tokens:<N> - Set minimum output length (vLLM, TensorRT-LLM, SGLang)      │
+│    - --use-server-token-count - Use server-reported token counts if tokenizer mismatch           │
+│  suspected                                                                                       │
+│                                                                                                  │
+│  Diagnostics:                                                                                    │
+│    - Review profile_export.jsonl -> osl_mismatch_diff_pct for per-request values                 │
+│    - Adjust: AIPERF_METRICS_OSL_MISMATCH_PCT_THRESHOLD=5                                         │
+│    - Adjust: AIPERF_METRICS_OSL_MISMATCH_MAX_TOKEN_THRESHOLD=50                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+CLI Command: aiperf profile --model 'gpt-oss-120b' --tokenizer 'openai/gpt-oss-120b' --url 
+'http://vllm-b.moe-tcp.svc:8000' --endpoint-type 'chat' --streaming --isl 600 --isl-stddev 0 --osl 
+200 --osl-stddev 0 --extra-inputs 'ignore_eos:true' 'reasoning_effort:low' --conversation-turn-mean 
+10 --conversation-turn-stddev 0 --conversation-num 5000 --user-centric-rate 0.5 --num-users 32 
+--benchmark-duration 780 --benchmark-grace-period 60 --slice-duration 60 --ui 'simple' 
+--output-artifact-dir '/work/out/run'
+Benchmark Duration: 783.09 sec
+CSV Export: /work/out/run/profile_export_aiperf.csv
+JSON Export: /work/out/run/profile_export_aiperf.json
+Server Metrics CSV Export: /work/out/run/server_metrics_export.csv
+Server Metrics JSON Export: /work/out/run/server_metrics_export.json
+Timeslice CSV Export: /work/out/run/profile_export_aiperf_timeslices.csv
+Timeslice JSON Export: /work/out/run/profile_export_aiperf_timeslices.json
+Log File: /work/out/run/logs/aiperf.log
+RAMP level=64 pass client TTFT p95 486 ms <= 500 ms
+00:08:32 run_ramp: WARNING: the top level 64 passed: the score is capped by the ramp, not by the SLO
+RESULT ramp best=64 hold=64
+00:08:32 run_ramp: done

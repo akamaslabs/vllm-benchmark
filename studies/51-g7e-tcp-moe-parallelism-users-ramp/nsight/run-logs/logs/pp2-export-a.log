@@ -1,0 +1,5 @@
+ls: cannot access '/work/traces/pp2/nsight.*': No such file or directory
+Fatal error: Option 'tsf-database-dir' is missing an argument
+mv: cannot stat '.perfetto-trace.zip': No such file or directory
+export 0 s
+-rw-r--r--. 1 root root 9328495 Nov 11 22:59 /work/traces/pp2/pp2-512users-node-a.perfetto-trace.zip

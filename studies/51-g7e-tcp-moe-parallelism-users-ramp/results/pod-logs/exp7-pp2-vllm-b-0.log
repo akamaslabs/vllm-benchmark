@@ -1,0 +1,181 @@
+INFO 11-11 18:38:49 [model.py:684] Resolved architecture: GptOssForCausalLM
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Parse safetensors files:   0%|          | 0/15 [00:00<?, ?it/s]Parse safetensors files:   7%|▋         | 1/15 [00:00<00:01,  8.32it/s]Parse safetensors files: 100%|██████████| 15/15 [00:00<00:00, 73.55it/s]
+INFO 11-11 18:38:50 [model.py:2021] Using max model len 16384
+INFO 11-11 18:38:54 [arg_utils.py:2276] Inferred data_parallel_rank 0 from node_rank 1
+INFO 11-11 18:38:54 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=8192.
+INFO 11-11 18:38:54 [config.py:420] Overriding max cuda graph capture size to 1024 for performance.
+INFO 11-11 18:38:54 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+INFO 11-11 18:38:54 [serve.py:217] Launching vLLM (v0.29.0) headless multiproc executor, with head node address 192.168.182.62:29501 for torch.distributed process group.
+(Worker pid=255) INFO 11-11 18:39:11 [parallel_state.py:1775] world_size=2 rank=1 local_rank=0 distributed_init_method=tcp://192.168.182.62:29501 backend=nccl
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlopen(libnccl-env.so) failed: libnccl-env.so: cannot open shared object file: No such file or directory
+vllm-b-0:255:255 [0] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so
+vllm-b-0:255:255 [0] NCCL INFO cudaDriverVersion 13000
+vllm-b-0:255:255 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^docker0,lo
+vllm-b-0:255:255 [0] NCCL INFO Bootstrap: Using eth0:192.168.162.38<0>
+vllm-b-0:255:255 [0] NCCL INFO NCCL version 2.30.7+cuda13.3
+vllm-b-0:255:255 [0] NCCL INFO NCCL git version HEAD a5187fa2e
+vllm-b-0:255:255 [0] NCCL INFO NET/Plugin: Loaded net plugin Libfabric (v11)
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v11) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v11
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v10) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v10
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v9) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v9
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v8) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v8
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v7) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v7
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v6) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v6
+vllm-b-0:255:255 [0] NCCL INFO Successfully loaded external network plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so
+vllm-b-0:255:255 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^docker0,lo
+vllm-b-0:255:255 [0] NCCL INFO NET/Socket : Using [0]eth0:192.168.162.38<0>
+vllm-b-0:255:255 [0] NCCL INFO Initialized NET plugin Socket
+vllm-b-0:255:255 [0] NCCL INFO Assigned NET plugin Socket to comm
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlopen(libnccl-rma.so) failed: libnccl-rma.so: cannot open shared object file: No such file or directory
+vllm-b-0:255:255 [0] NCCL INFO RMA/Plugin: Could not find: libnccl-rma.so
+vllm-b-0:255:255 [0] NCCL INFO RMA/Plugin: Failed to load external plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so, dlHandle: (nil), ncclRma: (nil)
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclRmaPlugin_v13) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclRmaPlugin_v13
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclGinPlugin_v13) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclGinPlugin_v13
+vllm-b-0:255:255 [0] NCCL INFO RMA/Plugin: Failed to load external plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so, dlHandle: 0x36b51530, ncclRma: (nil)
+vllm-b-0:255:255 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^docker0,lo
+vllm-b-0:255:255 [0] NCCL INFO NET/IB : No device found.
+vllm-b-0:255:255 [0] NCCL INFO NET/IB : Using [RO]; OOB eth0:192.168.162.38<0>
+vllm-b-0:255:255 [0] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlopen(libnccl-gin.so) failed: libnccl-gin.so: cannot open shared object file: No such file or directory
+vllm-b-0:255:255 [0] NCCL INFO GIN/Plugin: Could not find: libnccl-gin.so
+vllm-b-0:255:255 [0] NCCL INFO GIN/Plugin: Failed to load external plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so, dlHandle: (nil), ncclGin: (nil)
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclGinPlugin_v13) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclGinPlugin_v13
+vllm-b-0:255:255 [0] NCCL INFO GIN/Plugin: Failed to load external plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so, dlHandle: 0x36b51530, ncclGin: (nil)
+vllm-b-0:255:255 [0] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+vllm-b-0:255:255 [0] NCCL INFO Using network Socket
+vllm-b-0:255:255 [0] NCCL INFO Loaded NVML from libnvidia-ml.so.1
+vllm-b-0:255:255 [0] NCCL INFO [Rank 1] ncclCommInitRank comm 0x2ea29540 rank 1 nranks 2 cudaDev 0 nvmlDev 0 busId 2f000 commId 0xdc9c32b7280d9379 - Init START
+vllm-b-0:255:255 [0] NCCL INFO Socket handshake magic 0x564ab9f2fc4b9d6c (built-in default)
+vllm-b-0:255:255 [0] NCCL INFO RAS client listening socket at ::1<28028>
+vllm-b-0:255:255 [0] NCCL INFO Bootstrap timings total 0.005715 (create 0.000021, send 0.000333, recv 0.001461, ring 0.000071, delay 0.000000)
+vllm-b-0:255:255 [0] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 0 is 0-15. (GPU affinity = 0-15 ; CPU affinity = 0-15).
+vllm-b-0:255:255 [0] NCCL INFO Rank 1: 1 Net devices
+vllm-b-0:255:255 [0] NCCL INFO Rank 1: 0 CollNet devices
+vllm-b-0:255:255 [0] NCCL INFO comm 0x2ea29540 rank 1 nRanks 2 nNodes 2 localRanks 1 localRank 0 MNNVL 0
+vllm-b-0:255:255 [0] NCCL INFO Trees [0] -1/-1/-1->1->0 [1] 0/-1/-1->1->-1
+vllm-b-0:255:255 [0] NCCL INFO P2P Chunksize set to 131072
+vllm-b-0:255:255 [0] NCCL INFO Tuning P2P operations with maxP2pPeers = 2
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlopen(libnccl-profiler.so) failed: libnccl-profiler.so: cannot open shared object file: No such file or directory
+vllm-b-0:255:255 [0] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v6) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v6
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v5) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v5
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v4) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v4
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v3) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v3
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v2) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v2
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v1) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v1
+vllm-b-0:255:255 [0] NCCL INFO Check P2P Type isAllDirectP2p 1 directMode 0 isAllCudaP2p 1
+vllm-b-0:255:389 [0] NCCL INFO [Proxy Service] Device 0 CPU core 9
+vllm-b-0:255:390 [0] NCCL INFO [Proxy Service UDS] Device 0 CPU core 12
+vllm-b-0:255:389 [0] NCCL INFO proxy listening socket at 192.168.162.38<45643>
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlopen(libnccl-tuner.so) failed: libnccl-tuner.so: cannot open shared object file: No such file or directory
+vllm-b-0:255:255 [0] NCCL INFO TUNER/Plugin: Could not find: libnccl-tuner.so
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclTunerPlugin_v5) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclTunerPlugin_v5
+vllm-b-0:255:255 [0] NCCL INFO ncclOsDlsym(ncclTunerPlugin_v4) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclTunerPlugin_v4
+vllm-b-0:255:255 [0] NCCL INFO TUNER/Plugin: Using nccl_ofi_tuner (v3)
+vllm-b-0:255:255 [0] NCCL INFO NET/OFI Tuner selected platform: AWS
+vllm-b-0:255:255 [0] NCCL INFO NET/OFI NCCL_OFI_TUNER is not available for platform : g7e.4xlarge, Fall back to NCCL's tuner
+vllm-b-0:255:255 [0] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+vllm-b-0:255:255 [0] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 1 p2p channels per peer
+vllm-b-0:255:255 [0] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+vllm-b-0:255:255 [0] NCCL INFO ncclCommInitRank comm 0x2ea29540 rank 1 nranks 2 cudaDev 0 nvmlDev 0 busId 2f000 commId 0xdc9c32b7280d9379 - Init COMPLETE
+vllm-b-0:255:255 [0] NCCL INFO Init timings - ncclCommInitRank: rank 1 nranks 2 total 0.24 (kernels 0.21, alloc 0.00, bootstrap 0.01, allgathers 0.00, topo 0.00, graphs 0.00, connections 0.02, rest 0.00)
+vllm-b-0:255:391 [0] NCCL INFO [Proxy Progress] Device 0 CPU core 9
+vllm-b-0:255:255 [0] NCCL INFO Channel 00/0 : 0[0] -> 1[0] [receive] via NET/Socket/0
+vllm-b-0:255:255 [0] NCCL INFO Channel 01/0 : 0[0] -> 1[0] [receive] via NET/Socket/0
+vllm-b-0:255:255 [0] NCCL INFO Channel 00/0 : 1[0] -> 0[0] [send] via NET/Socket/0
+vllm-b-0:255:255 [0] NCCL INFO Channel 01/0 : 1[0] -> 0[0] [send] via NET/Socket/0
+vllm-b-0:255:255 [0] NCCL INFO Connected all rings, use ring PXN 0 GDR 0
+(Worker pid=255) INFO 11-11 18:39:33 [parallel_state.py:2119] rank 1 in world size 2 is assigned as DP rank 0, PP rank 1, PCP rank 0, TP rank 0, EP rank 0, EPLB rank N/A
+(Worker pid=255) INFO 11-11 18:39:33 [gpu_worker.py:429] Using V2 Model Runner
+(Worker_PP1 pid=255) INFO 11-11 18:39:33 [model_runner.py:382] Loading model from scratch...
+(Worker_PP1 pid=255) INFO 11-11 18:39:33 [cuda.py:492] Using FLASHINFER attention backend out of potential backends: ['FLASHINFER', 'TRITON_ATTN'].
+(Worker_PP1 pid=255) INFO 11-11 18:39:33 [mxfp4.py:601] Using 'MARLIN' Mxfp4 MoE backend.
+(Worker_PP1 pid=255) INFO 11-11 18:39:34 [weight_utils.py:863] Filesystem type for checkpoints: XFS. Checkpoint size: 60.77 GiB. Available RAM: 97.82 GiB.
+(Worker_PP1 pid=255) INFO 11-11 18:39:34 [weight_utils.py:886] Auto-prefetch is disabled because the filesystem (XFS) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+(Worker_PP1 pid=255) INFO 11-11 18:39:37 [default_loader.py:430] Loading weights took 3.37 seconds
+(Worker_PP1 pid=255) INFO 11-11 18:39:37 [mxfp4.py:1949] Using MoEPrepareAndFinalizeNoDPEPModular
+(Worker_PP1 pid=255) INFO 11-11 18:39:37 [mxfp4.py:1950] Using MarlinExperts
+(Worker_PP1 pid=255) INFO 11-11 18:39:38 [model_runner.py:404] Model loading took 34.16 GiB memory and 5.256082 seconds
+INFO 11-11 18:39:39 [torch_utils.py:277] Reducing Torch threads from 13 to 1 for serving. Set OMP_NUM_THREADS in the external environment to override.
+(Worker_PP1 pid=255) INFO 11-11 18:39:42 [backends.py:1094] Using cache directory: /root/.cache/vllm/torch_compile_cache/9e6999d6cb/rank_1_0/backbone for vLLM's torch.compile
+(Worker_PP1 pid=255) INFO 11-11 18:39:42 [backends.py:1155] Dynamo bytecode transform time: 2.78 s
+(Worker_PP1 pid=255) INFO 11-11 18:39:48 [backends.py:393] Compiling a graph for compile range (1, 8192) takes 5.49 s
+(Worker_PP1 pid=255) INFO 11-11 18:39:49 [backends.py:920] collected artifacts: 19 entries, 3 artifacts, 4917789 bytes total
+(Worker_PP1 pid=255) INFO 11-11 18:39:49 [decorators.py:719] saved AOT compiled function to /root/.cache/vllm/torch_compile_cache/torch_aot_compile/9d7002d51b35db170a05e627e9f4cd258d99408421ead7aa307d355773ddaa66/rank_1_0/model
+(Worker_PP1 pid=255) INFO 11-11 18:39:49 [monitor.py:53] torch.compile took 9.65 s in total
+(Worker_PP1 pid=255) INFO 11-11 18:39:49 [monitor.py:81] Initial profiling/warmup run took 0.12 s
+(Worker_PP1 pid=255) INFO 11-11 18:39:50 [flashinfer.py:910] FlashInfer resolved query dtypes: prefill=torch.bfloat16, decode=torch.bfloat16, decode_backend=xqa, kv_cache_dtype=torch.bfloat16, arch=sm120
+(Worker_PP1 pid=255) INFO 11-11 18:40:16 [model_runner.py:960] Graph capturing finished in 25 secs, took 0.80 GiB
+(Worker_PP1 pid=255) INFO 11-11 18:40:16 [gpu_worker.py:625] Available KV cache memory: 48.9 GiB
+(Worker_PP1 pid=255) INFO 11-11 18:40:16 [gpu_worker.py:640] CUDA graph memory profiling is enabled (default since v0.21.0). The current --gpu-memory-utilization=0.9000 is equivalent to --gpu-memory-utilization=0.8903 without CUDA graph memory profiling. To maintain the same effective KV cache size as before, increase --gpu-memory-utilization to 0.9097. To disable, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=0.
+(Worker_PP1 pid=255) INFO 11-11 18:40:17 [kernel_warmup.py:124] JIT kernel warmup starting.
+(Worker_PP1 pid=255) INFO 11-11 18:40:17 [kernel_warmup.py:134] JIT kernel warmup finished in 0.00s.
+(Worker_PP1 pid=255) 2026-11-11 18:40:17,468 - INFO - autotuner.py:972 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_PP1 pid=255) INFO 11-11 18:40:17 [kernel_warmup.py:266] Running FlashInfer autotune with 8192 tokens.
+(Worker_PP1 pid=255) 2026-11-11 18:40:17,485 - INFO - autotuner.py:995 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_PP1 pid=255) INFO 11-11 18:40:17 [kernel_warmup.py:219] Warming up FlashInfer attention.
+(Worker_PP1 pid=255) INFO 11-11 18:40:21 [model_runner.py:960] Graph capturing finished in 4 secs, took 0.22 GiB
+(Worker_PP1 pid=255) INFO 11-11 18:40:21 [gpu_worker.py:797] CUDA graph pool memory: 0.22 GiB (actual), 0.92 GiB (estimated), difference: 0.7 GiB (323.4%).
+(Worker_PP1 pid=255) INFO 11-11 18:40:21 [gpu_worker.py:860] Free memory on device (94.06/94.97 GiB) on startup. Desired GPU memory utilization is (0.9, 85.47 GiB). Actual usage is 35.29 GiB for consumed memory (weights + non-torch), 1.28 GiB for peak activation, and 0.22 GiB for CUDAGraph memory. Replace gpu_memory_utilization config with `--kv-cache-memory=52118233805` (48.54 GiB) to fit into requested memory, or `--kv-cache-memory=61338146304` (57.13 GiB) to fully utilize gpu memory. Current kv cache memory in use is 48.9 GiB.
+[rank1]:[W1111 18:40:22.343239148 ProcessGroupNCCL.cpp:4173] Warning: An unbatched P2P op (send/recv) was called on this ProcessGroup with size 2.  In lazy initialization mode, this will result in a new 2-rank NCCL communicator to be created. (function operator())
+vllm-b-0:255:255 [0] NCCL INFO Comm config Blocking set to 1
+vllm-b-0:255:255 [0] NCCL INFO Initialized NET plugin Socket
+vllm-b-0:255:255 [0] NCCL INFO Assigned NET plugin Socket to comm
+vllm-b-0:255:255 [0] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+vllm-b-0:255:255 [0] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+vllm-b-0:255:255 [0] NCCL INFO Using network Socket
+vllm-b-0:255:255 [0] NCCL INFO [Rank 1] ncclCommInitRankConfig comm 0x67abf9f0 rank 1 nranks 2 cudaDev 0 nvmlDev 0 busId 2f000 commId 0x5e608f2d90a3d8ef - Init START
+vllm-b-0:255:255 [0] NCCL INFO Bootstrap timings total 0.001228 (create 0.000028, send 0.000272, recv 0.000608, ring 0.000114, delay 0.000000)
+vllm-b-0:255:255 [0] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 0 is 0-15. (GPU affinity = 0-15 ; CPU affinity = 0-15).
+vllm-b-0:255:255 [0] NCCL INFO Rank 1: 1 Net devices
+vllm-b-0:255:255 [0] NCCL INFO Rank 1: 0 CollNet devices
+vllm-b-0:255:255 [0] NCCL INFO comm 0x67abf9f0 rank 1 nRanks 2 nNodes 2 localRanks 1 localRank 0 MNNVL 0
+vllm-b-0:255:255 [0] NCCL INFO Trees [0] -1/-1/-1->1->0 [1] 0/-1/-1->1->-1
+vllm-b-0:255:255 [0] NCCL INFO P2P Chunksize set to 131072
+vllm-b-0:255:255 [0] NCCL INFO Tuning P2P operations with maxP2pPeers = 2
+vllm-b-0:255:255 [0] NCCL INFO Check P2P Type isAllDirectP2p 1 directMode 0 isAllCudaP2p 1
+vllm-b-0:255:940 [0] NCCL INFO [Proxy Service] Device 0 CPU core 7
+vllm-b-0:255:941 [0] NCCL INFO [Proxy Service UDS] Device 0 CPU core 6
+vllm-b-0:255:940 [0] NCCL INFO proxy listening socket at 192.168.162.38<40539>
+vllm-b-0:255:255 [0] NCCL INFO NET/OFI NCCL_OFI_TUNER is not available for platform : g7e.4xlarge, Fall back to NCCL's tuner
+vllm-b-0:255:255 [0] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+vllm-b-0:255:255 [0] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 1 p2p channels per peer
+vllm-b-0:255:255 [0] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+vllm-b-0:255:255 [0] NCCL INFO ncclCommInitRankConfig comm 0x67abf9f0 rank 1 nranks 2 cudaDev 0 nvmlDev 0 busId 2f000 commId 0x5e608f2d90a3d8ef - Init COMPLETE
+vllm-b-0:255:255 [0] NCCL INFO Init timings - ncclCommInitRankConfig: rank 1 nranks 2 total 0.01 (kernels 0.00, alloc 0.00, bootstrap 0.00, allgathers 0.00, topo 0.00, graphs 0.00, connections 0.00, rest 0.00)
+vllm-b-0:255:942 [0] NCCL INFO [Proxy Progress] Device 0 CPU core 8
+vllm-b-0:255:255 [0] NCCL INFO Channel 01/1 : 0[0] -> 1[0] [receive] via NET/Socket/0/Shared
+vllm-b-0:255:255 [0] NCCL INFO Comm config Blocking set to 1
+vllm-b-0:255:255 [0] NCCL INFO Initialized NET plugin Socket
+vllm-b-0:255:255 [0] NCCL INFO Assigned NET plugin Socket to comm
+vllm-b-0:255:255 [0] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+vllm-b-0:255:255 [0] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+vllm-b-0:255:255 [0] NCCL INFO Using network Socket
+vllm-b-0:255:255 [0] NCCL INFO [Rank 1] ncclCommInitRankConfig comm 0x6ee1ae00 rank 1 nranks 2 cudaDev 0 nvmlDev 0 busId 2f000 commId 0xa78e270539dc73b - Init START
+vllm-b-0:255:255 [0] NCCL INFO Bootstrap timings total 0.047181 (create 0.000024, send 0.000274, recv 0.000389, ring 0.000060, delay 0.000000)
+vllm-b-0:255:255 [0] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 0 is 0-15. (GPU affinity = 0-15 ; CPU affinity = 0-15).
+vllm-b-0:255:255 [0] NCCL INFO Rank 1: 1 Net devices
+vllm-b-0:255:255 [0] NCCL INFO Rank 1: 0 CollNet devices
+vllm-b-0:255:255 [0] NCCL INFO comm 0x6ee1ae00 rank 1 nRanks 2 nNodes 2 localRanks 1 localRank 0 MNNVL 0
+vllm-b-0:255:255 [0] NCCL INFO Trees [0] -1/-1/-1->1->0 [1] 0/-1/-1->1->-1
+vllm-b-0:255:255 [0] NCCL INFO P2P Chunksize set to 131072
+vllm-b-0:255:255 [0] NCCL INFO Tuning P2P operations with maxP2pPeers = 2
+vllm-b-0:255:255 [0] NCCL INFO Check P2P Type isAllDirectP2p 1 directMode 0 isAllCudaP2p 1
+vllm-b-0:255:962 [0] NCCL INFO [Proxy Service] Device 0 CPU core 13
+vllm-b-0:255:963 [0] NCCL INFO [Proxy Service UDS] Device 0 CPU core 6
+vllm-b-0:255:962 [0] NCCL INFO proxy listening socket at 192.168.162.38<50651>
+vllm-b-0:255:255 [0] NCCL INFO NET/OFI NCCL_OFI_TUNER is not available for platform : g7e.4xlarge, Fall back to NCCL's tuner
+vllm-b-0:255:255 [0] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+vllm-b-0:255:255 [0] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 1 p2p channels per peer
+vllm-b-0:255:255 [0] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+vllm-b-0:255:255 [0] NCCL INFO ncclCommInitRankConfig comm 0x6ee1ae00 rank 1 nranks 2 cudaDev 0 nvmlDev 0 busId 2f000 commId 0xa78e270539dc73b - Init COMPLETE
+vllm-b-0:255:255 [0] NCCL INFO Init timings - ncclCommInitRankConfig: rank 1 nranks 2 total 0.05 (kernels 0.00, alloc 0.00, bootstrap 0.05, allgathers 0.00, topo 0.00, graphs 0.00, connections 0.00, rest 0.00)
+vllm-b-0:255:964 [0] NCCL INFO [Proxy Progress] Device 0 CPU core 7
+vllm-b-0:255:255 [0] NCCL INFO Channel 00/0 : 0[0] -> 1[0] [receive] via NET/Socket/0
+vllm-b-0:255:255 [0] NCCL INFO Channel 01/0 : 0[0] -> 1[0] [receive] via NET/Socket/0
+vllm-b-0:255:255 [0] NCCL INFO Channel 00/0 : 1[0] -> 0[0] [send] via NET/Socket/0
+vllm-b-0:255:255 [0] NCCL INFO Channel 01/0 : 1[0] -> 0[0] [send] via NET/Socket/0
+vllm-b-0:255:255 [0] NCCL INFO Connected all rings, use ring PXN 0 GDR 0
+(Worker_PP1 pid=255) INFO 11-11 18:40:24 [jit_monitor.py:85] Kernel JIT monitor activated; monitored JIT compilations during inference will use mode=warn.
+(Worker_PP1 pid=255) INFO 11-11 18:40:25 [torch_utils.py:277] Reducing Torch threads from 8 to 1 for serving. Set OMP_NUM_THREADS in the external environment to override.

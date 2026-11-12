@@ -1,0 +1,511 @@
+00:25:39 apply_config: params.env as rendered: REPLICAS=1 TENSOR_PARALLEL_SIZE=1 DATA_PARALLEL_SIZE=2 PIPELINE_PARALLEL_SIZE=1 ENABLE_EXPERT_PARALLEL=false GPU_MEMORY_UTILIZATION=0.90 MAX_NUM_SEQS=512 MAX_NUM_BATCHED_TOKENS=8192 KV_CACHE_DTYPE=auto MOE_BACKEND=auto 
+00:25:39 apply_config: layout dp2 (pods: a b; node b serving: true; NCCL check: warn, expecting Socket; DP mode: external)
+00:25:39 apply_config: flags a: --gpu-memory-utilization=0.90 --max-num-seqs=512 --max-num-batched-tokens=8192 --kv-cache-dtype=auto --data-parallel-size=2 --data-parallel-external-lb --nnodes=2 --node-rank=0 --master-addr=$(POD_IP)
+00:25:39 apply_config: flags b: --gpu-memory-utilization=0.90 --max-num-seqs=512 --max-num-batched-tokens=8192 --kv-cache-dtype=auto --data-parallel-size=2 --data-parallel-external-lb --nnodes=2 --node-rank=1 --master-addr=HEAD_IP
+statefulset.apps/vllm-a created
+00:25:59 apply_config: head pod IP 192.168.178.59
+statefulset.apps/vllm-b created
+00:29:25 apply_config: vLLM rollout exit=0 after 205 s
+NAME       READY   STATUS    RESTARTS   AGE     IP                NODE                                            NOMINATED NODE   READINESS GATES
+vllm-a-0   1/1     Running   0          3m28s   192.168.178.59    ip-192-168-174-92.us-east-2.compute.internal    <none>           <none>
+vllm-b-0   1/1     Running   0          3m25s   192.168.189.156   ip-192-168-182-253.us-east-2.compute.internal   <none>           <none>
+00:29:25 apply_config: vllm-a-0 args: ["--served-model-name=gpt-oss-120b","--port=8000","--host=0.0.0.0","--max-model-len=16384","--enable-prefix-caching","--gpu-memory-utilization=0.90","--max-num-seqs=512","--max-num-batched-tokens=8192","--kv-cache-dtype=auto","--data-parallel-size=2","--data-parallel-external-lb","--nnodes=2","--node-rank=0","--master-addr=$(POD_IP)"]
+00:29:26 apply_config: vllm-b-0 args: ["--served-model-name=gpt-oss-120b","--port=8000","--host=0.0.0.0","--max-model-len=16384","--enable-prefix-caching","--gpu-memory-utilization=0.90","--max-num-seqs=512","--max-num-batched-tokens=8192","--kv-cache-dtype=auto","--data-parallel-size=2","--data-parallel-external-lb","--nnodes=2","--node-rank=1","--master-addr=192.168.178.59"]
+vllm-a-0 vllm:cache_config_info{_block_size_resolved="True",block_size="16",cache_dtype="auto",enable_prefix_caching="True",engine="0",gpu_memory_utilization="0.9",is_attention_free="False",kv_cache_dtype_skip_layers="[]",kv_cache_layout="None",kv_cache_max_concurrency="40.22449975597853",kv_cache_memory_bytes="None",kv_cache_size_tokens="659038",kv_offloading_backend="native",kv_offloading_size="None",kv_sharing_fast_prefill="False",mamba_block_size="None",mamba_cache_dtype="auto",mamba_cache_mode="none",mamba_page_size_padded="None",mamba_ssm_cache_dtype="auto",num_cpu_blocks="None",num_gpu_blocks="82420",num_gpu_blocks_override="None",prefix_cache_retention_interval="0",prefix_caching_hash_algo="s
+vllm-a-0 warm-up request rc=0: {"id":"chatcmpl-82534a03430ecdea","object":"chat.completion","created":1794443366,"model":"gpt-oss-120b","choices":[{"index":0,"message":{"role":"assistant","content":null,"refusal":null,"annotations":null,"audio":null,"function_call":null,"reasoning":"User says: \"Say hi.\" They want a greeting. Simple"},"logprobs":null,"finish_reason":"length","stop_reason":null,"token_ids":null,"routed_experts"
+vllm-b-0 vllm:cache_config_info{_block_size_resolved="True",block_size="16",cache_dtype="auto",enable_prefix_caching="True",engine="1",gpu_memory_utilization="0.9",is_attention_free="False",kv_cache_dtype_skip_layers="[]",kv_cache_layout="None",kv_cache_max_concurrency="40.22449975597853",kv_cache_memory_bytes="None",kv_cache_size_tokens="659038",kv_offloading_backend="native",kv_offloading_size="None",kv_sharing_fast_prefill="False",mamba_block_size="None",mamba_cache_dtype="auto",mamba_cache_mode="none",mamba_page_size_padded="None",mamba_ssm_cache_dtype="auto",num_cpu_blocks="None",num_gpu_blocks="82420",num_gpu_blocks_override="None",prefix_cache_retention_interval="0",prefix_caching_hash_algo="s
+vllm-b-0 warm-up request rc=0: {"id":"chatcmpl-b666257b726f96ee","object":"chat.completion","created":1794443368,"model":"gpt-oss-120b","choices":[{"index":0,"message":{"role":"assistant","content":null,"refusal":null,"annotations":null,"audio":null,"function_call":null,"reasoning":"User says: \"Say hi.\" They want a greeting. Simple"},"logprobs":null,"finish_reason":"length","stop_reason":null,"token_ids":null,"routed_experts"
+vllm-a-0 rank 0 in world size 2 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank 0, EPLB rank N/A
+vllm-a-0 NCCL transport: Socket (expected Socket, check warn)
+vllm-b-0 rank 1 in world size 2 is assigned as DP rank 1, PP rank 0, PCP rank 0, TP rank 0, EP rank 1, EPLB rank N/A
+vllm-b-0 NCCL transport: Socket (expected Socket, check warn)
+--- vllm-a-0: startup summary ---
+(APIServer pid=1) INFO 11-12 00:26:13 [api_utils.py:286] non-default args: {'model_tag': 'openai/gpt-oss-120b', 'host': '0.0.0.0', 'model': 'openai/gpt-oss-120b', 'max_model_len': 16384, 'served_model_name': ['gpt-oss-120b'], 'master_addr': '192.168.178.59', 'nnodes': 2, 'data_parallel_size': 2, 'data_parallel_external_lb': True, 'gpu_memory_utilization': 0.9, 'enable_prefix_caching': True, 'max_num_batched_tokens': 8192, 'max_num_seqs': 512}
+vllm-a-0:404:404 [0] NCCL INFO Using network Socket
+(Worker pid=404) INFO 11-12 00:27:31 [parallel_state.py:2119] rank 0 in world size 2 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank 0, EPLB rank N/A
+(Worker_DP0 pid=404) INFO 11-12 00:27:40 [mxfp4.py:601] Using 'MARLIN' Mxfp4 MoE backend.
+(Worker_DP0 pid=404) INFO 11-12 00:27:51 [model_runner.py:404] Model loading took 36.44 GiB memory and 19.678735 seconds
+(Worker_DP0 pid=404) INFO 11-12 00:28:49 [gpu_worker.py:625] Available KV cache memory: 45.28 GiB
+(EngineCore_DP0 pid=315) INFO 11-12 00:28:49 [kv_cache_utils.py:2032] GPU KV cache size: 659,038 tokens, Maximum concurrency for 16,384 tokens per request: 40.22x
+--- vllm-a-0: full log ---
+(APIServer pid=1) INFO 11-12 00:26:13 [api_utils.py:347] 
+(APIServer pid=1) INFO 11-12 00:26:13 [api_utils.py:347]        █     █     █▄   ▄█
+(APIServer pid=1) INFO 11-12 00:26:13 [api_utils.py:347]  ▄▄ ▄█ █     █     █ ▀▄▀ █  version 0.29.0
+(APIServer pid=1) INFO 11-12 00:26:13 [api_utils.py:347]   █▄█▀ █     █     █     █  model   openai/gpt-oss-120b
+(APIServer pid=1) INFO 11-12 00:26:13 [api_utils.py:347]    ▀▀  ▀▀▀▀▀ ▀▀▀▀▀ ▀     ▀
+(APIServer pid=1) INFO 11-12 00:26:13 [api_utils.py:347] 
+(APIServer pid=1) INFO 11-12 00:26:13 [api_utils.py:286] non-default args: {'model_tag': 'openai/gpt-oss-120b', 'host': '0.0.0.0', 'model': 'openai/gpt-oss-120b', 'max_model_len': 16384, 'served_model_name': ['gpt-oss-120b'], 'master_addr': '192.168.178.59', 'nnodes': 2, 'data_parallel_size': 2, 'data_parallel_external_lb': True, 'gpu_memory_utilization': 0.9, 'enable_prefix_caching': True, 'max_num_batched_tokens': 8192, 'max_num_seqs': 512}
+(APIServer pid=1) Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+(APIServer pid=1) INFO 11-12 00:26:31 [model.py:684] Resolved architecture: GptOssForCausalLM
+(APIServer pid=1) Parse safetensors files:   0%|          | 0/15 [00:00<?, ?it/s]Parse safetensors files:   7%|▋         | 1/15 [00:00<00:01,  9.82it/s]Parse safetensors files: 100%|██████████| 15/15 [00:00<00:00, 88.30it/s]
+(APIServer pid=1) INFO 11-12 00:26:31 [model.py:2021] Using max model len 16384
+(APIServer pid=1) INFO 11-12 00:26:35 [arg_utils.py:2200] Inferred data_parallel_rank 0 from node_rank 0 for external lb
+(APIServer pid=1) INFO 11-12 00:26:35 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=8192.
+(APIServer pid=1) INFO 11-12 00:26:35 [config.py:420] Overriding max cuda graph capture size to 1024 for performance.
+(APIServer pid=1) INFO 11-12 00:26:35 [vllm.py:1318] Disabling NCCL for DP synchronization when using async scheduling.
+(APIServer pid=1) INFO 11-12 00:26:35 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(APIServer pid=1) INFO 11-12 00:26:51 [utils.py:1151] Started DP Coordinator process (PID: 254)
+(EngineCore_DP0 pid=315) INFO 11-12 00:27:12 [core.py:123] Initializing a V1 LLM engine (v0.29.0) with config: model='openai/gpt-oss-120b', speculative_config=None, tokenizer='openai/gpt-oss-120b', skip_tokenizer_init=False, tokenizer_mode=auto, revision=main, tokenizer_revision=main, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=16384, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=2, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=gpt_oss_mxfp4, quantization_config=None, enforce_eager=False, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='openai_gptoss', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, per_request_spec_decode_metrics='none', kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False, jit_monitor_mode='warn', jit_monitor_verbose=False), seed=0, served_model_name=gpt-oss-120b, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.VLLM_COMPILE: 3>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['none'], 'ir_enable_torch_wrap': True, 'splitting_ops': ['vllm::unified_attention_with_output', 'vllm::unified_mla_attention_with_output', 'vllm::mamba_mixer2', 'vllm::mamba_mixer', 'vllm::short_conv', 'vllm::qwen4_exp_compute_ple_ngram_ids', 'vllm::qwen4_exp_ple_short_conv', 'vllm::qwen4_exp_qsa_with_output', 'vllm::linear_attention', 'vllm::qwen_gdn_attention_core', 'vllm::qwen_gdn_attention_core_fused_norm_packed', 'vllm::gdn_attention_core_xpu', 'vllm::olmo_hybrid_gdn_full_forward', 'vllm::sparse_attn_indexer', 'vllm::rocm_aiter_sparse_attn_indexer', 'vllm::deepseek_v4_attention', 'vllm::hpc_rope_norm_forward', 'vllm::unified_kv_cache_update', 'vllm::unified_mla_kv_cache_update'], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'compile_sizes': [], 'compile_ranges_endpoints': [8192], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 1, 'cudagraph_capture_sizes': [1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 128, 136, 144, 152, 160, 168, 176, 184, 192, 200, 208, 216, 224, 232, 240, 248, 256, 272, 288, 304, 320, 336, 352, 368, 384, 400, 416, 432, 448, 464, 480, 496, 512, 528, 544, 560, 576, 592, 608, 624, 640, 656, 672, 688, 704, 720, 736, 752, 768, 784, 800, 816, 832, 848, 864, 880, 896, 912, 928, 944, 960, 976, 992, 1008, 1024], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': False, 'fuse_act_quant': False, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': False, 'enable_qk_norm_rope_fusion': False, 'fuse_rope_kvcache_cat_mla': False, 'fuse_act_padding': False, 'fuse_qk_norm_rope_kvcache': False}, 'max_cudagraph_capture_size': 1024, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native']), enable_flashinfer_autotune=True, enable_cutedsl_warmup=True, enable_jit_warmup=True, enable_bf16x3_router_gemm=False, moe_backend='auto', linear_backend='auto')
+(EngineCore_DP0 pid=315) INFO 11-12 00:27:12 [multiproc_executor.py:153] DP group leader: node_rank=0, node_rank_within_dp=0, master_addr=192.168.178.59, mq_connect_ip=192.168.178.59 (local), world_size=1, local_world_size=1
+(Worker pid=404) INFO 11-12 00:27:30 [parallel_state.py:1775] world_size=2 rank=0 local_rank=0 distributed_init_method=tcp://192.168.178.59:29501 backend=nccl
+vllm-a-0:404:404 [0] NCCL INFO ncclOsDlopen(libnccl-env.so) failed: libnccl-env.so: cannot open shared object file: No such file or directory
+vllm-a-0:404:404 [0] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so
+vllm-a-0:404:404 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^docker0,lo
+vllm-a-0:404:404 [0] NCCL INFO Bootstrap: Using eth0:192.168.178.59<0>
+vllm-a-0:404:526 [0] NCCL INFO Socket handshake magic 0x564ab9f2fc4b9d6c (built-in default)
+(Worker pid=404) INFO 11-12 00:27:30 [pynccl.py:113] vLLM is using nccl==2.30.7
+vllm-a-0:404:404 [0] NCCL INFO cudaDriverVersion 13050
+vllm-a-0:404:404 [0] NCCL INFO NCCL version 2.30.7+cuda13.3
+vllm-a-0:404:404 [0] NCCL INFO NCCL git version HEAD a5187fa2e
+vllm-a-0:404:404 [0] NCCL INFO NET/Plugin: Loaded net plugin Libfabric (v11)
+vllm-a-0:404:404 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v11) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v11
+vllm-a-0:404:404 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v10) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v10
+vllm-a-0:404:404 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v9) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v9
+vllm-a-0:404:404 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v8) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v8
+vllm-a-0:404:404 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v7) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v7
+vllm-a-0:404:404 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v6) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v6
+vllm-a-0:404:404 [0] NCCL INFO Successfully loaded external network plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so
+vllm-a-0:404:404 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^docker0,lo
+vllm-a-0:404:404 [0] NCCL INFO NET/Socket : Using [0]eth0:192.168.178.59<0>
+vllm-a-0:404:404 [0] NCCL INFO Initialized NET plugin Socket
+vllm-a-0:404:404 [0] NCCL INFO Assigned NET plugin Socket to comm
+vllm-a-0:404:404 [0] NCCL INFO ncclOsDlopen(libnccl-rma.so) failed: libnccl-rma.so: cannot open shared object file: No such file or directory
+vllm-a-0:404:404 [0] NCCL INFO RMA/Plugin: Could not find: libnccl-rma.so
+vllm-a-0:404:404 [0] NCCL INFO RMA/Plugin: Failed to load external plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so, dlHandle: (nil), ncclRma: (nil)
+vllm-a-0:404:404 [0] NCCL INFO ncclOsDlsym(ncclRmaPlugin_v13) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclRmaPlugin_v13
+vllm-a-0:404:404 [0] NCCL INFO ncclOsDlsym(ncclGinPlugin_v13) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclGinPlugin_v13
+vllm-a-0:404:404 [0] NCCL INFO RMA/Plugin: Failed to load external plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so, dlHandle: 0x54598ab0, ncclRma: (nil)
+vllm-a-0:404:404 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^docker0,lo
+vllm-a-0:404:404 [0] NCCL INFO NET/IB : No device found.
+vllm-a-0:404:404 [0] NCCL INFO NET/IB : Using [RO]; OOB eth0:192.168.178.59<0>
+vllm-a-0:404:404 [0] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+vllm-a-0:404:404 [0] NCCL INFO ncclOsDlopen(libnccl-gin.so) failed: libnccl-gin.so: cannot open shared object file: No such file or directory
+vllm-a-0:404:404 [0] NCCL INFO GIN/Plugin: Could not find: libnccl-gin.so
+vllm-a-0:404:404 [0] NCCL INFO GIN/Plugin: Failed to load external plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so, dlHandle: (nil), ncclGin: (nil)
+vllm-a-0:404:404 [0] NCCL INFO ncclOsDlsym(ncclGinPlugin_v13) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclGinPlugin_v13
+vllm-a-0:404:404 [0] NCCL INFO GIN/Plugin: Failed to load external plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so, dlHandle: 0x54598ab0, ncclGin: (nil)
+vllm-a-0:404:404 [0] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+vllm-a-0:404:404 [0] NCCL INFO Using network Socket
+vllm-a-0:404:404 [0] NCCL INFO Loaded NVML from libnvidia-ml.so.1
+vllm-a-0:404:404 [0] NCCL INFO [Rank 0] ncclCommInitRank comm 0x4c2c7480 rank 0 nranks 2 cudaDev 0 nvmlDev 0 busId 2f000 commId 0xc1c5a7fcd75feb5d - Init START
+vllm-a-0:404:404 [0] NCCL INFO RAS client listening socket at ::1<28028>
+vllm-a-0:404:404 [0] NCCL INFO Bootstrap timings total 0.001338 (create 0.000023, send 0.000123, recv 0.000307, ring 0.000060, delay 0.000000)
+vllm-a-0:404:404 [0] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 0 is 0-15. (GPU affinity = 0-15 ; CPU affinity = 0-15).
+vllm-a-0:404:404 [0] NCCL INFO Rank 0: 1 Net devices
+vllm-a-0:404:404 [0] NCCL INFO Rank 0: 0 CollNet devices
+vllm-a-0:404:404 [0] NCCL INFO Local Net device counts across ranks: min 1 max 1
+vllm-a-0:404:404 [0] NCCL INFO Local CollNet device counts across ranks: min 0 max 0
+vllm-a-0:404:404 [0] NCCL INFO comm 0x4c2c7480 rank 0 nRanks 2 nNodes 2 localRanks 1 localRank 0 MNNVL 0
+vllm-a-0:404:404 [0] NCCL INFO Channel 00/02 : 0 1
+vllm-a-0:404:404 [0] NCCL INFO Channel 01/02 : 0 1
+vllm-a-0:404:404 [0] NCCL INFO Trees [0] 1/-1/-1->0->-1 [1] -1/-1/-1->0->1
+vllm-a-0:404:404 [0] NCCL INFO P2P Chunksize set to 131072
+vllm-a-0:404:404 [0] NCCL INFO Tuning P2P operations with maxP2pPeers = 2
+vllm-a-0:404:404 [0] NCCL INFO ncclOsDlopen(libnccl-profiler.so) failed: libnccl-profiler.so: cannot open shared object file: No such file or directory
+vllm-a-0:404:404 [0] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so
+vllm-a-0:404:404 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v6) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v6
+vllm-a-0:404:404 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v5) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v5
+vllm-a-0:404:404 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v4) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v4
+vllm-a-0:404:404 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v3) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v3
+vllm-a-0:404:404 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v2) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v2
+vllm-a-0:404:404 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v1) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v1
+vllm-a-0:404:404 [0] NCCL INFO Check P2P Type isAllDirectP2p 1 directMode 0 isAllCudaP2p 1
+vllm-a-0:404:530 [0] NCCL INFO [Proxy Service] Device 0 CPU core 13
+vllm-a-0:404:531 [0] NCCL INFO [Proxy Service UDS] Device 0 CPU core 1
+vllm-a-0:404:530 [0] NCCL INFO proxy listening socket at 192.168.178.59<55757>
+vllm-a-0:404:404 [0] NCCL INFO ncclOsDlopen(libnccl-tuner.so) failed: libnccl-tuner.so: cannot open shared object file: No such file or directory
+vllm-a-0:404:404 [0] NCCL INFO TUNER/Plugin: Could not find: libnccl-tuner.so
+vllm-a-0:404:404 [0] NCCL INFO ncclOsDlsym(ncclTunerPlugin_v5) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclTunerPlugin_v5
+vllm-a-0:404:404 [0] NCCL INFO ncclOsDlsym(ncclTunerPlugin_v4) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclTunerPlugin_v4
+vllm-a-0:404:404 [0] NCCL INFO TUNER/Plugin: Using nccl_ofi_tuner (v3)
+vllm-a-0:404:404 [0] NCCL INFO NET/OFI Tuner selected platform: AWS
+vllm-a-0:404:404 [0] NCCL INFO NET/OFI NCCL_OFI_TUNER is not available for platform : g7e.4xlarge, Fall back to NCCL's tuner
+vllm-a-0:404:404 [0] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+vllm-a-0:404:404 [0] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 1 p2p channels per peer
+vllm-a-0:404:404 [0] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+vllm-a-0:404:404 [0] NCCL INFO CC Off, workFifoBytes 1048576
+vllm-a-0:404:404 [0] NCCL INFO ncclCommInitRank comm 0x4c2c7480 rank 0 nranks 2 cudaDev 0 nvmlDev 0 busId 2f000 commId 0xc1c5a7fcd75feb5d - Init COMPLETE
+vllm-a-0:404:404 [0] NCCL INFO Init timings - ncclCommInitRank: rank 0 nranks 2 total 0.35 (kernels 0.30, alloc 0.00, bootstrap 0.00, allgathers 0.00, topo 0.00, graphs 0.00, connections 0.04, rest 0.00)
+vllm-a-0:404:532 [0] NCCL INFO [Proxy Progress] Device 0 CPU core 1
+vllm-a-0:404:404 [0] NCCL INFO Channel 00/0 : 1[0] -> 0[0] [receive] via NET/Socket/0
+vllm-a-0:404:404 [0] NCCL INFO Channel 01/0 : 1[0] -> 0[0] [receive] via NET/Socket/0
+vllm-a-0:404:404 [0] NCCL INFO Channel 00/0 : 0[0] -> 1[0] [send] via NET/Socket/0
+vllm-a-0:404:404 [0] NCCL INFO Channel 01/0 : 0[0] -> 1[0] [send] via NET/Socket/0
+vllm-a-0:404:404 [0] NCCL INFO Connected all rings, use ring PXN 0 GDR 0
+(Worker pid=404) INFO 11-12 00:27:31 [cuda_communicator.py:269] Using ['PYNCCL'] all-reduce backends (in dispatch order) for group 'dp:0' out of potential backends: ['FLASHINFER', 'NCCL_SYMM_MEM', 'QUICK_REDUCE', 'AITER_CUSTOM', 'CUSTOM', 'SYMM_MEM', 'PYNCCL'].
+vllm-a-0:404:404 [0] NCCL INFO Initialized NET plugin Socket
+vllm-a-0:404:404 [0] NCCL INFO Assigned NET plugin Socket to comm
+vllm-a-0:404:404 [0] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+vllm-a-0:404:404 [0] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+vllm-a-0:404:404 [0] NCCL INFO Using network Socket
+vllm-a-0:404:404 [0] NCCL INFO [Rank 0] ncclCommInitRank comm 0x54b587d0 rank 0 nranks 2 cudaDev 0 nvmlDev 0 busId 2f000 commId 0xd8de0575b6168dc0 - Init START
+vllm-a-0:404:404 [0] NCCL INFO Bootstrap timings total 0.001011 (create 0.000017, send 0.000064, recv 0.000242, ring 0.000092, delay 0.000000)
+vllm-a-0:404:404 [0] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 0 is 0-15. (GPU affinity = 0-15 ; CPU affinity = 0-15).
+vllm-a-0:404:404 [0] NCCL INFO Rank 0: 1 Net devices
+vllm-a-0:404:404 [0] NCCL INFO Rank 0: 0 CollNet devices
+vllm-a-0:404:404 [0] NCCL INFO Local Net device counts across ranks: min 1 max 1
+vllm-a-0:404:404 [0] NCCL INFO Local CollNet device counts across ranks: min 0 max 0
+vllm-a-0:404:404 [0] NCCL INFO comm 0x54b587d0 rank 0 nRanks 2 nNodes 2 localRanks 1 localRank 0 MNNVL 0
+vllm-a-0:404:404 [0] NCCL INFO Channel 00/02 : 0 1
+vllm-a-0:404:404 [0] NCCL INFO Channel 01/02 : 0 1
+vllm-a-0:404:404 [0] NCCL INFO Trees [0] 1/-1/-1->0->-1 [1] -1/-1/-1->0->1
+vllm-a-0:404:404 [0] NCCL INFO P2P Chunksize set to 131072
+vllm-a-0:404:404 [0] NCCL INFO Tuning P2P operations with maxP2pPeers = 2
+vllm-a-0:404:404 [0] NCCL INFO Check P2P Type isAllDirectP2p 1 directMode 0 isAllCudaP2p 1
+vllm-a-0:404:539 [0] NCCL INFO [Proxy Service] Device 0 CPU core 12
+vllm-a-0:404:539 [0] NCCL INFO proxy listening socket at 192.168.178.59<57565>
+vllm-a-0:404:540 [0] NCCL INFO [Proxy Service UDS] Device 0 CPU core 10
+vllm-a-0:404:404 [0] NCCL INFO NET/OFI NCCL_OFI_TUNER is not available for platform : g7e.4xlarge, Fall back to NCCL's tuner
+vllm-a-0:404:404 [0] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+vllm-a-0:404:404 [0] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 1 p2p channels per peer
+vllm-a-0:404:404 [0] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+vllm-a-0:404:404 [0] NCCL INFO CC Off, workFifoBytes 1048576
+vllm-a-0:404:404 [0] NCCL INFO ncclCommInitRank comm 0x54b587d0 rank 0 nranks 2 cudaDev 0 nvmlDev 0 busId 2f000 commId 0xd8de0575b6168dc0 - Init COMPLETE
+vllm-a-0:404:404 [0] NCCL INFO Init timings - ncclCommInitRank: rank 0 nranks 2 total 0.01 (kernels 0.00, alloc 0.00, bootstrap 0.00, allgathers 0.00, topo 0.00, graphs 0.00, connections 0.00, rest 0.00)
+vllm-a-0:404:541 [0] NCCL INFO [Proxy Progress] Device 0 CPU core 11
+vllm-a-0:404:404 [0] NCCL INFO Channel 00/0 : 1[0] -> 0[0] [receive] via NET/Socket/0
+vllm-a-0:404:404 [0] NCCL INFO Channel 01/0 : 1[0] -> 0[0] [receive] via NET/Socket/0
+vllm-a-0:404:404 [0] NCCL INFO Channel 00/0 : 0[0] -> 1[0] [send] via NET/Socket/0
+vllm-a-0:404:404 [0] NCCL INFO Channel 01/0 : 0[0] -> 1[0] [send] via NET/Socket/0
+vllm-a-0:404:404 [0] NCCL INFO Connected all rings, use ring PXN 0 GDR 0
+(Worker pid=404) INFO 11-12 00:27:31 [cuda_communicator.py:269] Using ['PYNCCL'] all-reduce backends (in dispatch order) for group 'ep:0' out of potential backends: ['FLASHINFER', 'NCCL_SYMM_MEM', 'QUICK_REDUCE', 'AITER_CUSTOM', 'CUSTOM', 'SYMM_MEM', 'PYNCCL'].
+(Worker pid=404) INFO 11-12 00:27:31 [cuda_communicator.py:206] Using AgRsAll2AllManager all2all manager.
+(Worker pid=404) INFO 11-12 00:27:31 [parallel_state.py:2119] rank 0 in world size 2 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank 0, EPLB rank N/A
+(Worker pid=404) INFO 11-12 00:27:31 [gpu_worker.py:429] Using V2 Model Runner
+(Worker_DP0 pid=404) INFO 11-12 00:27:32 [model_runner.py:382] Loading model from scratch...
+(Worker_DP0 pid=404) INFO 11-12 00:27:40 [cuda.py:492] Using FLASHINFER attention backend out of potential backends: ['FLASHINFER', 'TRITON_ATTN'].
+(Worker_DP0 pid=404) INFO 11-12 00:27:40 [mxfp4.py:601] Using 'MARLIN' Mxfp4 MoE backend.
+(Worker_DP0 pid=404) INFO 11-12 00:27:40 [weight_utils.py:863] Filesystem type for checkpoints: XFS. Checkpoint size: 60.77 GiB. Available RAM: 94.62 GiB.
+(Worker_DP0 pid=404) INFO 11-12 00:27:40 [weight_utils.py:886] Auto-prefetch is disabled because the filesystem (XFS) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+(Worker_DP0 pid=404) Loading safetensors checkpoint shards:   0% Completed | 0/15 [00:00<?, ?it/s]
+(Worker_DP0 pid=404) Loading safetensors checkpoint shards:   7% Completed | 1/15 [00:01<00:16,  1.21s/it]
+(Worker_DP0 pid=404) Loading safetensors checkpoint shards:  13% Completed | 2/15 [00:01<00:09,  1.42it/s]
+(Worker_DP0 pid=404) Loading safetensors checkpoint shards:  20% Completed | 3/15 [00:01<00:06,  1.80it/s]
+(Worker_DP0 pid=404) Loading safetensors checkpoint shards:  27% Completed | 4/15 [00:02<00:05,  2.14it/s]
+(Worker_DP0 pid=404) Loading safetensors checkpoint shards:  33% Completed | 5/15 [00:02<00:04,  2.31it/s]
+(Worker_DP0 pid=404) Loading safetensors checkpoint shards:  40% Completed | 6/15 [00:02<00:03,  2.51it/s]
+(Worker_DP0 pid=404) Loading safetensors checkpoint shards:  47% Completed | 7/15 [00:03<00:03,  2.57it/s]
+(Worker_DP0 pid=404) Loading safetensors checkpoint shards:  53% Completed | 8/15 [00:03<00:02,  2.64it/s]
+(Worker_DP0 pid=404) Loading safetensors checkpoint shards:  60% Completed | 9/15 [00:04<00:02,  2.59it/s]
+(Worker_DP0 pid=404) Loading safetensors checkpoint shards:  67% Completed | 10/15 [00:04<00:01,  2.61it/s]
+(Worker_DP0 pid=404) Loading safetensors checkpoint shards:  73% Completed | 11/15 [00:04<00:01,  2.54it/s]
+(Worker_DP0 pid=404) Loading safetensors checkpoint shards:  80% Completed | 12/15 [00:05<00:01,  2.59it/s]
+(Worker_DP0 pid=404) Loading safetensors checkpoint shards:  87% Completed | 13/15 [00:05<00:00,  2.62it/s]
+(Worker_DP0 pid=404) Loading safetensors checkpoint shards:  93% Completed | 14/15 [00:06<00:00,  2.57it/s]
+(Worker_DP0 pid=404) Loading safetensors checkpoint shards: 100% Completed | 15/15 [00:06<00:00,  2.59it/s]
+(Worker_DP0 pid=404) Loading safetensors checkpoint shards: 100% Completed | 15/15 [00:06<00:00,  2.34it/s]
+(Worker_DP0 pid=404) 
+(Worker_DP0 pid=404) INFO 11-12 00:27:46 [default_loader.py:430] Loading weights took 6.42 seconds
+(Worker_DP0 pid=404) INFO 11-12 00:27:50 [all2all_utils.py:189] Detected DP deployment with no --enable-expert-parallel. Falling back to AllGather+ReduceScatter dispatch/combine.
+(Worker_DP0 pid=404) INFO 11-12 00:27:50 [mxfp4.py:1949] Using MoEPrepareAndFinalizeNaiveDPEPModular
+(Worker_DP0 pid=404) INFO 11-12 00:27:50 [mxfp4.py:1950] Using MarlinExperts
+(Worker_DP0 pid=404) INFO 11-12 00:27:51 [model_runner.py:404] Model loading took 36.44 GiB memory and 19.678735 seconds
+(Worker_DP0 pid=404) INFO 11-12 00:27:51 [topk_topp_sampler.py:62] Using FlashInfer for top-p & top-k sampling.
+(EngineCore_DP0 pid=315) INFO 11-12 00:27:51 [torch_utils.py:277] Reducing Torch threads from 13 to 1 for serving. Set OMP_NUM_THREADS in the external environment to override.
+(EngineCore_DP0 pid=315) INFO 11-12 00:27:51 [utils.py:306] Using LBNHC KV cache layout.
+(Worker_DP0 pid=404) INFO 11-12 00:27:58 [backends.py:1094] Using cache directory: /root/.cache/vllm/torch_compile_cache/a8d9d14c75/rank_0_0/backbone for vLLM's torch.compile
+(Worker_DP0 pid=404) INFO 11-12 00:27:58 [backends.py:1155] Dynamo bytecode transform time: 5.29 s
+(Worker_DP0 pid=404) INFO 11-12 00:28:04 [backends.py:393] Compiling a graph for compile range (1, 8192) takes 5.81 s
+(Worker_DP0 pid=404) INFO 11-12 00:28:06 [backends.py:920] collected artifacts: 37 entries, 3 artifacts, 4741267 bytes total
+(Worker_DP0 pid=404) INFO 11-12 00:28:06 [decorators.py:719] saved AOT compiled function to /root/.cache/vllm/torch_compile_cache/torch_aot_compile/894557894c18f4a67b075246f188673d3ba2153193e9e8609fe4d05c342909aa/rank_0_0/model
+(Worker_DP0 pid=404) INFO 11-12 00:28:06 [monitor.py:53] torch.compile took 13.86 s in total
+vllm-a-0:404:404 [0] NCCL INFO Symmetric VA size=96GB
+(Worker_DP0 pid=404) INFO 11-12 00:28:10 [monitor.py:81] Initial profiling/warmup run took 3.37 s
+(Worker_DP0 pid=404) INFO 11-12 00:28:12 [flashinfer.py:910] FlashInfer resolved query dtypes: prefill=torch.bfloat16, decode=torch.bfloat16, decode_backend=xqa, kv_cache_dtype=torch.bfloat16, arch=sm120
+vllm-a-0:404:404 [0] NCCL INFO Connected binomial trees
+(Worker_DP0 pid=404) Capturing CUDA graphs (PIECEWISE):   0%|          | 0/83 [00:00<?, ?it/s]Capturing CUDA graphs (PIECEWISE):   1%|          | 1/83 [00:23<31:28, 23.03s/it]Capturing CUDA graphs (PIECEWISE):   2%|▏         | 2/83 [00:23<13:01,  9.65s/it]Capturing CUDA graphs (PIECEWISE):   4%|▎         | 3/83 [00:23<07:08,  5.36s/it]Capturing CUDA graphs (PIECEWISE):   5%|▍         | 4/83 [00:23<04:23,  3.34s/it]Capturing CUDA graphs (PIECEWISE):   6%|▌         | 5/83 [00:24<02:53,  2.22s/it]Capturing CUDA graphs (PIECEWISE):   7%|▋         | 6/83 [00:24<01:58,  1.54s/it]Capturing CUDA graphs (PIECEWISE):   8%|▊         | 7/83 [00:24<01:24,  1.12s/it]Capturing CUDA graphs (PIECEWISE):  10%|▉         | 8/83 [00:24<01:02,  1.20it/s]Capturing CUDA graphs (PIECEWISE):  11%|█         | 9/83 [00:24<00:47,  1.55it/s]Capturing CUDA graphs (PIECEWISE):  12%|█▏        | 10/83 [00:25<00:37,  1.94it/s]Capturing CUDA graphs (PIECEWISE):  13%|█▎        | 11/83 [00:25<00:30,  2.34it/s]Capturing CUDA graphs (PIECEWISE):  14%|█▍        | 12/83 [00:25<00:25,  2.74it/s]Capturing CUDA graphs (PIECEWISE):  16%|█▌        | 13/83 [00:25<00:22,  3.13it/s]Capturing CUDA graphs (PIECEWISE):  17%|█▋        | 14/83 [00:26<00:19,  3.46it/s]Capturing CUDA graphs (PIECEWISE):  18%|█▊        | 15/83 [00:26<00:18,  3.76it/s]Capturing CUDA graphs (PIECEWISE):  19%|█▉        | 16/83 [00:26<00:16,  3.99it/s]Capturing CUDA graphs (PIECEWISE):  20%|██        | 17/83 [00:26<00:15,  4.19it/s]Capturing CUDA graphs (PIECEWISE):  22%|██▏       | 18/83 [00:26<00:14,  4.34it/s]Capturing CUDA graphs (PIECEWISE):  23%|██▎       | 19/83 [00:27<00:14,  4.48it/s]Capturing CUDA graphs (PIECEWISE):  24%|██▍       | 20/83 [00:27<00:13,  4.60it/s]Capturing CUDA graphs (PIECEWISE):  25%|██▌       | 21/83 [00:27<00:13,  4.68it/s]Capturing CUDA graphs (PIECEWISE):  27%|██▋       | 22/83 [00:27<00:12,  4.78it/s]Capturing CUDA graphs (PIECEWISE):  28%|██▊       | 23/83 [00:27<00:12,  4.94it/s]Capturing CUDA graphs (PIECEWISE):  29%|██▉       | 24/83 [00:28<00:11,  5.10it/s]Capturing CUDA graphs (PIECEWISE):  30%|███       | 25/83 [00:28<00:11,  5.24it/s]Capturing CUDA graphs (PIECEWISE):  31%|███▏      | 26/83 [00:28<00:10,  5.35it/s]Capturing CUDA graphs (PIECEWISE):  33%|███▎      | 27/83 [00:28<00:10,  5.48it/s]Capturing CUDA graphs (PIECEWISE):  34%|███▎      | 28/83 [00:28<00:09,  5.58it/s]Capturing CUDA graphs (PIECEWISE):  35%|███▍      | 29/83 [00:28<00:09,  5.64it/s]Capturing CUDA graphs (PIECEWISE):  36%|███▌      | 30/83 [00:29<00:09,  5.74it/s]Capturing CUDA graphs (PIECEWISE):  37%|███▋      | 31/83 [00:29<00:08,  5.84it/s]Capturing CUDA graphs (PIECEWISE):  39%|███▊      | 32/83 [00:29<00:08,  5.94it/s]Capturing CUDA graphs (PIECEWISE):  40%|███▉      | 33/83 [00:29<00:08,  6.03it/s]Capturing CUDA graphs (PIECEWISE):  41%|████      | 34/83 [00:29<00:07,  6.15it/s]Capturing CUDA graphs (PIECEWISE):  42%|████▏     | 35/83 [00:29<00:07,  6.32it/s]Capturing CUDA graphs (PIECEWISE):  43%|████▎     | 36/83 [00:30<00:07,  6.42it/s]Capturing CUDA graphs (PIECEWISE):  45%|████▍     | 37/83 [00:30<00:06,  6.59it/s]Capturing CUDA graphs (PIECEWISE):  46%|████▌     | 38/83 [00:30<00:06,  6.76it/s]Capturing CUDA graphs (PIECEWISE):  47%|████▋     | 39/83 [00:30<00:06,  6.86it/s]Capturing CUDA graphs (PIECEWISE):  48%|████▊     | 40/83 [00:30<00:06,  7.00it/s]Capturing CUDA graphs (PIECEWISE):  49%|████▉     | 41/83 [00:30<00:05,  7.14it/s]Capturing CUDA graphs (PIECEWISE):  51%|█████     | 42/83 [00:30<00:05,  7.24it/s]Capturing CUDA graphs (PIECEWISE):  52%|█████▏    | 43/83 [00:31<00:05,  7.33it/s]Capturing CUDA graphs (PIECEWISE):  53%|█████▎    | 44/83 [00:31<00:05,  7.46it/s]Capturing CUDA graphs (PIECEWISE):  54%|█████▍    | 45/83 [00:31<00:04,  7.69it/s]Capturing CUDA graphs (PIECEWISE):  55%|█████▌    | 46/83 [00:31<00:04,  7.80it/s]Capturing CUDA graphs (PIECEWISE):  57%|█████▋    | 47/83 [00:31<00:04,  7.96it/s]Capturing CUDA graphs (PIECEWISE):  58%|█████▊    | 48/83 [00:31<00:04,  8.18it/s]Capturing CUDA graphs (PIECEWISE):  59%|█████▉    | 49/83 [00:31<00:04,  8.32it/s]Capturing CUDA graphs (PIECEWISE):  60%|██████    | 50/83 [00:31<00:03,  8.41it/s]Capturing CUDA graphs (PIECEWISE):  61%|██████▏   | 51/83 [00:31<00:03,  8.60it/s]Capturing CUDA graphs (PIECEWISE):  63%|██████▎   | 52/83 [00:32<00:03,  8.80it/s]Capturing CUDA graphs (PIECEWISE):  64%|██████▍   | 53/83 [00:32<00:03,  8.84it/s]Capturing CUDA graphs (PIECEWISE):  65%|██████▌   | 54/83 [00:32<00:03,  8.98it/s]Capturing CUDA graphs (PIECEWISE):  66%|██████▋   | 55/83 [00:32<00:03,  9.05it/s]Capturing CUDA graphs (PIECEWISE):  67%|██████▋   | 56/83 [00:32<00:02,  9.19it/s]Capturing CUDA graphs (PIECEWISE):  69%|██████▊   | 57/83 [00:32<00:02,  9.24it/s]Capturing CUDA graphs (PIECEWISE):  70%|██████▉   | 58/83 [00:32<00:02,  9.40it/s]Capturing CUDA graphs (PIECEWISE):  71%|███████   | 59/83 [00:32<00:02,  9.48it/s]Capturing CUDA graphs (PIECEWISE):  72%|███████▏  | 60/83 [00:32<00:02,  9.54it/s]Capturing CUDA graphs (PIECEWISE):  73%|███████▎  | 61/83 [00:33<00:02,  9.62it/s]Capturing CUDA graphs (PIECEWISE):  75%|███████▍  | 62/83 [00:33<00:02,  9.68it/s]Capturing CUDA graphs (PIECEWISE):  76%|███████▌  | 63/83 [00:33<00:02,  9.69it/s]Capturing CUDA graphs (PIECEWISE):  77%|███████▋  | 64/83 [00:33<00:01,  9.62it/s]Capturing CUDA graphs (PIECEWISE):  78%|███████▊  | 65/83 [00:33<00:01,  9.66it/s]Capturing CUDA graphs (PIECEWISE):  80%|███████▉  | 66/83 [00:33<00:01,  9.71it/s]Capturing CUDA graphs (PIECEWISE):  81%|████████  | 67/83 [00:33<00:01,  9.67it/s]Capturing CUDA graphs (PIECEWISE):  82%|████████▏ | 68/83 [00:33<00:01,  9.66it/s]Capturing CUDA graphs (PIECEWISE):  83%|████████▎ | 69/83 [00:33<00:01,  9.65it/s]Capturing CUDA graphs (PIECEWISE):  84%|████████▍ | 70/83 [00:33<00:01,  9.65it/s]Capturing CUDA graphs (PIECEWISE):  86%|████████▌ | 71/83 [00:34<00:01,  9.61it/s]Capturing CUDA graphs (PIECEWISE):  87%|████████▋ | 72/83 [00:34<00:01,  9.65it/s]Capturing CUDA graphs (PIECEWISE):  88%|████████▊ | 73/83 [00:34<00:01,  8.24it/s]Capturing CUDA graphs (PIECEWISE):  89%|████████▉ | 74/83 [00:34<00:01,  8.59it/s]Capturing CUDA graphs (PIECEWISE):  90%|█████████ | 75/83 [00:34<00:00,  8.89it/s]Capturing CUDA graphs (PIECEWISE):  92%|█████████▏| 76/83 [00:34<00:00,  9.09it/s]Capturing CUDA graphs (PIECEWISE):  93%|█████████▎| 77/83 [00:34<00:00,  9.30it/s]Capturing CUDA graphs (PIECEWISE):  94%|█████████▍| 78/83 [00:34<00:00,  9.38it/s]Capturing CUDA graphs (PIECEWISE):  95%|█████████▌| 79/83 [00:34<00:00,  9.47it/s]Capturing CUDA graphs (PIECEWISE):  96%|█████████▋| 80/83 [00:35<00:00,  9.21it/s]Capturing CUDA graphs (PIECEWISE):  99%|█████████▉| 82/83 [00:35<00:00,  9.56it/s]Capturing CUDA graphs (PIECEWISE): 100%|██████████| 83/83 [00:35<00:00,  8.90it/s]Capturing CUDA graphs (PIECEWISE): 100%|██████████| 83/83 [00:35<00:00,  2.34it/s]
+(Worker_DP0 pid=404) Capturing CUDA graphs (FULL):   0%|          | 0/2 [00:00<?, ?it/s]Capturing CUDA graphs (FULL):  50%|█████     | 1/2 [00:00<00:00,  7.29it/s]Capturing CUDA graphs (FULL): 100%|██████████| 2/2 [00:00<00:00,  7.46it/s]Capturing CUDA graphs (FULL): 100%|██████████| 2/2 [00:00<00:00,  7.43it/s]
+(Worker_DP0 pid=404) INFO 11-12 00:28:48 [model_runner.py:960] Graph capturing finished in 36 secs, took 1.71 GiB
+(Worker_DP0 pid=404) INFO 11-12 00:28:49 [gpu_worker.py:625] Available KV cache memory: 45.28 GiB
+(Worker_DP0 pid=404) INFO 11-12 00:28:49 [gpu_worker.py:640] CUDA graph memory profiling is enabled (default since v0.21.0). The current --gpu-memory-utilization=0.9000 is equivalent to --gpu-memory-utilization=0.8809 without CUDA graph memory profiling. To maintain the same effective KV cache size as before, increase --gpu-memory-utilization to 0.9191. To disable, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=0.
+(EngineCore_DP0 pid=315) INFO 11-12 00:28:49 [kv_cache_utils.py:2032] GPU KV cache size: 659,038 tokens, Maximum concurrency for 16,384 tokens per request: 40.22x
+(Worker_DP0 pid=404) INFO 11-12 00:28:49 [kernel_warmup.py:124] JIT kernel warmup starting.
+(Worker_DP0 pid=404) INFO 11-12 00:28:49 [kernel_warmup.py:134] JIT kernel warmup finished in 0.00s.
+(Worker_DP0 pid=404) INFO 11-12 00:28:50 [kernel_warmup.py:309] Using FlashInfer autotune cache file: /root/.cache/vllm/flashinfer_autotune_cache/0.6.18/120f/fdf8cede527a58f564db3f1ef25a6058814e99fbacd4e39823aebceb2b38cb57/autotune_configs.json
+(Worker_DP0 pid=404) 2026-11-12 00:28:50,002 - INFO - autotuner.py:972 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_DP0 pid=404) INFO 11-12 00:28:50 [kernel_warmup.py:266] Running FlashInfer autotune with 8192 tokens.
+(Worker_DP0 pid=404) 2026-11-12 00:28:50,048 - INFO - autotuner.py:995 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_DP0 pid=404) 2026-11-12 00:28:50,056 - INFO - autotuner.py:2652 - flashinfer.jit: [Autotuner]: Saved 0 configs to /root/.cache/vllm/flashinfer_autotune_cache/0.6.18/120f/fdf8cede527a58f564db3f1ef25a6058814e99fbacd4e39823aebceb2b38cb57/autotune_configs.json (0 new, 0 from previous config)
+(Worker_DP0 pid=404) INFO 11-12 00:28:50 [kernel_warmup.py:219] Warming up FlashInfer attention.
+(Worker_DP0 pid=404) Capturing CUDA graphs (PIECEWISE):   0%|          | 0/83 [00:00<?, ?it/s]Capturing CUDA graphs (PIECEWISE):   1%|          | 1/83 [00:00<00:20,  3.92it/s]Capturing CUDA graphs (PIECEWISE):   2%|▏         | 2/83 [00:00<00:20,  3.95it/s]Capturing CUDA graphs (PIECEWISE):   4%|▎         | 3/83 [00:00<00:20,  3.97it/s]Capturing CUDA graphs (PIECEWISE):   5%|▍         | 4/83 [00:01<00:19,  4.02it/s]Capturing CUDA graphs (PIECEWISE):   6%|▌         | 5/83 [00:01<00:19,  4.06it/s]Capturing CUDA graphs (PIECEWISE):   7%|▋         | 6/83 [00:01<00:18,  4.08it/s]Capturing CUDA graphs (PIECEWISE):   8%|▊         | 7/83 [00:01<00:18,  4.13it/s]Capturing CUDA graphs (PIECEWISE):  10%|▉         | 8/83 [00:01<00:18,  4.16it/s]Capturing CUDA graphs (PIECEWISE):  11%|█         | 9/83 [00:02<00:17,  4.22it/s]Capturing CUDA graphs (PIECEWISE):  12%|█▏        | 10/83 [00:02<00:17,  4.24it/s]Capturing CUDA graphs (PIECEWISE):  13%|█▎        | 11/83 [00:02<00:16,  4.27it/s]Capturing CUDA graphs (PIECEWISE):  14%|█▍        | 12/83 [00:02<00:16,  4.31it/s]Capturing CUDA graphs (PIECEWISE):  16%|█▌        | 13/83 [00:03<00:16,  4.37it/s]Capturing CUDA graphs (PIECEWISE):  17%|█▋        | 14/83 [00:03<00:15,  4.39it/s]Capturing CUDA graphs (PIECEWISE):  18%|█▊        | 15/83 [00:03<00:15,  4.46it/s]Capturing CUDA graphs (PIECEWISE):  19%|█▉        | 16/83 [00:03<00:14,  4.49it/s]Capturing CUDA graphs (PIECEWISE):  20%|██        | 17/83 [00:03<00:14,  4.52it/s]Capturing CUDA graphs (PIECEWISE):  22%|██▏       | 18/83 [00:04<00:14,  4.56it/s]Capturing CUDA graphs (PIECEWISE):  23%|██▎       | 19/83 [00:04<00:13,  4.59it/s]Capturing CUDA graphs (PIECEWISE):  24%|██▍       | 20/83 [00:04<00:13,  4.68it/s]Capturing CUDA graphs (PIECEWISE):  25%|██▌       | 21/83 [00:04<00:13,  4.73it/s]Capturing CUDA graphs (PIECEWISE):  27%|██▋       | 22/83 [00:05<00:12,  4.78it/s]Capturing CUDA graphs (PIECEWISE):  28%|██▊       | 23/83 [00:05<00:12,  4.91it/s]Capturing CUDA graphs (PIECEWISE):  29%|██▉       | 24/83 [00:05<00:11,  5.03it/s]Capturing CUDA graphs (PIECEWISE):  30%|███       | 25/83 [00:05<00:11,  5.13it/s]Capturing CUDA graphs (PIECEWISE):  31%|███▏      | 26/83 [00:05<00:10,  5.21it/s]Capturing CUDA graphs (PIECEWISE):  33%|███▎      | 27/83 [00:05<00:10,  5.31it/s]Capturing CUDA graphs (PIECEWISE):  34%|███▎      | 28/83 [00:06<00:10,  5.42it/s]Capturing CUDA graphs (PIECEWISE):  35%|███▍      | 29/83 [00:06<00:09,  5.51it/s]Capturing CUDA graphs (PIECEWISE):  36%|███▌      | 30/83 [00:06<00:09,  5.60it/s]Capturing CUDA graphs (PIECEWISE):  37%|███▋      | 31/83 [00:06<00:09,  5.71it/s]Capturing CUDA graphs (PIECEWISE):  39%|███▊      | 32/83 [00:06<00:08,  5.79it/s]Capturing CUDA graphs (PIECEWISE):  40%|███▉      | 33/83 [00:06<00:08,  5.90it/s]Capturing CUDA graphs (PIECEWISE):  41%|████      | 34/83 [00:07<00:08,  6.05it/s]Capturing CUDA graphs (PIECEWISE):  42%|████▏     | 35/83 [00:07<00:07,  6.16it/s]Capturing CUDA graphs (PIECEWISE):  43%|████▎     | 36/83 [00:07<00:07,  6.27it/s]Capturing CUDA graphs (PIECEWISE):  45%|████▍     | 37/83 [00:07<00:07,  6.36it/s]Capturing CUDA graphs (PIECEWISE):  46%|████▌     | 38/83 [00:07<00:06,  6.51it/s]Capturing CUDA graphs (PIECEWISE):  47%|████▋     | 39/83 [00:07<00:06,  6.61it/s]Capturing CUDA graphs (PIECEWISE):  48%|████▊     | 40/83 [00:08<00:06,  6.70it/s]Capturing CUDA graphs (PIECEWISE):  49%|████▉     | 41/83 [00:08<00:06,  6.87it/s]Capturing CUDA graphs (PIECEWISE):  51%|█████     | 42/83 [00:08<00:05,  6.97it/s]Capturing CUDA graphs (PIECEWISE):  52%|█████▏    | 43/83 [00:08<00:05,  7.09it/s]Capturing CUDA graphs (PIECEWISE):  53%|█████▎    | 44/83 [00:08<00:05,  7.23it/s]Capturing CUDA graphs (PIECEWISE):  54%|█████▍    | 45/83 [00:08<00:05,  7.33it/s]Capturing CUDA graphs (PIECEWISE):  55%|█████▌    | 46/83 [00:08<00:04,  7.45it/s]Capturing CUDA graphs (PIECEWISE):  57%|█████▋    | 47/83 [00:08<00:04,  7.52it/s]Capturing CUDA graphs (PIECEWISE):  58%|█████▊    | 48/83 [00:09<00:04,  7.75it/s]Capturing CUDA graphs (PIECEWISE):  59%|█████▉    | 49/83 [00:09<00:04,  7.85it/s]Capturing CUDA graphs (PIECEWISE):  60%|██████    | 50/83 [00:09<00:04,  7.89it/s]Capturing CUDA graphs (PIECEWISE):  61%|██████▏   | 51/83 [00:09<00:03,  8.05it/s]Capturing CUDA graphs (PIECEWISE):  63%|██████▎   | 52/83 [00:09<00:03,  8.23it/s]Capturing CUDA graphs (PIECEWISE):  64%|██████▍   | 53/83 [00:09<00:03,  8.26it/s]Capturing CUDA graphs (PIECEWISE):  65%|██████▌   | 54/83 [00:09<00:03,  8.26it/s]Capturing CUDA graphs (PIECEWISE):  66%|██████▋   | 55/83 [00:09<00:03,  8.31it/s]Capturing CUDA graphs (PIECEWISE):  67%|██████▋   | 56/83 [00:10<00:03,  8.38it/s]Capturing CUDA graphs (PIECEWISE):  69%|██████▊   | 57/83 [00:10<00:03,  8.49it/s]Capturing CUDA graphs (PIECEWISE):  70%|██████▉   | 58/83 [00:10<00:02,  8.54it/s]Capturing CUDA graphs (PIECEWISE):  71%|███████   | 59/83 [00:10<00:02,  8.71it/s]Capturing CUDA graphs (PIECEWISE):  72%|███████▏  | 60/83 [00:10<00:02,  8.73it/s]Capturing CUDA graphs (PIECEWISE):  73%|███████▎  | 61/83 [00:10<00:02,  8.73it/s]Capturing CUDA graphs (PIECEWISE):  75%|███████▍  | 62/83 [00:10<00:02,  8.85it/s]Capturing CUDA graphs (PIECEWISE):  76%|███████▌  | 63/83 [00:10<00:02,  8.89it/s]Capturing CUDA graphs (PIECEWISE):  77%|███████▋  | 64/83 [00:10<00:02,  8.89it/s]Capturing CUDA graphs (PIECEWISE):  78%|███████▊  | 65/83 [00:11<00:02,  8.86it/s]Capturing CUDA graphs (PIECEWISE):  80%|███████▉  | 66/83 [00:11<00:01,  8.94it/s]Capturing CUDA graphs (PIECEWISE):  81%|████████  | 67/83 [00:11<00:01,  8.89it/s]Capturing CUDA graphs (PIECEWISE):  82%|████████▏ | 68/83 [00:11<00:01,  8.92it/s]Capturing CUDA graphs (PIECEWISE):  83%|████████▎ | 69/83 [00:11<00:01,  8.98it/s]Capturing CUDA graphs (PIECEWISE):  84%|████████▍ | 70/83 [00:11<00:01,  8.93it/s]Capturing CUDA graphs (PIECEWISE):  86%|████████▌ | 71/83 [00:11<00:01,  8.86it/s]Capturing CUDA graphs (PIECEWISE):  87%|████████▋ | 72/83 [00:11<00:01,  8.82it/s]Capturing CUDA graphs (PIECEWISE):  88%|████████▊ | 73/83 [00:11<00:01,  8.92it/s]Capturing CUDA graphs (PIECEWISE):  89%|████████▉ | 74/83 [00:12<00:01,  8.85it/s]Capturing CUDA graphs (PIECEWISE):  90%|█████████ | 75/83 [00:12<00:00,  8.84it/s]Capturing CUDA graphs (PIECEWISE):  92%|█████████▏| 76/83 [00:12<00:00,  8.84it/s]Capturing CUDA graphs (PIECEWISE):  93%|█████████▎| 77/83 [00:12<00:00,  8.86it/s]Capturing CUDA graphs (PIECEWISE):  94%|█████████▍| 78/83 [00:12<00:00,  8.80it/s]Capturing CUDA graphs (PIECEWISE):  95%|█████████▌| 79/83 [00:12<00:00,  8.65it/s]Capturing CUDA graphs (PIECEWISE):  96%|█████████▋| 80/83 [00:12<00:00,  8.69it/s]Capturing CUDA graphs (PIECEWISE):  98%|█████████▊| 81/83 [00:12<00:00,  8.66it/s]Capturing CUDA graphs (PIECEWISE):  99%|█████████▉| 82/83 [00:12<00:00,  8.69it/s]Capturing CUDA graphs (PIECEWISE): 100%|██████████| 83/83 [00:13<00:00,  8.76it/s]Capturing CUDA graphs (PIECEWISE): 100%|██████████| 83/83 [00:13<00:00,  6.34it/s]
+(Worker_DP0 pid=404) Capturing CUDA graphs (FULL):   0%|          | 0/51 [00:00<?, ?it/s]Capturing CUDA graphs (FULL):   2%|▏         | 1/51 [00:00<00:07,  6.65it/s]Capturing CUDA graphs (FULL):   4%|▍         | 2/51 [00:00<00:06,  7.03it/s]Capturing CUDA graphs (FULL):   6%|▌         | 3/51 [00:00<00:06,  7.31it/s]Capturing CUDA graphs (FULL):   8%|▊         | 4/51 [00:00<00:06,  7.53it/s]Capturing CUDA graphs (FULL):  10%|▉         | 5/51 [00:00<00:05,  7.69it/s]Capturing CUDA graphs (FULL):  12%|█▏        | 6/51 [00:00<00:05,  7.83it/s]Capturing CUDA graphs (FULL):  14%|█▎        | 7/51 [00:00<00:05,  7.92it/s]Capturing CUDA graphs (FULL):  16%|█▌        | 8/51 [00:01<00:05,  8.04it/s]Capturing CUDA graphs (FULL):  18%|█▊        | 9/51 [00:01<00:05,  8.09it/s]Capturing CUDA graphs (FULL):  20%|█▉        | 10/51 [00:01<00:04,  8.40it/s]Capturing CUDA graphs (FULL):  22%|██▏       | 11/51 [00:01<00:04,  8.73it/s]Capturing CUDA graphs (FULL):  24%|██▎       | 12/51 [00:01<00:04,  8.90it/s]Capturing CUDA graphs (FULL):  27%|██▋       | 14/51 [00:01<00:03,  9.47it/s]Capturing CUDA graphs (FULL):  31%|███▏      | 16/51 [00:01<00:03,  9.97it/s]Capturing CUDA graphs (FULL):  35%|███▌      | 18/51 [00:02<00:03, 10.33it/s]Capturing CUDA graphs (FULL):  39%|███▉      | 20/51 [00:02<00:02, 10.74it/s]Capturing CUDA graphs (FULL):  43%|████▎     | 22/51 [00:02<00:02, 11.07it/s]Capturing CUDA graphs (FULL):  47%|████▋     | 24/51 [00:02<00:02, 11.52it/s]Capturing CUDA graphs (FULL):  51%|█████     | 26/51 [00:02<00:02, 11.87it/s]Capturing CUDA graphs (FULL):  55%|█████▍    | 28/51 [00:02<00:01, 12.22it/s]Capturing CUDA graphs (FULL):  59%|█████▉    | 30/51 [00:03<00:01, 12.39it/s]Capturing CUDA graphs (FULL):  63%|██████▎   | 32/51 [00:03<00:01, 12.52it/s]Capturing CUDA graphs (FULL):  67%|██████▋   | 34/51 [00:03<00:01, 12.76it/s]Capturing CUDA graphs (FULL):  71%|███████   | 36/51 [00:03<00:01, 12.64it/s]Capturing CUDA graphs (FULL):  75%|███████▍  | 38/51 [00:03<00:01, 12.73it/s]Capturing CUDA graphs (FULL):  78%|███████▊  | 40/51 [00:03<00:00, 12.77it/s]Capturing CUDA graphs (FULL):  82%|████████▏ | 42/51 [00:03<00:00, 12.75it/s]Capturing CUDA graphs (FULL):  86%|████████▋ | 44/51 [00:04<00:00, 12.80it/s]Capturing CUDA graphs (FULL):  90%|█████████ | 46/51 [00:04<00:00, 12.81it/s]Capturing CUDA graphs (FULL):  94%|█████████▍| 48/51 [00:04<00:00, 12.95it/s]Capturing CUDA graphs (FULL):  98%|█████████▊| 50/51 [00:04<00:00, 13.06it/s]Capturing CUDA graphs (FULL): 100%|██████████| 51/51 [00:04<00:00, 11.03it/s]
+(Worker_DP0 pid=404) INFO 11-12 00:29:09 [model_runner.py:960] Graph capturing finished in 18 secs, took 0.35 GiB
+(Worker_DP0 pid=404) INFO 11-12 00:29:09 [gpu_worker.py:797] CUDA graph pool memory: 0.35 GiB (actual), 1.81 GiB (estimated), difference: 1.46 GiB (419.0%).
+(Worker_DP0 pid=404) INFO 11-12 00:29:09 [gpu_worker.py:860] Free memory on device (94.0/94.97 GiB) on startup. Desired GPU memory utilization is (0.9, 85.47 GiB). Actual usage is 37.99 GiB for consumed memory (weights + non-torch), 2.2 GiB for peak activation, and 0.35 GiB for CUDAGraph memory. Replace gpu_memory_utilization config with `--kv-cache-memory=48081175757` (44.78 GiB) to fit into requested memory, or `--kv-cache-memory=57233913856` (53.3 GiB) to fully utilize gpu memory. Current kv cache memory in use is 45.28 GiB.
+(Worker_DP0 pid=404) INFO 11-12 00:29:12 [jit_monitor.py:85] Kernel JIT monitor activated; monitored JIT compilations during inference will use mode=warn.
+(Worker_DP0 pid=404) INFO 11-12 00:29:12 [torch_utils.py:277] Reducing Torch threads from 8 to 1 for serving. Set OMP_NUM_THREADS in the external environment to override.
+(EngineCore_DP0 pid=315) INFO 11-12 00:29:12 [core.py:361] init engine (profile, create kv cache, warmup model) took 80.98 s (compilation: 13.86 s)
+INFO 11-12 00:29:14 [coordinator.py:250] All engine subscriptions received by DP coordinator
+(EngineCore_DP0 pid=315) INFO 11-12 00:29:14 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(APIServer pid=1) INFO 11-12 00:29:14 [entry.py:135] Supported tasks: ['generate']
+(APIServer pid=1) INFO 11-12 00:29:16 [hf.py:547] Detected the chat template content format to be 'string'. You can set `--chat-template-content-format` to override this.
+(APIServer pid=1) WARNING 11-12 00:29:16 [serving.py:215] For gpt-oss, we ignore --enable-auto-tool-choice and always enable tool use.
+(APIServer pid=1) INFO 11-12 00:29:16 [entry.py:139] Starting vLLM server on http://0.0.0.0:8000
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:61] Available routes are:
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /openapi.json, Methods: HEAD, GET
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /docs, Methods: HEAD, GET
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /docs/oauth2-redirect, Methods: HEAD, GET
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /redoc, Methods: HEAD, GET
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /load, Methods: GET
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /version, Methods: GET
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /health, Methods: GET
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /metrics, Methods: GET
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /tokenize, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /detokenize, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/models, Methods: GET
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /ping, Methods: GET
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /ping, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /invocations, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/chat/completions, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/chat/completions/batch, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/responses, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/responses/{response_id}, Methods: GET
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/responses/{response_id}/cancel, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/completions, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/messages, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/messages/count_tokens, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /generative_scoring, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /scale_elastic_ep, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /is_scaling_elastic_ep, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/chat/completions/render, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/messages/render, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/completions/render, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/chat/completions/derender, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/completions/derender, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /inference/v1/generate, Methods: POST
+(APIServer pid=1) INFO:     Started server process [1]
+(APIServer pid=1) INFO:     Waiting for application startup.
+(APIServer pid=1) INFO:     Application startup complete.
+(APIServer pid=1) INFO:     127.0.0.1:53096 - "GET /health HTTP/1.1" 200 OK
+(APIServer pid=1) INFO:     127.0.0.1:53106 - "GET /health HTTP/1.1" 200 OK
+(APIServer pid=1) INFO:     192.168.105.190:47480 - "GET /metrics HTTP/1.1" 200 OK
+(APIServer pid=1) INFO:     192.168.105.190:47480 - "GET /metrics HTTP/1.1" 200 OK
+(APIServer pid=1) INFO:     127.0.0.1:59802 - "GET /metrics HTTP/1.1" 200 OK
+(APIServer pid=1) INFO:     127.0.0.1:59804 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+(APIServer pid=1) INFO:     127.0.0.1:59814 - "GET /health HTTP/1.1" 200 OK
+(APIServer pid=1) INFO:     192.168.105.190:47480 - "GET /metrics HTTP/1.1" 200 OK
+--- vllm-b-0: startup summary ---
+(APIServer pid=1) INFO 11-12 00:26:15 [api_utils.py:286] non-default args: {'model_tag': 'openai/gpt-oss-120b', 'host': '0.0.0.0', 'model': 'openai/gpt-oss-120b', 'max_model_len': 16384, 'served_model_name': ['gpt-oss-120b'], 'master_addr': '192.168.178.59', 'nnodes': 2, 'node_rank': 1, 'data_parallel_size': 2, 'data_parallel_external_lb': True, 'gpu_memory_utilization': 0.9, 'enable_prefix_caching': True, 'max_num_batched_tokens': 8192, 'max_num_seqs': 512}
+vllm-b-0:350:350 [0] NCCL INFO Using network Socket
+(Worker pid=350) INFO 11-12 00:27:31 [parallel_state.py:2119] rank 1 in world size 2 is assigned as DP rank 1, PP rank 0, PCP rank 0, TP rank 0, EP rank 1, EPLB rank N/A
+(Worker_DP1 pid=350) INFO 11-12 00:27:40 [mxfp4.py:601] Using 'MARLIN' Mxfp4 MoE backend.
+(Worker_DP1 pid=350) INFO 11-12 00:27:52 [model_runner.py:404] Model loading took 36.44 GiB memory and 20.072670 seconds
+(Worker_DP1 pid=350) INFO 11-12 00:28:49 [gpu_worker.py:625] Available KV cache memory: 45.28 GiB
+(EngineCore_DP1 pid=256) INFO 11-12 00:28:49 [kv_cache_utils.py:2032] GPU KV cache size: 659,038 tokens, Maximum concurrency for 16,384 tokens per request: 40.22x
+--- vllm-b-0: full log ---
+(APIServer pid=1) INFO 11-12 00:26:15 [api_utils.py:347] 
+(APIServer pid=1) INFO 11-12 00:26:15 [api_utils.py:347]        █     █     █▄   ▄█
+(APIServer pid=1) INFO 11-12 00:26:15 [api_utils.py:347]  ▄▄ ▄█ █     █     █ ▀▄▀ █  version 0.29.0
+(APIServer pid=1) INFO 11-12 00:26:15 [api_utils.py:347]   █▄█▀ █     █     █     █  model   openai/gpt-oss-120b
+(APIServer pid=1) INFO 11-12 00:26:15 [api_utils.py:347]    ▀▀  ▀▀▀▀▀ ▀▀▀▀▀ ▀     ▀
+(APIServer pid=1) INFO 11-12 00:26:15 [api_utils.py:347] 
+(APIServer pid=1) INFO 11-12 00:26:15 [api_utils.py:286] non-default args: {'model_tag': 'openai/gpt-oss-120b', 'host': '0.0.0.0', 'model': 'openai/gpt-oss-120b', 'max_model_len': 16384, 'served_model_name': ['gpt-oss-120b'], 'master_addr': '192.168.178.59', 'nnodes': 2, 'node_rank': 1, 'data_parallel_size': 2, 'data_parallel_external_lb': True, 'gpu_memory_utilization': 0.9, 'enable_prefix_caching': True, 'max_num_batched_tokens': 8192, 'max_num_seqs': 512}
+(APIServer pid=1) INFO 11-12 00:26:33 [model.py:684] Resolved architecture: GptOssForCausalLM
+(APIServer pid=1) Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+(APIServer pid=1) Parse safetensors files:   0%|          | 0/15 [00:00<?, ?it/s]Parse safetensors files:   7%|▋         | 1/15 [00:00<00:01,  9.00it/s]Parse safetensors files: 100%|██████████| 15/15 [00:00<00:00, 96.21it/s]
+(APIServer pid=1) INFO 11-12 00:26:34 [model.py:2021] Using max model len 16384
+(APIServer pid=1) INFO 11-12 00:26:38 [arg_utils.py:2200] Inferred data_parallel_rank 1 from node_rank 1 for external lb
+(APIServer pid=1) INFO 11-12 00:26:38 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=8192.
+(APIServer pid=1) INFO 11-12 00:26:38 [config.py:420] Overriding max cuda graph capture size to 1024 for performance.
+(APIServer pid=1) INFO 11-12 00:26:38 [vllm.py:1318] Disabling NCCL for DP synchronization when using async scheduling.
+(APIServer pid=1) INFO 11-12 00:26:38 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(EngineCore_DP1 pid=256) INFO 11-12 00:27:12 [core.py:123] Initializing a V1 LLM engine (v0.29.0) with config: model='openai/gpt-oss-120b', speculative_config=None, tokenizer='openai/gpt-oss-120b', skip_tokenizer_init=False, tokenizer_mode=auto, revision=main, tokenizer_revision=main, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=16384, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=2, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=gpt_oss_mxfp4, quantization_config=None, enforce_eager=False, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='openai_gptoss', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, per_request_spec_decode_metrics='none', kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False, jit_monitor_mode='warn', jit_monitor_verbose=False), seed=0, served_model_name=gpt-oss-120b, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.VLLM_COMPILE: 3>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['none'], 'ir_enable_torch_wrap': True, 'splitting_ops': ['vllm::unified_attention_with_output', 'vllm::unified_mla_attention_with_output', 'vllm::mamba_mixer2', 'vllm::mamba_mixer', 'vllm::short_conv', 'vllm::qwen4_exp_compute_ple_ngram_ids', 'vllm::qwen4_exp_ple_short_conv', 'vllm::qwen4_exp_qsa_with_output', 'vllm::linear_attention', 'vllm::qwen_gdn_attention_core', 'vllm::qwen_gdn_attention_core_fused_norm_packed', 'vllm::gdn_attention_core_xpu', 'vllm::olmo_hybrid_gdn_full_forward', 'vllm::sparse_attn_indexer', 'vllm::rocm_aiter_sparse_attn_indexer', 'vllm::deepseek_v4_attention', 'vllm::hpc_rope_norm_forward', 'vllm::unified_kv_cache_update', 'vllm::unified_mla_kv_cache_update'], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'compile_sizes': [], 'compile_ranges_endpoints': [8192], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 1, 'cudagraph_capture_sizes': [1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 128, 136, 144, 152, 160, 168, 176, 184, 192, 200, 208, 216, 224, 232, 240, 248, 256, 272, 288, 304, 320, 336, 352, 368, 384, 400, 416, 432, 448, 464, 480, 496, 512, 528, 544, 560, 576, 592, 608, 624, 640, 656, 672, 688, 704, 720, 736, 752, 768, 784, 800, 816, 832, 848, 864, 880, 896, 912, 928, 944, 960, 976, 992, 1008, 1024], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': False, 'fuse_act_quant': False, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': False, 'enable_qk_norm_rope_fusion': False, 'fuse_rope_kvcache_cat_mla': False, 'fuse_act_padding': False, 'fuse_qk_norm_rope_kvcache': False}, 'max_cudagraph_capture_size': 1024, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native']), enable_flashinfer_autotune=True, enable_cutedsl_warmup=True, enable_jit_warmup=True, enable_bf16x3_router_gemm=False, moe_backend='auto', linear_backend='auto')
+(EngineCore_DP1 pid=256) INFO 11-12 00:27:12 [multiproc_executor.py:153] DP group leader: node_rank=1, node_rank_within_dp=0, master_addr=192.168.178.59, mq_connect_ip=192.168.189.156 (local), world_size=1, local_world_size=1
+(Worker pid=350) INFO 11-12 00:27:29 [parallel_state.py:1775] world_size=2 rank=1 local_rank=0 distributed_init_method=tcp://192.168.178.59:29501 backend=nccl
+vllm-b-0:350:350 [0] NCCL INFO ncclOsDlopen(libnccl-env.so) failed: libnccl-env.so: cannot open shared object file: No such file or directory
+vllm-b-0:350:350 [0] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so
+vllm-b-0:350:350 [0] NCCL INFO cudaDriverVersion 13050
+vllm-b-0:350:350 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^docker0,lo
+vllm-b-0:350:350 [0] NCCL INFO Bootstrap: Using eth0:192.168.189.156<0>
+vllm-b-0:350:350 [0] NCCL INFO NCCL version 2.30.7+cuda13.3
+vllm-b-0:350:350 [0] NCCL INFO NCCL git version HEAD a5187fa2e
+vllm-b-0:350:350 [0] NCCL INFO NET/Plugin: Loaded net plugin Libfabric (v11)
+vllm-b-0:350:350 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v11) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v11
+vllm-b-0:350:350 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v10) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v10
+vllm-b-0:350:350 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v9) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v9
+vllm-b-0:350:350 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v8) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v8
+vllm-b-0:350:350 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v7) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v7
+vllm-b-0:350:350 [0] NCCL INFO ncclOsDlsym(ncclCollNetPlugin_v6) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclCollNetPlugin_v6
+vllm-b-0:350:350 [0] NCCL INFO Successfully loaded external network plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so
+vllm-b-0:350:350 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^docker0,lo
+vllm-b-0:350:350 [0] NCCL INFO NET/Socket : Using [0]eth0:192.168.189.156<0>
+vllm-b-0:350:350 [0] NCCL INFO Initialized NET plugin Socket
+vllm-b-0:350:350 [0] NCCL INFO Assigned NET plugin Socket to comm
+vllm-b-0:350:350 [0] NCCL INFO ncclOsDlopen(libnccl-rma.so) failed: libnccl-rma.so: cannot open shared object file: No such file or directory
+vllm-b-0:350:350 [0] NCCL INFO RMA/Plugin: Could not find: libnccl-rma.so
+vllm-b-0:350:350 [0] NCCL INFO RMA/Plugin: Failed to load external plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so, dlHandle: (nil), ncclRma: (nil)
+vllm-b-0:350:350 [0] NCCL INFO ncclOsDlsym(ncclRmaPlugin_v13) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclRmaPlugin_v13
+vllm-b-0:350:350 [0] NCCL INFO ncclOsDlsym(ncclGinPlugin_v13) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclGinPlugin_v13
+vllm-b-0:350:350 [0] NCCL INFO RMA/Plugin: Failed to load external plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so, dlHandle: 0x1f51f3e0, ncclRma: (nil)
+vllm-b-0:350:350 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^docker0,lo
+vllm-b-0:350:350 [0] NCCL INFO NET/IB : No device found.
+vllm-b-0:350:350 [0] NCCL INFO NET/IB : Using [RO]; OOB eth0:192.168.189.156<0>
+vllm-b-0:350:350 [0] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+vllm-b-0:350:350 [0] NCCL INFO ncclOsDlopen(libnccl-gin.so) failed: libnccl-gin.so: cannot open shared object file: No such file or directory
+vllm-b-0:350:350 [0] NCCL INFO GIN/Plugin: Could not find: libnccl-gin.so
+vllm-b-0:350:350 [0] NCCL INFO GIN/Plugin: Failed to load external plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so, dlHandle: (nil), ncclGin: (nil)
+vllm-b-0:350:350 [0] NCCL INFO ncclOsDlsym(ncclGinPlugin_v13) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclGinPlugin_v13
+vllm-b-0:350:350 [0] NCCL INFO GIN/Plugin: Failed to load external plugin /opt/amazon/ofi-nccl/lib/libnccl-net.so, dlHandle: 0x1f51f3e0, ncclGin: (nil)
+vllm-b-0:350:350 [0] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+vllm-b-0:350:350 [0] NCCL INFO Using network Socket
+vllm-b-0:350:350 [0] NCCL INFO Loaded NVML from libnvidia-ml.so.1
+vllm-b-0:350:350 [0] NCCL INFO [Rank 1] ncclCommInitRank comm 0x1724df30 rank 1 nranks 2 cudaDev 0 nvmlDev 0 busId 2f000 commId 0xc1c5a7fcd75feb5d - Init START
+vllm-b-0:350:350 [0] NCCL INFO Socket handshake magic 0x564ab9f2fc4b9d6c (built-in default)
+vllm-b-0:350:350 [0] NCCL INFO RAS client listening socket at ::1<28028>
+vllm-b-0:350:350 [0] NCCL INFO Bootstrap timings total 0.013622 (create 0.000031, send 0.000395, recv 0.012500, ring 0.000242, delay 0.000000)
+vllm-b-0:350:350 [0] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 0 is 0-15. (GPU affinity = 0-15 ; CPU affinity = 0-15).
+vllm-b-0:350:350 [0] NCCL INFO Rank 1: 1 Net devices
+vllm-b-0:350:350 [0] NCCL INFO Rank 1: 0 CollNet devices
+vllm-b-0:350:350 [0] NCCL INFO comm 0x1724df30 rank 1 nRanks 2 nNodes 2 localRanks 1 localRank 0 MNNVL 0
+vllm-b-0:350:350 [0] NCCL INFO Trees [0] -1/-1/-1->1->0 [1] 0/-1/-1->1->-1
+vllm-b-0:350:350 [0] NCCL INFO P2P Chunksize set to 131072
+vllm-b-0:350:350 [0] NCCL INFO Tuning P2P operations with maxP2pPeers = 2
+vllm-b-0:350:350 [0] NCCL INFO ncclOsDlopen(libnccl-profiler.so) failed: libnccl-profiler.so: cannot open shared object file: No such file or directory
+vllm-b-0:350:350 [0] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so
+vllm-b-0:350:350 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v6) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v6
+vllm-b-0:350:350 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v5) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v5
+vllm-b-0:350:350 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v4) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v4
+vllm-b-0:350:350 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v3) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v3
+vllm-b-0:350:350 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v2) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v2
+vllm-b-0:350:350 [0] NCCL INFO ncclOsDlsym(ncclProfiler_v1) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclProfiler_v1
+vllm-b-0:350:350 [0] NCCL INFO Check P2P Type isAllDirectP2p 1 directMode 0 isAllCudaP2p 1
+vllm-b-0:350:474 [0] NCCL INFO [Proxy Service] Device 0 CPU core 1
+vllm-b-0:350:475 [0] NCCL INFO [Proxy Service UDS] Device 0 CPU core 4
+vllm-b-0:350:474 [0] NCCL INFO proxy listening socket at 192.168.189.156<49763>
+vllm-b-0:350:350 [0] NCCL INFO ncclOsDlopen(libnccl-tuner.so) failed: libnccl-tuner.so: cannot open shared object file: No such file or directory
+vllm-b-0:350:350 [0] NCCL INFO TUNER/Plugin: Could not find: libnccl-tuner.so
+vllm-b-0:350:350 [0] NCCL INFO ncclOsDlsym(ncclTunerPlugin_v5) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclTunerPlugin_v5
+vllm-b-0:350:350 [0] NCCL INFO ncclOsDlsym(ncclTunerPlugin_v4) failed: /opt/amazon/ofi-nccl/lib/libnccl-net.so: undefined symbol: ncclTunerPlugin_v4
+vllm-b-0:350:350 [0] NCCL INFO TUNER/Plugin: Using nccl_ofi_tuner (v3)
+vllm-b-0:350:350 [0] NCCL INFO NET/OFI Tuner selected platform: AWS
+vllm-b-0:350:350 [0] NCCL INFO NET/OFI NCCL_OFI_TUNER is not available for platform : g7e.4xlarge, Fall back to NCCL's tuner
+vllm-b-0:350:350 [0] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+vllm-b-0:350:350 [0] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 1 p2p channels per peer
+vllm-b-0:350:350 [0] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+vllm-b-0:350:350 [0] NCCL INFO ncclCommInitRank comm 0x1724df30 rank 1 nranks 2 cudaDev 0 nvmlDev 0 busId 2f000 commId 0xc1c5a7fcd75feb5d - Init COMPLETE
+vllm-b-0:350:350 [0] NCCL INFO Init timings - ncclCommInitRank: rank 1 nranks 2 total 0.33 (kernels 0.30, alloc 0.00, bootstrap 0.01, allgathers 0.00, topo 0.00, graphs 0.00, connections 0.02, rest 0.00)
+vllm-b-0:350:476 [0] NCCL INFO [Proxy Progress] Device 0 CPU core 13
+vllm-b-0:350:350 [0] NCCL INFO Channel 00/0 : 0[0] -> 1[0] [receive] via NET/Socket/0
+vllm-b-0:350:350 [0] NCCL INFO Channel 01/0 : 0[0] -> 1[0] [receive] via NET/Socket/0
+vllm-b-0:350:350 [0] NCCL INFO Channel 00/0 : 1[0] -> 0[0] [send] via NET/Socket/0
+vllm-b-0:350:350 [0] NCCL INFO Channel 01/0 : 1[0] -> 0[0] [send] via NET/Socket/0
+vllm-b-0:350:350 [0] NCCL INFO Connected all rings, use ring PXN 0 GDR 0
+vllm-b-0:350:350 [0] NCCL INFO Initialized NET plugin Socket
+vllm-b-0:350:350 [0] NCCL INFO Assigned NET plugin Socket to comm
+vllm-b-0:350:350 [0] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+vllm-b-0:350:350 [0] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+vllm-b-0:350:350 [0] NCCL INFO Using network Socket
+vllm-b-0:350:350 [0] NCCL INFO [Rank 1] ncclCommInitRank comm 0x1fadf0e0 rank 1 nranks 2 cudaDev 0 nvmlDev 0 busId 2f000 commId 0xd8de0575b6168dc0 - Init START
+vllm-b-0:350:350 [0] NCCL INFO Bootstrap timings total 0.000975 (create 0.000020, send 0.000185, recv 0.000501, ring 0.000121, delay 0.000000)
+vllm-b-0:350:350 [0] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 0 is 0-15. (GPU affinity = 0-15 ; CPU affinity = 0-15).
+vllm-b-0:350:350 [0] NCCL INFO Rank 1: 1 Net devices
+vllm-b-0:350:350 [0] NCCL INFO Rank 1: 0 CollNet devices
+vllm-b-0:350:350 [0] NCCL INFO comm 0x1fadf0e0 rank 1 nRanks 2 nNodes 2 localRanks 1 localRank 0 MNNVL 0
+vllm-b-0:350:350 [0] NCCL INFO Trees [0] -1/-1/-1->1->0 [1] 0/-1/-1->1->-1
+vllm-b-0:350:350 [0] NCCL INFO P2P Chunksize set to 131072
+vllm-b-0:350:350 [0] NCCL INFO Tuning P2P operations with maxP2pPeers = 2
+vllm-b-0:350:350 [0] NCCL INFO Check P2P Type isAllDirectP2p 1 directMode 0 isAllCudaP2p 1
+vllm-b-0:350:482 [0] NCCL INFO [Proxy Service] Device 0 CPU core 8
+vllm-b-0:350:483 [0] NCCL INFO [Proxy Service UDS] Device 0 CPU core 14
+vllm-b-0:350:482 [0] NCCL INFO proxy listening socket at 192.168.189.156<39909>
+vllm-b-0:350:350 [0] NCCL INFO NET/OFI NCCL_OFI_TUNER is not available for platform : g7e.4xlarge, Fall back to NCCL's tuner
+vllm-b-0:350:350 [0] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+vllm-b-0:350:350 [0] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 1 p2p channels per peer
+vllm-b-0:350:350 [0] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 1
+vllm-b-0:350:350 [0] NCCL INFO ncclCommInitRank comm 0x1fadf0e0 rank 1 nranks 2 cudaDev 0 nvmlDev 0 busId 2f000 commId 0xd8de0575b6168dc0 - Init COMPLETE
+vllm-b-0:350:350 [0] NCCL INFO Init timings - ncclCommInitRank: rank 1 nranks 2 total 0.01 (kernels 0.00, alloc 0.00, bootstrap 0.00, allgathers 0.00, topo 0.00, graphs 0.00, connections 0.00, rest 0.00)
+vllm-b-0:350:484 [0] NCCL INFO [Proxy Progress] Device 0 CPU core 0
+vllm-b-0:350:350 [0] NCCL INFO Channel 00/0 : 0[0] -> 1[0] [receive] via NET/Socket/0
+vllm-b-0:350:350 [0] NCCL INFO Channel 01/0 : 0[0] -> 1[0] [receive] via NET/Socket/0
+vllm-b-0:350:350 [0] NCCL INFO Channel 00/0 : 1[0] -> 0[0] [send] via NET/Socket/0
+vllm-b-0:350:350 [0] NCCL INFO Channel 01/0 : 1[0] -> 0[0] [send] via NET/Socket/0
+vllm-b-0:350:350 [0] NCCL INFO Connected all rings, use ring PXN 0 GDR 0
+(Worker pid=350) INFO 11-12 00:27:31 [parallel_state.py:2119] rank 1 in world size 2 is assigned as DP rank 1, PP rank 0, PCP rank 0, TP rank 0, EP rank 1, EPLB rank N/A
+(Worker pid=350) INFO 11-12 00:27:31 [gpu_worker.py:429] Using V2 Model Runner
+(Worker_DP1 pid=350) INFO 11-12 00:27:32 [model_runner.py:382] Loading model from scratch...
+(Worker_DP1 pid=350) INFO 11-12 00:27:40 [cuda.py:492] Using FLASHINFER attention backend out of potential backends: ['FLASHINFER', 'TRITON_ATTN'].
+(Worker_DP1 pid=350) INFO 11-12 00:27:40 [mxfp4.py:601] Using 'MARLIN' Mxfp4 MoE backend.
+(Worker_DP1 pid=350) INFO 11-12 00:27:40 [weight_utils.py:863] Filesystem type for checkpoints: XFS. Checkpoint size: 60.77 GiB. Available RAM: 95.21 GiB.
+(Worker_DP1 pid=350) INFO 11-12 00:27:40 [weight_utils.py:886] Auto-prefetch is disabled because the filesystem (XFS) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+(Worker_DP1 pid=350) INFO 11-12 00:27:47 [default_loader.py:430] Loading weights took 6.63 seconds
+(Worker_DP1 pid=350) INFO 11-12 00:27:50 [all2all_utils.py:189] Detected DP deployment with no --enable-expert-parallel. Falling back to AllGather+ReduceScatter dispatch/combine.
+(Worker_DP1 pid=350) INFO 11-12 00:27:50 [mxfp4.py:1949] Using MoEPrepareAndFinalizeNaiveDPEPModular
+(Worker_DP1 pid=350) INFO 11-12 00:27:50 [mxfp4.py:1950] Using MarlinExperts
+(Worker_DP1 pid=350) INFO 11-12 00:27:52 [model_runner.py:404] Model loading took 36.44 GiB memory and 20.072670 seconds
+(EngineCore_DP1 pid=256) INFO 11-12 00:27:52 [torch_utils.py:277] Reducing Torch threads from 13 to 1 for serving. Set OMP_NUM_THREADS in the external environment to override.
+(EngineCore_DP1 pid=256) INFO 11-12 00:27:52 [utils.py:306] Using LBNHC KV cache layout.
+(Worker_DP1 pid=350) INFO 11-12 00:27:58 [backends.py:1094] Using cache directory: /root/.cache/vllm/torch_compile_cache/a8d9d14c75/rank_0_1/backbone for vLLM's torch.compile
+(Worker_DP1 pid=350) INFO 11-12 00:27:58 [backends.py:1155] Dynamo bytecode transform time: 5.33 s
+(Worker_DP1 pid=350) INFO 11-12 00:28:04 [backends.py:393] Compiling a graph for compile range (1, 8192) takes 5.78 s
+(Worker_DP1 pid=350) INFO 11-12 00:28:06 [backends.py:920] collected artifacts: 37 entries, 3 artifacts, 4740763 bytes total
+(Worker_DP1 pid=350) INFO 11-12 00:28:06 [decorators.py:719] saved AOT compiled function to /root/.cache/vllm/torch_compile_cache/torch_aot_compile/894557894c18f4a67b075246f188673d3ba2153193e9e8609fe4d05c342909aa/rank_0_1/model
+(Worker_DP1 pid=350) INFO 11-12 00:28:06 [monitor.py:53] torch.compile took 13.88 s in total
+vllm-b-0:350:350 [0] NCCL INFO Symmetric VA size=96GB
+(Worker_DP1 pid=350) INFO 11-12 00:28:10 [monitor.py:81] Initial profiling/warmup run took 3.40 s
+(Worker_DP1 pid=350) INFO 11-12 00:28:12 [flashinfer.py:910] FlashInfer resolved query dtypes: prefill=torch.bfloat16, decode=torch.bfloat16, decode_backend=xqa, kv_cache_dtype=torch.bfloat16, arch=sm120
+vllm-b-0:350:350 [0] NCCL INFO Connected binomial trees
+(Worker_DP1 pid=350) INFO 11-12 00:28:48 [model_runner.py:960] Graph capturing finished in 36 secs, took 1.71 GiB
+(Worker_DP1 pid=350) INFO 11-12 00:28:49 [gpu_worker.py:625] Available KV cache memory: 45.28 GiB
+(Worker_DP1 pid=350) INFO 11-12 00:28:49 [gpu_worker.py:640] CUDA graph memory profiling is enabled (default since v0.21.0). The current --gpu-memory-utilization=0.9000 is equivalent to --gpu-memory-utilization=0.8809 without CUDA graph memory profiling. To maintain the same effective KV cache size as before, increase --gpu-memory-utilization to 0.9191. To disable, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=0.
+(EngineCore_DP1 pid=256) INFO 11-12 00:28:49 [kv_cache_utils.py:2032] GPU KV cache size: 659,038 tokens, Maximum concurrency for 16,384 tokens per request: 40.22x
+(Worker_DP1 pid=350) INFO 11-12 00:28:49 [kernel_warmup.py:124] JIT kernel warmup starting.
+(Worker_DP1 pid=350) INFO 11-12 00:28:49 [kernel_warmup.py:134] JIT kernel warmup finished in 0.00s.
+(Worker_DP1 pid=350) 2026-11-12 00:28:50,003 - INFO - autotuner.py:972 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_DP1 pid=350) INFO 11-12 00:28:50 [kernel_warmup.py:266] Running FlashInfer autotune with 8192 tokens.
+(Worker_DP1 pid=350) 2026-11-12 00:28:50,051 - INFO - autotuner.py:995 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_DP1 pid=350) INFO 11-12 00:28:50 [kernel_warmup.py:219] Warming up FlashInfer attention.
+(Worker_DP1 pid=350) INFO 11-12 00:29:09 [model_runner.py:960] Graph capturing finished in 18 secs, took 0.35 GiB
+(Worker_DP1 pid=350) INFO 11-12 00:29:09 [gpu_worker.py:797] CUDA graph pool memory: 0.35 GiB (actual), 1.81 GiB (estimated), difference: 1.46 GiB (419.0%).
+(Worker_DP1 pid=350) INFO 11-12 00:29:09 [gpu_worker.py:860] Free memory on device (94.0/94.97 GiB) on startup. Desired GPU memory utilization is (0.9, 85.47 GiB). Actual usage is 37.99 GiB for consumed memory (weights + non-torch), 2.2 GiB for peak activation, and 0.35 GiB for CUDAGraph memory. Replace gpu_memory_utilization config with `--kv-cache-memory=48081175757` (44.78 GiB) to fit into requested memory, or `--kv-cache-memory=57233913856` (53.3 GiB) to fully utilize gpu memory. Current kv cache memory in use is 45.28 GiB.
+(Worker_DP1 pid=350) INFO 11-12 00:29:12 [jit_monitor.py:85] Kernel JIT monitor activated; monitored JIT compilations during inference will use mode=warn.
+(Worker_DP1 pid=350) INFO 11-12 00:29:12 [torch_utils.py:277] Reducing Torch threads from 8 to 1 for serving. Set OMP_NUM_THREADS in the external environment to override.
+(EngineCore_DP1 pid=256) INFO 11-12 00:29:12 [core.py:361] init engine (profile, create kv cache, warmup model) took 80.59 s (compilation: 13.88 s)
+(EngineCore_DP1 pid=256) INFO 11-12 00:29:14 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(APIServer pid=1) INFO 11-12 00:29:14 [entry.py:135] Supported tasks: ['generate']
+(APIServer pid=1) INFO 11-12 00:29:16 [hf.py:547] Detected the chat template content format to be 'string'. You can set `--chat-template-content-format` to override this.
+(APIServer pid=1) WARNING 11-12 00:29:16 [serving.py:215] For gpt-oss, we ignore --enable-auto-tool-choice and always enable tool use.
+(APIServer pid=1) INFO 11-12 00:29:16 [entry.py:139] Starting vLLM server on http://0.0.0.0:8000
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:61] Available routes are:
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /openapi.json, Methods: HEAD, GET
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /docs, Methods: HEAD, GET
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /docs/oauth2-redirect, Methods: HEAD, GET
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /redoc, Methods: HEAD, GET
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /load, Methods: GET
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /version, Methods: GET
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /health, Methods: GET
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /metrics, Methods: GET
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /tokenize, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /detokenize, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/models, Methods: GET
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /ping, Methods: GET
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /ping, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /invocations, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/chat/completions, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/chat/completions/batch, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/responses, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/responses/{response_id}, Methods: GET
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/responses/{response_id}/cancel, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/completions, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/messages, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/messages/count_tokens, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /generative_scoring, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /scale_elastic_ep, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /is_scaling_elastic_ep, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/chat/completions/render, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/messages/render, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/completions/render, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/chat/completions/derender, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /v1/completions/derender, Methods: POST
+(APIServer pid=1) INFO 11-12 00:29:16 [launcher.py:70] Route: /inference/v1/generate, Methods: POST
+(APIServer pid=1) INFO:     Started server process [1]
+(APIServer pid=1) INFO:     Waiting for application startup.
+(APIServer pid=1) INFO:     Application startup complete.
+(APIServer pid=1) INFO:     127.0.0.1:38916 - "GET /health HTTP/1.1" 200 OK
+(APIServer pid=1) INFO:     127.0.0.1:38918 - "GET /health HTTP/1.1" 200 OK
+(APIServer pid=1) INFO:     192.168.105.190:59782 - "GET /metrics HTTP/1.1" 200 OK
+(APIServer pid=1) INFO:     192.168.105.190:59782 - "GET /metrics HTTP/1.1" 200 OK
+(APIServer pid=1) INFO:     127.0.0.1:38924 - "GET /metrics HTTP/1.1" 200 OK
+(APIServer pid=1) INFO:     127.0.0.1:38932 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+pod/aiperf-client-0 condition met
+pod/aiperf-client-1 condition met
+00:29:30 apply_config: done: layout dp2 on ip-192-168-174-92.us-east-2.compute.internal (a) and ip-192-168-182-253.us-east-2.compute.internal (b), AIPerf clients ready

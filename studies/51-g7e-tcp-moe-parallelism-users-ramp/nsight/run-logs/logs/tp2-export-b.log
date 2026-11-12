@@ -1,0 +1,6 @@
+ls: cannot access '/work/traces/tp2/nsight.*': No such file or directory
+Fatal error: Option 'tsf-database-dir' is missing an argument
+mv: cannot stat '.perfetto-trace.zip': No such file or directory
+export 0 s
+ls: cannot access '/work/traces/tp2/*.zip': No such file or directory
+command terminated with exit code 2

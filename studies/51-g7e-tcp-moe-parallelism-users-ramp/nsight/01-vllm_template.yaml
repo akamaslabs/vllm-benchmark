@@ -1,0 +1,77 @@
+# Study 51 vLLM pod, one StatefulSet per node role (vllm-a on node A, vllm-b on node B), rendered
+# twice by apply_config.sh (lib_render.sh). Tokens are written between two at-signs: ROLE,
+# SERVING, LAYOUT, APPLIED_AT, and two placeholder lines that hold only their token, TUNED_ARGS
+# (one list item per flag) and EXTRA_ENV (zero or more env items, from NCCL_ENV). Never write
+# a token with its at-signs in a comment: study 49's first run lost every flag that way.
+# - Image: the AWS Deep Learning Container with vLLM 0.29.0, the same as study 50. It ships
+#   libfabric and aws-ofi-nccl, and a g7e.4xlarge has no EFA: NCCL_NET=Socket pins NCCL to TCP so
+#   the transport does not depend on what the OFI plugin finds.
+# - SERVING "false" = headless worker (no API server): the probe passes at once and the pod is
+#   left out of the Service vllm. The head's /health covers the whole engine.
+# - requests == limits (Guaranteed QoS); a g7e.4xlarge has 16 vCPU and 128 GiB, and the
+#   16 GiB memory-backed /dev/shm counts inside the pod's memory.
+# NSIGHT VARIANT of ../k8s/01-vllm_template.yaml, used only for the trace captures after the study
+# (README.md in this folder). Three additions, each marked "nsight:": the CUDA 13.5 compatibility
+# libcuda first in LD_LIBRARY_PATH, and the mounts of the Nsight service endpoint and of that
+# library. The experiments of the study ran on the template in ../k8s, without them.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: vllm-@ROLE@, namespace: moe-tcp, labels: {app: vllm, study51/role: "@ROLE@"}}
+spec:
+  serviceName: vllm-@ROLE@
+  replicas: 1
+  selector: {matchLabels: {app: vllm, study51/role: "@ROLE@"}}
+  template:
+    metadata:
+      labels: {app: vllm, study51/role: "@ROLE@", study51/serving: "@SERVING@", study51/layout: "@LAYOUT@"}
+      annotations: {study51/applied-at: "@APPLIED_AT@"}
+    spec:
+      enableServiceLinks: false
+      nodeSelector: {node-role: llm-serving-g7e-4xl-tcp, study51/role: "@ROLE@"}
+      tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: vllm
+        image: 763104351884.dkr.ecr.us-east-2.amazonaws.com/vllm:0.29.0-gpu-py312-cu130-ubuntu24.04-ec2
+        command: ["vllm", "serve", "openai/gpt-oss-120b"]
+        args:
+        - "--served-model-name=gpt-oss-120b"
+        - "--port=8000"
+        - "--host=0.0.0.0"
+        - "--max-model-len=16384"
+        - "--enable-prefix-caching"
+        @TUNED_ARGS@
+        env:
+        - {name: HF_HOME, value: /hf-cache}
+        - {name: NCCL_DEBUG, value: INFO}
+        - {name: NCCL_NET, value: Socket}
+        - {name: SERVING, value: "@SERVING@"}
+        - {name: POD_IP, valueFrom: {fieldRef: {fieldPath: status.podIP}}}
+        # nsight: the image's own LD_LIBRARY_PATH with /nsight-compat (libcuda 620.70.06) in front
+        - {name: LD_LIBRARY_PATH, value: "/nsight-compat:/opt/amazon/ofi-nccl/lib:/opt/amazon/openmpi/lib:/opt/amazon/efa/lib:/usr/local/cuda/lib64:/usr/local/nvidia/lib64:/usr/local/nvidia/lib"}
+        @EXTRA_ENV@
+        ports: [{name: http, containerPort: 8000}]
+        resources:
+          requests: {cpu: "13", memory: 100Gi, nvidia.com/gpu: 1}
+          limits: {cpu: "13", memory: 100Gi, nvidia.com/gpu: 1}
+        volumeMounts:
+        - {name: hf-cache, mountPath: /hf-cache}
+        - {name: shm, mountPath: /dev/shm}
+        # nsight: service endpoint and compatibility libraries
+        - {name: nsight-sock, mountPath: /run/nvidia/nsight-perf}
+        - {name: nsight-compat, mountPath: /nsight-compat, readOnly: true}
+        # 240 x 10 s = 2400 s: the 65 GB model read from a cold disk, twice on two nodes.
+        startupProbe:
+          exec: {command: [sh, -c, '[ "$SERVING" = false ] || curl -sf -o /dev/null localhost:8000/health']}
+          periodSeconds: 10
+          failureThreshold: 240
+        readinessProbe:
+          exec: {command: [sh, -c, '[ "$SERVING" = false ] || curl -sf -o /dev/null localhost:8000/health']}
+          periodSeconds: 10
+          failureThreshold: 3
+      volumes:
+      - {name: hf-cache, hostPath: {path: /var/lib/hf-cache-study51, type: DirectoryOrCreate}}
+      - {name: shm, emptyDir: {medium: Memory, sizeLimit: 16Gi}}
+      # nsight:
+      - {name: nsight-sock, hostPath: {path: /run/nvidia/nsight-perf, type: DirectoryOrCreate}}
+      - {name: nsight-compat, hostPath: {path: /var/lib/nsight/compat, type: DirectoryOrCreate}}

@@ -1,9 +1,10 @@
 # 51-g7e-tcp-moe-parallelism-users-ramp
 
-**Status:** RUNNING on akamas-41 since 11:05 UTC on 2026-11-11 (study
-`51-G7E-TCP-MoE-Parallelism`, seven preset experiments, no optimize step). The nodes came up at
-09:02 UTC in us-east-2a, inside the placement group. Every smoke check below passed before the
-start, except the two noted as not done. The scripts are tested locally (215 assertions).
+**Status:** DONE. Study `51-G7E-TCP-MoE-Parallelism` ran on akamas-41 from 11:05 to 21:08 UTC on
+2026-11-11: seven preset experiments, no optimize step, all valid. **PP two served 512 users, two
+replicas 256, one GPU 64** (see Results). The nodes came up at 09:02 UTC in us-east-2a, inside
+the placement group, and were deleted at 00:56 UTC on 2026-11-12, after the Nsight captures
+(about 16 hours up). The scripts are tested locally (215 assertions).
 
 This is **study 50's design run without EFA**. Study 50 needs two g7e.8xlarge (the smallest g7e
 with EFA) and us-east-2 had no such pair from 20:34 UTC on 2026-11-10 onwards. On 2026-11-11 the
@@ -161,9 +162,11 @@ applies a layout at the presets' flags and runs one short level (32 users).
    `akamas/telemetry/prometheus.yaml` return data. The two empty ones are `gpu_xid_errors` and
    `gpu_fan_speed`: the lab's dcgm-exporter exports neither series for any GPU, and neither is
    in the goal, the constraints or the KPIs. The toolbox applied the role exporter and the
-   ServiceMonitors. **Not checked yet:** AIPerf client CPU at the top levels (read during the
-   study).
-6. **Nsight: not done.** The smoke time went to the checks above.
+   ServiceMonitors. AIPerf client CPU, read during the study: at most 0.11 of 3 cores per
+   client, at every level.
+6. **Nsight: not done before the start**, the smoke time went to the checks above. It was proven
+   the same day on a third node (`docs/spikes/2026-11-11-nsight-perf/README.md`) and run on this
+   pair after the last experiment (`nsight/README.md`).
 
 One level of 32 users per layout (3 minutes, 10 for the two replicas), SLO client TTFT p95
 ≤ 500 ms. These are smoke numbers, not results:
@@ -184,8 +187,152 @@ created experiment 1.
 
 ## Results
 
-Running.
+All seven experiments ended valid. The study ran from 11:05 to 21:08 UTC on 2026-11-11. Raw data:
+`results/` (`export.tar.gz`, the task logs in `logs/`, one row per load level in `levels.csv`,
+node and GPU telemetry per level in `level_telemetry.csv`). The page with the charts is at
+<https://claude.ai/artifact/BUisueGciJQbeTzk33poLN> (private to its owner).
+
+**PP two serves 512 users, two replicas 256, every other layout 64 or fewer.**
+
+| Exp | Layout | Akamas score | Users (best level) | GPU KV cache (tokens) | Hold: client TTFT p95 (ms) | Hold: client ITL p95 (ms) | First failing level |
+|---|---|---|---|---|---|---|---|
+| 1 | One GPU (baseline) | 66.5 | 64 | 231,902 | 152 | 8.2 | 128: TTFT p95 715 ms |
+| 2 | Two replicas | 255.0 | 256 | 231,902 per replica | 394 | 22.3 | 384: 594 ms |
+| 3 | DP two | 65.5 | 64 | 649,059 | 482 | 18.6 | 128: 537 ms |
+| 4 | DP two + expert parallel | 64.1 | 64 | 652,049 | 476 | 21.6 | 128: 539 ms |
+| 5 | TP two | 32.0 | 32 | 1,369,947 | 407 | 16.0 | 64: 524 ms |
+| 6 | TP two + expert parallel | 61.0 | 64 | 1,402,755 | 526 | 36.8 | 128: 567 ms |
+| 7 | **PP two** | **511.5** | **512** | 1,418,003 | 254 | 48.3 | 768: the server fell behind |
+
+- **Against the baseline:** PP two serves 8 times the users of one GPU, two replicas 4 times.
+  The levels are discrete: one GPU passes 64 and fails 128, so its real limit is somewhere
+  between the two, and these ratios are upper bounds. The safe comparison is PP two against two
+  replicas on the same two nodes: two to one.
+- **Experiment 6 did not confirm its level.** TP two + expert parallel passed 64 users on the
+  ramp (484 ms) and read 526 ms on the Hold, above the 500 ms goal. Akamas accepted it because
+  its constraint is on the server-side TTFT (484 ms against 600). Read it as "32 to 64".
+- **Latencies are the worse of the two AIPerf clients**, not a pooled percentile
+  (`k8s/lib_load.sh`). One GPU at 128 users: 715 and 524 ms on the two clients.
+- **No constraint was binding** on a valid experiment, no request was preempted, and the AIPerf
+  clients used at most 0.11 of their 3 cores.
+
+Client TTFT p95 per ramp level (ms, worse client; **bold** = above 500 ms, the ramp stops there):
+
+| Users | One GPU | Two replicas | DP two | DP two + EP | TP two | TP two + EP | PP two |
+|---|---|---|---|---|---|---|---|
+| 32 | 156 | 95 | 445 | 436 | 389 | 430 | 111 |
+| 64 | 161 | 96 | 476 | 466 | **524** | 484 | 170 |
+| 128 | **715** | 107 | **537** | **539** | | **567** | 180 |
+| 192 | | 351 | | | | | 183 |
+| 256 | | 396 | | | | | 140 |
+| 384 | | **594** | | | | | 214 |
+| 512 | | | | | | | 252 |
+| 768 | | | | | | | **82,594** |
+
+### Why PP two beats two replicas: the KV cache
+
+`gpt-oss-120b` takes about 61 GB of a 96 GB GPU. A replica is left with 15.9 GiB of KV cache
+(231,902 tokens). PP two puts half of the layers on each GPU: each keeps 48.7 GiB of KV cache,
+and because each GPU stores the KV of its own layers only, that is 1,418,003 tokens, six times a
+replica's. The load re-sends the history at every turn, so the prefix cache decides the TTFT:
+
+| Users | 32 | 64 | 128 | 192 | 256 | 384 | 512 | 768 |
+|---|---|---|---|---|---|---|---|---|
+| Prefix cache hit rate, one GPU | 77 % | 77 % | 16 % | | | | | |
+| Prefix cache hit rate, two replicas | 77 % | 77 % | 77 % | 58 % | 16 % | 5 % | | |
+| Prefix cache hit rate, PP two | 77 % | 77 % | 77 % | 77 % | 77 % | 77 % | 77 % | 23 % |
+
+- 77 % is the most this load allows (the new turn is never cached). A replica loses it from 96
+  users per replica onwards, and then recomputes every history: TTFT p50 goes from 99 to 266 ms.
+- PP two keeps 77 % up to 512 users. At 768 the cache is exceeded too (23 % hits), the server
+  completes 1,730 output tokens/s of the 2,400 offered, the queue grows and TTFT p95 reaches
+  83 s. Its limit lies between 512 and 768 users; this run does not say whether memory or compute
+  sets it.
+- The DP and TP layouts also have large caches (649 thousand to 1.4 million tokens) and keep
+  77 % at every level they ran. Their limit is elsewhere.
+
+### Why DP and TP stall: the wire
+
+Network bytes sent per GPU node over the last five minutes of each level (MB/s; DP and TP are
+symmetric, PP two sends from node a to node b only):
+
+| Users | DP two | DP two + EP | TP two | TP two + EP | PP two | One GPU, two replicas |
+|---|---|---|---|---|---|---|
+| 32 | 219 | 216 | 283 | 283 | 6.4 | below 0.5 |
+| 64 | 407 | 407 | 488 | 494 | 12.5 | below 0.5 |
+| 128 | 865 | 813 | | 969 | 24.5 | below 0.5 |
+| 512 | | | | | 95.7 | |
+
+- **DP and TP put 2 to 3 MB on the wire per generated token, in each direction** (6.4 to
+  8.9 MB/s per user). PP two sends the hidden state of one layer boundary: about 0.19 MB/s per
+  user, 35 to 45 times less.
+- **It is latency, not bandwidth.** The highest rate, 969 MB/s, is 7.8 Gbit/s on a 50 Gbit/s
+  node, with TCP retransmissions at zero. Every MoE layer of every decoding step waits for a
+  round trip, so the TTFT starts at 390 to 445 ms with 32 users, where one GPU gives 156.
+- **The GPUs wait.** DP and TP draw 140 to 210 W per GPU while DCGM reports 99 % utilization;
+  PP two reaches 345 W and the replicas 489 W. Utilization alone does not show the stall, power
+  does.
+- **Expert parallelism changed little over TCP:** no gain on DP two (64 users either way), and
+  on TP two one ramp level that the Hold did not confirm.
+
+### What PP two pays
+
+| Users | 32 | 64 | 128 | 192 | 256 | 384 | 512 |
+|---|---|---|---|---|---|---|---|
+| Client ITL mean, two replicas (ms) | 6.0 | 6.0 | 7.3 | 11.5 | 20.5 | 51.1 | |
+| Client ITL mean, PP two (ms) | 7.2 | 6.9 | 9.8 | 13.0 | 17.4 | 29.1 | 46.0 |
+
+Each token crosses both GPUs in sequence, so PP two streams slower than a replica at light load
+(7.2 against 6.0 ms) and reaches 46 ms between tokens at 512 users, about 22 tokens/s per user.
+From 256 users onwards it is faster than the replicas, which by then recompute their histories.
+
+### Nsight traces
+
+Nsight Perf SDK for AI did not run during the experiments. After the last one, each layout was
+applied again with an Nsight variant of the pod, loaded at its best level for 13 minutes and
+traced for 10 seconds on every node with a vLLM process. Recipe, files and caveats:
+[`nsight/README.md`](nsight/README.md).
+
+| Layout | Users | TTFT p95 with Nsight (ms) | TTFT p95 in the Hold (ms) | Zip size, node a / b (MB) |
+|---|---|---|---|---|
+| PP two | 512 | 260 | 254 | 9.3 / 10.0 |
+| One GPU | 64 | 106 | 152 | 32.2 |
+| Two replicas | 256 | 399 | 394 | 16.1 / 16.1 |
+| TP two | 32 | 415 | 407 | 19.0 / 18.9 |
+| DP two + expert parallel | 64 | 486 | 476 | 19.0 / 19.0 |
+| TP two + expert parallel | 64 | 490 | 526 | 12.6 / 12.6 |
+| DP two | 64 | 487 | 482 | 19.0 / 19.0 |
+
+Every level passed with the Nsight service attached, so tracing cost nothing visible. These runs
+judge a 3-minute window against the study's 6, so they are a check that the layout behaved as in
+the study, not a second measurement. The 13 Perfetto zips (219 MB) are in `nsight/traces/`, kept
+out of git: nobody has read them yet, so they add no finding to this study so far.
 
 ## Conclusions
 
-Running.
+- **Over TCP, pipeline parallelism is the one cross-node layout worth running for this model:**
+  512 chat users within client TTFT p95 of 500 ms on two nodes, against 256 for two independent
+  replicas and 64 for one GPU.
+- **The gain comes from memory, not from compute.** Splitting the weights across the two GPUs
+  triples the KV cache per GPU, and with a history re-sent at every turn the prefix cache is what
+  holds the TTFT. Two replicas have twice the compute and lose their cache at 96 users each.
+- **DP and TP across nodes over TCP are slower than one GPU.** They exchange 2 to 3 MB per
+  generated token and pay a network round trip per MoE layer: 390 to 445 ms of TTFT before any
+  load, GPUs at half power. This matches the EFA spike (small-message latency, not bandwidth).
+- **Specific to this stack:** a model that fills about two thirds of the GPU, a multi-turn load
+  with long re-sent histories, prefix caching on, one turn per user every 64 s. With a model that
+  leaves the GPU most of its memory, or without KV pressure, replicas scale linearly (studies 44
+  and 45) and PP two would only add latency between tokens.
+- **Limits of this run:** one run per layout, eight discrete levels (the ratios move by one
+  level), the worse-client rule, pods with 13 CPU. PP two's limit lies between 512 and 768.
+- **Surprises:** DCGM utilization stays at 99 % while the GPUs wait for the network; DP two
+  without expert parallelism still moves as many bytes as with it; the Akamas export carries no
+  node network metric, so the wire numbers come from Prometheus (`results/level_telemetry.py`,
+  10 days of retention).
+- **Next:**
+  - Study 50 (EFA, two g7e.8xlarge) to see whether DP and TP recover with a low-latency
+    transport. It is built and waits for capacity.
+  - The fair rival of PP two is two replicas with a larger KV cache: FP8 KV and CPU KV offload
+    (studies 47 and 48) on each replica.
+  - A finer ramp between 512 and 768 users on PP two, and the NCCL socket variables on the TCP
+    layouts (`ROADMAP.md`, section E).

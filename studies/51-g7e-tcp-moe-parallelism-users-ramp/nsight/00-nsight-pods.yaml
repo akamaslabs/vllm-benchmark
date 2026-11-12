@@ -1,0 +1,53 @@
+# Nsight Perf SDK for AI on study 51's pair, after the last experiment (2026-11-11): one pod per
+# GPU node, the recipe of docs/spikes/2026-11-11-nsight-perf (driver 580.178.04, no reboot).
+# - hostPID + privileged: the service correlates the driver's host PIDs with the vLLM processes
+#   and reads the GPU performance counters. The node's driver is not touched.
+# - /run/nvidia/nsight-perf is the service's endpoint, shared with the vLLM pod of the same node
+#   (01-vllm_template.yaml in this folder).
+# - /var/lib/nsight on the node holds the SDK build, the traces and the CUDA 13.5 compatibility
+#   libraries copied out of this image for the vLLM pod.
+apiVersion: v1
+kind: Pod
+metadata: {name: nsight-a, namespace: moe-tcp, labels: {app: nsight, study51/role: a}}
+spec:
+  hostPID: true
+  nodeSelector: {node-role: llm-serving-g7e-4xl-tcp, study51/role: a}
+  tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+  terminationGracePeriodSeconds: 5
+  containers:
+  - name: nsight
+    image: nvidia/cuda:13.5.0-devel-ubuntu24.04
+    command: ["sleep", "infinity"]
+    securityContext: {privileged: true}
+    env:
+    - {name: NVIDIA_VISIBLE_DEVICES, value: all}
+    - {name: NVIDIA_DRIVER_CAPABILITIES, value: all}
+    volumeMounts:
+    - {name: sock, mountPath: /run/nvidia/nsight-perf}
+    - {name: work, mountPath: /work}
+  volumes:
+  - {name: sock, hostPath: {path: /run/nvidia/nsight-perf, type: DirectoryOrCreate}}
+  - {name: work, hostPath: {path: /var/lib/nsight, type: DirectoryOrCreate}}
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: nsight-b, namespace: moe-tcp, labels: {app: nsight, study51/role: b}}
+spec:
+  hostPID: true
+  nodeSelector: {node-role: llm-serving-g7e-4xl-tcp, study51/role: b}
+  tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+  terminationGracePeriodSeconds: 5
+  containers:
+  - name: nsight
+    image: nvidia/cuda:13.5.0-devel-ubuntu24.04
+    command: ["sleep", "infinity"]
+    securityContext: {privileged: true}
+    env:
+    - {name: NVIDIA_VISIBLE_DEVICES, value: all}
+    - {name: NVIDIA_DRIVER_CAPABILITIES, value: all}
+    volumeMounts:
+    - {name: sock, mountPath: /run/nvidia/nsight-perf}
+    - {name: work, mountPath: /work}
+  volumes:
+  - {name: sock, hostPath: {path: /run/nvidia/nsight-perf, type: DirectoryOrCreate}}
+  - {name: work, hostPath: {path: /var/lib/nsight, type: DirectoryOrCreate}}

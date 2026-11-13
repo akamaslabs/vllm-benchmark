@@ -1,0 +1,404 @@
+{
+ "pp2-512users-node-b": {
+  "secs": 10.0,
+  "counters": {
+   "Compute Warp Occupancy (Utilization) (GPU Metric)": {
+    "mean": 12.77,
+    "p50": 16.76,
+    "below5": 27.8,
+    "above95": 0.0,
+    "n": 10000
+   },
+   "DRAM Read (Utilization) (GPU Metric)": {
+    "mean": 52.24,
+    "p50": 66.54,
+    "below5": 27.0,
+    "above95": 0.0,
+    "n": 10000
+   },
+   "DRAM Write (Utilization) (GPU Metric)": {
+    "mean": 1.65,
+    "p50": 1.24,
+    "below5": 96.8,
+    "above95": 0.0,
+    "n": 10000
+   },
+   "GPC Clock (Hz) (GPU Metric)": {
+    "mean": 2411828957.1,
+    "p50": 2421170248.42,
+    "below5": 0.0,
+    "above95": 100.0,
+    "n": 9999
+   },
+   "GPU 0 - DRAM Bandwidth": {
+    "mean": 53.87,
+    "p50": 69.8,
+    "below5": 27.0,
+    "above95": 0.0,
+    "n": 9999
+   },
+   "GPU 0 - GPU Activity": {
+    "mean": 99.94,
+    "p50": 100.0,
+    "below5": 0.0,
+    "above95": 100.0,
+    "n": 9999
+   },
+   "GPU 0 - GPU Clocks": {
+    "mean": 2411828957.1,
+    "p50": 2421170248.42,
+    "below5": 0.0,
+    "above95": 100.0,
+    "n": 9999
+   },
+   "GPU 0 - PCIe Bandwidth": {
+    "mean": 0.22,
+    "p50": 0.02,
+    "below5": 100.0,
+    "above95": 0.0,
+    "n": 9999
+   },
+   "GR Active (Utilization) (GPU Metric)": {
+    "mean": 99.94,
+    "p50": 100.0,
+    "below5": 0.0,
+    "above95": 100.0,
+    "n": 10000
+   },
+   "PCIe RX (Utilization) (GPU Metric)": {
+    "mean": 0.22,
+    "p50": 0.01,
+    "below5": 100.0,
+    "above95": 0.0,
+    "n": 10000
+   },
+   "PCIe TX (Utilization) (GPU Metric)": {
+    "mean": 0.06,
+    "p50": 0.02,
+    "below5": 100.0,
+    "above95": 0.0,
+    "n": 10000
+   },
+   "SM Active (Utilization) (GPU Metric)": {
+    "mean": 63.64,
+    "p50": 87.08,
+    "below5": 26.6,
+    "above95": 10.1,
+    "n": 10000
+   },
+   "SM Issue (Utilization) (GPU Metric)": {
+    "mean": 14.21,
+    "p50": 15.35,
+    "below5": 30.1,
+    "above95": 0.0,
+    "n": 10000
+   },
+   "SYS Clock (Hz) (GPU Metric)": {
+    "mean": 2192179684.84,
+    "p50": 2193229692.32,
+    "below5": 0.0,
+    "above95": 100.0,
+    "n": 9999
+   },
+   "Tensor Active (Utilization) (GPU Metric)": {
+    "mean": 16.17,
+    "p50": 8.89,
+    "below5": 28.5,
+    "above95": 0.0,
+    "n": 10000
+   }
+  },
+  "categories": {
+   "cuda_driver": {
+    "per_s": 6981,
+    "ms_per_s": 1037.9
+   },
+   "cuda_gpu_command": {
+    "per_s": 501,
+    "ms_per_s": 0.3
+   },
+   "cuda_gpu_kernel_launch": {
+    "per_s": 15362,
+    "ms_per_s": 996.5
+   },
+   "gpu_grctx": {
+    "per_s": 0,
+    "ms_per_s": 1000.0
+   },
+   "system_info": {
+    "per_s": 0,
+    "ms_per_s": 3000.0
+   }
+  },
+  "kernels": {
+   "per_s": 15362,
+   "busy_pct": 99.5,
+   "sum_ms_per_s": 996.5,
+   "gaps_per_s": 14534,
+   "gap_p50_us": 0.2,
+   "gap_p99_us": 4.0,
+   "gap_max_ms": 0.01,
+   "idle_pct_gaps_over_100us": 0.0,
+   "idle_pct_gaps_over_1ms": 0.0,
+   "gaps_over_1ms_per_s": 0.0,
+   "compute_busy_pct": 70.3,
+   "nccl_only_pct": 29.2,
+   "nccl_on_gpu_pct": 29.3,
+   "nccl_per_s": 165,
+   "nccl_mean_ms": 1.78,
+   "nccl_p95_ms": 4.25
+  },
+  "by_compute": {
+   "Compute Warp Occupancy": {
+    "window": "after",
+    "period_us": 1000.002,
+    "samples_no_compute_pct": 26.3,
+    "samples_all_compute_pct": 67.0,
+    "mean_when_no_compute": 0.21,
+    "mean_when_all_compute": 18.03
+   },
+   "DRAM Read": {
+    "window": "after",
+    "period_us": 1000.002,
+    "samples_no_compute_pct": 26.3,
+    "samples_all_compute_pct": 67.0,
+    "mean_when_no_compute": 0.01,
+    "mean_when_all_compute": 74.02
+   },
+   "DRAM Write": {
+    "window": "after",
+    "period_us": 1000.002,
+    "samples_no_compute_pct": 26.3,
+    "samples_all_compute_pct": 67.0,
+    "mean_when_no_compute": 0.0,
+    "mean_when_all_compute": 2.35
+   },
+   "GR Active": {
+    "window": "after",
+    "period_us": 1000.002,
+    "samples_no_compute_pct": 26.3,
+    "samples_all_compute_pct": 67.0,
+    "mean_when_no_compute": 99.99,
+    "mean_when_all_compute": 99.94
+   },
+   "PCIe RX": {
+    "window": "before",
+    "period_us": 1000.002,
+    "samples_no_compute_pct": 26.3,
+    "samples_all_compute_pct": 67.0,
+    "mean_when_no_compute": 0.63,
+    "mean_when_all_compute": 0.06
+   },
+   "PCIe TX": {
+    "window": "after",
+    "period_us": 1000.002,
+    "samples_no_compute_pct": 26.3,
+    "samples_all_compute_pct": 67.0,
+    "mean_when_no_compute": 0.1,
+    "mean_when_all_compute": 0.02
+   },
+   "SM Active": {
+    "window": "after",
+    "period_us": 1000.002,
+    "samples_no_compute_pct": 26.3,
+    "samples_all_compute_pct": 67.0,
+    "mean_when_no_compute": 0.55,
+    "mean_when_all_compute": 89.95
+   },
+   "SM Issue": {
+    "window": "after",
+    "period_us": 1000.002,
+    "samples_no_compute_pct": 26.3,
+    "samples_all_compute_pct": 67.0,
+    "mean_when_no_compute": 0.0,
+    "mean_when_all_compute": 20.51
+   },
+   "Tensor Active": {
+    "window": "after",
+    "period_us": 1000.002,
+    "samples_no_compute_pct": 26.3,
+    "samples_all_compute_pct": 67.0,
+    "mean_when_no_compute": 0.0,
+    "mean_when_all_compute": 23.24
+   }
+  },
+  "families": [
+   {
+    "name": "marlin_moe_wna16::Marlin",
+    "pct": 45.5,
+    "ms_per_s": 453.3,
+    "per_s": 1490
+   },
+   {
+    "name": "ncclDevKernel_SendRecv",
+    "pct": 29.4,
+    "ms_per_s": 292.9,
+    "per_s": 83
+   },
+   {
+    "name": "kernel_mha",
+    "pct": 11.3,
+    "ms_per_s": 112.5,
+    "per_s": 745
+   },
+   {
+    "name": "cutlass::Kernel2",
+    "pct": 8.5,
+    "ms_per_s": 85.0,
+    "per_s": 2276
+   },
+   {
+    "name": "flashinfer::BatchPrefillWithPagedKVCacheKernel",
+    "pct": 2.1,
+    "ms_per_s": 21.1,
+    "per_s": 144
+   },
+   {
+    "name": "vllm::swigluoai_and_mul_kernel",
+    "pct": 0.6,
+    "ms_per_s": 5.6,
+    "per_s": 745
+   },
+   {
+    "name": "vllm::reshape_and_cache_flash_kernel",
+    "pct": 0.3,
+    "ms_per_s": 3.4,
+    "per_s": 745
+   },
+   {
+    "name": "vllm::moe::topkGating",
+    "pct": 0.3,
+    "ms_per_s": 3.0,
+    "per_s": 745
+   },
+   {
+    "name": "_gumbel_sample_kernel",
+    "pct": 0.3,
+    "ms_per_s": 2.9,
+    "per_s": 41
+   },
+   {
+    "name": "vllm::moe::moe_sum_vec_kernel",
+    "pct": 0.3,
+    "ms_per_s": 2.6,
+    "per_s": 745
+   },
+   {
+    "name": "cublasLt::splitKreduce_kernel",
+    "pct": 0.3,
+    "ms_per_s": 2.5,
+    "per_s": 1346
+   },
+   {
+    "name": "vllm::moe::moe_align_block_size_kernel",
+    "pct": 0.2,
+    "ms_per_s": 2.2,
+    "per_s": 745
+   }
+  ],
+  "driver": [
+   {
+    "name": "cuEventSynchronize",
+    "per_s": 41,
+    "ms_per_s": 962.7,
+    "max_ms": 64.11
+   },
+   {
+    "name": "cuMemcpyDtoHAsync_v2",
+    "per_s": 99,
+    "ms_per_s": 63.3,
+    "max_ms": 8.97
+   },
+   {
+    "name": "cuLaunchKernelEx",
+    "per_s": 831,
+    "ms_per_s": 3.1,
+    "max_ms": 0.04
+   },
+   {
+    "name": "cuEventQuery",
+    "per_s": 2334,
+    "ms_per_s": 2.5,
+    "max_ms": 0.01
+   },
+   {
+    "name": "cuLaunchKernel",
+    "per_s": 640,
+    "ms_per_s": 2.1,
+    "max_ms": 0.02
+   },
+   {
+    "name": "cuMemcpyHtoDAsync_v2",
+    "per_s": 258,
+    "ms_per_s": 1.2,
+    "max_ms": 0.03
+   },
+   {
+    "name": "cuGraphLaunch",
+    "per_s": 185,
+    "ms_per_s": 1.1,
+    "max_ms": 0.03
+   },
+   {
+    "name": "cuMemcpyDtoDAsync_v2",
+    "per_s": 83,
+    "ms_per_s": 0.6,
+    "max_ms": 0.02
+   },
+   {
+    "name": "cuEventRecordWithFlags",
+    "per_s": 633,
+    "ms_per_s": 0.3,
+    "max_ms": 0.01
+   },
+   {
+    "name": "cuStreamWaitEvent",
+    "per_s": 579,
+    "ms_per_s": 0.3,
+    "max_ms": 0.0
+   }
+  ],
+  "tracks": [
+   {
+    "name": "GPU 0 (PAR 1) - nsight-b",
+    "n": 152639
+   },
+   {
+    "name": "Thread 1",
+    "n": 61093
+   },
+   {
+    "name": "GPU 0 (PAR 2) - nsight-b",
+    "n": 4857
+   },
+   {
+    "name": "Thread 7",
+    "n": 2984
+   },
+   {
+    "name": "Thread 3",
+    "n": 2892
+   },
+   {
+    "name": "Thread 5",
+    "n": 2846
+   },
+   {
+    "name": "GPU 0 (PAR 3) - nsight-b",
+    "n": 1035
+   },
+   {
+    "name": "GPU 0 (PAR 4) - nsight-b",
+    "n": 104
+   },
+   {
+    "name": "System Info",
+    "n": 3
+   },
+   {
+    "name": "GPU GR Context Trace",
+    "n": 1
+   }
+  ]
+ }
+}

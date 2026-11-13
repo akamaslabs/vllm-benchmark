@@ -1,0 +1,380 @@
+{
+ "replicas-256users-node-a": {
+  "secs": 10.0,
+  "counters": {
+   "Compute Warp Occupancy (Utilization) (GPU Metric)": {
+    "mean": 18.11,
+    "p50": 17.7,
+    "below5": 0.3,
+    "above95": 0.0,
+    "n": 10000
+   },
+   "DRAM Read (Utilization) (GPU Metric)": {
+    "mean": 55.59,
+    "p50": 74.82,
+    "below5": 1.7,
+    "above95": 0.0,
+    "n": 10000
+   },
+   "DRAM Write (Utilization) (GPU Metric)": {
+    "mean": 4.11,
+    "p50": 1.66,
+    "below5": 64.5,
+    "above95": 0.0,
+    "n": 10000
+   },
+   "GPC Clock (Hz) (GPU Metric)": {
+    "mean": 2411352985.26,
+    "p50": 2416560457.77,
+    "below5": 0.0,
+    "above95": 100.0,
+    "n": 9999
+   },
+   "GPU 0 - DRAM Bandwidth": {
+    "mean": 59.7,
+    "p50": 76.24,
+    "below5": 0.7,
+    "above95": 0.0,
+    "n": 9999
+   },
+   "GPU 0 - GPU Activity": {
+    "mean": 99.53,
+    "p50": 99.88,
+    "below5": 0.1,
+    "above95": 99.5,
+    "n": 9999
+   },
+   "GPU 0 - GPU Clocks": {
+    "mean": 2411352985.26,
+    "p50": 2416560457.77,
+    "below5": 0.0,
+    "above95": 100.0,
+    "n": 9999
+   },
+   "GPU 0 - PCIe Bandwidth": {
+    "mean": 0.03,
+    "p50": 0.02,
+    "below5": 100.0,
+    "above95": 0.0,
+    "n": 9999
+   },
+   "GR Active (Utilization) (GPU Metric)": {
+    "mean": 99.53,
+    "p50": 99.88,
+    "below5": 0.1,
+    "above95": 99.5,
+    "n": 10000
+   },
+   "PCIe RX (Utilization) (GPU Metric)": {
+    "mean": 0.02,
+    "p50": 0.0,
+    "below5": 100.0,
+    "above95": 0.0,
+    "n": 10000
+   },
+   "PCIe TX (Utilization) (GPU Metric)": {
+    "mean": 0.03,
+    "p50": 0.02,
+    "below5": 100.0,
+    "above95": 0.0,
+    "n": 10000
+   },
+   "SM Active (Utilization) (GPU Metric)": {
+    "mean": 88.29,
+    "p50": 85.51,
+    "below5": 0.1,
+    "above95": 31.8,
+    "n": 10000
+   },
+   "SM Issue (Utilization) (GPU Metric)": {
+    "mean": 18.15,
+    "p50": 14.61,
+    "below5": 0.4,
+    "above95": 0.0,
+    "n": 10000
+   },
+   "SYS Clock (Hz) (GPU Metric)": {
+    "mean": 2182323627.73,
+    "p50": 2183423783.11,
+    "below5": 0.0,
+    "above95": 100.0,
+    "n": 9999
+   },
+   "Tensor Active (Utilization) (GPU Metric)": {
+    "mean": 29.31,
+    "p50": 7.48,
+    "below5": 1.1,
+    "above95": 0.0,
+    "n": 10000
+   }
+  },
+  "categories": {
+   "cuda_driver": {
+    "per_s": 3495,
+    "ms_per_s": 886.9
+   },
+   "cuda_gpu_command": {
+    "per_s": 1872,
+    "ms_per_s": 0.5
+   },
+   "cuda_gpu_kernel_launch": {
+    "per_s": 30417,
+    "ms_per_s": 985.1
+   },
+   "gpu_grctx": {
+    "per_s": 0,
+    "ms_per_s": 1000.0
+   },
+   "system_info": {
+    "per_s": 0,
+    "ms_per_s": 3000.0
+   }
+  },
+  "kernels": {
+   "per_s": 30417,
+   "busy_pct": 98.5,
+   "sum_ms_per_s": 985.1,
+   "gaps_per_s": 30274,
+   "gap_p50_us": 0.2,
+   "gap_p99_us": 4.0,
+   "gap_max_ms": 0.77,
+   "idle_pct_gaps_over_100us": 0.3,
+   "idle_pct_gaps_over_1ms": 0.0,
+   "gaps_over_1ms_per_s": 0.0,
+   "compute_busy_pct": 98.5,
+   "nccl_only_pct": 0.0
+  },
+  "by_compute": {
+   "Compute Warp Occupancy": {
+    "window": "after",
+    "period_us": 1000.007,
+    "samples_no_compute_pct": 0.1,
+    "samples_all_compute_pct": 99.5,
+    "mean_when_no_compute": 0.14,
+    "mean_when_all_compute": 18.16
+   },
+   "DRAM Read": {
+    "window": "after",
+    "period_us": 1000.007,
+    "samples_no_compute_pct": 0.1,
+    "samples_all_compute_pct": 99.5,
+    "mean_when_no_compute": 0.1,
+    "mean_when_all_compute": 55.79
+   },
+   "DRAM Write": {
+    "window": "before",
+    "period_us": 1000.007,
+    "samples_no_compute_pct": 0.1,
+    "samples_all_compute_pct": 99.5,
+    "mean_when_no_compute": 9.81,
+    "mean_when_all_compute": 4.1
+   },
+   "GR Active": {
+    "window": "after",
+    "period_us": 1000.007,
+    "samples_no_compute_pct": 0.1,
+    "samples_all_compute_pct": 99.5,
+    "mean_when_no_compute": 1.51,
+    "mean_when_all_compute": 99.83
+   },
+   "PCIe RX": {
+    "window": "before",
+    "period_us": 1000.007,
+    "samples_no_compute_pct": 0.1,
+    "samples_all_compute_pct": 99.5,
+    "mean_when_no_compute": 0.04,
+    "mean_when_all_compute": 0.02
+   },
+   "PCIe TX": {
+    "window": "after",
+    "period_us": 1000.007,
+    "samples_no_compute_pct": 0.1,
+    "samples_all_compute_pct": 99.5,
+    "mean_when_no_compute": 0.03,
+    "mean_when_all_compute": 0.02
+   },
+   "SM Active": {
+    "window": "after",
+    "period_us": 1000.007,
+    "samples_no_compute_pct": 0.1,
+    "samples_all_compute_pct": 99.5,
+    "mean_when_no_compute": 0.18,
+    "mean_when_all_compute": 88.56
+   },
+   "SM Issue": {
+    "window": "after",
+    "period_us": 1000.007,
+    "samples_no_compute_pct": 0.1,
+    "samples_all_compute_pct": 99.5,
+    "mean_when_no_compute": 0.05,
+    "mean_when_all_compute": 18.21
+   },
+   "Tensor Active": {
+    "window": "after",
+    "period_us": 1000.007,
+    "samples_no_compute_pct": 0.1,
+    "samples_all_compute_pct": 99.5,
+    "mean_when_no_compute": 0.0,
+    "mean_when_all_compute": 29.36
+   }
+  },
+  "families": [
+   {
+    "name": "marlin_moe_wna16::Marlin",
+    "pct": 66.7,
+    "ms_per_s": 656.8,
+    "per_s": 3277
+   },
+   {
+    "name": "cutlass::Kernel2",
+    "pct": 16.9,
+    "ms_per_s": 166.0,
+    "per_s": 4960
+   },
+   {
+    "name": "kernel_mha",
+    "pct": 6.5,
+    "ms_per_s": 63.9,
+    "per_s": 1638
+   },
+   {
+    "name": "flashinfer::BatchPrefillWithPagedKVCacheKernel",
+    "pct": 3.0,
+    "ms_per_s": 29.6,
+    "per_s": 72
+   },
+   {
+    "name": "vllm::swigluoai_and_mul_kernel",
+    "pct": 1.8,
+    "ms_per_s": 18.1,
+    "per_s": 1638
+   },
+   {
+    "name": "vllm::moe::moe_sum_vec_kernel",
+    "pct": 0.8,
+    "ms_per_s": 8.1,
+    "per_s": 1638
+   },
+   {
+    "name": "triton_red_fused_fused_add_rms_norm_slice_2",
+    "pct": 0.7,
+    "ms_per_s": 7.3,
+    "per_s": 1638
+   },
+   {
+    "name": "vllm::moe::topkGating",
+    "pct": 0.7,
+    "ms_per_s": 6.8,
+    "per_s": 1638
+   },
+   {
+    "name": "vllm::moe::moe_align_block_size_kernel",
+    "pct": 0.5,
+    "ms_per_s": 4.9,
+    "per_s": 1638
+   },
+   {
+    "name": "triton_red_fused_fused_add_rms_norm_0",
+    "pct": 0.5,
+    "ms_per_s": 4.7,
+    "per_s": 1638
+   },
+   {
+    "name": "cublasLt::splitKreduce_kernel",
+    "pct": 0.4,
+    "ms_per_s": 4.4,
+    "per_s": 1566
+   },
+   {
+    "name": "vllm::reshape_and_cache_flash_kernel",
+    "pct": 0.4,
+    "ms_per_s": 4.2,
+    "per_s": 1638
+   }
+  ],
+  "driver": [
+   {
+    "name": "cuEventSynchronize",
+    "per_s": 46,
+    "ms_per_s": 853.0,
+    "max_ms": 305.14
+   },
+   {
+    "name": "cuMemcpyDtoHAsync_v2",
+    "per_s": 95,
+    "ms_per_s": 21.5,
+    "max_ms": 12.2
+   },
+   {
+    "name": "cuLaunchKernel",
+    "per_s": 1640,
+    "ms_per_s": 5.2,
+    "max_ms": 0.03
+   },
+   {
+    "name": "cuGraphLaunch",
+    "per_s": 43,
+    "ms_per_s": 3.3,
+    "max_ms": 0.1
+   },
+   {
+    "name": "cuLaunchKernelEx",
+    "per_s": 496,
+    "ms_per_s": 1.7,
+    "max_ms": 0.02
+   },
+   {
+    "name": "cuMemcpyHtoDAsync_v2",
+    "per_s": 146,
+    "ms_per_s": 0.9,
+    "max_ms": 0.02
+   },
+   {
+    "name": "cuEventQuery",
+    "per_s": 423,
+    "ms_per_s": 0.6,
+    "max_ms": 0.01
+   },
+   {
+    "name": "cuEventRecordWithFlags",
+    "per_s": 308,
+    "ms_per_s": 0.3,
+    "max_ms": 0.01
+   },
+   {
+    "name": "cuMemsetD8Async",
+    "per_s": 65,
+    "ms_per_s": 0.2,
+    "max_ms": 0.01
+   },
+   {
+    "name": "cuEventCreate",
+    "per_s": 91,
+    "ms_per_s": 0.1,
+    "max_ms": 0.03
+   }
+  ],
+  "tracks": [
+   {
+    "name": "GPU 0 (PAR 1) - nsight-a",
+    "n": 321340
+   },
+   {
+    "name": "Thread 1",
+    "n": 34946
+   },
+   {
+    "name": "GPU 0 (PAR 2) - nsight-a",
+    "n": 1557
+   },
+   {
+    "name": "System Info",
+    "n": 3
+   },
+   {
+    "name": "GPU GR Context Trace",
+    "n": 1
+   }
+  ]
+ }
+}

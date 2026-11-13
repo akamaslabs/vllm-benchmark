@@ -271,7 +271,8 @@ symmetric, PP two sends from node a to node b only):
   round trip, so the TTFT starts at 390 to 445 ms with 32 users, where one GPU gives 156.
 - **The GPUs wait.** DP and TP draw 140 to 210 W per GPU while DCGM reports 99 % utilization;
   PP two reaches 345 W and the replicas 489 W. Utilization alone does not show the stall, power
-  does.
+  does. The Nsight traces measure the wait: at 64 users the DP and TP layouts keep only an NCCL
+  kernel on the GPU for 60 to 76 % of the time (see "Nsight traces" below).
 - **Expert parallelism changed little over TCP:** no gain on DP two (64 users either way), and
   on TP two one ramp level that the Hold did not confirm.
 
@@ -306,7 +307,36 @@ traced for 10 seconds on every node with a vLLM process. Recipe, files and cavea
 Every level passed with the Nsight service attached, so tracing cost nothing visible. These runs
 judge a 3-minute window against the study's 6, so they are a check that the layout behaved as in
 the study, not a second measurement. The 13 Perfetto zips (219 MB) are in `nsight/traces/`, kept
-out of git: nobody has read them yet, so they add no finding to this study so far.
+out of git.
+
+A trace lists every kernel that ran on the GPU. That splits the GPU's time in three states: a
+compute kernel is running, only NCCL kernels are on the GPU (they exchange data with the other
+node, so the GPU is waiting for its peer), or no kernel at all. Mean of the two nodes, 10 seconds
+per layout at its best level:
+
+| Layout | Users | Compute kernel (%) | Only NCCL kernel (%) | No kernel (%) | GR Active (%) | SM Active (%) | Power (W) |
+|---|---|---|---|---|---|---|---|
+| Two replicas | 256 | 98.6 | 0.0 | 1.4 | 99.6 | 88.3 | 490 |
+| One GPU | 64 | 82.9 | 0.0 | 17.1 | 85.2 | 63.0 | 337 |
+| PP two | 512 | 73.6 | 26.1 | 0.3 | 100.0 | 63.9 | 397 |
+| DP two + expert parallel | 64 | 37.8 | 59.9 | 2.3 | 99.2 | 28.0 | 247 |
+| DP two | 64 | 36.6 | 61.1 | 2.3 | 99.1 | 27.8 | 245 |
+| TP two | 32 | 24.1 | 43.5 | 32.4 | 68.7 | 16.0 | 201 |
+| TP two + expert parallel | 64 | 22.6 | 76.1 | 1.3 | 99.4 | 18.1 | 236 |
+
+- **The DP and TP layouts spend most of the time waiting for the other node:** 60 to 76 % at 64
+  users, with compute kernels on the GPU for 22 to 38 %.
+- **PP two waits for about a quarter of the time** (23 % on node a, 29 % on node b) and computes
+  for the rest. One GPU and two replicas never wait: they exchange nothing.
+- **GPU utilization does not see it.** GR Active, the counter behind `nvidia-smi` and DCGM
+  utilization, reads 99 to 100 % on every layout at 64 users or more. On PP two it is 100 % both
+  while a compute kernel runs and while only an NCCL kernel is on the GPU; SM Active is 82 to
+  89 % in the first state and under 5 % in the second.
+- **Limits:** one 10-second capture per layout, taken after the study. The trace shows that the
+  GPU waits for its peer, not whether the time goes to the TCP wire or to the peer's own compute.
+
+Per-node table, the query for ui.perfetto.dev and the scripts: [`nsight/README.md`](nsight/README.md),
+section "What the traces show".
 
 ## Conclusions
 
@@ -325,7 +355,8 @@ out of git: nobody has read them yet, so they add no finding to this study so fa
   and 45) and PP two would only add latency between tokens.
 - **Limits of this run:** one run per layout, eight discrete levels (the ratios move by one
   level), the worse-client rule, pods with 13 CPU. PP two's limit lies between 512 and 768.
-- **Surprises:** DCGM utilization stays at 99 % while the GPUs wait for the network; DP two
+- **Surprises:** DCGM utilization stays at 99 % while the GPUs wait for the other node (60 to
+  76 % of the time on DP and TP at 64 users, 23 to 29 % on PP two, from the Nsight traces); DP two
   without expert parallelism still moves as many bytes as with it; the Akamas export carries no
   node network metric, so the wire numbers come from Prometheus (`results/level_telemetry.py`,
   10 days of retention).

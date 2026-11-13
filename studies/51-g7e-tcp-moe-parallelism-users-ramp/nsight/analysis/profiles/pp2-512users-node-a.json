@@ -1,0 +1,396 @@
+{
+ "pp2-512users-node-a": {
+  "secs": 10.0,
+  "counters": {
+   "Compute Warp Occupancy (Utilization) (GPU Metric)": {
+    "mean": 13.25,
+    "p50": 16.91,
+    "below5": 21.5,
+    "above95": 0.0,
+    "n": 10000
+   },
+   "DRAM Read (Utilization) (GPU Metric)": {
+    "mean": 52.76,
+    "p50": 67.59,
+    "below5": 20.7,
+    "above95": 0.0,
+    "n": 10000
+   },
+   "DRAM Write (Utilization) (GPU Metric)": {
+    "mean": 1.63,
+    "p50": 1.17,
+    "below5": 97.4,
+    "above95": 0.0,
+    "n": 10000
+   },
+   "GPC Clock (Hz) (GPU Metric)": {
+    "mean": 2406523413.46,
+    "p50": 2411384589.03,
+    "below5": 0.0,
+    "above95": 100.0,
+    "n": 9999
+   },
+   "GPU 0 - DRAM Bandwidth": {
+    "mean": 54.37,
+    "p50": 70.73,
+    "below5": 20.6,
+    "above95": 0.0,
+    "n": 9999
+   },
+   "GPU 0 - GPU Activity": {
+    "mean": 99.97,
+    "p50": 100.0,
+    "below5": 0.0,
+    "above95": 100.0,
+    "n": 9999
+   },
+   "GPU 0 - GPU Clocks": {
+    "mean": 2406523413.46,
+    "p50": 2411384589.03,
+    "below5": 0.0,
+    "above95": 100.0,
+    "n": 9999
+   },
+   "GPU 0 - PCIe Bandwidth": {
+    "mean": 0.81,
+    "p50": 0.87,
+    "below5": 98.6,
+    "above95": 0.0,
+    "n": 9999
+   },
+   "GR Active (Utilization) (GPU Metric)": {
+    "mean": 99.97,
+    "p50": 100.0,
+    "below5": 0.0,
+    "above95": 100.0,
+    "n": 10000
+   },
+   "PCIe RX (Utilization) (GPU Metric)": {
+    "mean": 0.69,
+    "p50": 0.86,
+    "below5": 100.0,
+    "above95": 0.0,
+    "n": 10000
+   },
+   "PCIe TX (Utilization) (GPU Metric)": {
+    "mean": 0.28,
+    "p50": 0.12,
+    "below5": 98.6,
+    "above95": 0.0,
+    "n": 10000
+   },
+   "SM Active (Utilization) (GPU Metric)": {
+    "mean": 64.11,
+    "p50": 81.76,
+    "below5": 20.3,
+    "above95": 5.8,
+    "n": 10000
+   },
+   "SM Issue (Utilization) (GPU Metric)": {
+    "mean": 14.6,
+    "p50": 14.55,
+    "below5": 21.6,
+    "above95": 0.0,
+    "n": 10000
+   },
+   "SYS Clock (Hz) (GPU Metric)": {
+    "mean": 2185851623.62,
+    "p50": 2184549772.69,
+    "below5": 0.0,
+    "above95": 100.0,
+    "n": 9999
+   },
+   "Tensor Active (Utilization) (GPU Metric)": {
+    "mean": 15.77,
+    "p50": 8.2,
+    "below5": 21.9,
+    "above95": 0.0,
+    "n": 10000
+   }
+  },
+  "categories": {
+   "cuda_driver": {
+    "per_s": 5161,
+    "ms_per_s": 102.7
+   },
+   "cuda_gpu_command": {
+    "per_s": 418,
+    "ms_per_s": 0.3
+   },
+   "cuda_gpu_kernel_launch": {
+    "per_s": 14887,
+    "ms_per_s": 1580.7
+   },
+   "gpu_grctx": {
+    "per_s": 0,
+    "ms_per_s": 1000.0
+   },
+   "system_info": {
+    "per_s": 0,
+    "ms_per_s": 3000.0
+   }
+  },
+  "kernels": {
+   "per_s": 14887,
+   "busy_pct": 99.9,
+   "sum_ms_per_s": 1580.7,
+   "gaps_per_s": 2432,
+   "gap_p50_us": 0.2,
+   "gap_p99_us": 6.0,
+   "gap_max_ms": 0.01,
+   "idle_pct_gaps_over_100us": 0.0,
+   "idle_pct_gaps_over_1ms": 0.0,
+   "gaps_over_1ms_per_s": 0.0,
+   "compute_busy_pct": 76.9,
+   "nccl_only_pct": 23.0,
+   "nccl_on_gpu_pct": 78.2,
+   "nccl_per_s": 165,
+   "nccl_mean_ms": 4.9,
+   "nccl_p95_ms": 14.37
+  },
+  "by_compute": {
+   "Compute Warp Occupancy": {
+    "window": "after",
+    "period_us": 1000.006,
+    "samples_no_compute_pct": 20.1,
+    "samples_all_compute_pct": 73.4,
+    "mean_when_no_compute": 0.06,
+    "mean_when_all_compute": 17.01
+   },
+   "DRAM Read": {
+    "window": "after",
+    "period_us": 1000.006,
+    "samples_no_compute_pct": 20.1,
+    "samples_all_compute_pct": 73.4,
+    "mean_when_no_compute": 0.02,
+    "mean_when_all_compute": 67.92
+   },
+   "DRAM Write": {
+    "window": "after",
+    "period_us": 1000.006,
+    "samples_no_compute_pct": 20.1,
+    "samples_all_compute_pct": 73.4,
+    "mean_when_no_compute": 0.0,
+    "mean_when_all_compute": 2.1
+   },
+   "GR Active": {
+    "window": "before",
+    "period_us": 1000.006,
+    "samples_no_compute_pct": 20.1,
+    "samples_all_compute_pct": 73.4,
+    "mean_when_no_compute": 100.0,
+    "mean_when_all_compute": 99.96
+   },
+   "PCIe RX": {
+    "window": "before",
+    "period_us": 1000.006,
+    "samples_no_compute_pct": 20.1,
+    "samples_all_compute_pct": 73.4,
+    "mean_when_no_compute": 0.87,
+    "mean_when_all_compute": 0.62
+   },
+   "PCIe TX": {
+    "window": "after",
+    "period_us": 1000.006,
+    "samples_no_compute_pct": 20.1,
+    "samples_all_compute_pct": 73.4,
+    "mean_when_no_compute": 0.62,
+    "mean_when_all_compute": 0.09
+   },
+   "SM Active": {
+    "window": "after",
+    "period_us": 1000.006,
+    "samples_no_compute_pct": 20.1,
+    "samples_all_compute_pct": 73.4,
+    "mean_when_no_compute": 0.6,
+    "mean_when_all_compute": 82.6
+   },
+   "SM Issue": {
+    "window": "after",
+    "period_us": 1000.006,
+    "samples_no_compute_pct": 20.1,
+    "samples_all_compute_pct": 73.4,
+    "mean_when_no_compute": 0.0,
+    "mean_when_all_compute": 18.91
+   },
+   "Tensor Active": {
+    "window": "after",
+    "period_us": 1000.006,
+    "samples_no_compute_pct": 20.1,
+    "samples_all_compute_pct": 73.4,
+    "mean_when_no_compute": 0.0,
+    "mean_when_all_compute": 20.6
+   }
+  },
+  "families": [
+   {
+    "name": "ncclDevKernel_Broadcast_RING_LL",
+    "pct": 49.5,
+    "ms_per_s": 782.3,
+    "per_s": 83
+   },
+   {
+    "name": "marlin_moe_wna16::Marlin",
+    "pct": 35.1,
+    "ms_per_s": 554.9,
+    "per_s": 1489
+   },
+   {
+    "name": "kernel_mha",
+    "pct": 7.2,
+    "ms_per_s": 113.6,
+    "per_s": 744
+   },
+   {
+    "name": "cutlass::Kernel2",
+    "pct": 3.2,
+    "ms_per_s": 50.7,
+    "per_s": 2233
+   },
+   {
+    "name": "ncclDevKernel_SendRecv",
+    "pct": 1.8,
+    "ms_per_s": 29.2,
+    "per_s": 83
+   },
+   {
+    "name": "flashinfer::BatchPrefillWithPagedKVCacheKernel",
+    "pct": 1.3,
+    "ms_per_s": 21.2,
+    "per_s": 144
+   },
+   {
+    "name": "vllm::swigluoai_and_mul_kernel",
+    "pct": 0.4,
+    "ms_per_s": 5.7,
+    "per_s": 745
+   },
+   {
+    "name": "vllm::reshape_and_cache_flash_kernel",
+    "pct": 0.2,
+    "ms_per_s": 3.5,
+    "per_s": 744
+   },
+   {
+    "name": "vllm::moe::moe_align_block_size_kernel",
+    "pct": 0.2,
+    "ms_per_s": 3.1,
+    "per_s": 744
+   },
+   {
+    "name": "vllm::moe::topkGating",
+    "pct": 0.2,
+    "ms_per_s": 3.0,
+    "per_s": 744
+   },
+   {
+    "name": "vllm::moe::moe_sum_vec_kernel",
+    "pct": 0.2,
+    "ms_per_s": 2.9,
+    "per_s": 745
+   },
+   {
+    "name": "cublasLt::splitKreduce_kernel",
+    "pct": 0.2,
+    "ms_per_s": 2.5,
+    "per_s": 1345
+   }
+  ],
+  "driver": [
+   {
+    "name": "cuMemcpyDtoHAsync_v2",
+    "per_s": 16,
+    "ms_per_s": 92.1,
+    "max_ms": 13.71
+   },
+   {
+    "name": "cuLaunchKernelEx",
+    "per_s": 789,
+    "ms_per_s": 3.4,
+    "max_ms": 0.03
+   },
+   {
+    "name": "cuEventQuery",
+    "per_s": 1411,
+    "ms_per_s": 2.2,
+    "max_ms": 0.03
+   },
+   {
+    "name": "cuGraphLaunch",
+    "per_s": 185,
+    "ms_per_s": 1.5,
+    "max_ms": 0.05
+   },
+   {
+    "name": "cuLaunchKernel",
+    "per_s": 317,
+    "ms_per_s": 1.2,
+    "max_ms": 0.03
+   },
+   {
+    "name": "cuMemcpyHtoDAsync_v2",
+    "per_s": 258,
+    "ms_per_s": 1.2,
+    "max_ms": 0.03
+   },
+   {
+    "name": "cuStreamWaitEvent",
+    "per_s": 578,
+    "ms_per_s": 0.3,
+    "max_ms": 0.02
+   },
+   {
+    "name": "cuEventRecordWithFlags",
+    "per_s": 509,
+    "ms_per_s": 0.3,
+    "max_ms": 0.02
+   },
+   {
+    "name": "cuEventRecord",
+    "per_s": 586,
+    "ms_per_s": 0.2,
+    "max_ms": 0.02
+   },
+   {
+    "name": "cuEventDestroy_v2",
+    "per_s": 248,
+    "ms_per_s": 0.1,
+    "max_ms": 0.0
+   }
+  ],
+  "tracks": [
+   {
+    "name": "GPU 0 (PAR 2) - nsight-a",
+    "n": 126115
+   },
+   {
+    "name": "Thread 1",
+    "n": 45704
+   },
+   {
+    "name": "GPU 0 (PAR 1) - nsight-a",
+    "n": 26617
+   },
+   {
+    "name": "Thread 7",
+    "n": 3037
+   },
+   {
+    "name": "Thread 5",
+    "n": 2872
+   },
+   {
+    "name": "GPU 0 (PAR 3) - nsight-a",
+    "n": 324
+   },
+   {
+    "name": "System Info",
+    "n": 3
+   },
+   {
+    "name": "GPU GR Context Trace",
+    "n": 1
+   }
+  ]
+ }
+}

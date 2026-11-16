@@ -88,3 +88,9 @@ kubectl rollout status deployment/<workload> -n <namespace> --timeout=15m
    security debt) — don't repeat that mistake.
 8. Validate Akamas YAML with the CLI before declaring work "done" (see
    `.claude/rules/akamas-yaml.md`).
+9. **Every study models the full component and telemetry catalog** (from 2026-11-16): vLLM,
+   one GPU component per physical GPU (all DCGM), Kubernetes Node for every node, Kubernetes
+   Container for vLLM and the load generator, Workload and Cluster, with network and
+   bottleneck metrics (PSI, disk, per-interface network, TCP retransmits, PCIe), even when
+   the goal does not use them. Checklist and starting point (study 51's catalog) in
+   `studies/_TEMPLATE/akamas/README.md`.

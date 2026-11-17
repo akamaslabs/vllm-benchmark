@@ -135,8 +135,10 @@ H200 later.
   new tokens after the shared system prompt), about the size of the p95 tail. A coding agent's
   first answer counts, so it stays in.
 - **Hold:** the last passing level, fresh, 1080 s; Akamas trim `[520s, 90s]`.
-- **Score:** `30 x vllm.request_success_rate - vllm.time_to_first_token_p95 / 10000` (sessions;
-  TTFT p95 in ms, so the tie-break is at most 0.5 under the 5 s SLO, below one level step).
+- **Score:** `30 x vllm.request_success_rate` (sessions held). No TTFT tie-break (the user's call,
+  2026-11-17): study 48 found the rate term noisy by about ±0.5 session over the window, as large
+  as any tie-break. Configurations at the same level are compared on TTFT and ITL directly in the
+  README.
 - **Constraints (Hold window, safety net):** server TTFT p95 <= 6 s and server ITL p95 <= 60 ms.
   With MTP the server-side ITL histogram may count engine steps rather than tokens; the smoke
   compares it with the client ITL before the constraint is written.

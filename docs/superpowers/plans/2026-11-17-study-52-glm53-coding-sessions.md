@@ -35,7 +35,7 @@ kube-state-metrics), Akamas 4.1 (akamas-41) with the vLLM, GPU and Kubernetes pa
   clients); errors < 1 %; >= 95 % completed; >= 95 % of expected sent. Each level also prints the
   worst session's TTFT p95 and the number of sessions with TTFT p95 > 5000 ms (report only).
 - Hold 1080 s, Akamas trim `[520s, 90s]` (single unit each: memory "akamas-trim-single-unit").
-- Score `30 * vllm.request_success_rate - vllm.time_to_first_token_p95 / 10000`; constraints
+- Score `30 * vllm.request_success_rate` (no TTFT tie-break, the user's call); constraints
   server TTFT p95 <= 6 s, ITL p95 <= 60 ms (the ITL one written only after the smoke compares
   server and client ITL under MTP).
 - Smoke go / no-go: FP8 TP4 must start with `--max-model-len` >= 131072; offload must start and

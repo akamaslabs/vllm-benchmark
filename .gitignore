@@ -34,3 +34,9 @@ studies/28-g7-4500-mig-min-cost-fixed-load/k8s/01-statefulset.yaml.check
 studies/30-l40s-gemma4-26b-tps/k8s/params.env
 studies/30-l40s-gemma4-26b-tps/k8s/01-statefulset.yaml
 __pycache__/
+
+# Study 52: rendered per experiment / per smoke run (toolbox or a laptop with kubectl)
+studies/52-g7e-glm53-coding-sessions-within-slo/k8s/params.env
+studies/52-g7e-glm53-coding-sessions-within-slo/k8s/01-vllm.yaml
+studies/52-g7e-glm53-coding-sessions-within-slo/k8s/level.current
+studies/52-g7e-glm53-coding-sessions-within-slo/k8s/smoke-*.log

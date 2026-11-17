@@ -171,8 +171,9 @@ if [ -n "$GPU_MEMORY_UTILIZATION" ]; then
 fi
 echo "$CACHE" | grep -Eq 'num_gpu_blocks="[1-9][0-9]*"' || die "cache_config_info reports no GPU KV block" 8
 
-# --- 5. AIPerf clients ready (pip install, ~1 min the first time) ----------------------
-for c in aiperf-a aiperf-b; do
+# --- 5. AIPerf clients ready (StatefulSet aiperf-client on the m8a-2xlarge node; pip install,
+#        ~1 min the first time) ------------------------------------------------------------
+for c in aiperf-client-0 aiperf-client-1; do
   kubectl -n $NS wait --for=condition=Ready "pod/$c" --timeout=600s \
     || { kubectl -n $NS logs "$c" --tail=50 || true; die "AIPerf client $c not Ready after 600 s" 6; }
 done

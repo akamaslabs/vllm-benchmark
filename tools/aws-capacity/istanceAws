@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# istanceAws: open the live AWS GPU capacity page; start its local server if it is not running.
+set -euo pipefail
+DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+PORT="${ISTANCEAWS_PORT:-8765}"
+if curl -fsS "http://127.0.0.1:${PORT}/api/ping" >/dev/null 2>&1; then
+  open "http://127.0.0.1:${PORT}/"
+  exit 0
+fi
+exec python3 "$DIR/server.py" --port "$PORT" "$@"

@@ -1,0 +1,31 @@
+# GLM-5.3-Flash phase 0: one g7e.12xlarge (2x RTX PRO 6000 Blackwell 96 GB, 48 vCPU, 512 GiB),
+# ON-DEMAND in us-east-2a, where the open capacity reservation cr-0aeb8916b9312c7a2 holds it.
+# Created with --install-nvidia-plugin=false (eksctl would overwrite the shared device plugin).
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+metadata:
+  name: vllm-bench
+  region: us-east-2
+managedNodeGroups:
+  - name: llm-serving-g7e-12xl
+    instanceType: g7e.12xlarge
+    minSize: 0
+    maxSize: 1
+    desiredCapacity: 1
+    availabilityZones: ["us-east-2a"]
+    privateNetworking: true
+    # 4-bit checkpoints are 180-200 GB each, several to try.
+    volumeSize: 800
+    volumeType: gp3
+    volumeIOPS: 6000
+    volumeThroughput: 1000
+    labels:
+      node-role: llm-serving-g7e-12xl
+    taints:
+      - key: nvidia.com/gpu
+        value: present
+        effect: NoSchedule
+    tags:
+      Project: vllm-bench
+      Study: glm53-flash-phase0
+      AlwaysOn: "true"

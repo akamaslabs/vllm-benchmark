@@ -1,0 +1,34 @@
+# GLM-5.3-Flash phase 0, second node: one g7e.24xlarge SPOT (4x RTX PRO 6000 Blackwell 96 GB,
+# 96 vCPU, 1024 GiB) in us-east-2c, where the spot placement score was 8 and the price 8.83 USD/h on
+# 2026-11-17 (on-demand 16.57). Four GPUs fit the target's FP8 checkpoint (328 GB) with TP4.
+# Needs the us-east-2 "All G and VT Spot Instance Requests" quota above 96 vCPU (it was 64; raised
+# on request on 2026-11-17). Created with --install-nvidia-plugin=false, like the 12xl.
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+metadata:
+  name: vllm-bench
+  region: us-east-2
+managedNodeGroups:
+  - name: llm-serving-g7e-24xl-spot
+    instanceTypes: ["g7e.24xlarge"]
+    spot: true
+    minSize: 0
+    maxSize: 1
+    desiredCapacity: 1
+    availabilityZones: ["us-east-2c"]
+    privateNetworking: true
+    # FP8 checkpoint 328 GB + a 4-bit one ~190 GB + compile caches.
+    volumeSize: 1200
+    volumeType: gp3
+    volumeIOPS: 6000
+    volumeThroughput: 1000
+    labels:
+      node-role: llm-serving-g7e-24xl-spot
+    taints:
+      - key: nvidia.com/gpu
+        value: present
+        effect: NoSchedule
+    tags:
+      Project: vllm-bench
+      Study: glm53-flash-phase0
+      AlwaysOn: "true"

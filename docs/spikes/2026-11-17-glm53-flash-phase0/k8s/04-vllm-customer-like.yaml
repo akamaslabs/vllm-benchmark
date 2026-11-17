@@ -1,0 +1,64 @@
+# GLM-5.3-Flash phase 0: the target deployment's container shape and arguments, on the 2x RTX PRO
+# 6000 proxy. Same command structure (vllm serve /mnt/models ... ${VLLM_ADDITIONAL_ARGS}) and the
+# same VLLM_ADDITIONAL_ARGS, except:
+#   - image vllm/vllm-openai:v0.34.0 (the target runs v0.32.0-cu129 and plans to upgrade);
+#   - checkpoint canada-quant/GLM-5.3-Flash-W4A16-MTP (the target's FP8 checkpoint, 328 GB, does
+#     not fit in 2x 96 GB);
+#   - --tensor-parallel-size 2 instead of 4;
+#   - --language-model-only (text only for coding; memory is tight with 190.9 GB of weights);
+#   - no MTP: this checkpoint's MTP head has BF16 experts (~6.75 GiB per GPU at TP2); with them the
+#     start OOMs converting the draft MoE (swap_w13_to_w31, 4.5 GiB more, run 5). MTP on SM120's
+#     sparse MLA backend also has an open 0%-acceptance bug (vllm#59724);
+#   - --max-num-seqs 64: with 2.85 GiB left for KV there are 114 Mamba (KDA state) blocks, one per
+#     running sequence, and v0.34.0's default max_num_seqs 1024 stops the CUDA graph setup (run 6);
+#   - --gpu-memory-utilization 1.0 (v0.34.0's default with the extensible KV cache) instead of 0.95,
+#     and --max-num-batched-tokens 4096 instead of the default 8192: at 0.95 and 0.98, weights and
+#     non-torch take 83.69 GiB, transient activations 3.08 GiB, graphs 0.46 GiB, torch reservation
+#     growth ~2.4 GiB, and no KV block fits (runs 7, 8);
+#   - --max-model-len 196608 instead of 262144: at gmu 1.0, 60-61 KV blocks (1.5 GiB per GPU) fit,
+#     i.e. ~213k tokens in total, and one 262144-token request needs 1.78 GiB (run 9).
+# Compile caches (vLLM, FlashInfer, TileLang, Triton) persist on the node: the TileLang JIT warmup
+# alone took 213 s per start (run 7).
+# Reach it with: kubectl -n glm53 port-forward pod/glm53-w4a16 8000:8000
+apiVersion: v1
+kind: Pod
+metadata:
+  name: glm53-w4a16
+  namespace: glm53
+  labels: {app: glm53, variant: w4a16}
+spec:
+  restartPolicy: Never
+  nodeSelector: {node-role: llm-serving-g7e-12xl}
+  tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+  containers:
+  - name: main
+    image: vllm/vllm-openai:v0.34.0
+    command: ["/bin/bash", "-c"]
+    args:
+    - |
+      set -e
+      ln -sfn "$(ls -d /hf-cache/hub/models--canada-quant--GLM-5.3-Flash-W4A16-MTP/snapshots/* | head -1)" /mnt/models
+      exec vllm serve /mnt/models \
+        --served-model-name "zai-org/GLM-5.3-Flash" \
+        --port 8000 \
+        --disable-access-log-for-endpoints /health,/metrics,/ping \
+        --shutdown-timeout 40 \
+        ${VLLM_ADDITIONAL_ARGS}
+    env:
+    - name: VLLM_ADDITIONAL_ARGS
+      value: --served-model-name zai-org/GLM-5.3-Flash --kv-cache-dtype fp8 --max-model-len 196608 --gpu-memory-utilization 1.0 --max-num-batched-tokens 4096 --tool-call-parser glm47 --reasoning-parser glm47 --enable-auto-tool-choice --tensor-parallel-size 2 --language-model-only --max-num-seqs 64
+    - {name: HF_HUB_OFFLINE, value: "1"}
+    ports: [{name: http, containerPort: 8000}]
+    resources:
+      requests: {cpu: "32", memory: 160Gi}
+      limits: {nvidia.com/gpu: 2, memory: 300Gi}
+    volumeMounts:
+    - {name: hf-cache, mountPath: /hf-cache}
+    - {name: shm, mountPath: /dev/shm}
+    - {name: jit-cache, mountPath: /root/.cache, subPath: cache}
+    - {name: jit-cache, mountPath: /root/.tilelang, subPath: tilelang}
+    - {name: jit-cache, mountPath: /root/.triton, subPath: triton}
+  volumes:
+  - {name: jit-cache, hostPath: {path: /var/lib/glm53-runtime, type: DirectoryOrCreate}}
+  - {name: hf-cache, hostPath: {path: /var/lib/hf-cache-glm53, type: Directory}}
+  - {name: shm, emptyDir: {medium: Memory, sizeLimit: 32Gi}}

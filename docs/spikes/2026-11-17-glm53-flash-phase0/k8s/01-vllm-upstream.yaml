@@ -1,0 +1,44 @@
+# GLM-5.3-Flash phase 0, first start: upstream vLLM v0.34.0, nvidia/GLM-5.3-Flash-FP4-Local, TP2.
+# Flags kept to the minimum on purpose: the point is to read from the log which attention, MoE,
+# linear and KDA kernels vLLM picks by itself on SM120. Apply after model-download-fp4 completes.
+# Reach it with: kubectl -n glm53 port-forward pod/glm53-upstream 8000:8000
+apiVersion: v1
+kind: Pod
+metadata:
+  name: glm53-upstream
+  namespace: glm53
+  labels: {app: glm53, variant: upstream}
+spec:
+  restartPolicy: Never
+  nodeSelector: {node-role: llm-serving-g7e-12xl}
+  tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+  containers:
+  - name: vllm
+    image: vllm/vllm-openai:v0.34.0
+    args:
+    # Flattened copy of nvidia/GLM-5.3-Flash-FP4-Local (symlinks; tensors/native-QB.safetensors moved
+    # to the top level, index rewritten): v0.34.0's loader globs *.safetensors in the model folder
+    # only, so the 214 BF16 KDA projections in tensors/ read as "missing" (run 1, 08:16 UTC).
+    - /hf-cache/glm53-fp4-local-flat
+    - --served-model-name=glm-5.3-flash
+    - --tensor-parallel-size=2
+    # Target workload: coding agents, long contexts.
+    - --max-model-len=262144
+    - --enable-prefix-caching
+    # Text only (coding). Also needed: v0.34.0's vision tower expects BF16, the checkpoint's is
+    # FP8 with weight_scale ("no parameter named blocks.0.attn.proj.weight_scale", run 2).
+    - --language-model-only
+    - --port=8000
+    env:
+    - {name: HF_HOME, value: /hf-cache}
+    - {name: HF_HUB_OFFLINE, value: "1"}
+    ports: [{name: http, containerPort: 8000}]
+    resources:
+      requests: {cpu: "32", memory: 160Gi}
+      limits: {nvidia.com/gpu: 2, memory: 200Gi}
+    volumeMounts:
+    - {name: hf-cache, mountPath: /hf-cache}
+    - {name: shm, mountPath: /dev/shm}
+  volumes:
+  - {name: hf-cache, hostPath: {path: /var/lib/hf-cache-glm53, type: Directory}}
+  - {name: shm, emptyDir: {medium: Memory, sizeLimit: 32Gi}}

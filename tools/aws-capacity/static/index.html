@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>istanceAws</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #eef2f6; --panel: #ffffff; --ink: #18232e; --muted: #5b6875; --line: #d3dbe3;
+  --accent: #2b57c9; --accent-ink: #ffffff;
+  --yes: #17875c; --yes-bg: #dcf3e8; --no: #b8433a; --no-bg: #f8e1de;
+  --quota: #9a6a0c; --quota-bg: #f6ecd2; --err: #7a3fa8; --err-bg: #efe2f8;
+  --na: #e4e9ee; --sticky: #f7f9fb; --group: #e3e9f1;
+  --s-lo: #f3d6d2; --s-mid: #f5e7c4; --s-hi: #cfeedd;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121820; --panel: #18212b; --ink: #e3e9f0; --muted: #93a1b0; --line: #2c3845;
+    --accent: #6b8ff0; --accent-ink: #0e1420;
+    --yes: #5fd3a0; --yes-bg: #173a2c; --no: #f08a80; --no-bg: #43201d;
+    --quota: #e6b85a; --quota-bg: #3d3018; --err: #c99af0; --err-bg: #33234a;
+    --na: #1d2731; --sticky: #1b2530; --group: #223040;
+    --s-lo: #4a2420; --s-mid: #4a3c1a; --s-hi: #1c4532;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); }
+body { font: 15px/1.35 "Barlow Semi Condensed", system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 24px; padding: 12px 16px;
+  background: var(--panel); border-bottom: 1px solid var(--line); }
+h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.01em; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chips .lbl { color: var(--muted); margin-right: 2px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border: 1px solid var(--line);
+  border-radius: 999px; cursor: pointer; user-select: none; background: var(--bg); }
+.chip input { margin: 0; accent-color: var(--accent); }
+.chip.on { border-color: var(--accent); }
+#filter { padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); min-width: 220px; }
+
+.bar { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center; padding: 10px 16px;
+  border-bottom: 1px solid var(--line); background: var(--panel); }
+.quota { display: flex; gap: 6px 28px; flex-wrap: wrap; color: var(--muted); }
+.quota .reg { display: inline-flex; gap: 12px; }
+.quota b { color: var(--ink); font-weight: 600; }
+.quota .tight { color: var(--quota); }
+.spotline { color: var(--muted); }
+button.act { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent);
+  color: var(--accent-ink); font-weight: 600; cursor: pointer; }
+button.act:disabled { opacity: .45; cursor: not-allowed; }
+button.ghost { padding: 4px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); cursor: pointer; }
+button.ghost:disabled { opacity: .45; cursor: not-allowed; }
+.probebar { gap: 8px 16px; }
+.progress { color: var(--muted); }
+.open-res.bad { color: var(--no); font-weight: 700; }
+#msg { color: var(--no); }
+.errors { margin: 0; padding: 8px 16px; background: var(--no-bg); color: var(--no); border-bottom: 1px solid var(--line); }
+.errors div + div { margin-top: 2px; }
+
+.wrap { overflow: auto; max-height: calc(100vh - 150px); }
+table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
+th, td { padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; text-align: left; }
+thead th { position: sticky; z-index: 2; background: var(--sticky); font-weight: 600; }
+thead tr:first-child th { top: 0; }
+thead tr:nth-child(2) th { top: 29px; color: var(--muted); font-weight: 500; }
+th.region { text-align: center; border-left: 2px solid var(--line); }
+th.azh { text-align: center; }
+.s0 { position: sticky; left: 0; z-index: 1; background: var(--panel); width: 34px; }
+.s1 { position: sticky; left: 34px; z-index: 1; background: var(--panel); min-width: 128px; border-right: 1px solid var(--line); }
+thead .s0, thead .s1 { z-index: 3; background: var(--sticky); }
+tbody tr.grp td { background: var(--group); font-weight: 600; padding-top: 7px; padding-bottom: 7px; }
+tbody tr.grp td.s0, tbody tr.grp td.s1 { background: var(--group); }
+tbody tr.grp .count { color: var(--muted); font-weight: 400; margin-left: 8px; }
+td.num { text-align: right; }
+td.gpu { color: var(--muted); }
+td.az { min-width: 78px; padding: 3px 6px; vertical-align: top; }
+td.az.first { border-left: 2px solid var(--line); }
+td.na { background: repeating-linear-gradient(135deg, transparent 0 6px, var(--na) 6px 8px); color: var(--muted); text-align: center; vertical-align: middle; }
+.od { display: inline-block; min-width: 40px; padding: 0 6px; border-radius: 4px; font-weight: 700; font-size: 13px; text-align: center; }
+.od.YES { background: var(--yes-bg); color: var(--yes); }
+.od.no { background: var(--no-bg); color: var(--no); }
+.od.quota { background: var(--quota-bg); color: var(--quota); }
+.od.error, .od.LEFT_ACTIVE { background: var(--err-bg); color: var(--err); }
+.od.run { background: var(--accent); color: var(--accent-ink); animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .od.run { animation: none; } }
+.age { color: var(--muted); font-size: 12px; margin-left: 4px; }
+.sp { display: flex; gap: 5px; align-items: baseline; margin-top: 2px; font-size: 13px; color: var(--muted); }
+.score { display: inline-block; min-width: 20px; text-align: center; border-radius: 3px; font-weight: 700; color: var(--ink); }
+.score.lo { background: var(--s-lo); } .score.mid { background: var(--s-mid); } .score.hi { background: var(--s-hi); }
+.score.lim { background: var(--na); color: var(--muted); }
+tr.hidden { display: none; }
+.legend { padding: 8px 16px 14px; color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; }
+.empty { padding: 28px 16px; color: var(--muted); }
+@media (max-width: 640px) { #filter { min-width: 0; width: 100%; } .wrap { max-height: none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>istanceAws</h1>
+  <div class="chips" id="regions"><span class="lbl">Show</span></div>
+  <input id="filter" type="search" placeholder="Filter by GPU or type, e.g. H200, g7e, 96 GB" aria-label="Filter">
+</header>
+<div class="bar">
+  <div class="quota" id="quota"></div>
+  <div class="spotline"><span id="spotat">Spot not loaded yet</span> <button class="ghost" id="spotbtn">Refresh spot</button></div>
+</div>
+<div class="bar probebar">
+  <div class="chips" id="probeRegions"><span class="lbl">Probe in</span></div>
+  <button class="act" id="probebtn" disabled>Probe on-demand</button>
+  <button class="ghost" id="clearbtn" disabled>Clear selection</button>
+  <span class="progress" id="progress"></span>
+  <span id="msg" role="status"></span>
+  <span class="progress" id="cost"></span>
+  <span class="open-res" id="openres"></span>
+</div>
+<div class="errors" id="errors" hidden></div>
+<div class="wrap"><table id="tbl"></table><div class="empty" id="empty">Loading instance types from AWS…</div></div>
+<div class="legend">
+  <span><span class="od YES">YES</span> on-demand capacity found</span>
+  <span><span class="od no">no</span> none in that zone</span>
+  <span><span class="od quota">quota</span> vCPU quota too small to try</span>
+  <span><span class="score hi">8</span> spot placement score, 1 to 10, then spot $/h</span>
+  <span><span class="score lim">?</span> no score yet (AWS daily limit)</span>
+  <span>Each on-demand YES costs one minute of the hourly price.</span>
+  <span>Spot scores cover us-east-2, us-east-1 and eu-central-1; AWS accepts about 50 new score requests a day, biggest GPUs are asked first.</span>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+let S = null, timer = null;
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const ticked = new Set(store.get("ticked", []));
+let probeRegions = store.get("probeRegions", null);
+
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function money(x) { return x == null ? "?" : "$" + (x >= 10 ? x.toFixed(1) : x.toFixed(2)); }
+function age(at) {
+  const s = Math.max(0, Math.round((Date.now() / 1000) - at));
+  return s < 60 ? s + "s" : s < 3600 ? Math.round(s / 60) + "m" : Math.round(s / 3600) + "h";
+}
+function hhmm(t) { return new Date(t * 1000).toISOString().slice(11, 16) + " UTC"; }
+function scoreClass(n) { return n >= 7 ? "hi" : n >= 4 ? "mid" : "lo"; }
+
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  let data = {}; try { data = await r.json(); } catch {}
+  return { ok: r.ok, status: r.status, data };
+}
+
+function plan() {
+  let planned = 0, cost = 0; const types = new Set();
+  for (const r of probeRegions || []) for (const t of ticked) {
+    const azs = (S.offered[r] || {})[t] || [];
+    if (azs.length) { types.add(t); planned += azs.length; cost += ((S.price[r] || {})[t] || 0) / 60 * azs.length; }
+  }
+  return { planned, cost, types: types.size };
+}
+
+function renderChips() {
+  const rs = $("regions"), ps = $("probeRegions");
+  rs.querySelectorAll(".chip").forEach((e) => e.remove());
+  ps.querySelectorAll(".chip").forEach((e) => e.remove());
+  for (const r of S.all_regions) {
+    const on = S.regions.includes(r), loading = S.loading.includes(r);
+    rs.insertAdjacentHTML("beforeend", `<label class="chip ${on ? "on" : ""}"><input type="checkbox" data-region="${r}" ${on ? "checked" : ""}>${r}${loading ? " …" : ""}</label>`);
+  }
+  for (const r of S.regions) {
+    const on = probeRegions.includes(r);
+    ps.insertAdjacentHTML("beforeend", `<label class="chip ${on ? "on" : ""}"><input type="checkbox" data-probe="${r}" ${on ? "checked" : ""}>${r}</label>`);
+  }
+}
+
+function renderBars() {
+  $("quota").innerHTML = S.regions.map((r) => {
+    const q = S.quota[r]; if (!q) return `<span>${r}: loading</span>`;
+    const part = (b) => { const x = q[b]; const tight = x.free < 16 ? "tight" : ""; return `<span class="${tight}">${b}: <b>${x.free}</b> of ${x.quota} vCPU free</span>`; };
+    return `<span class="reg"><b>${r}</b>${part("G")}${part("P")}</span>`;
+  }).join("");
+  $("spotat").textContent = S.spot_running ? "Updating spot…" : S.spot_at ? "Spot updated " + hhmm(S.spot_at) : "Spot not loaded yet";
+  $("spotbtn").disabled = S.spot_running;
+  const p = plan(), busy = (probeRegions || []).some((r) => S.probing[r]);
+  const btn = $("probebtn");
+  btn.disabled = p.planned === 0 || busy;
+  btn.textContent = p.planned ? `Probe on-demand: ${p.types} type${p.types > 1 ? "s" : ""}, ${p.planned} zones, up to ${money(p.cost)}` : "Probe on-demand: tick instance types first";
+  $("clearbtn").disabled = ticked.size === 0;
+  $("clearbtn").textContent = ticked.size ? `Clear selection (${ticked.size})` : "Clear selection";
+  $("progress").textContent = Object.entries(S.probing).map(([r, x]) => `${r} ${x.done}/${x.total} ${x.current}`).join("   ");
+  $("cost").textContent = S.cost_usd ? `Probes this session: about ${money(S.cost_usd)}` : "";
+  const open = Object.values(S.active_tagged).reduce((a, b) => a + b, 0);
+  const el = $("openres"); el.textContent = `Reservations left open by this tool: ${open}`; el.classList.toggle("bad", open > 0);
+  const errs = $("errors");
+  errs.hidden = !S.errors.length;
+  errs.innerHTML = S.errors.slice(0, 3).map((e) => `<div>${esc(e)}</div>`).join("") + (S.errors.length > 3 ? `<div>and ${S.errors.length - 3} more</div>` : "");
+}
+
+function cell(r, t, az) {
+  const offered = ((S.offered[r] || {})[t] || []).includes(az);
+  if (!offered) return `<td class="az na ${az === S.azs[r][0] ? "first" : ""}" title="${t} is not offered in ${az}">—</td>`;
+  const pr = (((S.probe[r] || {})[t]) || {})[az];
+  const running = S.probing[r] && S.probing[r].current === `${t} ${az}`;
+  let od = "";
+  if (running) od = `<span class="od run">…</span>`;
+  else if (pr) od = `<span class="od ${pr.result}" title="${esc(pr.detail || "")}">${pr.result === "LEFT_ACTIVE" ? "open!" : pr.result}</span><span class="age">${age(pr.at)}</span>`;
+  const sc = (S.spot_score[t] || {})[az], sp = ((S.spot_price[r] || {})[t] || {})[az];
+  let spot = "";
+  if (S.spot_score_error[t]) spot = `<span class="score lim" title="${esc(S.spot_score_error[t])}: AWS accepts about 50 new spot score requests per 24 hours; this type gets a score once the window frees up">?</span>`;
+  else if (sc != null) spot = `<span class="score ${scoreClass(sc)}" title="spot placement score">${sc}</span>`;
+  if (sp != null) spot += `<span>${money(sp)}</span>`;
+  return `<td class="az ${az === S.azs[r][0] ? "first" : ""}">${od || "&nbsp;"}<div class="sp">${spot}</div></td>`;
+}
+
+function renderTable() {
+  const regs = S.regions.filter((r) => S.azs[r]);
+  const tbl = $("tbl");
+  if (!S.groups.length) { tbl.innerHTML = ""; $("empty").hidden = false; $("empty").textContent = S.loading.length ? "Loading instance types from AWS…" : "No GPU instance types in the shown regions."; return; }
+  $("empty").hidden = true;
+  const sx = $("tbl").parentElement.scrollLeft, sy = $("tbl").parentElement.scrollTop;
+  let h = `<thead><tr><th class="s0"></th><th class="s1">Type</th><th>vCPU</th><th>RAM</th><th>GPUs</th><th>On-demand</th>`;
+  for (const r of regs) h += `<th class="region" colspan="${S.azs[r].length}">${r}</th>`;
+  h += `</tr><tr><th class="s0"></th><th class="s1"></th><th></th><th></th><th></th><th>$/h</th>`;
+  for (const r of regs) for (const az of S.azs[r]) h += `<th class="azh">${az.slice(r.length)}</th>`;
+  h += `</tr></thead><tbody>`;
+  const cols = 6 + regs.reduce((a, r) => a + S.azs[r].length, 0);
+  for (const g of S.groups) {
+    const all = g.types.every((t) => ticked.has(t)), some = g.types.some((t) => ticked.has(t));
+    h += `<tr class="grp" data-group="${esc(g.group)}"><td class="s0"><input type="checkbox" aria-label="Tick every ${esc(g.group)} type" data-grp="${esc(g.group)}" ${all ? "checked" : ""} ${!all && some ? "data-ind=1" : ""}></td>`
+      + `<td class="s1" colspan="5">${esc(g.group)}<span class="count">${g.types.length} type${g.types.length > 1 ? "s" : ""}</span></td><td colspan="${cols - 6}"></td></tr>`;
+    for (const t of g.types) {
+      const T = S.types[t];
+      const price = regs.map((r) => (S.price[r] || {})[t]).find((x) => x != null);
+      const gpus = T.gpu_count ? `${T.gpu_count} × ${T.gpu_model}` : `${T.gpu_model} share`;
+      h += `<tr data-t="${t}" data-search="${esc((t + " " + g.group + " " + T.gpu_model).toLowerCase())}">`
+        + `<td class="s0"><input type="checkbox" aria-label="Tick ${t}" data-type="${t}" ${ticked.has(t) ? "checked" : ""}></td>`
+        + `<td class="s1">${t}</td><td class="num">${T.vcpu}</td><td class="num">${T.mem_gib} GiB</td><td class="gpu">${esc(gpus)}, ${T.gpu_mem_gib} GB</td><td class="num">${money(price)}</td>`;
+      for (const r of regs) for (const az of S.azs[r]) h += cell(r, t, az);
+      h += `</tr>`;
+    }
+  }
+  tbl.innerHTML = h + "</tbody>";
+  tbl.querySelectorAll("input[data-ind]").forEach((e) => (e.indeterminate = true));
+  applyFilter();
+  tbl.parentElement.scrollLeft = sx; tbl.parentElement.scrollTop = sy;
+}
+
+function applyFilter() {
+  const q = $("filter").value.trim().toLowerCase();
+  const rows = [...$("tbl").querySelectorAll("tbody tr")];
+  let grp = null, visible = 0;
+  const close = () => { if (grp) grp.classList.toggle("hidden", visible === 0); };
+  for (const tr of rows) {
+    if (tr.classList.contains("grp")) { close(); grp = tr; visible = 0; continue; }
+    const show = !q || tr.dataset.search.includes(q);
+    tr.classList.toggle("hidden", !show);
+    if (show) visible++;
+  }
+  close();
+}
+
+function render() {
+  if (!probeRegions) probeRegions = [...S.probe_regions];
+  probeRegions = probeRegions.filter((r) => S.regions.includes(r));
+  renderChips(); renderBars(); renderTable();
+}
+
+async function poll() {
+  clearTimeout(timer);
+  try {
+    const r = await api("/api/state");
+    if (r.ok) { S = r.data; render(); }
+  } catch (e) { $("msg").textContent = "The istanceAws server is not answering. Start it again with istanceAws in a terminal."; }
+  const active = S && (Object.keys(S.probing).length || S.loading.length || S.spot_running);
+  timer = setTimeout(poll, active ? 2000 : 15000);
+}
+
+document.addEventListener("change", async (ev) => {
+  const el = ev.target;
+  if (el.dataset.type) { el.checked ? ticked.add(el.dataset.type) : ticked.delete(el.dataset.type); }
+  else if (el.dataset.grp) {
+    const g = S.groups.find((x) => x.group === el.dataset.grp);
+    for (const t of g.types) el.checked ? ticked.add(t) : ticked.delete(t);
+  } else if (el.dataset.probe) {
+    const r = el.dataset.probe;
+    probeRegions = el.checked ? [...new Set([...probeRegions, r])] : probeRegions.filter((x) => x !== r);
+    store.set("probeRegions", probeRegions);
+  } else if (el.dataset.region) {
+    const regions = [...document.querySelectorAll("input[data-region]")].filter((e) => e.checked).map((e) => e.dataset.region);
+    if (!regions.length) { el.checked = true; return; }
+    await api("/api/regions", { regions });
+    return poll();
+  } else return;
+  store.set("ticked", [...ticked]);
+  render();
+});
+$("filter").addEventListener("input", applyFilter);
+$("clearbtn").addEventListener("click", () => { ticked.clear(); store.set("ticked", []); render(); });
+$("spotbtn").addEventListener("click", async () => { await api("/api/spot/refresh", {}); poll(); });
+$("probebtn").addEventListener("click", async () => {
+  const types = [...ticked];
+  const r = await api("/api/probe", { types, regions: probeRegions });
+  $("msg").textContent = r.ok ? "" : (r.data.error || "Probe refused");
+  poll();
+});
+poll();
+</script>
+</body>
+</html>

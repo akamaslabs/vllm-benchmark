@@ -1,0 +1,53 @@
+# GLM-5.3-Flash phase 0 on the g7e.12xlarge (node group llm-serving-g7e-12xl), namespace glm53.
+# - model-download-fp4: fills the node's /var/lib/hf-cache-glm53 with nvidia/GLM-5.3-Flash-FP4-Local
+#   (public, 177.5 GB) and pulls the vLLM image. No GPU.
+# - nccl-diag: peer access, copy bandwidth and an NCCL all-reduce sweep on the two GPUs, with the
+#   vLLM image's torch and NCCL. Script in the ConfigMap (create it from nccl_diag.py first:
+#   kubectl -n glm53 create configmap nccl-diag --from-file=nccl_diag.py).
+apiVersion: batch/v1
+kind: Job
+metadata: {name: model-download-fp4, namespace: glm53}
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector: {node-role: llm-serving-g7e-12xl}
+      tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+      containers:
+      - name: download
+        image: vllm/vllm-openai:v0.34.0
+        command: ["bash", "-c", "hf download nvidia/GLM-5.3-Flash-FP4-Local && du -sh /hf-cache"]
+        env:
+        - {name: HF_HOME, value: /hf-cache}
+        - {name: HF_XET_HIGH_PERFORMANCE, value: "1"}
+        resources: {requests: {cpu: "8", memory: 16Gi}}
+        volumeMounts: [{name: hf-cache, mountPath: /hf-cache}]
+      volumes:
+      - {name: hf-cache, hostPath: {path: /var/lib/hf-cache-glm53, type: DirectoryOrCreate}}
+---
+apiVersion: batch/v1
+kind: Job
+metadata: {name: nccl-diag, namespace: glm53}
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector: {node-role: llm-serving-g7e-12xl}
+      tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+      containers:
+      - name: diag
+        image: vllm/vllm-openai:v0.34.0
+        command: ["bash", "-c", "nvidia-smi topo -m && python3 /diag/nccl_diag.py"]
+        resources:
+          requests: {cpu: "8", memory: 32Gi}
+          limits: {nvidia.com/gpu: 2}
+        volumeMounts:
+        - {name: diag, mountPath: /diag}
+        - {name: shm, mountPath: /dev/shm}
+      volumes:
+      - {name: diag, configMap: {name: nccl-diag}}
+      - {name: shm, emptyDir: {medium: Memory, sizeLimit: 8Gi}}

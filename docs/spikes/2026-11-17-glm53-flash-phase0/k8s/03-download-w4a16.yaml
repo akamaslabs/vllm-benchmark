@@ -1,0 +1,26 @@
+# Second checkpoint for upstream vLLM: canada-quant/GLM-5.3-Flash-W4A16-MTP (public, 190.9 GB,
+# compressed-tensors pack-quantized). Only the routed experts are 4-bit: every self_attn projection
+# (q/k/v, b, f_a/f_b, g_a/g_b, o) is in the ignore list, so no mixed-precision fused KDA projection
+# (what stopped FP4-Local on v0.34.0, run 3). MTP head in BF16. Same node cache as FP4-Local.
+apiVersion: batch/v1
+kind: Job
+metadata: {name: model-download-w4a16, namespace: glm53}
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector: {node-role: llm-serving-g7e-12xl}
+      tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+      containers:
+      - name: download
+        image: vllm/vllm-openai:v0.34.0
+        command: ["bash", "-c", "hf download canada-quant/GLM-5.3-Flash-W4A16-MTP && du -sh /hf-cache"]
+        env:
+        - {name: HF_HOME, value: /hf-cache}
+        - {name: HF_XET_HIGH_PERFORMANCE, value: "1"}
+        resources: {requests: {cpu: "8", memory: 16Gi}}
+        volumeMounts: [{name: hf-cache, mountPath: /hf-cache}]
+      volumes:
+      - {name: hf-cache, hostPath: {path: /var/lib/hf-cache-glm53, type: DirectoryOrCreate}}

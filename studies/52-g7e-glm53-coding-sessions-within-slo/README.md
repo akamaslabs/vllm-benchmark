@@ -85,7 +85,12 @@ the KDA state), `tensor_parallel_size` (the target's TP4).
   `kv_cache_dtype` value `fp8_ds_mla`, `language_model_only`, and no per-container or per-pod
   network metrics in the Kubernetes pack.
 - Smoke on the node (`k8s/smoke.sh`) with the go / no-go rules of the design.
-- Spot quota (case 179491438900392).
+- Spot quota: raised to 192 vCPU on 2026-11-17 (case 179491438900392 closed); spot node up in us-east-2c.
+- **After the smoke, before the study (agreed with the user 2026-11-17):** move the checkpoint and
+  the compile caches from the node's hostPath to an EBS volume of their own (PVC, gp3 ~600 GB in
+  us-east-2c, 1000 MB/s), copied from what the smoke downloaded, so a reclaimed spot node is
+  replaced without re-downloading 328 GB or recompiling. Update 01-vllm_template.yaml and its tests;
+  delete the volume at the end of the study.
 
 ## Results
 

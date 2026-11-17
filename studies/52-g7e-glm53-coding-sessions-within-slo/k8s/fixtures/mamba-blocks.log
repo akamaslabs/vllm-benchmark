@@ -1,0 +1,7 @@
+# Excerpt of a real vLLM v0.34.0 start-up log (2026-11-17 spike, run 6: GLM-5.3-Flash W4A16, TP2, default max_num_seqs).
+(Worker_TP0 pid=460) INFO 11-17 09:02:47 [gpu_worker.py:795] Available KV cache memory: 2.85 GiB
+(EngineCore pid=331) INFO 11-17 09:02:47 [kv_cache_utils.py:861] kv cache group sizes (4352, 4352, 4352, 4352, 4)
+(Worker_TP1 pid=461) ERROR 11-17 09:02:47 [multiproc_executor.py:1223]     cudagraph_mode = self.compilation_config.resolve_cudagraph_mode_and_sizes(
+(Worker_TP1 pid=461) ERROR 11-17 09:02:47 [multiproc_executor.py:1223]   File "/usr/local/lib/python3.12/dist-packages/vllm/config/compilation.py", line 1674, in resolve_cudagraph_mode_and_sizes
+(Worker_TP1 pid=461) ERROR 11-17 09:02:47 [multiproc_executor.py:1223] ValueError: max_num_seqs (1024) exceeds available Mamba cache blocks (114). Each decode sequence requires one Mamba cache block, so CUDA graph capture cannot proceed. Please lower max_num_seqs to at most 114 or increase gpu_memory_utilization.
+(Worker_TP1 pid=461) ERROR 11-17 09:02:47 [multiproc_executor.py:1223]     cudagraph_mode = self.compilation_config.resolve_cudagraph_mode_and_sizes(

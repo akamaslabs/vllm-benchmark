@@ -146,11 +146,11 @@ while [ $((SECONDS - T0)) -lt $START_WAIT ]; do
     echo "error: the new vLLM pod failed during startup (evicted?)" >&2
     EXIT=4; break
   fi
-  R=$(kubectl -n $NS get pods -l app=vllm -o jsonpath='{range .items[*]}{.status.containerStatuses[0].restartCount}{"\n"}{end}' | sort -n | tail -1)
+  # Only this apply's pod: the previous experiment's pod may still be listed (smoke 2026-11-17).
+  read -r CP R <<< "$(newest_pod_since "$APPLY_TS")"
   # The first crash whose log names a start-up failure that repeats (Mamba blocks, no KV block, OOM)
   # ends the wait at once instead of after three starts (final review I4).
-  if [ "${R:-0}" -ge 1 ]; then
-    CP=$(kubectl -n $NS get pods -l app=vllm --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1:].metadata.name}')
+  if [ -n "$CP" ] && [ "${R:-0}" -ge 1 ]; then
     if WHY=$(crash_reason "$CP"); then echo "error: vLLM failed to start: $WHY" >&2; EXIT=4; break; fi
   fi
   if [ "${R:-0}" -ge 2 ]; then echo "error: vLLM restarted $R times during startup: crash loop" >&2; EXIT=4; break; fi
@@ -158,7 +158,8 @@ while [ $((SECONDS - T0)) -lt $START_WAIT ]; do
 done
 [ $EXIT = 1 ] && { echo "error: vLLM not Ready after $START_WAIT s" >&2; EXIT=4; }
 t "vLLM rollout exit=$EXIT after $((SECONDS - T0)) s"
-POD=$(kubectl -n $NS get pods -l app=vllm --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1:].metadata.name}')
+read -r POD _ <<< "$(newest_pod_since "$APPLY_TS")"
+[ -n "$POD" ] || POD=$(kubectl -n $NS get pods -l app=vllm --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1:].metadata.name}')
 LOG=$(mktemp)
 kubectl -n $NS logs "$POD" --tail=-1 > "$LOG" 2>/dev/null
 [ $EXIT -eq 0 ] || kubectl -n $NS logs "$POD" --tail=-1 --previous >> "$LOG" 2>/dev/null

@@ -1,0 +1,4 @@
+# Excerpt of a real vLLM v0.34.0 start-up log (2026-11-17 smoke, DCP 4 on SM120 at TP4).
+(Worker_TP3_DCP3 pid=479) ERROR 11-17 15:27:38 [multiproc_executor.py:1091] Traceback (most recent call last):
+(Worker_TP3_DCP3 pid=479) ERROR 11-17 15:27:38 [multiproc_executor.py:1091] ValueError: No valid attention backend found for cuda with AttentionSelectorConfig(head_size=512, dtype=torch.bfloat16, kv_cache_dtype=fp8, block_size=None, use_mla=True, has_sink=False, use_sparse=True, use_mm_prefix=False, use_per_head_quant_scales=False, attn_type=decoder, has_sliding_window=False, use_non_causal=False,
+(Worker_TP2_DCP2 pid=481) ERROR 11-17 15:27:38 [multiproc_executor.py:1091] Traceback (most recent call last):

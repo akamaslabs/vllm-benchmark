@@ -24,7 +24,7 @@ wait_for_node() {
 # below max_num_seqs, no KV block left after warmup, max_model_len above the cache, CUDA OOM),
 # or nothing. Seen on the 2026-11-17 spike (runs 5-9).
 startup_failure_reason() {
-  grep -m1 -E 'exceeds available Mamba cache blocks|No available memory for the cache blocks|To serve at least one request with the model|CUDA out of memory|OutOfMemoryError' "$1" \
+  grep -m1 -E 'exceeds available Mamba cache blocks|No valid attention backend found|No available memory for the cache blocks|To serve at least one request with the model|CUDA out of memory|OutOfMemoryError' "$1" \
     | sed -E 's/^.*(ValueError|RuntimeError|torch\.OutOfMemoryError|OutOfMemoryError): //' | cut -c1-400
 }
 
@@ -65,4 +65,14 @@ node_lost() {
   [ -n "$node" ] || return 1
   ready=$(kubectl get node "$node" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null) || return 0
   [ "$ready" != True ]
+}
+
+# newest_pod_since TS: "NAME RESTARTS" of the newest vLLM pod created at or after TS (UTC ISO-8601),
+# or nothing. During a Recreate rollout the previous experiment's pod (crash-looping or terminating)
+# is still listed; counting its restarts or its log failed every start after a failed one in seconds
+# (smoke 2026-11-17).
+newest_pod_since() {
+  kubectl -n "${NS:-glm53-coding}" get pods -l app=vllm \
+    -o jsonpath='{range .items[*]}{.metadata.creationTimestamp} {.metadata.name} {.status.containerStatuses[0].restartCount}{"\n"}{end}' 2>/dev/null \
+    | awk -v t0="$1" 'NF >= 2 && $1 >= t0' | sort | tail -1 | awk '{ print $2, ($3 == "" ? 0 : $3) }'
 }

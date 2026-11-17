@@ -132,6 +132,23 @@ chmod +x "$STUB/kubectl"
 ( PATH="$STUB:$PATH" STUB_POD="ip-a/NodeShutdown" STUB_NODE=True node_lost vllm-x >/dev/null ); RC=$?; rc "node_lost: NodeShutdown" 0
 ( PATH="$STUB:$PATH" STUB_POD="ip-a/Evicted" STUB_NODE=True node_lost vllm-x >/dev/null ); RC=$?; rc "node_lost: evicted on a live node" 1
 rm -rf "$STUB"
+# Smoke 2026-11-17: the previous experiment's pod (crash-looping or terminating) must not count as the
+# new one: only pods created after this apply are checked for restarts and crash reasons.
+STUB=$(mktemp -d)
+cat > "$STUB/kubectl" <<'STUBEOF'
+#!/bin/bash
+printf '%s\n' "${STUB_PODS:-}"
+STUBEOF
+chmod +x "$STUB/kubectl"
+OUT=$(PATH="$STUB:$PATH" STUB_PODS=$'2026-11-17T15:20:00Z vllm-old 2\n2026-11-17T15:30:05Z vllm-new 0' newest_pod_since 2026-11-17T15:30:00Z)
+[ "$OUT" = "vllm-new 0" ] && ok || bad "newest_pod_since: the new pod only ('$OUT')"
+OUT=$(PATH="$STUB:$PATH" STUB_PODS='2026-11-17T15:20:00Z vllm-old 2' newest_pod_since 2026-11-17T15:30:00Z)
+[ -z "$OUT" ] && ok || bad "newest_pod_since: no new pod yet ('$OUT')"
+OUT=$(PATH="$STUB:$PATH" STUB_PODS='2026-11-17T15:30:05Z vllm-new ' newest_pod_since 2026-11-17T15:30:00Z)
+[ "$OUT" = "vllm-new 0" ] && ok || bad "newest_pod_since: no restart count yet = 0 ('$OUT')"
+rm -rf "$STUB"
+OUT=$(startup_failure_reason "$HERE/fixtures/dcp-no-backend.log")
+[[ "$OUT" == *"No valid attention backend"* ]] && ok || bad "startup_failure_reason DCP: '$OUT'"
 # I6: checkpoint and tokenizer pinned to one revision.
 REV=46a050bec13002ad29ee795c16e61cf4fa3c4a9c
 grep -q -- "hf download zai-org/GLM-5.3-Flash --revision $REV" "$HERE/01-vllm_template.yaml" && ok || bad "template: checkpoint download not pinned to $REV"

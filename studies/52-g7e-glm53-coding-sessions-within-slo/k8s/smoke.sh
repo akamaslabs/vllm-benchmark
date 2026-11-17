@@ -26,6 +26,9 @@ NS=glm53-coding
 source "$HERE/lib_apply.sh"
 declare -A R
 MNS=""   # max_num_seqs pin found by the baseline step (empty = vLLM's default)
+# The baseline's gpu_memory_utilization: the target's 0.95 by default. SMOKE_GMU=1.0 is the design's
+# upper bound (v0.34.0's default with the extensible KV cache) when 0.95 leaves no KV block.
+GMU=${SMOKE_GMU:-0.95}
 MOE=$(grep -m1 '^MOE_ALLOWED=' "$HERE/apply_config.sh" | cut -d'"' -f2)
 
 # params KEY=VALUE ...: writes params.env with every variable (empty unless given), plus the
@@ -52,7 +55,7 @@ metrics() { kubectl -n $NS exec "$(pod)" -- python3 -c 'import urllib.request; p
 # try NAME KEY=VALUE ...: one start with these parameters, PASS/FAIL with the reason.
 try() {
   local n=$1 rc secs; shift
-  params GPU_MEMORY_UTILIZATION=0.95 SPEC_TOKENS=5 "$@"
+  params GPU_MEMORY_UTILIZATION=$GMU SPEC_TOKENS=5 "$@"
   read -r rc secs <<< "$(apply "$n")"
   if [ "$rc" = 0 ]; then report "$n" PASS "started in ${secs}s; $(kubectl -n $NS logs "$(pod)" | grep 'GPU KV cache size' | tail -1 | sed 's/.*\] //')"
   else report "$n" FAIL "apply exit $rc: $(why "$n")"; fi
@@ -76,14 +79,14 @@ for S in "${@:-baseline answer mtp warm dcp offload edges}"; do
   echo "===== SMOKE $S $(date -u +%T)"
   case "$S" in
     baseline)
-      params GPU_MEMORY_UTILIZATION=0.95 SPEC_TOKENS=5
+      params GPU_MEMORY_UTILIZATION=$GMU SPEC_TOKENS=5
       read -r rc secs <<< "$(apply baseline)"
       if [ "$rc" != 0 ]; then
         N=$(max_seqs_hint "$K/smoke-baseline.log")
         if [ -n "$N" ]; then
           MNS=$(( N < 128 ? N : 128 ))
           echo "SMOKE baseline: default max_num_seqs refused (at most $N Mamba blocks): retrying with $MNS"
-          params GPU_MEMORY_UTILIZATION=0.95 SPEC_TOKENS=5
+          params GPU_MEMORY_UTILIZATION=$GMU SPEC_TOKENS=5
           read -r rc secs <<< "$(apply baseline)"
         fi
       fi
@@ -107,7 +110,7 @@ for S in "${@:-baseline answer mtp warm dcp offload edges}"; do
     dcp)
       try dcp DECODE_CONTEXT_PARALLEL_SIZE=4 ;;
     offload)
-      params GPU_MEMORY_UTILIZATION=0.95 SPEC_TOKENS=5 KV_OFFLOADING_SIZE=256
+      params GPU_MEMORY_UTILIZATION=$GMU SPEC_TOKENS=5 KV_OFFLOADING_SIZE=256
       read -r rc secs <<< "$(apply offload)"
       [ "$rc" = 0 ] || { report offload FAIL "apply exit $rc: $(why offload)"; continue; }
       level offload 4

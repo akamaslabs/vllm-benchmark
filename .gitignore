@@ -40,3 +40,4 @@ studies/52-g7e-glm53-coding-sessions-within-slo/k8s/params.env
 studies/52-g7e-glm53-coding-sessions-within-slo/k8s/01-vllm.yaml
 studies/52-g7e-glm53-coding-sessions-within-slo/k8s/level.current
 studies/52-g7e-glm53-coding-sessions-within-slo/k8s/smoke-*.log
+studies/52-g7e-glm53-coding-sessions-within-slo/k8s/smoke-run*/

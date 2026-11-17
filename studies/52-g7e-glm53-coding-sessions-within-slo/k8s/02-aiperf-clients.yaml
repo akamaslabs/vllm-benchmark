@@ -27,6 +27,9 @@ spec:
         - |
           set -e
           pip install --quiet aiperf==0.11.0
+          # The tokenizer at the checkpoint's pinned revision (AIPerf has no revision flag), passed
+          # to --tokenizer as a local path (final review I6).
+          hf download zai-org/GLM-5.3-Flash --revision 46a050bec13002ad29ee795c16e61cf4fa3c4a9c --include 'tokenizer*' 'config.json' 'chat_template*' 'generation_config.json' --local-dir /work/tokenizer
           touch /work/ready
           exec sleep infinity
         readinessProbe: {exec: {command: [test, -f, /work/ready]}, periodSeconds: 5}

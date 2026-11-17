@@ -4,7 +4,9 @@
 # - The container keeps the target deployment's shape: `vllm serve /mnt/models ... ${VLLM_ADDITIONAL_ARGS}`,
 #   with the target's fixed arguments and the tuned flags in VLLM_ADDITIONAL_ARGS (apply_config.sh).
 # - The checkpoint (328 GB) lives on a node hostPath; the init container downloads it when the node
-#   is new (first start, or a reclaimed spot node replaced by the ASG) and marks it complete.
+#   is new (first start, or a reclaimed spot node replaced by the ASG) and marks it complete. Pinned
+#   to revision 46a050bec13002ad29ee795c16e61cf4fa3c4a9c (main on 2026-11-17): a re-download after a reclaim must not
+#   bring a newer checkpoint mid-study (final review I6).
 # - Compile caches (vLLM, FlashInfer, TileLang, Triton) live on a node hostPath: the TileLang JIT
 #   warmup alone took 213 s per start on the spike.
 # - /dev/shm holds the whole CPU KV offload buffer (native backend; vLLM refuses to start if shm is
@@ -33,9 +35,9 @@ spec:
         args:
         - |
           set -e
-          if [ -f /hf-cache/.glm53-fp8-complete ]; then echo "checkpoint already on the node"; exit 0; fi
-          hf download zai-org/GLM-5.3-Flash
-          touch /hf-cache/.glm53-fp8-complete
+          if [ -f /hf-cache/.glm53-fp8-46a050bec13002ad29ee795c16e61cf4fa3c4a9c-complete ]; then echo "checkpoint 46a050bec13002ad29ee795c16e61cf4fa3c4a9c already on the node"; exit 0; fi
+          hf download zai-org/GLM-5.3-Flash --revision 46a050bec13002ad29ee795c16e61cf4fa3c4a9c
+          touch /hf-cache/.glm53-fp8-46a050bec13002ad29ee795c16e61cf4fa3c4a9c-complete
           du -sh /hf-cache
         env:
         - {name: HF_HOME, value: /hf-cache}
@@ -51,7 +53,8 @@ spec:
         args:
         - |
           set -e
-          ln -sfn "$(ls -d /hf-cache/hub/models--zai-org--GLM-5.3-Flash/snapshots/* | head -1)" /mnt/models
+          test -d /hf-cache/hub/models--zai-org--GLM-5.3-Flash/snapshots/46a050bec13002ad29ee795c16e61cf4fa3c4a9c
+          ln -sfn /hf-cache/hub/models--zai-org--GLM-5.3-Flash/snapshots/46a050bec13002ad29ee795c16e61cf4fa3c4a9c /mnt/models
           exec vllm serve /mnt/models \
             --served-model-name "zai-org/GLM-5.3-Flash" \
             --port 8000 \

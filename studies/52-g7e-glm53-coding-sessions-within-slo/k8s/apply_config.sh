@@ -11,7 +11,8 @@
 # Fail-fast by design: a half-applied configuration would benchmark the previous experiment's setup
 # under the current one's name. Exit codes: 2 bad parameters, 3 node missing / apply failed, 4 vLLM
 # failed to start (the reason line from the log is printed), 6 AIPerf clients not Ready,
-# 8 the running pod does not have the rendered configuration (study 49).
+# 8 the running pod does not have the rendered configuration (study 49), 9 the node was lost during
+# the start and none came back within the start budget (spot).
 # RENDER_ONLY=1 prints the VLLM_ADDITIONAL_ARGS value on one line and "shm=<Gi> mem=<Gi>", then
 # exits: local tests (test_apply_config.sh).
 set -euo pipefail
@@ -127,13 +128,31 @@ while [ $((SECONDS - T0)) -lt $START_WAIT ]; do
   UPD=$(kubectl -n $NS get deploy vllm -o jsonpath='{.status.updatedReplicas}')
   if [ "$OBS" = "$GEN" ] && [ "${RDY:-0}" = 1 ] && [ "${UPD:-0}" = 1 ] \
      && [ "$(kubectl -n $NS get pods -l app=vllm --field-selector=status.phase!=Failed -o name | wc -l | tr -d ' ')" = 1 ]; then EXIT=0; break; fi
-  if kubectl -n $NS get pods -l app=vllm --field-selector=status.phase=Failed -o jsonpath='{.items[*].metadata.creationTimestamp}' 2>/dev/null \
-       | tr ' ' '\n' | awk -v t0="$APPLY_TS" '$0 >= t0 { f = 1 } END { exit !f }'; then
-    echo "error: the new vLLM pod failed during startup (evicted? node reclaimed?):" >&2
+  FAILED=$(kubectl -n $NS get pods -l app=vllm --field-selector=status.phase=Failed \
+    -o jsonpath='{range .items[*]}{.metadata.creationTimestamp} {.metadata.name}{"\n"}{end}' 2>/dev/null \
+    | awk -v t0="$APPLY_TS" '$1 >= t0 { print $2; exit }')
+  if [ -n "$FAILED" ]; then
     kubectl -n $NS get pods -l app=vllm -o custom-columns=POD:.metadata.name,PHASE:.status.phase,REASON:.status.reason,MESSAGE:.status.message >&2
+    # A spot reclaim during the start (up to 80 min) takes the pod down with its node: wait for the
+    # ASG's replacement and let the Deployment start again, instead of scoring a configuration that
+    # never had a node (final review I5). Exit 9 if the time runs out.
+    if node_lost "$FAILED"; then
+      echo "the vLLM pod $FAILED went down with its node (spot reclaim?): deleting it, waiting for a new node" >&2
+      kubectl -n $NS delete pod "$FAILED" --wait=false >/dev/null 2>&1
+      LEFT=$((START_WAIT - (SECONDS - T0)))
+      [ $LEFT -gt 0 ] && wait_for_node $LEFT || { echo "error: no node came back within the start budget" >&2; EXIT=9; break; }
+      continue
+    fi
+    echo "error: the new vLLM pod failed during startup (evicted?)" >&2
     EXIT=4; break
   fi
   R=$(kubectl -n $NS get pods -l app=vllm -o jsonpath='{range .items[*]}{.status.containerStatuses[0].restartCount}{"\n"}{end}' | sort -n | tail -1)
+  # The first crash whose log names a start-up failure that repeats (Mamba blocks, no KV block, OOM)
+  # ends the wait at once instead of after three starts (final review I4).
+  if [ "${R:-0}" -ge 1 ]; then
+    CP=$(kubectl -n $NS get pods -l app=vllm --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1:].metadata.name}')
+    if WHY=$(crash_reason "$CP"); then echo "error: vLLM failed to start: $WHY" >&2; EXIT=4; break; fi
+  fi
   if [ "${R:-0}" -ge 2 ]; then echo "error: vLLM restarted $R times during startup: crash loop" >&2; EXIT=4; break; fi
   sleep 15
 done
@@ -166,7 +185,7 @@ for l in urllib.request.urlopen("http://localhost:8000/metrics").read().decode()
 echo "cache_config_info: $CACHE"
 [ -n "$CACHE" ] || die "vllm:cache_config_info not found on the pod's /metrics" 8
 if [ -n "$GPU_MEMORY_UTILIZATION" ]; then
-  echo "$CACHE" | grep -Eq "gpu_memory_utilization=\"$(awk -v g="$GPU_MEMORY_UTILIZATION" 'BEGIN { printf "%g", g }')\"" \
+  gmu_matches "$CACHE" "$GPU_MEMORY_UTILIZATION" \
     || die "cache_config_info does not report gpu_memory_utilization $GPU_MEMORY_UTILIZATION" 8
 fi
 echo "$CACHE" | grep -Eq 'num_gpu_blocks="[1-9][0-9]*"' || die "cache_config_info reports no GPU KV block" 8

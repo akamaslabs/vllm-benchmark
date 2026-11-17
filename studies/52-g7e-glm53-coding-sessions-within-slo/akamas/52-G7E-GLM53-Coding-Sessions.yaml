@@ -22,12 +22,14 @@ goal:
   constraints:
     absolute:
       # Safety nets on the Hold window (server side); the SLO itself (5 s, 50 ms) is judged client
-      # side by the Ramp. With MTP the server ITL may count engine steps: the smoke compares it
-      # with the client ITL before the study starts.
+      # side by the Ramp. The ITL net reads the per-request TPOT, the server-side equivalent of
+      # AIPerf's ITL (each request's mean time per output token): vLLM's inter_token_latency is per
+      # engine step, so with MTP (several tokens per step) and prefill chunks mixed into decode
+      # steps its p95 sits well above the client ITL (final review I1). The smoke compares the two.
       - name: TTFT P95 safety net
         formula: vllm.time_to_first_token_p95 <= 6000
-      - name: ITL P95 safety net
-        formula: vllm.inter_token_latency_p95 <= 60
+      - name: TPOT P95 safety net
+        formula: vllm.time_per_output_token_p95 <= 60
 windowing:
   type: trim
   # AIPerf start-up + 500 s steady-from, then 60 s grace + log dump. Single unit each (a "1m30s"
@@ -73,8 +75,8 @@ kpis:
   - name: TTFT P95
     formula: vllm.time_to_first_token_p95
     direction: minimize
-  - name: ITL P95
-    formula: vllm.inter_token_latency_p95
+  - name: TPOT P95
+    formula: vllm.time_per_output_token_p95
     direction: minimize
   - name: Prompt from cache incl offload
     formula: vllm.prefix_cache_hit_rate_with_offload

@@ -141,15 +141,26 @@ merge_results() {
             lat("worst_session_ttft_p95_ms"), sum["sessions_over_slo"] }'
 }
 
-# aiperf_cmd CLIENT SESSIONS RATE SECONDS: the AIPerf command line of one client. Each client has its
-# own seed: its sessions get their own per-session contexts (and their own 20k shared prompt).
+# seed_for LABEL CLIENT: AIPerf's --random-seed for one client in one run. The same seed gives the
+# same dataset (AIPerf 0.11.0), so the seed differs per client (their own contexts), per level and for
+# the Hold: no run re-sends the conversations a previous run left in the cache (final review I3).
+# ramp-L: 52000 + 10 L + client; hold-L: 57000 + 10 L + client; anything else: 61000 + 10 L + client.
+seed_for() {
+  local label=$1 base=61000 level
+  case "$label" in ramp-*) base=52000 ;; hold-*) base=57000 ;; esac
+  level=${label##*-}; [[ "$level" =~ ^[0-9]+$ ]] || level=12
+  echo $((base + 10 * level + $2))
+}
+
+# aiperf_cmd CLIENT SESSIONS RATE SECONDS LABEL: the AIPerf command line of one client. The tokenizer is
+# the local copy at the checkpoint's pinned revision (02-aiperf-clients.yaml).
 aiperf_cmd() {
-  echo "aiperf profile --model $MODEL --tokenizer $MODEL --url $URL --endpoint-type chat --streaming" \
+  echo "aiperf profile --model $MODEL --tokenizer /work/tokenizer --url $URL --endpoint-type chat --streaming" \
     "--shared-system-prompt-length $SHARED_PROMPT --user-context-prompt-length $USER_CONTEXT --num-dataset-entries $DATASET_ENTRIES" \
     "--isl $ISL --isl-stddev 0 --osl $OSL --osl-stddev 0 --extra-inputs $EXTRA_INPUTS" \
     "--conversation-turn-mean $TURNS --conversation-turn-stddev 0 --conversation-num $CONVERSATIONS" \
     "--num-users $2 --user-centric-rate $3 --benchmark-duration $4 --benchmark-grace-period 60" \
-    "--random-seed $((52000 + $1)) --slice-duration 60 --ui simple --output-artifact-dir /work/out/run"
+    "--random-seed $(seed_for "$5" "$1") --slice-duration 60 --ui simple --output-artifact-dir /work/out/run"
 }
 
 # run_level SESSIONS SECONDS LABEL: one AIPerf run of SESSIONS coding sessions (one turn each every
@@ -162,7 +173,7 @@ run_level() {
   [ $((half * 2)) = "$users" ] || die "level $users is odd: the two clients take half the sessions each"
   rate=$(awk -v u="$half" -v p="$SECONDS_PER_TURN" 'BEGIN { printf "%.4f", u / p }')
   if [ "${DRY_RUN:-0}" = 1 ]; then
-    for i in 0 1; do echo "client $i: $(aiperf_cmd $i "$half" "$rate" "$secs")"; done
+    for i in 0 1; do echo "client $i: $(aiperf_cmd $i "$half" "$rate" "$secs" "$label")"; done
     return 0
   fi
   for i in 0 1; do
@@ -175,7 +186,7 @@ run_level() {
   for i in 0 1; do
     kubectl -n $NS exec aiperf-client-$i -- sh -c "rm -rf /work/out; mkdir -p /work/out; cd /work; \
       cat /sys/fs/cgroup/cpu.stat > /work/out/cpu0 2>/dev/null; \
-      $(aiperf_cmd $i "$half" "$rate" "$secs") > /work/out/run.log 2>&1; rc=\$?; \
+      $(aiperf_cmd $i "$half" "$rate" "$secs" "$label") > /work/out/run.log 2>&1; rc=\$?; \
       cat /sys/fs/cgroup/cpu.stat > /work/out/cpu1 2>/dev/null; exit \$rc" &
     pids+=($!)
   done

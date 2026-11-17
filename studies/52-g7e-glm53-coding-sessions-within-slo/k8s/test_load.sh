@@ -46,13 +46,19 @@ M=$(printf '%s\n' 'client 0: RESULT sent=92 completed=92 errors=0 ttft_p50_ms=90
 
 # --- the AIPerf command (DRY_RUN=1: printed, not run) ------------------------------------
 O=$(DRY_RUN=1 run_level 12 960 test 2>&1)
-for f in "--model zai-org/GLM-5.3-Flash" "--tokenizer zai-org/GLM-5.3-Flash" "--url http://vllm.glm53-coding.svc:8000" \
+for f in "--model zai-org/GLM-5.3-Flash" "--url http://vllm.glm53-coding.svc:8000" \
          "--shared-system-prompt-length 20000" "--user-context-prompt-length 10000" "--conversation-turn-mean 16" \
          "--isl 4000" "--osl 400" "--extra-inputs ignore_eos:true" "--num-users 6 --user-centric-rate 0.2000" \
          "--benchmark-duration 960"; do
   [ "$(echo "$O" | grep -c -- "$f")" = 2 ] && ok || ko "aiperf command: '$f' in both clients"
 done
-echo "$O" | grep -q -- "--random-seed 52000" && echo "$O" | grep -q -- "--random-seed 52001" && ok || ko "aiperf command: one seed per client"
+# I3: one seed per client AND per level, another for the Hold: no level reuses another's conversations.
+[ "$(seed_for ramp-12 0) $(seed_for ramp-12 1)" = "52120 52121" ] && ok || ko "seed ramp-12: $(seed_for ramp-12 0) $(seed_for ramp-12 1)"
+[ "$(seed_for ramp-16 0)" = 52160 ] && ok || ko "seed ramp-16: $(seed_for ramp-16 0)"
+[ "$(seed_for hold-12 0) $(seed_for hold-12 1)" = "57120 57121" ] && ok || ko "seed hold-12: $(seed_for hold-12 0) $(seed_for hold-12 1)"
+O=$(DRY_RUN=1 run_level 12 960 ramp-12 2>&1)
+echo "$O" | grep -q -- "--random-seed 52120" && echo "$O" | grep -q -- "--random-seed 52121" && ok || ko "aiperf command: the level's seeds"
+echo "$O" | grep -q -- "--tokenizer /work/tokenizer" && ok || ko "aiperf command: pinned local tokenizer"
 ( DRY_RUN=1 run_level 5 960 odd ) >/dev/null 2>&1; [ $? != 0 ] && ok || ko "odd level refused"
 
 # --- the per-client parser on a synthetic export -----------------------------------------

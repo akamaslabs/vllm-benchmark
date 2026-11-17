@@ -104,5 +104,39 @@ printf '#!/bin/bash\necho "ip-10-0-0-1 True"\n' > "$STUB/kubectl"
 rc "wait_for_node ready" 0
 rm -rf "$STUB"
 
+# --- final review fixes ------------------------------------------------------------------
+# C1: gpu_memory_utilization compared as numbers (vLLM writes Python str(float), full precision).
+L='vllm:cache_config_info{block_size="64",gpu_memory_utilization="0.9017631142560059",num_gpu_blocks="812"} 1.0'
+gmu_matches "$L" 0.9017631142560059; RC=$?; rc "gmu full precision" 0
+gmu_matches 'vllm:cache_config_info{gpu_memory_utilization="0.95",num_gpu_blocks="9"} 1.0' 0.950000; RC=$?; rc "gmu 0.95 vs 0.950000" 0
+gmu_matches 'vllm:cache_config_info{gpu_memory_utilization="0.9",num_gpu_blocks="9"} 1.0' 0.95; RC=$?; rc "gmu mismatch" 1
+gmu_matches 'vllm:cache_config_info{num_gpu_blocks="9"} 1.0' 0.95; RC=$?; rc "gmu label missing" 1
+# I2: the max_num_seqs the log says would fit.
+OUT=$(max_seqs_hint "$HERE/fixtures/mamba-blocks.log"); [ "$OUT" = 114 ] && ok || bad "max_seqs_hint: '$OUT'"
+OUT=$(max_seqs_hint "$HERE/fixtures/no-kv-blocks.log"); [ -z "$OUT" ] && ok || bad "max_seqs_hint without the hint: '$OUT'"
+# I4 / I5 with a stub kubectl: the previous container's log names the failure; a pod lost with its node.
+STUB=$(mktemp -d)
+cat > "$STUB/kubectl" <<'STUBEOF'
+#!/bin/bash
+case "$*" in
+  *"logs vllm-x --previous"*) cat "${STUB_PREV:-/dev/null}" ;;
+  *"get pod vllm-x"*) printf '%s' "${STUB_POD:-ip-a/}" ;;
+  *"get node ip-a"*) [ "${STUB_NODE:-}" = gone ] && exit 1; printf '%s' "${STUB_NODE:-True}" ;;
+esac
+STUBEOF
+chmod +x "$STUB/kubectl"
+( PATH="$STUB:$PATH" STUB_PREV="$HERE/fixtures/mamba-blocks.log" crash_reason vllm-x >/dev/null ); RC=$?; rc "crash_reason found" 0
+( PATH="$STUB:$PATH" STUB_PREV=/dev/null crash_reason vllm-x >/dev/null ); RC=$?; rc "crash_reason none" 1
+( PATH="$STUB:$PATH" STUB_POD="ip-a/" STUB_NODE=gone node_lost vllm-x >/dev/null ); RC=$?; rc "node_lost: node gone" 0
+( PATH="$STUB:$PATH" STUB_POD="ip-a/" STUB_NODE=False node_lost vllm-x >/dev/null ); RC=$?; rc "node_lost: node NotReady" 0
+( PATH="$STUB:$PATH" STUB_POD="ip-a/NodeShutdown" STUB_NODE=True node_lost vllm-x >/dev/null ); RC=$?; rc "node_lost: NodeShutdown" 0
+( PATH="$STUB:$PATH" STUB_POD="ip-a/Evicted" STUB_NODE=True node_lost vllm-x >/dev/null ); RC=$?; rc "node_lost: evicted on a live node" 1
+rm -rf "$STUB"
+# I6: checkpoint and tokenizer pinned to one revision.
+REV=46a050bec13002ad29ee795c16e61cf4fa3c4a9c
+grep -q -- "hf download zai-org/GLM-5.3-Flash --revision $REV" "$HERE/01-vllm_template.yaml" && ok || bad "template: checkpoint download not pinned to $REV"
+grep -q -- "snapshots/$REV" "$HERE/01-vllm_template.yaml" && ok || bad "template: /mnt/models not the pinned snapshot"
+grep -q -- "--revision $REV" "$HERE/02-aiperf-clients.yaml" && ok || bad "clients: tokenizer not pinned to $REV"
+
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" = 0 ]

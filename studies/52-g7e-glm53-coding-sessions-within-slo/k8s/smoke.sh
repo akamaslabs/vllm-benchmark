@@ -43,7 +43,8 @@ params() {
   done
   # -i.bak works with GNU and BSD sed (the smoke can run from a laptop with kubectl, not only the toolbox).
   [ -z "$MNS" ] || sed -i.bak "s|^MAX_NUM_SEQS=.*|MAX_NUM_SEQS=$MNS|" "$K/params.env"
-  for kv in "$@"; do sed -i.bak "s|^${kv%%=*}=.*|$kv|" "$K/params.env"; done
+  # SMOKE_EXTRA="KEY=VALUE ...": applied to every step, before the step's own values.
+  for kv in ${SMOKE_EXTRA:-} "$@"; do sed -i.bak "s|^${kv%%=*}=.*|$kv|" "$K/params.env"; done
   rm -f "$K/params.env.bak"
 }
 apply() { local t0=$SECONDS; bash "$HERE/apply_config.sh" > "$K/smoke-$1.log" 2>&1; local rc=$?; echo "$rc $((SECONDS - t0))"; }

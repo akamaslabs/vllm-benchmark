@@ -1,7 +1,9 @@
 # 52-g7e-glm53-coding-sessions-within-slo
 
-**Status:** PREPARED (2026-11-17). Waiting for the us-east-2 spot G vCPU quota (64 -> 192
-requested, AWS case 179491438900392) and the smoke on the node.
+**Status:** ON HOLD (2026-11-17): the smoke said **no-go** on the g7e.24xlarge. The target's FP8
+checkpoint loads at TP4 but leaves no room for the KV cache on 96 GB GPUs (see "Smoke 2026-11-17").
+Node groups scaled to 0. Next: pick the rig (g7e.48xlarge TP8, H200, or this rig with a fixed KV
+size), then adapt the study.
 
 - **Design:** `docs/superpowers/specs/2026-11-17-study-52-glm53-coding-sessions-design.md`.
 - **Plan:** `docs/superpowers/plans/2026-11-17-study-52-glm53-coding-sessions.md`.
@@ -91,6 +93,39 @@ the KDA state), `tensor_parallel_size` (the target's TP4).
   us-east-2c, 1000 MB/s), copied from what the smoke downloaded, so a reclaimed spot node is
   replaced without re-downloading 328 GB or recompiling. Update 01-vllm_template.yaml and its tests;
   delete the volume at the end of the study.
+
+## Smoke 2026-11-17 (g7e.24xlarge spot, us-east-2c, vLLM v0.34.0, FP8 checkpoint 46a050be, TP4)
+
+Logs in `k8s/smoke-run1..3/` and `k8s/smoke-*.log` (local, not committed).
+
+- **Weights:** 78.61 GiB per GPU (of 94.97 GiB usable), text only. Load 136 s cold, 35 s warm (page
+  cache); TileLang JIT warmup 18 s with the compile caches on the node (213 s cold on the 2-GPU spike).
+- **Picked by vLLM:** attention `FLASHINFER_MLA_SPARSE_SM120` (only candidate, `fp8_ds_mla`), FP8
+  MoE `DEEPGEMM` out of AITER, FLASHINFER_TRTLLM, FLASHINFER_CUTLASS, DEEPGEMM, TRITON, MARLIN,
+  HUMMING, ...
+- **Memory, the blocker:**
+
+  | gmu | max_num_seqs | Outcome |
+  |---|---|---|
+  | 0.95 | default 1024 | refused: at most 494 Mamba (KDA state) blocks |
+  | 0.95 | 128 | started; after warmup 5.4 GiB free on the device, 2.1 GiB kept for activations: **0 KV blocks** within 90.22 GiB |
+  | 0.95, mnbt 2048 | 128 | 1.88 GiB of KV, below the 2.01 GiB one 262144-token request needs |
+  | 0.98, mnbt 4096 | 128 | **CUDA driver OOM during warmup** (12.46 GiB of KV reserved before warmup) |
+  | 1.0 | default 1024 / 128 | refused at 823 Mamba blocks / **driver OOM during warmup** (13.07 GiB reserved) |
+
+  v0.34.0's extensible KV cache reserves the estimate before warmup from gmu 0.98 up, and finds
+  nothing after warmup at 0.95: no gmu value starts the FP8 checkpoint at TP4 on 96 GB GPUs. Only an
+  explicit `--kv-cache-memory-bytes` (~4-5 GiB per GPU) or `--no-enable-extensible-kv-cache` might,
+  leaving a few GiB of KV per GPU (~0.9M tokens, ~10 coding sessions at 100k).
+- **Why more GPUs help:** the MLA latent KV is replicated on every TP rank (DCP is unavailable, see
+  below), so session capacity = free memory on one GPU. TP8 on 8 GPUs halves the weights per GPU
+  (~40 GiB) and leaves ~45 GiB per GPU, close to the target's H200 at TP4 (~50 GiB).
+- **Not available on SM120:** DCP 2 and 4 ("No valid attention backend found ... use_mla=True,
+  use_sparse=True"); MoE `cutlass` ("disabled for this configuration") and `flashinfer_cutlass`
+  (does not support the checkpoint's 128x128 block FP8 scales). `triton` starts but needs more
+  memory than `deep_gemm` (auto).
+- **Harness bug found and fixed:** Apply counted the previous experiment's crashing pod
+  (`newest_pod_since`, commit 0a5c1d5).
 
 ## Results
 

@@ -1,38 +1,96 @@
-# akamas/ — this study's Akamas resources
+# akamas/ — study 52's Akamas resources
 
-Generate everything in this folder with the `akamas-study-manager` plugin
-(`/akamas-study-manager:build`) — don't hand-write Akamas YAML. It handles the build
-order (System → Component → Telemetry → Workflow → Study) and the resource shapes
-(`system.yaml`, `components/*.yaml`, `telemetry/*.yaml`, the workflow file,
-`study.yaml`).
+Created on 2026-11-17 with the `akamas-study-manager` plugin (0.3.0), for **Akamas 4.1.0**
+(`akamas-41`), from study 51's resources adapted to one g7e.24xlarge spot with 4 GPUs. Goal and
+method: `../README.md`. Design: `docs/superpowers/specs/2026-11-17-study-52-glm53-coding-sessions-design.md`.
 
-Optimization packs (which component types/parameters/metrics exist) are **not**
-configured here — they're managed outside this repo, via the `akamas-optimization-pack`
-plugin against the pack's own repo (e.g.
-<https://gitlab.com/akamas/optimization-packs/vllm> for vLLM).
+**Status:** files written and checked offline (cross-references, domains against the packs, every
+PromQL query run against the cluster's Prometheus: 152 queries, 0 errors). **Not created on
+akamas-41 yet**: waiting for the user's go, after the smoke (`../k8s/smoke.sh`).
 
-## Components and telemetry: always the full catalog (from 2026-11-16)
+## Versions
 
-Every study models **every component and collects every useful metric**, even the ones the
-goal does not use and no parameter touches, so the bottleneck can be found afterwards.
-Studies 45, 47 and 48 had no GPU or Kubernetes Node component; start from study 51's
-catalog (`studies/51-g7e-tcp-moe-parallelism-users-ramp/akamas/telemetry/prometheus.yaml`)
-and add what the installed packs offer (`akamas describe optimization-pack <name>`).
+- **Optimization packs on akamas-41** (checked with `akamas list optimization-pack` and
+  `akamas describe optimization-pack` on 2026-11-17): vLLM **1.15.0**, GPU **1.4.0**, Kubernetes
+  **1.9.0**. Every parameter and metric used here exists in those versions.
+- **Workload:** `vllm/vllm-openai:v0.34.0`, `zai-org/GLM-5.3-Flash` (FP8) served as
+  `zai-org/GLM-5.3-Flash`, TP4, `--language-model-only`, `--max-model-len 262144`.
+- **Load generator:** AIPerf 0.11.0, two clients (`aiperf-client-0/1`) on the `m8a-2xlarge` node.
+- **Telemetry:** Prometheus (kube-prometheus-stack). Scrapes: vLLM via ServiceMonitor
+  `vllm-glm53-coding` every 5 s (`../k8s/00-base.yaml`); dcgm-exporter (Helm revision 30 covers
+  the node role `llm-serving-g7e-24xl-spot`); node-exporter and kube-state-metrics (node labels,
+  incl. `label_node_role`), already on the cluster.
 
-| Component | One per | Metrics, at least |
+## Resources
+
+| File | Kind | Name |
 |---|---|---|
-| vLLM | serving deployment | the full catalog, plus the families of the features in use (KV offload, speculative decoding acceptance, combined prefix hit rate) |
-| GPU | physical GPU (`gpu0`, `gpu1`, …; MIG: per instance too) | all DCGM: SM / tensor / DRAM active, power, clocks, throttle reasons, violations, XID, PCIe tx/rx, NVLink where present |
-| Kubernetes Node | GPU node and load-generator node | CPU, PSI (cpu / memory / io), load average, memory and swap, disk (IOPS, latency, bytes), filesystem, network per interface (`*_details`), TCP retransmits |
-| Kubernetes Container | vLLM, load generator | CPU, throttling, PSI, memory, OOM kills, restarts |
-| Kubernetes Workload | serving workload | desired / running / ready pods, CPU, memory |
-| Kubernetes Cluster | cluster | CPU, memory, PSI, nodes |
+| `system.yaml` | system | `vLLM_Benchmark_52_G7E_GLM53_Coding` |
+| `components/vllm.yaml` | vLLM | `vllm`: the Deployment's pod; the 11 tuned parameters, the goal |
+| `components/vllm_workload.yaml` | Kubernetes Workload | `vllm_workload`: the Deployment `vllm` |
+| `components/gpu0.yaml` … `gpu3.yaml` | GPU | one per physical GPU (DCGM `gpu` index 0-3) |
+| `components/node_gpu.yaml` | Kubernetes Node | the g7e.24xlarge spot |
+| `components/node_load.yaml` | Kubernetes Node | the m8a-2xlarge load node |
+| `components/container.yaml` | Kubernetes Container | the vLLM container |
+| `components/container_loadtest.yaml` | Kubernetes Container | the two AIPerf clients |
+| `components/cluster.yaml` | Kubernetes Cluster | the whole cluster |
+| `telemetry/prometheus.yaml` | telemetry-instance | `Prometheus_52_G7E_GLM53_Coding`, 152 metrics |
+| `52-G7E-GLM53-Coding-Workflow.yaml` | workflow | Write config → Apply config → Ramp → Hold |
+| `52-G7E-GLM53-Coding-Sessions.yaml` | study | `52-G7E-GLM53-Coding-Sessions` |
 
-- Extra metrics go in the telemetry instance, not in the KPIs (Akamas caps KPIs at 8).
-- Metrics no pack has (per-container or per-pod network, `/dev/shm` usage, NCCL, NUMA) are a
-  TODO in the study README, raised with whoever manages the packs.
-- Before the start, check that every component's queries return data (study 51's smoke:
-  111 of 113 queries with data). At the end, export the series from Prometheus to `results/`.
+Telemetry notes (the header of `telemetry/prometheus.yaml` has the details):
 
-This is a template placeholder — real studies replace this README with their actual
-YAML files (this note can stay or go once populated).
+- vLLM queries are scoped to `namespace="glm53-coding"`.
+- GPU and Node queries join to the node role through kube-state-metrics' `kube_node_labels`
+  (`label_join`, no `$1` next to the placeholders); no role exporter of our own.
+- `k8s_node_network_in_bytes_details` / `_out_bytes_details` keep the `device` label (per interface).
+
+## Study
+
+- **Goal:** maximize `30 * vllm.request_success_rate` (sessions held: one turn per session every
+  30 s). Window: the `Hold` task, trimmed `[520s, 90s]`.
+- **Constraints, server side:** TTFT p95 <= 6000 ms and ITL p95 <= 60 ms. The SLO itself (5 s,
+  50 ms) is judged client side by the `Ramp` task (`../k8s/run_ramp.sh`).
+- **Parameters (11):** `kv_offloading_size` 0–512, `gpu_memory_utilization` 0.85–0.97,
+  `max_num_seqs` 8–128, `max_num_batched_tokens` 2048–16384, `spec_tokens` 0–5,
+  `decode_context_parallel_size` 1–4 (not 3), `moe_backend` {auto, triton, cutlass,
+  flashinfer_cutlass, deep_gemm}, `max_cudagraph_capture_size` 16–512, `async_scheduling`,
+  `performance_mode`, `optimization_level` 1–3.
+- **Parameter constraints (2):** `max_num_batched_tokens >= max_num_seqs`;
+  `decode_context_parallel_size != 3`.
+- **Steps:** `baseline` (gmu 0.95, MTP 5 tokens, the rest not rendered = vLLM defaults: the target's
+  arguments), presets `Offload 256`, `DCP four`, `MTP three`, `MTP one`, `Baseline repeat`, then
+  `optimize` (10 experiments, 3 initial).
+- **8 KPIs:** completed requests per s, output tokens per second, TTFT p95, ITL p95, prompt from
+  cache incl. offload, MTP acceptance, KV cache usage, GPU 0 utilization.
+- **After the smoke** (TODO in the study YAML): pin `max_num_seqs` in the baseline if v0.34.0's
+  default exceeds the Mamba block count at TP4; set `spec_tokens` 0 and drop the MTP presets if MTP
+  shows no acceptance; drop `DCP four` if it does not start; narrow `moe_backend` to the smoke's
+  candidates.
+
+## Setup & run
+
+From the toolbox (`kubectl -n akamas-41 exec -it deploy/toolbox -c toolbox -- bash`), with the
+study copied to `/work/study52/52-g7e-glm53-coding-sessions-within-slo` (tar, as studies 45-51):
+
+```bash
+cd /work/study52/52-g7e-glm53-coding-sessions-within-slo/akamas
+akamas create system             system.yaml
+for f in components/*.yaml; do akamas create component "$f" vLLM_Benchmark_52_G7E_GLM53_Coding; done
+akamas create telemetry-instance telemetry/prometheus.yaml vLLM_Benchmark_52_G7E_GLM53_Coding
+akamas create workflow           52-G7E-GLM53-Coding-Workflow.yaml
+akamas create study              52-G7E-GLM53-Coding-Sessions.yaml
+akamas describe study 52-G7E-GLM53-Coding-Sessions
+
+akamas start study 52-G7E-GLM53-Coding-Sessions
+```
+
+Bulk alternative (every file has `kind:` and `system:`), same dependency order:
+`akamas create -f system.yaml`, then `akamas create -f components/`, `akamas create -f telemetry/`,
+`akamas create -f 52-G7E-GLM53-Coding-Workflow.yaml`, `akamas create -f 52-G7E-GLM53-Coding-Sessions.yaml`.
+
+Before `start`: GPU node up (`../infra/eks/nodegroups.sh up`), load node up (node group
+`m8a-2xlarge`), smoke passed (`bash ../k8s/smoke.sh`), and on Akamas 4.1 constraints cannot be
+edited while the study runs (finish + update + start restarts from zero).
+
+No placeholders are left in these files.

@@ -1,0 +1,190 @@
+kind: study
+name: 52-G7E-GLM53-Coding-Sessions
+description: >-
+  GLM-5.3-Flash coding sessions within an SLO: zai-org/GLM-5.3-Flash (FP8, TP4) on vLLM 0.34.0, one
+  g7e.24xlarge spot (4x RTX PRO 6000 96 GB), in the target deployment's container shape. AIPerf
+  coding-agent sessions (20k shared prompt, 10k per-session context, 16 turns of 4k in / 400 out,
+  one turn every 30 s) on two clients. A Ramp task finds the most sessions (levels 4-64) served
+  with client TTFT p95 <= 5 s and ITL p95 <= 50 ms; a Hold task re-runs that level and Akamas scores
+  it. Baseline = the target's arguments, presets for one lever each, then 10 optimize experiments.
+  Requires vLLM pack 1.15.0, GPU pack 1.4.0, Kubernetes pack 1.9.0. Design:
+  docs/superpowers/specs/2026-11-17-study-52-glm53-coding-sessions-design.md.
+system: vLLM_Benchmark_52_G7E_GLM53_Coding
+workflow: 52-G7E-GLM53-Coding-Workflow
+goal:
+  objective: maximize
+  function:
+    # Sessions held: each session sends one turn every 30 s, so completed requests/s x 30 = sessions
+    # whenever the server keeps up (a passing Ramp level guarantees it). No TTFT tie-break (the
+    # user's call): within a level, compare TTFT and ITL directly.
+    formula: 30 * vllm.request_success_rate
+    unit: sessions
+  constraints:
+    absolute:
+      # Safety nets on the Hold window (server side); the SLO itself (5 s, 50 ms) is judged client
+      # side by the Ramp. With MTP the server ITL may count engine steps: the smoke compares it
+      # with the client ITL before the study starts.
+      - name: TTFT P95 safety net
+        formula: vllm.time_to_first_token_p95 <= 6000
+      - name: ITL P95 safety net
+        formula: vllm.inter_token_latency_p95 <= 60
+windowing:
+  type: trim
+  # AIPerf start-up + 500 s steady-from, then 60 s grace + log dump. Single unit each (a "1m30s"
+  # trim is accepted by create and fails at scoring).
+  trim: [520s, 90s]
+  task: Hold
+numberOfTrials: 1
+parametersSelection:
+  - name: vllm.kv_offloading_size
+    domain: [0, 512]
+  - name: vllm.gpu_memory_utilization
+    domain: [0.85, 0.97]
+  - name: vllm.max_num_seqs
+    domain: [8, 128]
+  - name: vllm.max_num_batched_tokens
+    domain: [2048, 16384]
+  - name: vllm.spec_tokens
+    domain: [0, 5]
+  - name: vllm.decode_context_parallel_size
+    domain: [1, 4]
+  - name: vllm.moe_backend
+    categories: [auto, triton, cutlass, flashinfer_cutlass, deep_gemm]
+  - name: vllm.max_cudagraph_capture_size
+    domain: [16, 512]
+  - name: vllm.async_scheduling
+    categories: ["true", "false"]
+  - name: vllm.performance_mode
+    categories: [balanced, interactivity, throughput]
+  - name: vllm.optimization_level
+    domain: [1, 3]
+parameterConstraints:
+  - name: max_num_batched_tokens must be at least max_num_seqs
+    formula: vllm.max_num_batched_tokens >= vllm.max_num_seqs
+  - name: Decode context parallel size divides TP4
+    formula: vllm.decode_context_parallel_size != 3
+kpis:
+  - name: Completed requests per s
+    formula: vllm.request_success_rate
+    direction: maximize
+  - name: Output tokens per second
+    formula: vllm.decode_token_throughput
+    direction: maximize
+  - name: TTFT P95
+    formula: vllm.time_to_first_token_p95
+    direction: minimize
+  - name: ITL P95
+    formula: vllm.inter_token_latency_p95
+    direction: minimize
+  - name: Prompt from cache incl offload
+    formula: vllm.prefix_cache_hit_rate_with_offload
+    direction: maximize
+  - name: MTP acceptance
+    formula: vllm.spec_decode_acceptance_rate
+    direction: maximize
+  - name: KV cache usage
+    formula: vllm.kv_cache_usage_avg
+    direction: minimize
+  - name: GPU 0 utilization
+    formula: gpu0.gpu_util
+    direction: maximize
+# Baseline = the target's arguments (gmu 0.95, MTP 5 tokens; everything else at vLLM's defaults,
+# hence not rendered). TODO after the smoke: if v0.34.0's default max_num_seqs exceeds the Mamba
+# block count at TP4, pin vllm.max_num_seqs here and say so in the README; if MTP shows no
+# acceptance on SM120, set spec_tokens 0 and drop the MTP presets; drop DCP four if it does not
+# start. Presets change one lever each on top of the baseline.
+steps:
+  - name: baseline
+    type: baseline
+    values:
+      vllm.gpu_memory_utilization: 0.95
+      vllm.spec_tokens: 5
+    doNotRenderParameters:
+      - vllm.kv_offloading_size
+      - vllm.max_num_seqs
+      - vllm.max_num_batched_tokens
+      - vllm.decode_context_parallel_size
+      - vllm.moe_backend
+      - vllm.max_cudagraph_capture_size
+      - vllm.async_scheduling
+      - vllm.performance_mode
+      - vllm.optimization_level
+  - name: Offload 256
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.95
+      vllm.spec_tokens: 5
+      vllm.kv_offloading_size: 256
+    doNotRenderParameters:
+      - vllm.max_num_seqs
+      - vllm.max_num_batched_tokens
+      - vllm.decode_context_parallel_size
+      - vllm.moe_backend
+      - vllm.max_cudagraph_capture_size
+      - vllm.async_scheduling
+      - vllm.performance_mode
+      - vllm.optimization_level
+  - name: DCP four
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.95
+      vllm.spec_tokens: 5
+      vllm.decode_context_parallel_size: 4
+    doNotRenderParameters:
+      - vllm.kv_offloading_size
+      - vllm.max_num_seqs
+      - vllm.max_num_batched_tokens
+      - vllm.moe_backend
+      - vllm.max_cudagraph_capture_size
+      - vllm.async_scheduling
+      - vllm.performance_mode
+      - vllm.optimization_level
+  - name: MTP three
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.95
+      vllm.spec_tokens: 3
+    doNotRenderParameters:
+      - vllm.kv_offloading_size
+      - vllm.max_num_seqs
+      - vllm.max_num_batched_tokens
+      - vllm.decode_context_parallel_size
+      - vllm.moe_backend
+      - vllm.max_cudagraph_capture_size
+      - vllm.async_scheduling
+      - vllm.performance_mode
+      - vllm.optimization_level
+  - name: MTP one
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.95
+      vllm.spec_tokens: 1
+    doNotRenderParameters:
+      - vllm.kv_offloading_size
+      - vllm.max_num_seqs
+      - vllm.max_num_batched_tokens
+      - vllm.decode_context_parallel_size
+      - vllm.moe_backend
+      - vllm.max_cudagraph_capture_size
+      - vllm.async_scheduling
+      - vllm.performance_mode
+      - vllm.optimization_level
+  - name: Baseline repeat
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.95
+      vllm.spec_tokens: 5
+    doNotRenderParameters:
+      - vllm.kv_offloading_size
+      - vllm.max_num_seqs
+      - vllm.max_num_batched_tokens
+      - vllm.decode_context_parallel_size
+      - vllm.moe_backend
+      - vllm.max_cudagraph_capture_size
+      - vllm.async_scheduling
+      - vllm.performance_mode
+      - vllm.optimization_level
+  - name: optimize
+    type: optimize
+    numberOfExperiments: 10
+    numberOfInitExperiments: 3

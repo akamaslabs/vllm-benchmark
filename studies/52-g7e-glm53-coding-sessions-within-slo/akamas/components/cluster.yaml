@@ -1,0 +1,10 @@
+kind: component
+system: vLLM_Benchmark_52_G7E_GLM53_Coding
+
+name: cluster
+description: >-
+  The EKS cluster vllm-bench as a whole (every node role): nodes, CPU, memory, requests and PSI.
+componentType: Kubernetes Cluster
+properties:
+  prometheus:
+    role: .*

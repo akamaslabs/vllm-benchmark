@@ -1,0 +1,13 @@
+kind: component
+system: vLLM_Benchmark_52_G7E_GLM53_Coding
+
+name: gpu2
+description: >-
+  GPU index 2 of the g7e.24xlarge (RTX PRO 6000 Blackwell Server Edition 96 GB, node role
+  llm-serving-g7e-24xl-spot): DCGM series filtered on gpu="2" and joined to the node role.
+componentType: GPU
+properties:
+  prometheus:
+    role: llm-serving-g7e-24xl-spot
+    gpu: "2"
+    gpumodel: .*RTX PRO 6000.*

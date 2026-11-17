@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_52_G7E_GLM53_Coding
+
+name: container
+description: >-
+  The vLLM container (Deployment vllm, namespace glm53-coding), 48 CPU and offload + 96 GiB
+  (requests = limits). container_cpu_throttle_time guards against a CPU-starved vLLM; memory
+  follows the offload size.
+componentType: Kubernetes Container
+properties:
+  prometheus:
+    pod: ^vllm-.*$

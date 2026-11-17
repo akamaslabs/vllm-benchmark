@@ -1,0 +1,10 @@
+kind: system
+
+name: vLLM_Benchmark_52_G7E_GLM53_Coding
+description: >-
+  One g7e.24xlarge spot (4x NVIDIA RTX PRO 6000 Blackwell 96 GB, node group llm-serving-g7e-24xl-spot)
+  serving zai-org/GLM-5.3-Flash (FP8, TP4) with vLLM 0.34.0 in the target deployment's container
+  shape. Load: AIPerf 0.11.0 coding-agent sessions (20k shared prompt, 10k per-session context, 16
+  turns of 4k in / 400 out, one turn every 30 s) ramped in sessions. Goal: most sessions within
+  client TTFT p95 <= 5 s and ITL p95 <= 50 ms. Requires vLLM pack 1.15.0, GPU pack 1.4.0,
+  Kubernetes pack 1.9.0. Created 2026-11-17 (study 52).

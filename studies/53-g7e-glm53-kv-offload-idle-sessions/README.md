@@ -1,6 +1,6 @@
 # 53-g7e-glm53-kv-offload-idle-sessions
 
-**Status:** BUILT 2026-11-18, smoke passed (20:11 UTC); runs while study 52 is paused (finished after its
+**Status:** RUNNING on akamas-41 since 2026-11-18 20:20 UTC (study `53-G7E-GLM53-Offload-Idle-Sessions`; start recovered with finish + start, as study 52); runs while study 52 is paused (finished after its
 experiment 3, resumed after this study). Created 2026-11-18.
 
 - **Design:** `docs/superpowers/specs/2026-11-18-study-53-glm53-kv-offload-idle-sessions-design.md`.

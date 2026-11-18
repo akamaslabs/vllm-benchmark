@@ -1,6 +1,7 @@
 # 52-g7e-glm53-coding-sessions-within-slo
 
-**Status:** PREPARED again (2026-11-18) on a **4-bit checkpoint**; smoke passed (see "Smoke 2026-11-18"). The 2026-11-17 smoke said no-go
+**Status:** RUNNING on akamas-41 since 2026-11-18 11:54 UTC (study `52-G7E-GLM53-Coding-Sessions`), on a
+**4-bit checkpoint**; smoke passed (see "Smoke 2026-11-18"). The 2026-11-17 smoke said no-go
 for the target's FP8 checkpoint on the g7e.24xlarge: it loads at TP4 but leaves no room for the KV
 cache on 96 GB GPUs (see "Smoke 2026-11-17"). Decided with the user on 2026-11-18: run
 `canada-quant/GLM-5.3-Flash-W4A16-MTP` at TP4 with the target's arguments (~44 GiB of weights per

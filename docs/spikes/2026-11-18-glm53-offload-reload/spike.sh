@@ -22,7 +22,10 @@ export SCRIPT_NAME=spike53
 SHARED_PROMPT=20000 USER_CONTEXT=${USER_CONTEXT:-100000} TURNS=${TURNS:-8} ISL=4000 OSL=400
 SECONDS_PER_TURN=${SECONDS_PER_TURN:-120}
 CONVERSATIONS=$SESSIONS   # per client: SESSIONS/2 users, each <= 2 conversations in the run
-DATASET_ENTRIES=2000 EXTRA_INPUTS="ignore_eos:true"
+# AIPerf 0.11.0 writes --num-dataset-entries whole conversations (every turn's full history) to
+# inputs.json, whatever --conversation-num says: 2000 entries of ~1M tokens = 8.6 GB, over the clients'
+# 8Gi emptyDir (both clients evicted in the first run, 17:54 and 18:02). 64 entries: 277 MB, < 10 s.
+DATASET_ENTRIES=${DATASET_ENTRIES:-$CONVERSATIONS} EXTRA_INPUTS="ignore_eos:true"
 LEVEL_SECONDS=${LEVEL_SECONDS:-900} STEADY_FROM=${STEADY_FROM:-480} SLO_TTFT_MS=5000 SLO_ITL_MS=50
 PROM=http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/query
 q() { curl -s --data-urlencode "query=$1" --data-urlencode "time=$2" "$PROM" \

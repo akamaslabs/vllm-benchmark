@@ -155,6 +155,9 @@ rm -rf "$STUB"
 OUT=$(startup_failure_reason "$HERE/fixtures/dcp-no-backend.log")
 [[ "$OUT" == *"No valid attention backend"* ]] && ok || bad "startup_failure_reason DCP: '$OUT'"
 # I6: checkpoint and tokenizer pinned to one revision.
+# 2026-11-18: an anonymous download stalled for 8+ minutes (8 connections, no byte); a restart resumed
+# at ~690 MB/s. Every attempt is bounded and retried (hf download resumes the .incomplete files).
+grep -qE 'for attempt in 1 2 3 4 5; do timeout 900 hf download' "$HERE/01-vllm_template.yaml" && ok || bad "template: download attempts not bounded and retried"
 # The 4-bit checkpoint (decided 2026-11-18): canada-quant/GLM-5.3-Flash-W4A16-MTP, pinned.
 REV=5681f7c2dc6436d63f82ab6fb892b4f5062b8304
 grep -q -- "hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision $REV" "$HERE/01-vllm_template.yaml" && ok || bad "template: checkpoint download not pinned to $REV"

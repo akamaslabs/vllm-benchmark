@@ -38,7 +38,11 @@ spec:
         - |
           set -e
           if [ -f /hf-cache/.glm53-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304-complete ]; then echo "checkpoint 5681f7c2dc6436d63f82ab6fb892b4f5062b8304 already on the node"; exit 0; fi
-          hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision 5681f7c2dc6436d63f82ab6fb892b4f5062b8304
+          # Each attempt is bounded (an anonymous download stalled for 8+ minutes on 2026-11-18; a restart
+          # resumed at ~690 MB/s): hf download resumes the .incomplete files on the next attempt.
+          ok=0
+          for attempt in 1 2 3 4 5; do timeout 900 hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision 5681f7c2dc6436d63f82ab6fb892b4f5062b8304 && { ok=1; break; }; echo "download attempt $attempt did not finish, retrying"; done
+          [ "$ok" = 1 ]
           touch /hf-cache/.glm53-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304-complete
           du -sh /hf-cache
         env:

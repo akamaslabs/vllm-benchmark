@@ -19,6 +19,7 @@ print("offloads", [x["values"].get("vllm.kv_offloading_size") for x in s["steps"
 print("mnbt", [x["values"].get("vllm.max_num_batched_tokens") for x in s["steps"]])
 print("bad_names", [x["name"] for x in s["steps"] if not re.match(r"^[a-zA-Z\s][a-zA-Z0-9_\s]*$", x["name"])])
 print("kpis", len(s["kpis"]))
+print("run_on_failure", [x.get("runOnFailure", False) for x in s["steps"]])
 print("system", s["system"] == p["system"], "workflow", s["workflow"] == w["name"])
 print("commands", " ".join(t["arguments"].get("command", "") for t in w["tasks"]))
 PY
@@ -32,6 +33,9 @@ echo "$O" | grep -qx 'offloads \[None, 32, 64, 128, 256, 512, 512, 512, None, No
 echo "$O" | grep -qx 'mnbt \[None, None, None, None, None, None, 16384, 32768, 32768, None\]' && ok || ko "prefill presets 16k / 32k"
 echo "$O" | grep -qx 'bad_names \[\]' && ok || ko "step names match ^[a-zA-Z\\s][a-zA-Z0-9_\\s]*$"
 echo "$O" | grep -qx 'kpis 8' && ok || ko "8 KPIs (Akamas' limit)"
+# runOnFailure false (the default) skips a step after a failed one: one bad start or a reclaimed spot node
+# would stop the whole sweep overnight.
+echo "$O" | grep -qx 'run_on_failure \[False, True, True, True, True, True, True, True, True, True\]' && ok || ko "every preset runs even after a failed step"
 echo "$O" | grep -qx 'system True workflow True' && ok || ko "study, telemetry and workflow names agree"
 for c in apply_config.sh run_load.sh; do
   echo "$O" | grep -q "bash /work/study53/53-g7e-glm53-kv-offload-idle-sessions/k8s/$c" && [ -f "$HERE/$c" ] && ok || ko "workflow runs k8s/$c under /work/study53"

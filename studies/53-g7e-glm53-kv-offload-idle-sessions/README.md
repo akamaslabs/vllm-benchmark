@@ -37,7 +37,15 @@ image and baseline arguments as study 52 (the target deployment's arguments, no 
   nothing completed, 5 for a vLLM restart.
 - **Steps (presets only, ~31 min each, ~5.2 h):** `baseline` (offload 0), `Offload 32`, `64`,
   `128`, `256`, `512`, `Prefill 16k` and `Prefill 32k` (offload 512, `max_num_batched_tokens`
-  16384 / 32768), `Prefill 32k no offload`, `Baseline repeat`.
+  16384 / 32768), `Prefill 32k no offload`, `Baseline repeat`. Every preset has `runOnFailure:
+  true` (a failed step does not stop the sweep). **The `Prefill` presets are confounded:** at 32768
+  the GPU KV cache halves (1.82M tokens, smoke) and cold first turns were no faster, so read them as
+  "larger batch and smaller GPU cache", not as a pure prefill-batch effect.
+- **Window checked before the start** (Prometheus replay of the two paced spike runs, the study's own
+  expressions, `[120s]`, start + 830 s to + 1460 s): TTFT average 2.68 s (offload 512) vs 16.5 s (none);
+  completed 0.069 / 0.070 turns/s (constraint >= 0.06); TPOT p95 23 / 47.5 ms (<= 80); prompt from
+  cache incl. offload 88 % / 14 %. TTFT p95 stays high with offload (14.4 s, the cold first turns of
+  restarted sessions): hence the average as the goal.
 - **Read per client:** client 0's TTFT is consistently ~2x client 1's in the spike (its turns land
   while the other client's prefill runs); compare configurations client by client.
 

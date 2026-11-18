@@ -175,7 +175,12 @@ grep -rqE 'hf_[A-Za-z0-9]{30,}' "$HERE/.." && bad "a literal Hugging Face token 
 REV=5681f7c2dc6436d63f82ab6fb892b4f5062b8304
 grep -q -- "ln -sfn /hf-cache/canada-quant-w4a16-$REV /mnt/models" "$HERE/01-vllm_template.yaml" && ok || bad "template: /mnt/models not the pinned local dir"
 grep -q -- "zai-org/GLM-5.3-Flash --revision" "$HERE/01-vllm_template.yaml" && bad "template: still downloads the FP8 checkpoint" || ok
-grep -q -- "hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision $REV" "$HERE/02-aiperf-clients.yaml" && ok || bad "clients: tokenizer not pinned to $REV"
+# hf 2.x took the names after --include as explicit files and ignored the pattern: tokenizer.json never
+# came down (smoke 2026-11-18). The clients use download_checkpoint.sh with INCLUDE instead.
+grep -qF -- "bash /scripts/download_checkpoint.sh canada-quant/GLM-5.3-Flash-W4A16-MTP $REV /work/tokenizer" "$HERE/02-aiperf-clients.yaml" && ok || bad "clients: tokenizer not fetched with download_checkpoint.sh at $REV"
+grep -q 'tokenizer' "$HERE/02-aiperf-clients.yaml" && grep -qE "INCLUDE=.*tokenizer" "$HERE/02-aiperf-clients.yaml" && ok || bad "clients: INCLUDE does not select the tokenizer files"
+grep -q 'hf download' "$HERE/02-aiperf-clients.yaml" && bad "clients: hf download still used" || ok
+grep -q 'apt-get install -y --no-install-recommends curl' "$HERE/02-aiperf-clients.yaml" && ok || bad "clients: python:3.12-slim has no curl for download_checkpoint.sh"
 
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" = 0 ]

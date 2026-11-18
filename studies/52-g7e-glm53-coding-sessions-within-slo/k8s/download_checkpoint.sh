@@ -11,7 +11,8 @@
 # stays under 1 MB/s for 60 s; the file is renamed only when its size matches the listing, and
 # DIR/.complete is written only when every file is there.
 # Env: HF_TOKEN (optional, read-only), PARALLEL (default 5), HF_ENDPOINT (default https://huggingface.co),
-# FILE_LIST ("path size" lines, instead of asking the API: local tests).
+# FILE_LIST ("path size" lines, instead of asking the API: local tests), INCLUDE (an extended regex:
+# only the matching file names, e.g. a tokenizer).
 set -uo pipefail
 REPO=$1 REV=$2 DIR=$3
 EP=${HF_ENDPOINT:-https://huggingface.co}
@@ -27,6 +28,7 @@ for s in json.load(urllib.request.urlopen(req, timeout=60))["siblings"]:
     print(s["rfilename"], s.get("size") or 0)
 PY
 )}
+[ -z "${INCLUDE:-}" ] || LIST=$(echo "$LIST" | awk -v re="$INCLUDE" '$1 ~ re')
 [ -n "$LIST" ] || { echo "error: empty file list for $REPO@$REV" >&2; exit 2; }
 
 fetch_one() { # NAME SIZE

@@ -49,5 +49,9 @@ STUB_SIZES="config.json=100 model-00001-of-00002.safetensors=4000 sub/model-0000
   bash "$HERE/download_checkpoint.sh" org/repo abc123 "$D" > "$T/out" 2>&1; RC=$?
 [ "$RC" != 0 ] && [ ! -f "$D/.complete" ] && ok || ko "size mismatch fails without .complete (rc $RC)"
 
+# INCLUDE (an extended regex on the file names): only the matching files, e.g. a tokenizer.
+rm -rf "$D"; : > "$T/calls"
+INCLUDE='^config\.json$' bash "$HERE/download_checkpoint.sh" org/repo abc123 "$D" > "$T/out" 2>&1; RC=$?
+[ "$RC" = 0 ] && [ -f "$D/config.json" ] && [ ! -e "$D/model-00001-of-00002.safetensors" ] && [ "$(wc -l < "$T/calls" | tr -d ' ')" = 1 ] && ok || ko "INCLUDE fetches only the matching files (rc $RC)"
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" = 0 ]

@@ -62,7 +62,8 @@ GLM-5.3-Flash W4A16 at TP4 on the g7e.24xlarge, study 52's baseline (gmu 0.95, M
 - No optimizer step: the outcome is a step in one parameter, a preset sweep shows it directly.
 - Not the most sessions within an SLO: building 100k-token sessions costs ~13 s of whole-rig prefill
   each, so a session ramp does not fit 90 minutes.
-- No change to study 52's files on the toolbox (`/work/study52`); study 52 resumes after study 53.
+- No change to study 52's files on the toolbox (`/work/study52`). Study 52 is not resumed after study
+  53 (the user's call, 2026-11-18 evening); the GPU node goes down when study 53 ends.
 
 ## Workload (my calls)
 

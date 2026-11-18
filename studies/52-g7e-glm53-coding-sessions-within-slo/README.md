@@ -1,11 +1,11 @@
 # 52-g7e-glm53-coding-sessions-within-slo
 
-**Status:** PAUSED on akamas-41 (study `52-G7E-GLM53-Coding-Sessions`, started 2026-11-18 11:54 UTC):
-`akamas finish` at 17:36 UTC after experiment 3 (experiment 4 aborted after 29 s), to free the node
-for study 53's offload spike (`docs/spikes/2026-11-18-glm53-offload-reload/`). Resume with
-`akamas resume study -w default "52-G7E-GLM53-Coding-Sessions" -m DEL` (deletes the aborted
-experiment 4 and runs `MTP one` again); export at the pause in
-`results/export-2026-11-18-paused-after-exp3.tar.gz`. On a **4-bit checkpoint**; smoke passed (see
+**Status:** STOPPED after 3 of 15 experiments (study `52-G7E-GLM53-Coding-Sessions` on akamas-41,
+started 2026-11-18 11:54 UTC): `akamas finish` at 17:36 UTC after experiment 3 (experiment 4 aborted
+after 29 s) to free the node for study 53 (`docs/spikes/2026-11-18-glm53-offload-reload/`); the user
+decided the same evening not to resume it ("non serve riprendere il 52"). It can still be resumed
+with `akamas resume study -w default "52-G7E-GLM53-Coding-Sessions" -m DEL` (deletes the aborted
+experiment 4 and runs `MTP one` again). Export in `results/export-2026-11-18-paused-after-exp3.tar.gz`. On a **4-bit checkpoint**; smoke passed (see
 "Smoke 2026-11-18"). The 2026-11-17 smoke said no-go
 for the target's FP8 checkpoint on the g7e.24xlarge: it loads at TP4 but leaves no room for the KV
 cache on 96 GB GPUs (see "Smoke 2026-11-17"). Decided with the user on 2026-11-18: run

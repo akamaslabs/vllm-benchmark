@@ -62,7 +62,7 @@ Before `start`: study 52 finished (paused) and nothing of it still running on th
 and load node up; the smoke passed (`../README.md`, "Smoke"). On Akamas 4.1 constraints cannot be
 edited while the study runs (finish + update + start restarts from zero).
 
-After the study: resume study 52 (`akamas resume study -w default "52-G7E-GLM53-Coding-Sessions" -m DEL`);
-its next Apply re-renders the shared Deployment.
+After the study: GPU node down (`../infra/eks/nodegroups.sh down`); study 52 is not resumed (the
+user's call, 2026-11-18; if ever, `akamas resume study -w default "52-G7E-GLM53-Coding-Sessions" -m DEL`).
 
 No placeholders are left in these files.

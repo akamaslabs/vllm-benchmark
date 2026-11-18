@@ -49,7 +49,10 @@ for OFF in ${@:-512 0}; do
   ( sleep 240; for c in 0 1; do echo "SPIKE $OFF client $c inputs.json: $(kubectl -n $NS exec aiperf-client-$c -- sh -c 'du -h /work/out/run/inputs.json 2>/dev/null; df -h /work | tail -1')" | tr '\n' ' '; echo; done ) &
   # Keep each client's per-request export (run_level deletes /work/out at the end): revisit TTFT
   # (turn_index >= 1), restarted sessions (turn_index 0 after the creation phase).
-  ( sleep $((LEVEL_SECONDS + 45)); for c in 0 1; do kubectl -n $NS exec aiperf-client-$c -- sh -c "cp /work/out/run/profile_export.jsonl /work/keep-${TAG:-run}-$OFF.jsonl" && echo "SPIKE $OFF client $c export kept in /work/keep-${TAG:-run}-$OFF.jsonl"; done ) &
+  # Copied 10 s before the benchmark ends: AIPerf ends without waiting for the grace period when
+  # nothing is in flight, and run_level then deletes the run directory (the paced 512 run lost its
+  # export with a copy at +45 s).
+  ( sleep $((LEVEL_SECONDS - 10)); for c in 0 1; do kubectl -n $NS exec aiperf-client-$c -- sh -c "cp /work/out/run/profile_export.jsonl /work/keep-${TAG:-run}-$OFF.jsonl" && echo "SPIKE $OFF client $c export kept in /work/keep-${TAG:-run}-$OFF.jsonl"; done ) &
   S0=$(date +%s)
   run_level "$SESSIONS" "$LEVEL_SECONDS" "spike-$OFF"; RL=$?
   S1=$(date +%s); W=$((S1 - S0)); WS=$((S1 - S0 - STEADY_FROM - 100))

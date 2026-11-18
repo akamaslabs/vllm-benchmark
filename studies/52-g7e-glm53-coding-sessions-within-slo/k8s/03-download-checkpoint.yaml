@@ -1,7 +1,8 @@
 # Study 52 checkpoint pre-download (no GPU): fills the node's /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304
 # with canada-quant/GLM-5.3-Flash-W4A16-MTP (public, 190.9 GB) ahead of the first experiment, so the
-# vLLM pod's init container finds it complete. Same bounded, resumed attempts as the init container
-# (anonymous downloads stall mid-file). HF_TOKEN from the namespace's Secret hf-token (read-only,
+# vLLM pod's init container finds it complete. Same command as the init container: k8s/download_checkpoint.sh
+# from the ConfigMap download-checkpoint (kubectl -n glm53-coding create configmap download-checkpoint
+# --from-file=download_checkpoint.sh, refreshed by apply_config.sh). HF_TOKEN from the namespace's Secret hf-token (read-only,
 # created by hand with kubectl, never in the repo; optional: anonymous without it). Run once per new node:
 #   kubectl apply -f 03-download-checkpoint.yaml; kubectl -n glm53-coding wait --for=condition=complete job/download-checkpoint --timeout=3h
 apiVersion: batch/v1
@@ -21,20 +22,14 @@ spec:
         command: ["/bin/bash", "-c"]
         args:
         - |
-          set -e
-          if [ -f /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304/.complete ]; then echo "already complete"; exit 0; fi
-          ok=0
-          for attempt in $(seq 1 20); do timeout 900 hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision 5681f7c2dc6436d63f82ab6fb892b4f5062b8304 --local-dir /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304 && { ok=1; break; }; echo "attempt $attempt did not finish ($(du -sh /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304 | cut -f1)), retrying"; done
-          [ "$ok" = 1 ]
-          touch /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304/.complete
-          du -sh /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304
+          bash /scripts/download_checkpoint.sh canada-quant/GLM-5.3-Flash-W4A16-MTP 5681f7c2dc6436d63f82ab6fb892b4f5062b8304 /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304
         env:
         - {name: HF_HOME, value: /hf-cache}
-        - {name: HF_XET_HIGH_PERFORMANCE, value: "1"}
         - {name: HF_TOKEN, valueFrom: {secretKeyRef: {name: hf-token, key: token, optional: true}}}
         resources:
           requests: {cpu: "8", memory: 16Gi}
           limits: {cpu: "8", memory: 16Gi}
-        volumeMounts: [{name: hf-cache, mountPath: /hf-cache}]
+        volumeMounts: [{name: hf-cache, mountPath: /hf-cache}, {name: scripts, mountPath: /scripts}]
       volumes:
+      - {name: scripts, configMap: {name: download-checkpoint}}
       - {name: hf-cache, hostPath: {path: /var/lib/hf-cache-study52, type: DirectoryOrCreate}}

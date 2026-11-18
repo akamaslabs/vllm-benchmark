@@ -157,11 +157,14 @@ OUT=$(startup_failure_reason "$HERE/fixtures/dcp-no-backend.log")
 # I6: checkpoint and tokenizer pinned to one revision.
 # 2026-11-18: an anonymous download stalled for 8+ minutes (8 connections, no byte); a restart resumed
 # at ~690 MB/s. Every attempt is bounded and retried (hf download resumes the .incomplete files).
-# The hub-cache layout gave every attempt new .incomplete names (no resume across attempts: 312 GB of
-# partial files, no large file complete); --local-dir keeps fixed names and resumes.
-grep -qE 'for attempt in \$\(seq 1 20\); do timeout 900 hf download' "$HERE/01-vllm_template.yaml" && ok || bad "template: download attempts not bounded and retried"
-grep -qE 'hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision [0-9a-f]+ --local-dir /hf-cache/canada-quant-w4a16-[0-9a-f]+' "$HERE/01-vllm_template.yaml" && ok || bad "template: checkpoint not downloaded with --local-dir"
-grep -qE 'hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision [0-9a-f]+ --local-dir /hf-cache/canada-quant-w4a16-[0-9a-f]+' "$HERE/03-download-checkpoint.yaml" && ok || bad "download Job: same --local-dir as the template"
+# The checkpoint comes down through download_checkpoint.sh (curl per file with resume; hf download
+# stalled, restarted files with new names and waited on stale locks), mounted from a ConfigMap that
+# apply_config.sh refreshes; the init container and the pre-download Job run the same command.
+CMD='bash /scripts/download_checkpoint.sh canada-quant/GLM-5.3-Flash-W4A16-MTP 5681f7c2dc6436d63f82ab6fb892b4f5062b8304 /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304'
+grep -qF -- "$CMD" "$HERE/01-vllm_template.yaml" && ok || bad "template: init container does not run download_checkpoint.sh"
+grep -qF -- "$CMD" "$HERE/03-download-checkpoint.yaml" && ok || bad "download Job: does not run download_checkpoint.sh"
+grep -q 'hf download canada-quant' "$HERE/01-vllm_template.yaml" "$HERE/03-download-checkpoint.yaml" && bad "hf download still used for the checkpoint" || ok
+grep -q 'configmap download-checkpoint --from-file=download_checkpoint.sh' "$HERE/apply_config.sh" && ok || bad "apply_config.sh does not refresh the ConfigMap download-checkpoint"
 # Authenticated downloads (anonymous ones stalled): HF_TOKEN from the namespace's Secret hf-token,
 # optional so a missing Secret falls back to anonymous; never a literal token in the repo.
 for f in 01-vllm_template.yaml 03-download-checkpoint.yaml 02-aiperf-clients.yaml; do
@@ -170,7 +173,6 @@ done
 grep -rqE 'hf_[A-Za-z0-9]{30,}' "$HERE/.." && bad "a literal Hugging Face token is in the study folder" || ok
 # The 4-bit checkpoint (decided 2026-11-18): canada-quant/GLM-5.3-Flash-W4A16-MTP, pinned.
 REV=5681f7c2dc6436d63f82ab6fb892b4f5062b8304
-grep -q -- "hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision $REV" "$HERE/01-vllm_template.yaml" && ok || bad "template: checkpoint download not pinned to $REV"
 grep -q -- "ln -sfn /hf-cache/canada-quant-w4a16-$REV /mnt/models" "$HERE/01-vllm_template.yaml" && ok || bad "template: /mnt/models not the pinned local dir"
 grep -q -- "zai-org/GLM-5.3-Flash --revision" "$HERE/01-vllm_template.yaml" && bad "template: still downloads the FP8 checkpoint" || ok
 grep -q -- "hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision $REV" "$HERE/02-aiperf-clients.yaml" && ok || bad "clients: tokenizer not pinned to $REV"

@@ -105,6 +105,8 @@ sed -e "s|@ADDITIONAL_ARGS@|$ADDITIONAL_ARGS|g" -e "s/@SHM_GI@/$SHM/g" -e "s/@ME
     -e "s/@APPLIED_AT@/$(date -u +%Y%m%dT%H%M%SZ)/g" "$HERE/01-vllm_template.yaml" > "$K8S/01-vllm.yaml"
 grep -q '@[A-Z_]*@' "$K8S/01-vllm.yaml" && die "01-vllm.yaml still has a token"
 kubectl apply -f "$HERE/00-base.yaml" >/dev/null
+kubectl -n $NS create configmap download-checkpoint --from-file=download_checkpoint.sh="$HERE/download_checkpoint.sh" \
+  --dry-run=client -o yaml | kubectl apply -f - >/dev/null || die "could not refresh the ConfigMap download-checkpoint" 3
 kubectl -n $NS get pods -l app=vllm --field-selector=status.phase=Failed -o name 2>/dev/null | grep -q . && {
   echo "--- Failed vLLM pods left from a previous experiment (deleted now) ---"
   kubectl -n $NS get pods -l app=vllm --field-selector=status.phase=Failed \

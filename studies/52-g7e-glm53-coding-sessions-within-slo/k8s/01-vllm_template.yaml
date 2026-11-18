@@ -37,15 +37,9 @@ spec:
         args:
         - |
           set -e
-          if [ -f /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304/.complete ]; then echo "checkpoint 5681f7c2dc6436d63f82ab6fb892b4f5062b8304 already on the node"; exit 0; fi
-          # Anonymous Hugging Face downloads stall mid-file (2026-11-18: every 19 GB file stopped at 11-16 GB).
-          # Each attempt is bounded and retried; --local-dir keeps fixed partial-file names, so the next
-          # attempt resumes (the hub-cache layout started over with new names every time).
-          # k8s/03-download-checkpoint.yaml fills the same directory ahead of the first experiment.
-          ok=0
-          for attempt in $(seq 1 20); do timeout 900 hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision 5681f7c2dc6436d63f82ab6fb892b4f5062b8304 --local-dir /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304 && { ok=1; break; }; echo "download attempt $attempt did not finish, retrying"; done
-          [ "$ok" = 1 ]
-          touch /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304/.complete
+          # Resumable per-file download (k8s/download_checkpoint.sh, ConfigMap download-checkpoint): hf download
+          # stalled mid-file, restarted files under new names and waited on stale locks (2026-11-18).
+          bash /scripts/download_checkpoint.sh canada-quant/GLM-5.3-Flash-W4A16-MTP 5681f7c2dc6436d63f82ab6fb892b4f5062b8304 /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304
           du -sh /hf-cache
         env:
         - {name: HF_HOME, value: /hf-cache}
@@ -54,7 +48,7 @@ spec:
         resources:
           requests: {cpu: "8", memory: 16Gi}
           limits: {cpu: "8", memory: 16Gi}
-        volumeMounts: [{name: hf-cache, mountPath: /hf-cache}]
+        volumeMounts: [{name: hf-cache, mountPath: /hf-cache}, {name: scripts, mountPath: /scripts}]
       containers:
       - name: main
         image: vllm/vllm-openai:v0.34.0
@@ -87,6 +81,7 @@ spec:
         startupProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10, failureThreshold: 360}
         readinessProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10, failureThreshold: 3}
       volumes:
+      - {name: scripts, configMap: {name: download-checkpoint}}
       - {name: hf-cache, hostPath: {path: /var/lib/hf-cache-study52, type: DirectoryOrCreate}}
       - {name: jit-cache, hostPath: {path: /var/lib/study52-jit-cache, type: DirectoryOrCreate}}
       - {name: shm, emptyDir: {medium: Memory, sizeLimit: "@SHM_GI@Gi"}}

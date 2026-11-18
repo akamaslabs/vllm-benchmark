@@ -1,7 +1,12 @@
 # 52-g7e-glm53-coding-sessions-within-slo
 
-**Status:** RUNNING on akamas-41 since 2026-11-18 11:54 UTC (study `52-G7E-GLM53-Coding-Sessions`), on a
-**4-bit checkpoint**; smoke passed (see "Smoke 2026-11-18"). The 2026-11-17 smoke said no-go
+**Status:** PAUSED on akamas-41 (study `52-G7E-GLM53-Coding-Sessions`, started 2026-11-18 11:54 UTC):
+`akamas finish` at 17:36 UTC after experiment 3 (experiment 4 aborted after 29 s), to free the node
+for study 53's offload spike (`docs/spikes/2026-11-18-glm53-offload-reload/`). Resume with
+`akamas resume study -w default "52-G7E-GLM53-Coding-Sessions" -m DEL` (deletes the aborted
+experiment 4 and runs `MTP one` again); export at the pause in
+`results/export-2026-11-18-paused-after-exp3.tar.gz`. On a **4-bit checkpoint**; smoke passed (see
+"Smoke 2026-11-18"). The 2026-11-17 smoke said no-go
 for the target's FP8 checkpoint on the g7e.24xlarge: it loads at TP4 but leaves no room for the KV
 cache on 96 GB GPUs (see "Smoke 2026-11-17"). Decided with the user on 2026-11-18: run
 `canada-quant/GLM-5.3-Flash-W4A16-MTP` at TP4 with the target's arguments (~44 GiB of weights per
@@ -12,7 +17,13 @@ node groups at 0. The smoke runs again on the new checkpoint before any Akamas r
 - **Experiments 1-2 (walk from the bottom):** `baseline` held **24** sessions (score 24.379),
   `Offload 256` held **24** (23.242): levels 4-24 passed, 32 failed on client ITL p95 57-60 ms
   (TTFT p95 ~3.5 s, within the SLO). 24-32 sessions of at most ~100k tokens need 2.4-3.2M tokens of
-  KV, under the 3.77M on the GPUs, so offload has little to do at these levels. From experiment 3 (16:18 UTC) the ramp bisects (see Method).
+  KV, under the 3.77M on the GPUs, so offload has little to do at these levels (peak KV use 36-37 %
+  at 24 sessions, 70-71 % at 32; prefix hit rate 89 %, the workload's maximum, with or without
+  offload; offload wrote 1.3 TB to RAM and read back 0 bytes). From experiment 3 (16:18 UTC) the
+  ramp bisects (see Method).
+- **Experiment 3 (`MTP three`, first bisected ramp):** **24** sessions (24.884) in **1 h 18 min**:
+  24 passed (TTFT p95 2.1 s, ITL p95 27.7 ms), 48 failed (the load fell behind: 97 of 736 expected
+  requests sent), 32 failed.
 - **Design:** `docs/superpowers/specs/2026-11-17-study-52-glm53-coding-sessions-design.md`.
 - **Plan:** `docs/superpowers/plans/2026-11-17-study-52-glm53-coding-sessions.md`.
 - **Follows the spike:** `docs/spikes/2026-11-17-glm53-flash-phase0/README.md`.

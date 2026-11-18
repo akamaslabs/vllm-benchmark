@@ -1,6 +1,6 @@
 # 53-g7e-glm53-kv-offload-idle-sessions
 
-**Status:** BUILT 2026-11-18, smoke pending; runs while study 52 is paused (finished after its
+**Status:** BUILT 2026-11-18, smoke passed (20:11 UTC); runs while study 52 is paused (finished after its
 experiment 3, resumed after this study). Created 2026-11-18.
 
 - **Design:** `docs/superpowers/specs/2026-11-18-study-53-glm53-kv-offload-idle-sessions-design.md`.
@@ -71,7 +71,14 @@ Presets only: `vllm.kv_offloading_size` (0, 32, 64, 128, 256, 512 GiB) and
 
 Cold prefill ~9.6k tokens/s; a 124k-token first turn takes ~11 s alone (never within 5 s on this rig).
 
-## Smoke
+## Smoke 2026-11-18 (passed, 20:00-20:11 UTC)
 
-Pending: one start with the heaviest preset (`Prefill 32k`: offload 512 GiB + `max_num_batched_tokens`
-32768) and a short `run_load.sh` (the TURNS line, exit 0).
+On the toolbox (`k8s/smoke53.sh` there, not in the repo): the heaviest preset, `Prefill 32k`
+(offload 512 GiB + `max_num_batched_tokens` 32768), then `run_load.sh` for 360 s.
+
+- Apply: exit 0 in ~4 min; arguments and `cache_config_info` checked on the pod (offload 512,
+  native backend, gmu 0.95). **GPU KV cache 1,816,148 tokens** (963 blocks of 2304), half of the
+  3.77M at vLLM's 8192: the larger prefill batch takes activation memory from the KV cache, so the
+  `Prefill` presets trade GPU cache for prefill batch.
+- Load: exit 0; `RESULT`, `TURNS` (16 first turns, no resumed turn in 6 min: expected with one turn
+  per 600 s) and `RESULT load` printed. Cold first turns 15-20 s, not faster than at 8192 (11-21 s).

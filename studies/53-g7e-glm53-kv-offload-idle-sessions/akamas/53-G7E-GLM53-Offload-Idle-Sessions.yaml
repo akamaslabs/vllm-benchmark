@@ -1,0 +1,234 @@
+kind: study
+name: 53-G7E-GLM53-Offload-Idle-Sessions
+description: >-
+  CPU KV offload for long, mostly idle coding sessions: GLM-5.3-Flash 4-bit (canada-quant W4A16-MTP)
+  at TP4 on vLLM 0.34.0, one g7e.24xlarge spot (4x RTX PRO 6000 96 GB), in the target deployment's
+  container shape. One fixed AIPerf load per experiment: 40 sessions of ~125-130k tokens (20k shared
+  prompt + 100k per-session context, 4k in / 400 out per turn), one turn per session every 600 s,
+  1500 s on two clients: ~5.2M tokens of history vs 3.77M GPU KV tokens, so a resumed session is
+  either read back from RAM or recomputed (spike 2026-11-18: ~1-1.7 s vs ~11-22 s). Presets only:
+  baseline (the target's arguments, no offload), offload 32-512 GiB, larger prefill batches.
+  Requires vLLM pack 1.15.0, GPU pack 1.4.0, Kubernetes pack 1.9.0. Design:
+  docs/superpowers/specs/2026-11-18-study-53-glm53-kv-offload-idle-sessions-design.md.
+system: vLLM_Benchmark_53_G7E_GLM53_Offload
+workflow: 53-G7E-GLM53-Offload-Workflow
+goal:
+  objective: minimize
+  function:
+    # Server TTFT average over the window (the pack has no TTFT p50). The window holds the resumed
+    # turns plus the same few cold first turns of AIPerf's restarted sessions in every experiment
+    # (same seed); the client view splits the two (run_load.sh TURNS line).
+    formula: vllm.time_to_first_token_avg
+    unit: ms
+  constraints:
+    absolute:
+      # The offered rate is 40 / 600 = 0.0667 turns/s: a configuration that falls behind is
+      # infeasible, not fast. 90 % of it, for the 120 s rate windows' jitter.
+      - name: Keeps up with the sessions
+        formula: vllm.request_success_rate >= 0.06
+      # Study 52's safety net on the per-request time per output token (server side).
+      - name: TPOT P95 safety net
+        formula: vllm.time_per_output_token_p95 <= 80
+windowing:
+  type: trim
+  # Load task: AIPerf start-up ~5 s + creation ~700 s + one 120 s rate window (telemetry duration) so
+  # no point reaches back into the creation phase; the end cuts the grace, parsing and log dump.
+  # Single unit each (a "1m30s" trim is accepted by create and fails at scoring).
+  trim: [830s, 60s]
+  task: Load
+numberOfTrials: 1
+# Study 52's selection (the same params.env template and apply_config.sh): only the presets' values
+# are used, there is no optimize step. Domains are subsets of the vLLM pack's.
+parametersSelection:
+  - name: vllm.kv_offloading_size
+    domain: [0, 512]
+  - name: vllm.gpu_memory_utilization
+    domain: [0.85, 0.97]
+  - name: vllm.max_num_seqs
+    domain: [8, 128]
+  - name: vllm.max_num_batched_tokens
+    domain: [2048, 32768]
+  - name: vllm.spec_tokens
+    domain: [0, 5]
+  - name: vllm.moe_backend
+    categories: [auto, marlin, humming, triton]
+  - name: vllm.max_cudagraph_capture_size
+    domain: [16, 512]
+  - name: vllm.async_scheduling
+    categories: ["true", "false"]
+  - name: vllm.performance_mode
+    categories: [balanced, interactivity, throughput]
+  - name: vllm.optimization_level
+    domain: [1, 3]
+parameterConstraints:
+  - name: max_num_batched_tokens must be at least max_num_seqs
+    formula: vllm.max_num_batched_tokens >= vllm.max_num_seqs
+kpis:
+  - name: TTFT average
+    formula: vllm.time_to_first_token_avg
+    direction: minimize
+  - name: TTFT P90
+    formula: vllm.time_to_first_token_p90
+    direction: minimize
+  - name: TTFT P95
+    formula: vllm.time_to_first_token_p95
+    direction: minimize
+  - name: Prompt from cache incl offload
+    formula: vllm.prefix_cache_hit_rate_with_offload
+    direction: maximize
+  - name: Prompt from CPU offload
+    formula: vllm.cpu_offload_prefix_hit_rate
+    direction: maximize
+  - name: Offload read back GBps
+    formula: vllm.kv_offload_cpu_to_gpu_throughput
+    direction: maximize
+  - name: Completed requests per s
+    formula: vllm.request_success_rate
+    direction: maximize
+  - name: TPOT P95
+    formula: vllm.time_per_output_token_p95
+    direction: minimize
+# Baseline = the target's arguments (gmu 0.95, MTP 5 tokens, no offload; everything else at vLLM's
+# defaults, hence not rendered: max_num_batched_tokens is 8192 in its log). Each preset changes the
+# offload size and/or max_num_batched_tokens on top of it.
+steps:
+  - name: baseline
+    type: baseline
+    values:
+      vllm.gpu_memory_utilization: 0.95
+      vllm.spec_tokens: 5
+    doNotRenderParameters:
+      - vllm.kv_offloading_size
+      - vllm.max_num_seqs
+      - vllm.max_num_batched_tokens
+      - vllm.moe_backend
+      - vllm.max_cudagraph_capture_size
+      - vllm.async_scheduling
+      - vllm.performance_mode
+      - vllm.optimization_level
+  - name: Offload 32
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.95
+      vllm.spec_tokens: 5
+      vllm.kv_offloading_size: 32
+    doNotRenderParameters:
+      - vllm.max_num_seqs
+      - vllm.max_num_batched_tokens
+      - vllm.moe_backend
+      - vllm.max_cudagraph_capture_size
+      - vllm.async_scheduling
+      - vllm.performance_mode
+      - vllm.optimization_level
+  - name: Offload 64
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.95
+      vllm.spec_tokens: 5
+      vllm.kv_offloading_size: 64
+    doNotRenderParameters:
+      - vllm.max_num_seqs
+      - vllm.max_num_batched_tokens
+      - vllm.moe_backend
+      - vllm.max_cudagraph_capture_size
+      - vllm.async_scheduling
+      - vllm.performance_mode
+      - vllm.optimization_level
+  - name: Offload 128
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.95
+      vllm.spec_tokens: 5
+      vllm.kv_offloading_size: 128
+    doNotRenderParameters:
+      - vllm.max_num_seqs
+      - vllm.max_num_batched_tokens
+      - vllm.moe_backend
+      - vllm.max_cudagraph_capture_size
+      - vllm.async_scheduling
+      - vllm.performance_mode
+      - vllm.optimization_level
+  - name: Offload 256
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.95
+      vllm.spec_tokens: 5
+      vllm.kv_offloading_size: 256
+    doNotRenderParameters:
+      - vllm.max_num_seqs
+      - vllm.max_num_batched_tokens
+      - vllm.moe_backend
+      - vllm.max_cudagraph_capture_size
+      - vllm.async_scheduling
+      - vllm.performance_mode
+      - vllm.optimization_level
+  - name: Offload 512
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.95
+      vllm.spec_tokens: 5
+      vllm.kv_offloading_size: 512
+    doNotRenderParameters:
+      - vllm.max_num_seqs
+      - vllm.max_num_batched_tokens
+      - vllm.moe_backend
+      - vllm.max_cudagraph_capture_size
+      - vllm.async_scheduling
+      - vllm.performance_mode
+      - vllm.optimization_level
+  - name: Prefill 16k
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.95
+      vllm.spec_tokens: 5
+      vllm.kv_offloading_size: 512
+      vllm.max_num_batched_tokens: 16384
+    doNotRenderParameters:
+      - vllm.max_num_seqs
+      - vllm.moe_backend
+      - vllm.max_cudagraph_capture_size
+      - vllm.async_scheduling
+      - vllm.performance_mode
+      - vllm.optimization_level
+  - name: Prefill 32k
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.95
+      vllm.spec_tokens: 5
+      vllm.kv_offloading_size: 512
+      vllm.max_num_batched_tokens: 32768
+    doNotRenderParameters:
+      - vllm.max_num_seqs
+      - vllm.moe_backend
+      - vllm.max_cudagraph_capture_size
+      - vllm.async_scheduling
+      - vllm.performance_mode
+      - vllm.optimization_level
+  - name: Prefill 32k no offload
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.95
+      vllm.spec_tokens: 5
+      vllm.max_num_batched_tokens: 32768
+    doNotRenderParameters:
+      - vllm.kv_offloading_size
+      - vllm.max_num_seqs
+      - vllm.moe_backend
+      - vllm.max_cudagraph_capture_size
+      - vllm.async_scheduling
+      - vllm.performance_mode
+      - vllm.optimization_level
+  - name: Baseline repeat
+    type: preset
+    values:
+      vllm.gpu_memory_utilization: 0.95
+      vllm.spec_tokens: 5
+    doNotRenderParameters:
+      - vllm.kv_offloading_size
+      - vllm.max_num_seqs
+      - vllm.max_num_batched_tokens
+      - vllm.moe_backend
+      - vllm.max_cudagraph_capture_size
+      - vllm.async_scheduling
+      - vllm.performance_mode
+      - vllm.optimization_level

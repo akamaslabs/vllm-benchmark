@@ -1,0 +1,48 @@
+# Study 53 load generator (copied from study 52, from study 51; the same StatefulSet in the same namespace): two long-lived AIPerf client pods on the m8a-2xlarge load
+# node, each driving half of the sessions of a level against the vLLM Service. 100k-token prompts
+# make client-side work heavier than in studies 48 and 51 (prompt generation, history, token
+# counting), hence a node of their own. The runs are started by lib_load.sh with kubectl exec.
+# Results stay in the pod's /work (emptyDir) and are deleted after every level: no PVC to fill up
+# (study 41's lesson); the scripts print what they need to stdout.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: aiperf-client, namespace: glm53-coding}
+spec:
+  serviceName: aiperf-client
+  replicas: 2
+  podManagementPolicy: Parallel
+  selector: {matchLabels: {app: aiperf-client}}
+  template:
+    metadata: {labels: {app: aiperf-client}}
+    spec:
+      nodeSelector: {node-role: m8a-2xlarge}
+      tolerations: [{key: dedicated, operator: Equal, value: m8a-2xlarge, effect: NoSchedule}]
+      terminationGracePeriodSeconds: 5
+      containers:
+      - name: aiperf
+        image: python:3.12-slim
+        workingDir: /work
+        command: ["sh", "-c"]
+        args:
+        - |
+          set -e
+          pip install --quiet aiperf==0.11.0
+          # curl for download_checkpoint.sh (python:3.12-slim has none).
+          apt-get update -qq && apt-get install -y --no-install-recommends curl > /dev/null
+          # The tokenizer at the checkpoint's pinned revision (AIPerf has no revision flag), passed to
+          # --tokenizer as a local path (final review I6). Fetched with download_checkpoint.sh: hf 2.x took
+          # the names after --include as explicit files and skipped tokenizer.json (smoke 2026-11-18).
+          INCLUDE='^(tokenizer.*|config\.json|chat_template.*|generation_config\.json)$' bash /scripts/download_checkpoint.sh canada-quant/GLM-5.3-Flash-W4A16-MTP 5681f7c2dc6436d63f82ab6fb892b4f5062b8304 /work/tokenizer
+          touch /work/ready
+          exec sleep infinity
+        readinessProbe: {exec: {command: [test, -f, /work/ready]}, periodSeconds: 5}
+        env:
+        - {name: AIPERF_TIMING_RATE_RAMP_UPDATE_INTERVAL, value: "10"}
+        - {name: HF_TOKEN, valueFrom: {secretKeyRef: {name: hf-token, key: token, optional: true}}}
+        resources:
+          requests: {cpu: "3", memory: 8Gi}
+          limits: {cpu: 3500m, memory: 13Gi}
+        volumeMounts: [{name: work, mountPath: /work}, {name: scripts, mountPath: /scripts}]
+      volumes:
+      - {name: work, emptyDir: {sizeLimit: 8Gi}}
+      - {name: scripts, configMap: {name: download-checkpoint}}

@@ -1,0 +1,11 @@
+kind: system
+
+name: vLLM_Benchmark_53_G7E_GLM53_Offload
+description: >-
+  One g7e.24xlarge spot (4x NVIDIA RTX PRO 6000 Blackwell 96 GB, node group llm-serving-g7e-24xl-spot,
+  shared with study 52) serving GLM-5.3-Flash 4-bit (canada-quant W4A16-MTP, TP4) with vLLM 0.34.0 in
+  the target deployment's container shape. Load: AIPerf 0.11.0, 40 long and mostly idle coding
+  sessions (20k shared prompt + 100k per-session context, 4k in / 400 out per turn, one turn every
+  600 s): ~5.2M tokens of history, 1.4x the GPU KV cache. Goal: lowest TTFT, i.e. resumed sessions
+  read back from the CPU KV offload instead of recomputed. Requires vLLM pack 1.15.0, GPU pack 1.4.0,
+  Kubernetes pack 1.9.0. Created 2026-11-18 (study 53, components copied from study 52).

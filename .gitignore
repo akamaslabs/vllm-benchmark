@@ -41,3 +41,7 @@ studies/52-g7e-glm53-coding-sessions-within-slo/k8s/01-vllm.yaml
 studies/52-g7e-glm53-coding-sessions-within-slo/k8s/level.current
 studies/52-g7e-glm53-coding-sessions-within-slo/k8s/smoke-*.log
 studies/52-g7e-glm53-coding-sessions-within-slo/k8s/smoke-run*/
+# Study 53: rendered per experiment / per smoke run
+studies/53-g7e-glm53-kv-offload-idle-sessions/k8s/params.env
+studies/53-g7e-glm53-kv-offload-idle-sessions/k8s/01-vllm.yaml
+studies/53-g7e-glm53-kv-offload-idle-sessions/k8s/smoke-*.log

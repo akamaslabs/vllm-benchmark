@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_53_G7E_GLM53_Offload
+
+name: node_gpu
+description: >-
+  The g7e.24xlarge spot (node role llm-serving-g7e-24xl-spot, 96 vCPU, 1 TiB): CPU, PSI, load,
+  memory (the CPU KV offload buffer lives here, in /dev/shm), swap, disk (the 328 GB checkpoint
+  load), filesystem, network per interface, TCP retransmits.
+componentType: Kubernetes Node
+properties:
+  prometheus:
+    role: llm-serving-g7e-24xl-spot

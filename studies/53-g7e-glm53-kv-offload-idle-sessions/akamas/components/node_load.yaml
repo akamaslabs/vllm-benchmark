@@ -1,0 +1,11 @@
+kind: component
+system: vLLM_Benchmark_53_G7E_GLM53_Offload
+
+name: node_load
+description: >-
+  The m8a-2xlarge load node (node role m8a-2xlarge) of the two AIPerf clients, so a saturated
+  load generator shows up as such.
+componentType: Kubernetes Node
+properties:
+  prometheus:
+    role: m8a-2xlarge

@@ -1,0 +1,87 @@
+# Study 53 vLLM server (copied from study 52; the hostPath caches below are study 52's on purpose: the two studies share the node and its 191 GB checkpoint): GLM-5.3-Flash 4-bit (canada-quant W4A16-MTP), TP4, on the g7e.24xlarge spot (node group
+# llm-serving-g7e-24xl-spot), rendered by apply_config.sh. Tokens (between two at-signs):
+# ADDITIONAL_ARGS SHM_GI MEM_GI APPLIED_AT.
+# - The container keeps the target deployment's shape: `vllm serve /mnt/models ... ${VLLM_ADDITIONAL_ARGS}`,
+#   with the target's fixed arguments and the tuned flags in VLLM_ADDITIONAL_ARGS (apply_config.sh).
+# - Checkpoint canada-quant/GLM-5.3-Flash-W4A16-MTP (190.9 GB: routed experts 4-bit, attention, KDA and
+#   the MTP head BF16), decided 2026-11-18: the target's FP8 checkpoint leaves no KV room at TP4 on
+#   96 GB GPUs (smoke 2026-11-17). It lives on a node hostPath; the init container downloads it when
+#   the node is new (first start, or a reclaimed spot node) into a plain directory and marks it complete. Pinned to revision
+#   5681f7c2dc6436d63f82ab6fb892b4f5062b8304: a re-download after a reclaim must not bring a newer checkpoint
+#   mid-study (final review I6).
+# - Compile caches (vLLM, FlashInfer, TileLang, Triton) live on a node hostPath: the TileLang JIT
+#   warmup alone took 213 s per start on the spike.
+# - /dev/shm holds the whole CPU KV offload buffer (native backend; vLLM refuses to start if shm is
+#   smaller, spike 2026-11-05), so both shm and the memory limit follow vllm.kv_offloading_size.
+#   requests == limits (Guaranteed QoS).
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: vllm, namespace: glm53-coding}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: vllm}}
+  template:
+    # Changes on every apply_config run, so every experiment starts from a fresh pod (empty prefix
+    # cache and offload store) even when the optimizer repeats the previous flags.
+    metadata: {labels: {app: vllm}, annotations: {study53/applied-at: "@APPLIED_AT@"}}
+    spec:
+      enableServiceLinks: false
+      nodeSelector: {node-role: llm-serving-g7e-24xl-spot}
+      tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+      terminationGracePeriodSeconds: 45
+      initContainers:
+      - name: fetch-checkpoint
+        image: vllm/vllm-openai:v0.34.0
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          # Resumable per-file download (k8s/download_checkpoint.sh, ConfigMap download-checkpoint): hf download
+          # stalled mid-file, restarted files under new names and waited on stale locks (2026-11-18).
+          bash /scripts/download_checkpoint.sh canada-quant/GLM-5.3-Flash-W4A16-MTP 5681f7c2dc6436d63f82ab6fb892b4f5062b8304 /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304
+          du -sh /hf-cache
+        env:
+        - {name: HF_HOME, value: /hf-cache}
+        - {name: HF_XET_HIGH_PERFORMANCE, value: "1"}
+        - {name: HF_TOKEN, valueFrom: {secretKeyRef: {name: hf-token, key: token, optional: true}}}
+        resources:
+          requests: {cpu: "8", memory: 16Gi}
+          limits: {cpu: "8", memory: 16Gi}
+        volumeMounts: [{name: hf-cache, mountPath: /hf-cache}, {name: scripts, mountPath: /scripts}]
+      containers:
+      - name: main
+        image: vllm/vllm-openai:v0.34.0
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          test -f /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304/.complete
+          ln -sfn /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304 /mnt/models
+          exec vllm serve /mnt/models \
+            --served-model-name "zai-org/GLM-5.3-Flash" \
+            --port 8000 \
+            --disable-access-log-for-endpoints /health,/metrics,/ping \
+            --shutdown-timeout 40 \
+            ${VLLM_ADDITIONAL_ARGS}
+        env:
+        - {name: VLLM_ADDITIONAL_ARGS, value: "@ADDITIONAL_ARGS@"}
+        - {name: HF_HOME, value: /hf-cache}
+        - {name: HF_HUB_OFFLINE, value: "1"}
+        ports: [{name: http, containerPort: 8000}]
+        resources:
+          requests: {cpu: "48", memory: "@MEM_GI@Gi", nvidia.com/gpu: 4}
+          limits: {cpu: "48", memory: "@MEM_GI@Gi", nvidia.com/gpu: 4}
+        volumeMounts:
+        - {name: hf-cache, mountPath: /hf-cache}
+        - {name: shm, mountPath: /dev/shm}
+        - {name: jit-cache, mountPath: /root/.cache, subPath: cache}
+        - {name: jit-cache, mountPath: /root/.tilelang, subPath: tilelang}
+        - {name: jit-cache, mountPath: /root/.triton, subPath: triton}
+        startupProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10, failureThreshold: 360}
+        readinessProbe: {httpGet: {path: /health, port: 8000}, periodSeconds: 10, failureThreshold: 3}
+      volumes:
+      - {name: scripts, configMap: {name: download-checkpoint}}
+      - {name: hf-cache, hostPath: {path: /var/lib/hf-cache-study52, type: DirectoryOrCreate}}
+      - {name: jit-cache, hostPath: {path: /var/lib/study52-jit-cache, type: DirectoryOrCreate}}
+      - {name: shm, emptyDir: {medium: Memory, sizeLimit: "@SHM_GI@Gi"}}

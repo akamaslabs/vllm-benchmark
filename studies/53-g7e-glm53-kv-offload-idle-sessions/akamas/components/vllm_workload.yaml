@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_53_G7E_GLM53_Offload
+
+name: vllm_workload
+description: >-
+  The Deployment vllm (namespace glm53-coding, one replica): desired, running and ready pods, CPU
+  and memory. No tuned parameter.
+componentType: Kubernetes Workload
+properties:
+  prometheus:
+    pod: vllm-.*
+    workload: vllm

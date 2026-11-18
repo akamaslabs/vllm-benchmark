@@ -29,8 +29,11 @@ goal:
       # steps its p95 sits well above the client ITL (final review I1). The smoke compares the two.
       - name: TTFT P95 safety net
         formula: vllm.time_to_first_token_p95 <= 6000
+      # 80 ms, not 60: in the smoke (2026-11-18, 16 sessions, MTP 5) the server TPOT p95 was 53.6 ms
+      # while the client ITL p95 was 19.5 ms; a 60 ms net would mark configurations that meet the
+      # client SLO as infeasible, and 4.1 cannot change a constraint once the study runs.
       - name: TPOT P95 safety net
-        formula: vllm.time_per_output_token_p95 <= 60
+        formula: vllm.time_per_output_token_p95 <= 80
 windowing:
   type: trim
   # AIPerf start-up + 500 s steady-from, then 60 s grace + log dump. Single unit each (a "1m30s"

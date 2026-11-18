@@ -1,6 +1,6 @@
 # 52-g7e-glm53-coding-sessions-within-slo
 
-**Status:** PREPARED again (2026-11-18) on a **4-bit checkpoint**. The 2026-11-17 smoke said no-go
+**Status:** PREPARED again (2026-11-18) on a **4-bit checkpoint**; smoke passed (see "Smoke 2026-11-18"). The 2026-11-17 smoke said no-go
 for the target's FP8 checkpoint on the g7e.24xlarge: it loads at TP4 but leaves no room for the KV
 cache on 96 GB GPUs (see "Smoke 2026-11-17"). Decided with the user on 2026-11-18: run
 `canada-quant/GLM-5.3-Flash-W4A16-MTP` at TP4 with the target's arguments (~44 GiB of weights per
@@ -50,7 +50,7 @@ sessions number for the target.
 - **Hold task:** the last passing level again, fresh, 1080 s; Akamas trim `[520s, 90s]`.
 - **Score:** `30 x vllm.request_success_rate` = sessions held. No TTFT tie-break (the user's
   call): within a level, compare TTFT and ITL directly.
-- **Constraints (Hold, safety net):** server TTFT p95 <= 6 s, server ITL p95 <= 60 ms.
+- **Constraints (Hold, safety net):** server TTFT p95 <= 6 s, server TPOT p95 <= 80 ms (per request; the per-step ITL runs far above the client ITL).
 - **Steps:** `baseline` (the target's arguments), presets `Offload 256`, `MTP three`, `MTP one` (only
   those the smoke confirms), `Baseline repeat`, then `optimize` (10 experiments).
 
@@ -98,6 +98,27 @@ the KDA state), `tensor_parallel_size` (the target's TP4).
   us-east-2c, 1000 MB/s), copied from what the smoke downloaded, so a reclaimed spot node is
   replaced without re-downloading 191 GB or recompiling. Update 01-vllm_template.yaml and its tests;
   delete the volume at the end of the study.
+
+## Smoke 2026-11-18 (4-bit checkpoint canada-quant W4A16-MTP 5681f7c2, TP4, target's arguments)
+
+- **Baseline (gmu 0.95, MTP 5, everything else default) starts:** 45.76 GiB of weights per GPU;
+  **GPU KV cache 3,611,552 tokens** (13.78x a 262144-token request); vLLM's default max_num_seqs fits
+  (no pin); KV block 2304 tokens (mamba align). Cold start 755 s (weights 233 s from disk, TileLang
+  JIT 227 s); later starts reuse the compile caches on the node.
+- **Kernels:** attention `FLASHINFER_MLA_SPARSE_SM120` (`fp8_ds_mla`), routed experts **MARLIN WNA16**,
+  the BF16 MTP head's MoE FlashInfer CUTLASS.
+- **Answers:** a coding prompt (correct code) and a tool call (`read_file`) through the glm47 parsers.
+- **16 sessions, 300 s:** client TTFT p95 1636 ms, ITL p95 19.5 ms (within 5 s / 50 ms), worst
+  session TTFT p95 1672 ms; 73-109 output tokens/s per user on average.
+- **MTP works on SM120 here:** 40.1 % of drafted tokens accepted, 2.0 per 5-token draft; per position
+  74 / 51 / 35 / 24 / 17 %. The MTP presets stay.
+- **Server latency vs client:** server TPOT p95 53.6 ms (per request, p50 16.1 ms) and ITL p95 72.1 ms
+  (per engine step) against the client ITL p95 19.5 ms; the TPOT safety net is 80 ms, not 60.
+- **Not run before the study (the user's call, 2026-11-18):** warm restart, offload 256 GiB and the
+  domain edges; an offload or MoE candidate that does not start costs one experiment.
+- **Download path:** `hf download` stalled mid-file and skipped the tokenizer; the checkpoint and the
+  tokenizer now come down through `k8s/download_checkpoint.sh` (curl with resume, ~700 MB/s with a
+  read-only token in the namespace Secret `hf-token`).
 
 ## Smoke 2026-11-17 (g7e.24xlarge spot, us-east-2c, vLLM v0.34.0, FP8 checkpoint 46a050be, TP4)
 

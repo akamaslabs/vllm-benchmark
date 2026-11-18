@@ -50,7 +50,7 @@ Telemetry notes (the header of `telemetry/prometheus.yaml` has the details):
 
 - **Goal:** maximize `30 * vllm.request_success_rate` (sessions held: one turn per session every
   30 s). Window: the `Hold` task, trimmed `[520s, 90s]`.
-- **Constraints, server side:** TTFT p95 <= 6000 ms and TPOT p95 <= 60 ms (per request, the
+- **Constraints, server side:** TTFT p95 <= 6000 ms and TPOT p95 <= 80 ms (per request, the
   server-side equivalent of AIPerf's ITL). The SLO itself (5 s,
   50 ms) is judged client side by the `Ramp` task (`../k8s/run_ramp.sh`).
 - **Parameters (10):** `kv_offloading_size` 0–512, `gpu_memory_utilization` 0.85–0.97,

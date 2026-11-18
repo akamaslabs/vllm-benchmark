@@ -103,7 +103,7 @@ for S in "${@:-baseline answer mtp warm offload edges}"; do
       acc=$(grep -E '^vllm:spec_decode_num_(accepted|draft)_tokens_total ' "$K/smoke-mtp-load.log" | awk '{v[$1]=$2} END { d=v["vllm:spec_decode_num_draft_tokens_total"]; a=v["vllm:spec_decode_num_accepted_tokens_total"]; if (d > 0) printf "%.1f%%", 100 * a / d; else print "no drafts" }')
       res=$(grep '^RESULT sent' "$K/smoke-mtp-load.log" | tail -1)
       itl=$(python3 "$HERE/hist_quantile.py" vllm:inter_token_latency_seconds /tmp/smoke-m0 /tmp/smoke-m1 0.95)
-      tpot=$(python3 "$HERE/hist_quantile.py" vllm:time_per_output_token_seconds /tmp/smoke-m0 /tmp/smoke-m1 0.95)
+      tpot=$(python3 "$HERE/hist_quantile.py" vllm:request_time_per_output_token_seconds /tmp/smoke-m0 /tmp/smoke-m1 0.95)
       detail="acceptance $acc; server ITL p95 $itl (per step), TPOT p95 $tpot (per request); client: $res"
       [[ "$acc" == *% ]] && [ "${acc%%.*}" -gt 0 ] && report mtp PASS "$detail" || report mtp FAIL "$detail (vllm#59724?)" ;;
     warm)

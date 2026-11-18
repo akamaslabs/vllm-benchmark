@@ -7,7 +7,8 @@ Y="$HERE/../akamas/52-G7E-GLM53-Coding-Sessions.yaml"
 PASS=0; FAIL=0
 ok() { PASS=$((PASS + 1)); }
 ko() { FAIL=$((FAIL + 1)); echo "FAIL: $1"; }
-grep -q 'formula: vllm.time_per_output_token_p95 <= 60' "$Y" && ok || ko "ITL safety net on time_per_output_token_p95 <= 60"
+grep -q 'formula: vllm.time_per_output_token_p95 <= 80' "$Y" && ok || ko "TPOT safety net at 80 ms (smoke 2026-11-18: server TPOT p95 53.6 ms vs client ITL p95 19.5 ms)"
+grep -q 'vllm:request_time_per_output_token_seconds' "$HERE/smoke.sh" && ok || ko "smoke reads the v0.34 TPOT histogram name"
 grep -q 'formula: vllm.inter_token_latency_p95 <=' "$Y" && ko "no constraint on the per-step inter_token_latency_p95" || ok
 # DCP is out (no MLA backend supports it on SM120), and the MoE candidates are the W4A16 ones.
 grep -q 'decode_context_parallel_size' "$Y" && ko "no decode_context_parallel_size in the study" || ok

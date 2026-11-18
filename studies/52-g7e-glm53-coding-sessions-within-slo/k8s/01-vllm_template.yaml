@@ -50,6 +50,7 @@ spec:
         env:
         - {name: HF_HOME, value: /hf-cache}
         - {name: HF_XET_HIGH_PERFORMANCE, value: "1"}
+        - {name: HF_TOKEN, valueFrom: {secretKeyRef: {name: hf-token, key: token, optional: true}}}
         resources:
           requests: {cpu: "8", memory: 16Gi}
           limits: {cpu: "8", memory: 16Gi}

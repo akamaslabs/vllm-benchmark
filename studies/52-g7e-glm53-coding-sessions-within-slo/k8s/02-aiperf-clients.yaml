@@ -35,6 +35,7 @@ spec:
         readinessProbe: {exec: {command: [test, -f, /work/ready]}, periodSeconds: 5}
         env:
         - {name: AIPERF_TIMING_RATE_RAMP_UPDATE_INTERVAL, value: "10"}
+        - {name: HF_TOKEN, valueFrom: {secretKeyRef: {name: hf-token, key: token, optional: true}}}
         resources:
           requests: {cpu: "3", memory: 8Gi}
           limits: {cpu: 3500m, memory: 13Gi}

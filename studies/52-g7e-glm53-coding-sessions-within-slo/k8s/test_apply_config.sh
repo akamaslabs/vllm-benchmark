@@ -162,6 +162,12 @@ OUT=$(startup_failure_reason "$HERE/fixtures/dcp-no-backend.log")
 grep -qE 'for attempt in \$\(seq 1 20\); do timeout 900 hf download' "$HERE/01-vllm_template.yaml" && ok || bad "template: download attempts not bounded and retried"
 grep -qE 'hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision [0-9a-f]+ --local-dir /hf-cache/canada-quant-w4a16-[0-9a-f]+' "$HERE/01-vllm_template.yaml" && ok || bad "template: checkpoint not downloaded with --local-dir"
 grep -qE 'hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision [0-9a-f]+ --local-dir /hf-cache/canada-quant-w4a16-[0-9a-f]+' "$HERE/03-download-checkpoint.yaml" && ok || bad "download Job: same --local-dir as the template"
+# Authenticated downloads (anonymous ones stalled): HF_TOKEN from the namespace's Secret hf-token,
+# optional so a missing Secret falls back to anonymous; never a literal token in the repo.
+for f in 01-vllm_template.yaml 03-download-checkpoint.yaml 02-aiperf-clients.yaml; do
+  grep -q 'secretKeyRef: {name: hf-token, key: token, optional: true}' "$HERE/$f" && ok || bad "$f: HF_TOKEN not read from the Secret hf-token"
+done
+grep -rqE 'hf_[A-Za-z0-9]{30,}' "$HERE/.." && bad "a literal Hugging Face token is in the study folder" || ok
 # The 4-bit checkpoint (decided 2026-11-18): canada-quant/GLM-5.3-Flash-W4A16-MTP, pinned.
 REV=5681f7c2dc6436d63f82ab6fb892b4f5062b8304
 grep -q -- "hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision $REV" "$HERE/01-vllm_template.yaml" && ok || bad "template: checkpoint download not pinned to $REV"

@@ -1,0 +1,38 @@
+# Study 52 checkpoint pre-download (no GPU): fills the node's /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304
+# with canada-quant/GLM-5.3-Flash-W4A16-MTP (public, 190.9 GB) ahead of the first experiment, so the
+# vLLM pod's init container finds it complete. Same bounded, resumed attempts as the init container
+# (anonymous downloads stall mid-file). Run once per new node:
+#   kubectl apply -f 03-download-checkpoint.yaml; kubectl -n glm53-coding wait --for=condition=complete job/download-checkpoint --timeout=3h
+apiVersion: batch/v1
+kind: Job
+metadata: {name: download-checkpoint, namespace: glm53-coding}
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector: {node-role: llm-serving-g7e-24xl-spot}
+      tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+      containers:
+      - name: download
+        image: vllm/vllm-openai:v0.34.0
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          if [ -f /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304/.complete ]; then echo "already complete"; exit 0; fi
+          ok=0
+          for attempt in $(seq 1 20); do timeout 900 hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision 5681f7c2dc6436d63f82ab6fb892b4f5062b8304 --local-dir /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304 && { ok=1; break; }; echo "attempt $attempt did not finish ($(du -sh /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304 | cut -f1)), retrying"; done
+          [ "$ok" = 1 ]
+          touch /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304/.complete
+          du -sh /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304
+        env:
+        - {name: HF_HOME, value: /hf-cache}
+        - {name: HF_XET_HIGH_PERFORMANCE, value: "1"}
+        resources:
+          requests: {cpu: "8", memory: 16Gi}
+          limits: {cpu: "8", memory: 16Gi}
+        volumeMounts: [{name: hf-cache, mountPath: /hf-cache}]
+      volumes:
+      - {name: hf-cache, hostPath: {path: /var/lib/hf-cache-study52, type: DirectoryOrCreate}}

@@ -157,11 +157,15 @@ OUT=$(startup_failure_reason "$HERE/fixtures/dcp-no-backend.log")
 # I6: checkpoint and tokenizer pinned to one revision.
 # 2026-11-18: an anonymous download stalled for 8+ minutes (8 connections, no byte); a restart resumed
 # at ~690 MB/s. Every attempt is bounded and retried (hf download resumes the .incomplete files).
-grep -qE 'for attempt in 1 2 3 4 5; do timeout 900 hf download' "$HERE/01-vllm_template.yaml" && ok || bad "template: download attempts not bounded and retried"
+# The hub-cache layout gave every attempt new .incomplete names (no resume across attempts: 312 GB of
+# partial files, no large file complete); --local-dir keeps fixed names and resumes.
+grep -qE 'for attempt in \$\(seq 1 20\); do timeout 900 hf download' "$HERE/01-vllm_template.yaml" && ok || bad "template: download attempts not bounded and retried"
+grep -qE 'hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision [0-9a-f]+ --local-dir /hf-cache/canada-quant-w4a16-[0-9a-f]+' "$HERE/01-vllm_template.yaml" && ok || bad "template: checkpoint not downloaded with --local-dir"
+grep -qE 'hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision [0-9a-f]+ --local-dir /hf-cache/canada-quant-w4a16-[0-9a-f]+' "$HERE/03-download-checkpoint.yaml" && ok || bad "download Job: same --local-dir as the template"
 # The 4-bit checkpoint (decided 2026-11-18): canada-quant/GLM-5.3-Flash-W4A16-MTP, pinned.
 REV=5681f7c2dc6436d63f82ab6fb892b4f5062b8304
 grep -q -- "hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision $REV" "$HERE/01-vllm_template.yaml" && ok || bad "template: checkpoint download not pinned to $REV"
-grep -q -- "models--canada-quant--GLM-5.3-Flash-W4A16-MTP/snapshots/$REV" "$HERE/01-vllm_template.yaml" && ok || bad "template: /mnt/models not the pinned snapshot"
+grep -q -- "ln -sfn /hf-cache/canada-quant-w4a16-$REV /mnt/models" "$HERE/01-vllm_template.yaml" && ok || bad "template: /mnt/models not the pinned local dir"
 grep -q -- "zai-org/GLM-5.3-Flash --revision" "$HERE/01-vllm_template.yaml" && bad "template: still downloads the FP8 checkpoint" || ok
 grep -q -- "hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision $REV" "$HERE/02-aiperf-clients.yaml" && ok || bad "clients: tokenizer not pinned to $REV"
 

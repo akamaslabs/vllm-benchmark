@@ -6,7 +6,7 @@
 # - Checkpoint canada-quant/GLM-5.3-Flash-W4A16-MTP (190.9 GB: routed experts 4-bit, attention, KDA and
 #   the MTP head BF16), decided 2026-11-18: the target's FP8 checkpoint leaves no KV room at TP4 on
 #   96 GB GPUs (smoke 2026-11-17). It lives on a node hostPath; the init container downloads it when
-#   the node is new (first start, or a reclaimed spot node) and marks it complete. Pinned to revision
+#   the node is new (first start, or a reclaimed spot node) into a plain directory and marks it complete. Pinned to revision
 #   5681f7c2dc6436d63f82ab6fb892b4f5062b8304: a re-download after a reclaim must not bring a newer checkpoint
 #   mid-study (final review I6).
 # - Compile caches (vLLM, FlashInfer, TileLang, Triton) live on a node hostPath: the TileLang JIT
@@ -37,13 +37,15 @@ spec:
         args:
         - |
           set -e
-          if [ -f /hf-cache/.glm53-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304-complete ]; then echo "checkpoint 5681f7c2dc6436d63f82ab6fb892b4f5062b8304 already on the node"; exit 0; fi
-          # Each attempt is bounded (an anonymous download stalled for 8+ minutes on 2026-11-18; a restart
-          # resumed at ~690 MB/s): hf download resumes the .incomplete files on the next attempt.
+          if [ -f /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304/.complete ]; then echo "checkpoint 5681f7c2dc6436d63f82ab6fb892b4f5062b8304 already on the node"; exit 0; fi
+          # Anonymous Hugging Face downloads stall mid-file (2026-11-18: every 19 GB file stopped at 11-16 GB).
+          # Each attempt is bounded and retried; --local-dir keeps fixed partial-file names, so the next
+          # attempt resumes (the hub-cache layout started over with new names every time).
+          # k8s/03-download-checkpoint.yaml fills the same directory ahead of the first experiment.
           ok=0
-          for attempt in 1 2 3 4 5; do timeout 900 hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision 5681f7c2dc6436d63f82ab6fb892b4f5062b8304 && { ok=1; break; }; echo "download attempt $attempt did not finish, retrying"; done
+          for attempt in $(seq 1 20); do timeout 900 hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision 5681f7c2dc6436d63f82ab6fb892b4f5062b8304 --local-dir /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304 && { ok=1; break; }; echo "download attempt $attempt did not finish, retrying"; done
           [ "$ok" = 1 ]
-          touch /hf-cache/.glm53-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304-complete
+          touch /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304/.complete
           du -sh /hf-cache
         env:
         - {name: HF_HOME, value: /hf-cache}
@@ -59,8 +61,8 @@ spec:
         args:
         - |
           set -e
-          test -d /hf-cache/hub/models--canada-quant--GLM-5.3-Flash-W4A16-MTP/snapshots/5681f7c2dc6436d63f82ab6fb892b4f5062b8304
-          ln -sfn /hf-cache/hub/models--canada-quant--GLM-5.3-Flash-W4A16-MTP/snapshots/5681f7c2dc6436d63f82ab6fb892b4f5062b8304 /mnt/models
+          test -f /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304/.complete
+          ln -sfn /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304 /mnt/models
           exec vllm serve /mnt/models \
             --served-model-name "zai-org/GLM-5.3-Flash" \
             --port 8000 \

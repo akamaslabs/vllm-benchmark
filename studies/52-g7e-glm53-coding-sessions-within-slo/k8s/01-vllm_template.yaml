@@ -1,12 +1,14 @@
-# Study 52 vLLM server: GLM-5.3-Flash FP8, TP4, on the g7e.24xlarge spot (node group
+# Study 52 vLLM server: GLM-5.3-Flash 4-bit (canada-quant W4A16-MTP), TP4, on the g7e.24xlarge spot (node group
 # llm-serving-g7e-24xl-spot), rendered by apply_config.sh. Tokens (between two at-signs):
 # ADDITIONAL_ARGS SHM_GI MEM_GI APPLIED_AT.
 # - The container keeps the target deployment's shape: `vllm serve /mnt/models ... ${VLLM_ADDITIONAL_ARGS}`,
 #   with the target's fixed arguments and the tuned flags in VLLM_ADDITIONAL_ARGS (apply_config.sh).
-# - The checkpoint (328 GB) lives on a node hostPath; the init container downloads it when the node
-#   is new (first start, or a reclaimed spot node replaced by the ASG) and marks it complete. Pinned
-#   to revision 46a050bec13002ad29ee795c16e61cf4fa3c4a9c (main on 2026-11-17): a re-download after a reclaim must not
-#   bring a newer checkpoint mid-study (final review I6).
+# - Checkpoint canada-quant/GLM-5.3-Flash-W4A16-MTP (190.9 GB: routed experts 4-bit, attention, KDA and
+#   the MTP head BF16), decided 2026-11-18: the target's FP8 checkpoint leaves no KV room at TP4 on
+#   96 GB GPUs (smoke 2026-11-17). It lives on a node hostPath; the init container downloads it when
+#   the node is new (first start, or a reclaimed spot node) and marks it complete. Pinned to revision
+#   5681f7c2dc6436d63f82ab6fb892b4f5062b8304: a re-download after a reclaim must not bring a newer checkpoint
+#   mid-study (final review I6).
 # - Compile caches (vLLM, FlashInfer, TileLang, Triton) live on a node hostPath: the TileLang JIT
 #   warmup alone took 213 s per start on the spike.
 # - /dev/shm holds the whole CPU KV offload buffer (native backend; vLLM refuses to start if shm is
@@ -35,9 +37,9 @@ spec:
         args:
         - |
           set -e
-          if [ -f /hf-cache/.glm53-fp8-46a050bec13002ad29ee795c16e61cf4fa3c4a9c-complete ]; then echo "checkpoint 46a050bec13002ad29ee795c16e61cf4fa3c4a9c already on the node"; exit 0; fi
-          hf download zai-org/GLM-5.3-Flash --revision 46a050bec13002ad29ee795c16e61cf4fa3c4a9c
-          touch /hf-cache/.glm53-fp8-46a050bec13002ad29ee795c16e61cf4fa3c4a9c-complete
+          if [ -f /hf-cache/.glm53-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304-complete ]; then echo "checkpoint 5681f7c2dc6436d63f82ab6fb892b4f5062b8304 already on the node"; exit 0; fi
+          hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision 5681f7c2dc6436d63f82ab6fb892b4f5062b8304
+          touch /hf-cache/.glm53-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304-complete
           du -sh /hf-cache
         env:
         - {name: HF_HOME, value: /hf-cache}
@@ -53,8 +55,8 @@ spec:
         args:
         - |
           set -e
-          test -d /hf-cache/hub/models--zai-org--GLM-5.3-Flash/snapshots/46a050bec13002ad29ee795c16e61cf4fa3c4a9c
-          ln -sfn /hf-cache/hub/models--zai-org--GLM-5.3-Flash/snapshots/46a050bec13002ad29ee795c16e61cf4fa3c4a9c /mnt/models
+          test -d /hf-cache/hub/models--canada-quant--GLM-5.3-Flash-W4A16-MTP/snapshots/5681f7c2dc6436d63f82ab6fb892b4f5062b8304
+          ln -sfn /hf-cache/hub/models--canada-quant--GLM-5.3-Flash-W4A16-MTP/snapshots/5681f7c2dc6436d63f82ab6fb892b4f5062b8304 /mnt/models
           exec vllm serve /mnt/models \
             --served-model-name "zai-org/GLM-5.3-Flash" \
             --port 8000 \

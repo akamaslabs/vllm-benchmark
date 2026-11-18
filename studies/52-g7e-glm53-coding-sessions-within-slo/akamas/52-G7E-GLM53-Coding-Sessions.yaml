@@ -1,7 +1,8 @@
 kind: study
 name: 52-G7E-GLM53-Coding-Sessions
 description: >-
-  GLM-5.3-Flash coding sessions within an SLO: zai-org/GLM-5.3-Flash (FP8, TP4) on vLLM 0.34.0, one
+  GLM-5.3-Flash coding sessions within an SLO: GLM-5.3-Flash 4-bit (canada-quant W4A16-MTP; the
+  target's FP8 checkpoint leaves no KV room at TP4 on 96 GB GPUs) at TP4 on vLLM 0.34.0, one
   g7e.24xlarge spot (4x RTX PRO 6000 96 GB), in the target deployment's container shape. AIPerf
   coding-agent sessions (20k shared prompt, 10k per-session context, 16 turns of 4k in / 400 out,
   one turn every 30 s) on two clients. A Ramp task finds the most sessions (levels 4-64) served
@@ -48,10 +49,8 @@ parametersSelection:
     domain: [2048, 16384]
   - name: vllm.spec_tokens
     domain: [0, 5]
-  - name: vllm.decode_context_parallel_size
-    domain: [1, 4]
   - name: vllm.moe_backend
-    categories: [auto, triton, cutlass, flashinfer_cutlass, deep_gemm]
+    categories: [auto, marlin, humming, triton]
   - name: vllm.max_cudagraph_capture_size
     domain: [16, 512]
   - name: vllm.async_scheduling
@@ -63,8 +62,6 @@ parametersSelection:
 parameterConstraints:
   - name: max_num_batched_tokens must be at least max_num_seqs
     formula: vllm.max_num_batched_tokens >= vllm.max_num_seqs
-  - name: Decode context parallel size divides TP4
-    formula: vllm.decode_context_parallel_size != 3
 kpis:
   - name: Completed requests per s
     formula: vllm.request_success_rate
@@ -93,8 +90,8 @@ kpis:
 # Baseline = the target's arguments (gmu 0.95, MTP 5 tokens; everything else at vLLM's defaults,
 # hence not rendered). TODO after the smoke: if v0.34.0's default max_num_seqs exceeds the Mamba
 # block count at TP4, pin vllm.max_num_seqs here and say so in the README; if MTP shows no
-# acceptance on SM120, set spec_tokens 0 and drop the MTP presets; drop DCP four if it does not
-# start. Presets change one lever each on top of the baseline.
+# acceptance on SM120, set spec_tokens 0 and drop the MTP presets. DCP is out: no MLA backend supports
+# it on SM120 (smoke 2026-11-17). Presets change one lever each on top of the baseline.
 steps:
   - name: baseline
     type: baseline
@@ -105,7 +102,6 @@ steps:
       - vllm.kv_offloading_size
       - vllm.max_num_seqs
       - vllm.max_num_batched_tokens
-      - vllm.decode_context_parallel_size
       - vllm.moe_backend
       - vllm.max_cudagraph_capture_size
       - vllm.async_scheduling
@@ -118,22 +114,6 @@ steps:
       vllm.spec_tokens: 5
       vllm.kv_offloading_size: 256
     doNotRenderParameters:
-      - vllm.max_num_seqs
-      - vllm.max_num_batched_tokens
-      - vllm.decode_context_parallel_size
-      - vllm.moe_backend
-      - vllm.max_cudagraph_capture_size
-      - vllm.async_scheduling
-      - vllm.performance_mode
-      - vllm.optimization_level
-  - name: DCP four
-    type: preset
-    values:
-      vllm.gpu_memory_utilization: 0.95
-      vllm.spec_tokens: 5
-      vllm.decode_context_parallel_size: 4
-    doNotRenderParameters:
-      - vllm.kv_offloading_size
       - vllm.max_num_seqs
       - vllm.max_num_batched_tokens
       - vllm.moe_backend
@@ -150,7 +130,6 @@ steps:
       - vllm.kv_offloading_size
       - vllm.max_num_seqs
       - vllm.max_num_batched_tokens
-      - vllm.decode_context_parallel_size
       - vllm.moe_backend
       - vllm.max_cudagraph_capture_size
       - vllm.async_scheduling
@@ -165,7 +144,6 @@ steps:
       - vllm.kv_offloading_size
       - vllm.max_num_seqs
       - vllm.max_num_batched_tokens
-      - vllm.decode_context_parallel_size
       - vllm.moe_backend
       - vllm.max_cudagraph_capture_size
       - vllm.async_scheduling
@@ -180,7 +158,6 @@ steps:
       - vllm.kv_offloading_size
       - vllm.max_num_seqs
       - vllm.max_num_batched_tokens
-      - vllm.decode_context_parallel_size
       - vllm.moe_backend
       - vllm.max_cudagraph_capture_size
       - vllm.async_scheduling

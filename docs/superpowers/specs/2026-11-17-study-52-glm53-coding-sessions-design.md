@@ -1,7 +1,25 @@
 # Study 52 — GLM-5.3-Flash coding sessions within a TTFT and ITL SLO (design)
 
-Status: draft for approval, 2026-11-17. Follows the phase 0 spike
+Status: approved 2026-11-17; updated 2026-11-18 (4-bit checkpoint, see below). Follows the phase 0 spike
 (`docs/spikes/2026-11-17-glm53-flash-phase0/README.md`).
+
+## Update 2026-11-18: 4-bit checkpoint, no DCP (decided with the user)
+
+The 2026-11-17 smoke on the g7e.24xlarge said **no-go** for the FP8 checkpoint: 78.61 GiB of weights
+per GPU at TP4, and vLLM 0.34.0 found no KV block at gmu 0.95 and ran out of memory during warmup at
+0.98 and 1.0 (study README, "Smoke 2026-11-17"). The MLA latent KV is replicated on every TP rank and
+DCP has no MLA backend on SM120, so session capacity is the free memory of one GPU.
+
+Decided with the user (after talking to a colleague): keep the g7e.24xlarge, TP4 and the target's
+arguments, and serve **`canada-quant/GLM-5.3-Flash-W4A16-MTP`** (revision 5681f7c2; routed experts
+4-bit, attention / KDA / MTP head BF16; loads on upstream v0.34.0, spike 2026-11-17). ~44 GiB of
+weights per GPU leave ~40 GiB for the KV cache, close to the target's H200 at TP4 (~50 GiB), so the
+question "how much margin do the target's arguments leave" keeps its regime. What changes:
+
+- the MoE kernels (W4A16: Marlin-class; `moe_backend` candidates auto, marlin, humming, triton,
+  narrowed by the smoke) and the weights' precision: absolute numbers transfer even less;
+- `decode_context_parallel_size` and the `DCP four` preset are removed;
+- the go / no-go rules below stay, applied to the 4-bit checkpoint.
 
 ## Intent and the why
 

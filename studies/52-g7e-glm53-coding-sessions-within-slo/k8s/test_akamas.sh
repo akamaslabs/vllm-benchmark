@@ -9,6 +9,9 @@ ok() { PASS=$((PASS + 1)); }
 ko() { FAIL=$((FAIL + 1)); echo "FAIL: $1"; }
 grep -q 'formula: vllm.time_per_output_token_p95 <= 60' "$Y" && ok || ko "ITL safety net on time_per_output_token_p95 <= 60"
 grep -q 'formula: vllm.inter_token_latency_p95 <=' "$Y" && ko "no constraint on the per-step inter_token_latency_p95" || ok
+# DCP is out (no MLA backend supports it on SM120), and the MoE candidates are the W4A16 ones.
+grep -q 'decode_context_parallel_size' "$Y" && ko "no decode_context_parallel_size in the study" || ok
+grep -q 'categories: \[auto, marlin, humming, triton\]' "$Y" && ok || ko "moe_backend categories = the W4A16 candidates"
 # Smoke helper: interpolated histogram quantile between two /metrics snapshots.
 T=$(mktemp -d)
 printf '%s\n' 'vllm:time_per_output_token_seconds_bucket{le="0.025"} 0' 'vllm:time_per_output_token_seconds_bucket{le="0.05"} 0' \

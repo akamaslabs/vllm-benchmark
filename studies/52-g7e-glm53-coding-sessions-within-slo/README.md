@@ -1,9 +1,12 @@
 # 52-g7e-glm53-coding-sessions-within-slo
 
-**Status:** ON HOLD (2026-11-17): the smoke said **no-go** on the g7e.24xlarge. The target's FP8
-checkpoint loads at TP4 but leaves no room for the KV cache on 96 GB GPUs (see "Smoke 2026-11-17").
-Node groups scaled to 0. Next: pick the rig (g7e.48xlarge TP8, H200, or this rig with a fixed KV
-size), then adapt the study.
+**Status:** PREPARED again (2026-11-18) on a **4-bit checkpoint**. The 2026-11-17 smoke said no-go
+for the target's FP8 checkpoint on the g7e.24xlarge: it loads at TP4 but leaves no room for the KV
+cache on 96 GB GPUs (see "Smoke 2026-11-17"). Decided with the user on 2026-11-18: run
+`canada-quant/GLM-5.3-Flash-W4A16-MTP` at TP4 with the target's arguments (~44 GiB of weights per
+GPU, ~40 GiB left for the KV cache, close to the target's H200 at TP4) to measure the margin for
+improvement. Waiting for g7e.24xlarge spot capacity (score 1 in every us-east-2 AZ at 08:33 UTC);
+node groups at 0. The smoke runs again on the new checkpoint before any Akamas resource.
 
 - **Design:** `docs/superpowers/specs/2026-11-17-study-52-glm53-coding-sessions-design.md`.
 - **Plan:** `docs/superpowers/plans/2026-11-17-study-52-glm53-coding-sessions.md`.
@@ -22,12 +25,15 @@ pod per replica, TP4 on H200, the official FP8 checkpoint, and
 
 Study 52 asks **how many concurrent coding sessions one replica serves within client TTFT p95
 <= 5 s and client ITL p95 <= 50 ms**, with those arguments and with the levers they leave unused
-(CPU KV offload, decode context parallelism, MTP depth, scheduler sizing).
+(CPU KV offload, MTP depth, scheduler sizing; decode context parallelism is unavailable on SM120).
 
-It runs on **4x RTX PRO 6000 Blackwell (one g7e.24xlarge spot)**: the target's FP8 checkpoint fits
-with the target's TP4. The GPU architecture differs (SM120 here, SM90 on H200), so kernels and
-absolute numbers do not transfer; which levers matter, and roughly how much, does. Results are
-sessions on this rig, never a sessions number for the target.
+It runs on **4x RTX PRO 6000 Blackwell (one g7e.24xlarge spot)** with the target's TP4 and arguments,
+on a **4-bit checkpoint** (`canada-quant/GLM-5.3-Flash-W4A16-MTP`: routed experts 4-bit; attention,
+KDA and the MTP head BF16): the target's FP8 checkpoint leaves no KV room at TP4 on 96 GB GPUs
+(smoke 2026-11-17). The GPU architecture (SM120 vs SM90) and the MoE kernels (W4A16 Marlin-class vs
+FP8) differ, so absolute numbers do not transfer; the KV room per GPU is close to the target's, so
+which levers matter, and roughly how much, should. Results are sessions on this rig, never a
+sessions number for the target.
 
 ## Method
 
@@ -45,19 +51,19 @@ sessions on this rig, never a sessions number for the target.
 - **Score:** `30 x vllm.request_success_rate` = sessions held. No TTFT tie-break (the user's
   call): within a level, compare TTFT and ITL directly.
 - **Constraints (Hold, safety net):** server TTFT p95 <= 6 s, server ITL p95 <= 60 ms.
-- **Steps:** `baseline` (the target's arguments), presets `Offload 256`, `DCP four`, `MTP three`,
-  `MTP one` (only those the smoke confirms), `Baseline repeat`, then `optimize` (10 experiments).
+- **Steps:** `baseline` (the target's arguments), presets `Offload 256`, `MTP three`, `MTP one` (only
+  those the smoke confirms), `Baseline repeat`, then `optimize` (10 experiments).
 
 ## Stack & versions
 
 - **Hardware:** one g7e.24xlarge **spot** in us-east-2c (score 8, ~8.83 USD/h on 2026-11-17;
   on-demand 16.57), node group `llm-serving-g7e-24xl-spot` (`infra/eks/`), cluster `vllm-bench`
   (EKS, us-east-2).
-- **Server:** `vllm/vllm-openai:v0.34.0`, `zai-org/GLM-5.3-Flash` (FP8, 328 GB) served as
-  `zai-org/GLM-5.3-Flash`, TP4, `--language-model-only`; the target's container shape
+- **Server:** `vllm/vllm-openai:v0.34.0`, `canada-quant/GLM-5.3-Flash-W4A16-MTP` (190.9 GB, revision
+  5681f7c2) served as `zai-org/GLM-5.3-Flash`, TP4, `--language-model-only`; the target's container shape
   (`vllm serve /mnt/models ... ${VLLM_ADDITIONAL_ARGS}`); namespace `glm53-coding`.
 - **Load:** AIPerf 0.11.0 (`k8s/workload.env`).
-- **Akamas:** 4.1 (akamas-41); packs: TODO, checked with `akamas describe optimization-pack` before
+- **Akamas:** 4.1 (akamas-41); packs vLLM 1.15.0, GPU 1.4.0, Kubernetes 1.9.0 (checked 2026-11-17), checked again before
   the YAML is written.
 - **Telemetry:** Prometheus; the full catalog (CLAUDE.md rule 9): vLLM, one GPU component per
   GPU, Kubernetes Node, Container (vLLM and AIPerf), Workload, Cluster.
@@ -71,8 +77,7 @@ sessions on this rig, never a sessions number for the target.
 | `vllm.max_num_seqs` | 8–128 | TODO (smoke: under the Mamba block count) |
 | `vllm.max_num_batched_tokens` | 2048–16384 | default |
 | `vllm.spec_tokens` (MTP) | 0–5 | 5 (0 if the smoke shows no acceptance) |
-| `vllm.decode_context_parallel_size` | 1, 2, 4 | 1 |
-| `vllm.moe_backend` | auto + the smoke's FP8 candidates | auto |
+| `vllm.moe_backend` | auto, marlin, humming, triton (W4A16; narrowed by the smoke) | auto |
 | `vllm.max_cudagraph_capture_size` | 16–512 | default |
 | `vllm.async_scheduling` | true, false | default |
 | `vllm.performance_mode` | as in study 38 | default |
@@ -91,7 +96,7 @@ the KDA state), `tensor_parallel_size` (the target's TP4).
 - **After the smoke, before the study (agreed with the user 2026-11-17):** move the checkpoint and
   the compile caches from the node's hostPath to an EBS volume of their own (PVC, gp3 ~600 GB in
   us-east-2c, 1000 MB/s), copied from what the smoke downloaded, so a reclaimed spot node is
-  replaced without re-downloading 328 GB or recompiling. Update 01-vllm_template.yaml and its tests;
+  replaced without re-downloading 191 GB or recompiling. Update 01-vllm_template.yaml and its tests;
   delete the volume at the end of the study.
 
 ## Smoke 2026-11-17 (g7e.24xlarge spot, us-east-2c, vLLM v0.34.0, FP8 checkpoint 46a050be, TP4)

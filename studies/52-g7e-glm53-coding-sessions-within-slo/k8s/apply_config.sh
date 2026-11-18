@@ -2,7 +2,7 @@
 # Apply-config step for 52-g7e-glm53-coding-sessions-within-slo. Runs on the akamas-41 toolbox via
 # the Akamas workflow's Executor task, after FileConfigurator has rendered params.env.
 #
-# One experiment = one vLLM configuration of GLM-5.3-Flash (FP8, TP4) on the g7e.24xlarge spot
+# One experiment = one vLLM configuration of GLM-5.3-Flash (4-bit W4A16, TP4) on the g7e.24xlarge spot
 # (node group llm-serving-g7e-24xl-spot). The vLLM container keeps the target deployment's shape:
 # `vllm serve /mnt/models ... ${VLLM_ADDITIONAL_ARGS}`, where VLLM_ADDITIONAL_ARGS is the target's
 # fixed arguments plus the tuned flags rendered here. The Deployment is replaced (Recreate) on every
@@ -25,8 +25,8 @@ HERE=$(cd "$(dirname "$0")" && pwd)   # manifests live next to the script
 OFFLOAD_MAX=512   # GiB: the pack's maximum; the node has 1 TiB of RAM
 MEM_BASE=96       # GiB of pod memory without offload (vLLM workers, loader buffers)
 NODE_WAIT=1800    # s: a reclaimed spot node is replaced by its ASG
-START_WAIT=4800   # s: first start on an empty node = 328 GB download + JIT warmup + weight load
-MOE_ALLOWED="auto triton cutlass flashinfer_cutlass deep_gemm"   # narrowed by the smoke (k8s/smoke.sh)
+START_WAIT=4800   # s: first start on an empty node = 191 GB download + JIT warmup + weight load
+MOE_ALLOWED="auto marlin humming triton"   # WNA16 MoE candidates (W4A16 checkpoint); narrowed by the smoke
 # The target deployment's arguments that are not tuned, plus --language-model-only (text-only coding).
 FIXED_ARGS="--served-model-name zai-org/GLM-5.3-Flash --kv-cache-dtype fp8 --max-model-len 262144 --tool-call-parser glm47 --reasoning-parser glm47 --enable-auto-tool-choice --tensor-parallel-size 4 --language-model-only"
 t() { echo "$(date -u +%T) apply_config: $*"; }
@@ -37,7 +37,7 @@ source "$HERE/lib_apply.sh"
 # --- 0. Parameters -------------------------------------------------------------------
 [ -f "$PARAMS" ] || die "no $PARAMS: the Write config task did not run"
 grep -q '\${' "$PARAMS" && die "params.env still has unsubstituted tokens: $(grep '\${' "$PARAMS")"
-VARS="KV_OFFLOADING_SIZE GPU_MEMORY_UTILIZATION MAX_NUM_SEQS MAX_NUM_BATCHED_TOKENS SPEC_TOKENS DECODE_CONTEXT_PARALLEL_SIZE MOE_BACKEND MAX_CUDAGRAPH_CAPTURE_SIZE ASYNC_SCHEDULING PERFORMANCE_MODE OPTIMIZATION_LEVEL"
+VARS="KV_OFFLOADING_SIZE GPU_MEMORY_UTILIZATION MAX_NUM_SEQS MAX_NUM_BATCHED_TOKENS SPEC_TOKENS MOE_BACKEND MAX_CUDAGRAPH_CAPTURE_SIZE ASYNC_SCHEDULING PERFORMANCE_MODE OPTIMIZATION_LEVEL"
 for v in $VARS; do
   grep -q "^$v=" "$PARAMS" || die "$v has no line in params.env (empty = vLLM's default, absent = broken template)"
   declare "$v="
@@ -50,7 +50,7 @@ t "params.env as rendered: $(grep -E '^[A-Z_]+=' "$PARAMS" | tr '\n' ' ')"
 if [[ "$GPU_MEMORY_UTILIZATION" =~ ^[0-9]+(\.[0-9]+)?[eE][-+]?[0-9]+$ ]]; then
   LC_ALL=C printf -v GPU_MEMORY_UTILIZATION '%.6f' "$GPU_MEMORY_UTILIZATION"
 fi
-INTS="KV_OFFLOADING_SIZE MAX_NUM_SEQS MAX_NUM_BATCHED_TOKENS SPEC_TOKENS DECODE_CONTEXT_PARALLEL_SIZE MAX_CUDAGRAPH_CAPTURE_SIZE OPTIMIZATION_LEVEL"
+INTS="KV_OFFLOADING_SIZE MAX_NUM_SEQS MAX_NUM_BATCHED_TOKENS SPEC_TOKENS MAX_CUDAGRAPH_CAPTURE_SIZE OPTIMIZATION_LEVEL"
 for v in $INTS; do   # integers may come as "12.0"
   [[ "${!v}" =~ ^([0-9]+)\.0+$ ]] && declare "$v=${BASH_REMATCH[1]}"
   [ -z "${!v}" ] || [[ "${!v}" =~ ^[0-9]+$ ]] || die "$v='${!v}' is not an integer"
@@ -60,8 +60,6 @@ done
 [ -z "$GPU_MEMORY_UTILIZATION" ] || awk -v g="$GPU_MEMORY_UTILIZATION" 'BEGIN { exit !(g ~ /^[0-9.]+$/ && g >= 0.5 && g <= 1.0) }' \
   || die "gpu_memory_utilization '$GPU_MEMORY_UTILIZATION' is not in [0.5, 1.0]"
 [ -z "$SPEC_TOKENS" ] || [ "$SPEC_TOKENS" -le 5 ] || die "spec_tokens $SPEC_TOKENS is above 5 (the design's domain)"
-[ -z "$DECODE_CONTEXT_PARALLEL_SIZE" ] || [[ "$DECODE_CONTEXT_PARALLEL_SIZE" =~ ^(1|2|4)$ ]] \
-  || die "decode_context_parallel_size '$DECODE_CONTEXT_PARALLEL_SIZE' is not 1, 2 or 4 (TP4)"
 [ -z "$MOE_BACKEND" ] || [[ " $MOE_ALLOWED " == *" $MOE_BACKEND "* ]] || die "moe_backend '$MOE_BACKEND' is not one of: $MOE_ALLOWED"
 [ -z "$ASYNC_SCHEDULING" ] || [[ "$ASYNC_SCHEDULING" =~ ^(true|false)$ ]] || die "async_scheduling '$ASYNC_SCHEDULING' is not true or false"
 [ -z "$PERFORMANCE_MODE" ] || [[ "$PERFORMANCE_MODE" =~ ^(balanced|interactivity|throughput)$ ]] \
@@ -83,7 +81,6 @@ OFF=${KV_OFFLOADING_SIZE:-0}
 if [ "${SPEC_TOKENS:-0}" -gt 0 ]; then
   add --speculative-config.method mtp --speculative-config.num_speculative_tokens "$SPEC_TOKENS"
 fi
-[ -z "$DECODE_CONTEXT_PARALLEL_SIZE" ] || add --decode-context-parallel-size "$DECODE_CONTEXT_PARALLEL_SIZE"
 [ -z "$MOE_BACKEND" ] || [ "$MOE_BACKEND" = auto ] || add --moe-backend "$MOE_BACKEND"
 [ -z "$MAX_CUDAGRAPH_CAPTURE_SIZE" ] || add --max-cudagraph-capture-size "$MAX_CUDAGRAPH_CAPTURE_SIZE"
 case "$ASYNC_SCHEDULING" in true) add --async-scheduling ;; false) add --no-async-scheduling ;; esac

@@ -5,7 +5,7 @@
 # Usage: bash k8s/test_apply_config.sh   → "N passed, M failed", exit 1 on any failure.
 HERE=$(cd "$(dirname "$0")" && pwd)
 PASS=0; FAIL=0
-VARS="KV_OFFLOADING_SIZE GPU_MEMORY_UTILIZATION MAX_NUM_SEQS MAX_NUM_BATCHED_TOKENS SPEC_TOKENS DECODE_CONTEXT_PARALLEL_SIZE MOE_BACKEND MAX_CUDAGRAPH_CAPTURE_SIZE ASYNC_SCHEDULING PERFORMANCE_MODE OPTIMIZATION_LEVEL"
+VARS="KV_OFFLOADING_SIZE GPU_MEMORY_UTILIZATION MAX_NUM_SEQS MAX_NUM_BATCHED_TOKENS SPEC_TOKENS MOE_BACKEND MAX_CUDAGRAPH_CAPTURE_SIZE ASYNC_SCHEDULING PERFORMANCE_MODE OPTIMIZATION_LEVEL"
 FIXED="--served-model-name zai-org/GLM-5.3-Flash --kv-cache-dtype fp8 --max-model-len 262144 --tool-call-parser glm47 --reasoning-parser glm47 --enable-auto-tool-choice --tensor-parallel-size 4 --language-model-only"
 
 # render NAME "VAR=value ..." → sets OUT (all output), ARGS1 (the args line: the one before "shm=") and RC
@@ -44,10 +44,10 @@ rc "offload 0" 0; hasnt "offload 0" "--kv-offloading"; line "offload 0" "shm=2 m
 render "offload 513" "KV_OFFLOADING_SIZE=513"
 rc "offload 513" 2
 
-render "dcp 3" "DECODE_CONTEXT_PARALLEL_SIZE=3"
-rc "dcp 3" 2
-render "dcp 4" "DECODE_CONTEXT_PARALLEL_SIZE=4"
-rc "dcp 4" 0; has "dcp 4" "--decode-context-parallel-size 4"
+# DCP is not a parameter any more (no MLA backend supports it on SM120, smoke 2026-11-17).
+render "no dcp" ""
+hasnt "no dcp" "--decode-context-parallel-size"
+grep -q DECODE_CONTEXT_PARALLEL_SIZE "$HERE/params.env.template" && bad "params.env.template still renders DCP" || ok
 
 render "mnbt < mns" "MAX_NUM_BATCHED_TOKENS=64 MAX_NUM_SEQS=128"
 rc "mnbt < mns" 2
@@ -65,6 +65,11 @@ render "moe auto" "MOE_BACKEND=auto"
 rc "moe auto" 0; hasnt "moe auto" "--moe-backend"
 render "moe triton" "MOE_BACKEND=triton"
 rc "moe triton" 0; has "moe triton" "--moe-backend triton"
+# W4A16 checkpoint (2026-11-18): the WNA16 MoE candidates, not the FP8 ones.
+render "moe marlin" "MOE_BACKEND=marlin"
+rc "moe marlin" 0; has "moe marlin" "--moe-backend marlin"
+render "moe deep_gemm" "MOE_BACKEND=deep_gemm"
+rc "moe deep_gemm" 2
 
 render "async false" "ASYNC_SCHEDULING=false"
 rc "async false" 0; has "async false" "--no-async-scheduling"
@@ -150,10 +155,12 @@ rm -rf "$STUB"
 OUT=$(startup_failure_reason "$HERE/fixtures/dcp-no-backend.log")
 [[ "$OUT" == *"No valid attention backend"* ]] && ok || bad "startup_failure_reason DCP: '$OUT'"
 # I6: checkpoint and tokenizer pinned to one revision.
-REV=46a050bec13002ad29ee795c16e61cf4fa3c4a9c
-grep -q -- "hf download zai-org/GLM-5.3-Flash --revision $REV" "$HERE/01-vllm_template.yaml" && ok || bad "template: checkpoint download not pinned to $REV"
-grep -q -- "snapshots/$REV" "$HERE/01-vllm_template.yaml" && ok || bad "template: /mnt/models not the pinned snapshot"
-grep -q -- "--revision $REV" "$HERE/02-aiperf-clients.yaml" && ok || bad "clients: tokenizer not pinned to $REV"
+# The 4-bit checkpoint (decided 2026-11-18): canada-quant/GLM-5.3-Flash-W4A16-MTP, pinned.
+REV=5681f7c2dc6436d63f82ab6fb892b4f5062b8304
+grep -q -- "hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision $REV" "$HERE/01-vllm_template.yaml" && ok || bad "template: checkpoint download not pinned to $REV"
+grep -q -- "models--canada-quant--GLM-5.3-Flash-W4A16-MTP/snapshots/$REV" "$HERE/01-vllm_template.yaml" && ok || bad "template: /mnt/models not the pinned snapshot"
+grep -q -- "zai-org/GLM-5.3-Flash --revision" "$HERE/01-vllm_template.yaml" && bad "template: still downloads the FP8 checkpoint" || ok
+grep -q -- "hf download canada-quant/GLM-5.3-Flash-W4A16-MTP --revision $REV" "$HERE/02-aiperf-clients.yaml" && ok || bad "clients: tokenizer not pinned to $REV"
 
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" = 0 ]

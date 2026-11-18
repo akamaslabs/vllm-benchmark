@@ -3,7 +3,7 @@ system: vLLM_Benchmark_52_G7E_GLM53_Coding
 
 name: vllm
 description: >-
-  zai-org/GLM-5.3-Flash (FP8) on vLLM 0.34.0, TP4: the Deployment vllm in namespace glm53-coding
+  GLM-5.3-Flash 4-bit (canada-quant W4A16-MTP, served as zai-org/GLM-5.3-Flash) on vLLM 0.34.0, TP4: the Deployment vllm in namespace glm53-coding
   (one pod, 4 GPUs). Carries the tuned vLLM flags, rendered into the container's
   VLLM_ADDITIONAL_ARGS, and is the component the goal, the constraints and most KPIs read.
 componentType: vLLM

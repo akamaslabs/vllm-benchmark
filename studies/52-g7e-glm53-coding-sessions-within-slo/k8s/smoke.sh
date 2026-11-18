@@ -11,12 +11,13 @@
 #             client ITL p95 against the server ITL p95 (per engine step) and TPOT p95 (per request),
 #             interpolated inside the buckets (hist_quantile.py; final review I1);
 #   warm      the same configuration again: start-up time with warm compile caches;
-#   dcp       decode_context_parallel_size 4 starts (or the reason it does not);
 #   offload   kv_offloading_size 256 starts and its counters move under a 4-session level of 300 s;
 #   edges     the optimize domain's edges start: gmu 0.85 with max_num_seqs 128, max_num_batched_tokens
-#             2048, every MoE candidate of apply_config.sh, DCP 2 (final review I4).
+#             2048, every MoE candidate of apply_config.sh (final review I4). DCP is not tried: no MLA
+#             backend supports it on SM120 (smoke 2026-11-17).
 # Then the go / no-go verdict of the design: go only if baseline and offload pass (the FP8 checkpoint
 # fits at TP4 with --max-model-len 262144 >= 131072, and offload works on this hybrid model).
+# Checkpoint: canada-quant/GLM-5.3-Flash-W4A16-MTP (2026-11-18), see 01-vllm_template.yaml.
 #   bash smoke.sh [step ...]      default: all, in the order above
 # Needs the GPU node (infra/eks/nodegroups.sh up) and the m8a-2xlarge load node.
 K=${STUDY_DIR:-/work/study52/52-g7e-glm53-coding-sessions-within-slo}/k8s
@@ -37,7 +38,7 @@ params() {
   local v kv
   : > "$K/params.env"
   for v in KV_OFFLOADING_SIZE GPU_MEMORY_UTILIZATION MAX_NUM_SEQS MAX_NUM_BATCHED_TOKENS SPEC_TOKENS \
-           DECODE_CONTEXT_PARALLEL_SIZE MOE_BACKEND MAX_CUDAGRAPH_CAPTURE_SIZE ASYNC_SCHEDULING \
+           MOE_BACKEND MAX_CUDAGRAPH_CAPTURE_SIZE ASYNC_SCHEDULING \
            PERFORMANCE_MODE OPTIMIZATION_LEVEL; do
     echo "$v=" >> "$K/params.env"
   done
@@ -75,7 +76,7 @@ ok = "def is_palindrome" in code and tc and tc[0]["function"]["name"] == "read_f
 print(("ok" if ok else "bad") + " code=%d chars tool_calls=%s" % (len(code), json.dumps(tc)[:120]))
 '
 
-for S in "${@:-baseline answer mtp warm dcp offload edges}"; do
+for S in "${@:-baseline answer mtp warm offload edges}"; do
  for S in $S; do
   echo "===== SMOKE $S $(date -u +%T)"
   case "$S" in
@@ -108,8 +109,6 @@ for S in "${@:-baseline answer mtp warm dcp offload edges}"; do
     warm)
       read -r rc secs <<< "$(apply warm)"
       [ "$rc" = 0 ] && report warm PASS "warm start ${secs}s" || report warm FAIL "apply exit $rc" ;;
-    dcp)
-      try dcp DECODE_CONTEXT_PARALLEL_SIZE=4 ;;
     offload)
       params GPU_MEMORY_UTILIZATION=$GMU SPEC_TOKENS=5 KV_OFFLOADING_SIZE=256
       read -r rc secs <<< "$(apply offload)"
@@ -120,14 +119,13 @@ for S in "${@:-baseline answer mtp warm dcp offload edges}"; do
     edges)
       try edge-gmu085-mns128 GPU_MEMORY_UTILIZATION=0.85 MAX_NUM_SEQS=128
       try edge-mnbt2048 MAX_NUM_BATCHED_TOKENS=2048
-      try edge-dcp2 DECODE_CONTEXT_PARALLEL_SIZE=2
       for m in $MOE; do [ "$m" = auto ] || try "edge-moe-$m" MOE_BACKEND="$m"; done ;;
     *) echo "unknown step $S" >&2; exit 2 ;;
   esac
  done
 done
 if [ "${R[baseline]:-}" = PASS ] && [ "${R[offload]:-}" = PASS ]; then
-  echo "SMOKE VERDICT go (baseline and offload pass; max_num_seqs pin ${MNS:-none}; MTP ${R[mtp]:-not run}, DCP ${R[dcp]:-not run})"
+  echo "SMOKE VERDICT go (baseline and offload pass; max_num_seqs pin ${MNS:-none}; MTP ${R[mtp]:-not run})"
 else
   echo "SMOKE VERDICT no-go (baseline ${R[baseline]:-not run}, offload ${R[offload]:-not run}): bring it back to the user before creating the study"
 fi

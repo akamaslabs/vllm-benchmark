@@ -13,7 +13,8 @@ akamas-41 yet**: waiting for the user's go, after the smoke (`../k8s/smoke.sh`).
 - **Optimization packs on akamas-41** (checked with `akamas list optimization-pack` and
   `akamas describe optimization-pack` on 2026-11-17): vLLM **1.15.0**, GPU **1.4.0**, Kubernetes
   **1.9.0**. Every parameter and metric used here exists in those versions.
-- **Workload:** `vllm/vllm-openai:v0.34.0`, `zai-org/GLM-5.3-Flash` (FP8) served as
+- **Workload:** `vllm/vllm-openai:v0.34.0`, `canada-quant/GLM-5.3-Flash-W4A16-MTP` (4-bit, revision
+  5681f7c2; decided 2026-11-18, the FP8 checkpoint leaves no KV room at TP4 on 96 GB GPUs) served as
   `zai-org/GLM-5.3-Flash`, TP4, `--language-model-only`, `--max-model-len 262144`.
 - **Load generator:** AIPerf 0.11.0, two clients (`aiperf-client-0/1`) on the `m8a-2xlarge` node.
 - **Telemetry:** Prometheus (kube-prometheus-stack). Scrapes: vLLM via ServiceMonitor
@@ -26,7 +27,7 @@ akamas-41 yet**: waiting for the user's go, after the smoke (`../k8s/smoke.sh`).
 | File | Kind | Name |
 |---|---|---|
 | `system.yaml` | system | `vLLM_Benchmark_52_G7E_GLM53_Coding` |
-| `components/vllm.yaml` | vLLM | `vllm`: the Deployment's pod; the 11 tuned parameters, the goal |
+| `components/vllm.yaml` | vLLM | `vllm`: the Deployment's pod; the 10 tuned parameters, the goal |
 | `components/vllm_workload.yaml` | Kubernetes Workload | `vllm_workload`: the Deployment `vllm` |
 | `components/gpu0.yaml` … `gpu3.yaml` | GPU | one per physical GPU (DCGM `gpu` index 0-3) |
 | `components/node_gpu.yaml` | Kubernetes Node | the g7e.24xlarge spot |
@@ -49,23 +50,22 @@ Telemetry notes (the header of `telemetry/prometheus.yaml` has the details):
 
 - **Goal:** maximize `30 * vllm.request_success_rate` (sessions held: one turn per session every
   30 s). Window: the `Hold` task, trimmed `[520s, 90s]`.
-- **Constraints, server side:** TTFT p95 <= 6000 ms and ITL p95 <= 60 ms. The SLO itself (5 s,
+- **Constraints, server side:** TTFT p95 <= 6000 ms and TPOT p95 <= 60 ms (per request, the
+  server-side equivalent of AIPerf's ITL). The SLO itself (5 s,
   50 ms) is judged client side by the `Ramp` task (`../k8s/run_ramp.sh`).
-- **Parameters (11):** `kv_offloading_size` 0–512, `gpu_memory_utilization` 0.85–0.97,
-  `max_num_seqs` 8–128, `max_num_batched_tokens` 2048–16384, `spec_tokens` 0–5,
-  `decode_context_parallel_size` 1–4 (not 3), `moe_backend` {auto, triton, cutlass,
-  flashinfer_cutlass, deep_gemm}, `max_cudagraph_capture_size` 16–512, `async_scheduling`,
-  `performance_mode`, `optimization_level` 1–3.
-- **Parameter constraints (2):** `max_num_batched_tokens >= max_num_seqs`;
-  `decode_context_parallel_size != 3`.
+- **Parameters (10):** `kv_offloading_size` 0–512, `gpu_memory_utilization` 0.85–0.97,
+  `max_num_seqs` 8–128, `max_num_batched_tokens` 2048–16384, `spec_tokens` 0–5, `moe_backend`
+  {auto, marlin, humming, triton}, `max_cudagraph_capture_size` 16–512, `async_scheduling`,
+  `performance_mode`, `optimization_level` 1–3. No DCP: no MLA backend supports it on SM120.
+- **Parameter constraint (1):** `max_num_batched_tokens >= max_num_seqs`.
 - **Steps:** `baseline` (gmu 0.95, MTP 5 tokens, the rest not rendered = vLLM defaults: the target's
-  arguments), presets `Offload 256`, `DCP four`, `MTP three`, `MTP one`, `Baseline repeat`, then
+  arguments), presets `Offload 256`, `MTP three`, `MTP one`, `Baseline repeat`, then
   `optimize` (10 experiments, 3 initial).
 - **8 KPIs:** completed requests per s, output tokens per second, TTFT p95, ITL p95, prompt from
-  cache incl. offload, MTP acceptance, KV cache usage, GPU 0 utilization.
+  cache incl. offload, MTP acceptance, KV cache usage, GPU 0 utilization (ITL is read as TPOT p95).
 - **After the smoke** (TODO in the study YAML): pin `max_num_seqs` in the baseline if v0.34.0's
   default exceeds the Mamba block count at TP4; set `spec_tokens` 0 and drop the MTP presets if MTP
-  shows no acceptance; drop `DCP four` if it does not start; narrow `moe_backend` to the smoke's
+  shows no acceptance; narrow `moe_backend` to the smoke's
   candidates.
 
 ## Setup & run

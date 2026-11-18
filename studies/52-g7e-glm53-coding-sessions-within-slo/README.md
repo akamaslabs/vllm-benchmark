@@ -9,6 +9,10 @@ GPU, ~40 GiB left for the KV cache, close to the target's H200 at TP4) to measur
 improvement. Waiting for g7e.24xlarge spot capacity (score 1 in every us-east-2 AZ at 08:33 UTC);
 node groups at 0. The smoke runs again on the new checkpoint before any Akamas resource.
 
+- **Experiments 1-2 (walk from the bottom):** `baseline` held **24** sessions (score 24.379),
+  `Offload 256` held **24** (23.242): levels 4-24 passed, 32 failed on client ITL p95 57-60 ms
+  (TTFT p95 ~3.5 s, within the SLO). 24-32 sessions of at most ~100k tokens need 2.4-3.2M tokens of
+  KV, under the 3.77M on the GPUs, so offload has little to do at these levels. From experiment 3 (16:18 UTC) the ramp bisects (see Method).
 - **Design:** `docs/superpowers/specs/2026-11-17-study-52-glm53-coding-sessions-design.md`.
 - **Plan:** `docs/superpowers/plans/2026-11-17-study-52-glm53-coding-sessions.md`.
 - **Follows the spike:** `docs/spikes/2026-11-17-glm53-flash-phase0/README.md`.
@@ -42,12 +46,19 @@ sessions number for the target.
   prompt shared by every session, 10k tokens of per-session context, 16 turns of 4k input and
   400 output tokens (`ignore_eos`), one turn per session every 30 s. A session grows from ~34k to
   ~100k tokens. Two AIPerf clients on a CPU node, half the sessions each.
-- **Ramp task:** levels of 4, 8, 12, 16, 24, 32, 48 and 64 sessions, each a fresh 960 s run + 60 s
+- **Ramp task:** levels of 8, 12, 16, 24, 32, 48 and 64 sessions, each a fresh 960 s run + 60 s
   grace, judged on requests started >= 500 s after the first one. A level passes when client
   TTFT p95 <= 5000 ms and client ITL p95 <= 50 ms (each the worse of the two clients), errors
-  < 1 %, >= 95 % of sent requests completed and >= 95 % of expected requests sent. The ramp stops
-  at the first failing level. Each level also prints the worst session's TTFT p95 and the number
-  of sessions above 5 s.
+  < 1 %, >= 95 % of sent requests completed and >= 95 % of expected requests sent. From
+  experiment 3 the ramp **bisects** the levels (24, then 48 or 12, then the level between: 3 runs
+  at most) and keeps the highest passing one. Experiments 1-2 walked 4, 8, ... upwards and stopped
+  at the first failing level (6 runs, 2 h 11 min each); the user capped an experiment at 90 min on
+  2026-11-18. A configuration gets the same level either way as long as failing a level means
+  failing every higher one (both stopped at 32, which the bisection reaches as 24 -> 48 -> 32).
+  Each level also prints the worst session's TTFT p95 and the number of sessions above 5 s.
+- **Experiment length:** warm Apply ~4 min + 3 levels x ~18 min (AIPerf start-up ~95 s, 960 s,
+  grace, parsing) + Hold ~20 min = **~77 min**. Not bounded: a cold vLLM start (Apply waits up
+  to `START_WAIT` = 4800 s) and a lost spot node (new node + 191 GB download).
 - **Hold task:** the last passing level again, fresh, 1080 s; Akamas trim `[520s, 90s]`.
 - **Score:** `30 x vllm.request_success_rate` = sessions held. No TTFT tie-break (the user's
   call): within a level, compare TTFT and ITL directly.

@@ -145,6 +145,12 @@ H200 later.
   client TTFT p95 <= 5 s, client ITL p95 <= 50 ms (each the worse of the two AIPerf clients),
   errors < 1 %, >= 95 % of sent requests completed, >= 95 % of expected requests sent. The ramp
   stops at the first failing level.
+  **Update 2026-11-18 (experiment 3 on):** the user capped an experiment at 90 min; the walk took
+  2 h 11 min (6 levels of ~18 min + a 20 min Hold). The ramp now bisects levels **8, 12, 16, 24,
+  32, 48, 64** (24 first, then 48 or 12, then the level between: 3 runs, ~77 min per experiment)
+  and keeps the highest passing level. The level itself (run length, steady window, pass test) and
+  the Hold are unchanged, so experiments 1-2 (24 sessions each, 32 failed on ITL) stay comparable.
+  Level 4 was dropped: with it a fourth run would be needed (~95 min).
 - **The SLO is pooled over a level's requests** (p95, as in studies 48 and 51), not per session:
   a per-session p95 over ~15 requests is close to a per-session max. Each level also prints the
   worst session's TTFT p95 and how many sessions exceed 5 s, so a configuration that starves a few

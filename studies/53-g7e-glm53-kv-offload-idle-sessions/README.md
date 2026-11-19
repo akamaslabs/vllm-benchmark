@@ -147,6 +147,14 @@ turns land while the other's prefill runs (~2x apart, which client is slower cha
   an empty export. Not re-run; experiments 7 and 9 bracket it.
 - Per-request exports were not kept (AIPerf flushes `profile_export.jsonl` in batches and the run
   directory is deleted after parsing); the client numbers are the parser's summaries in the logs.
+- **`num_requests_running` / `num_requests_waiting` in Akamas are aliased:** the load sends two turns
+  together every 30 s (20 sessions per client, one turn each per 600 s, both clients in phase) and
+  Akamas samples these gauges every 30 s, so each experiment's line is flat at whatever phase it
+  hits (experiment 2 reads 0 throughout; Prometheus at 5 s shows a 0-1-2-2-2-0 sawtooth). True
+  in-flight averages (Prometheus, 5-minute `avg_over_time`): baseline ~1.35 for the whole run;
+  experiments 4 and 7 ~1.1-1.3 during session creation (first ~10 min, cold first turns) and
+  ~0.1-0.3 after, when resumed turns come back from RAM. The arrival rate is the same everywhere:
+  the gauge tracks how long a turn stays in the server, not how many sessions are open.
 
 ## Conclusions
 

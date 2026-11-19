@@ -135,6 +135,11 @@ turns land while the other's prefill runs (~2x apart, which client is slower cha
 - **Prefill batch:** 16384 and 32768 changed nothing measurable (cold first turns 20.1-20.7 s vs
   21.0-21.4 s at 8192; without offload the resumed turns stay at 21-22 s) and cost GPU KV cache
   (3.77M → 3.21M at 16384, 1.8-2.1M at 32768).
+- **Headroom (same load, same completed rate):** after session creation (experiment minutes 18-28),
+  GPU 0's SM activity is 0.46 without offload, the level of the cold-prefill phase (the GPU spends
+  the run recomputing histories), and 0.12-0.13 with >= 128 GiB; power 347 W vs 112-126 W. The
+  study fixed the load at 40 sessions, so this headroom is the only sign in the data of room for
+  more sessions; how many was not measured.
 - **Noise:** baseline and its repeat differ by 0.1 % on the goal (16.67 / 16.64 s).
 - **Cold first turns** (a new 124k-token session) took 11-22 s in every configuration (~9.6k
   tokens/s of prefill on this rig): no configuration here brings them within 5 s.

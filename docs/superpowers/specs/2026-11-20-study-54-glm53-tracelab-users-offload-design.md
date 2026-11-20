@@ -195,14 +195,52 @@ How the LMCache preset runs, found on the node (study 53's Deployment, rendered 
 ## Calibration before the build (on the node, no Akamas)
 
 1. ~~LMCache 512 with GLM-5.3-Flash~~: starts and serves (above).
-2. **AIPerf 0.13 on the client pods:** memory and CPU while loading the session pool and during a
-   ramp of a few hundred users; pod limits and pool size per client from it.
+2. ~~AIPerf 0.13 on the client pods~~: done 2026-11-20, below (CPU under hundreds of users comes
+   with the ramps).
 3. **Three calibration ramps** (baseline, Native 512 and, if it starts, LMCache 512; users
    1 -> 300 over ~40 min, the watchdog off): where each breaks, and on what (TTFT or ITL). They
    fix the ramp's top N and length R so the best configuration's knee falls in the first two
    thirds of the ramp, and whether `kv_offloading_backend` enters the optimize step. If the ITL
    breaks first at similar users in all, the SLO, not the cache, binds on this rig: back to the
    user.
+
+### AIPerf 0.13 on the client pods (calibration 2026-11-20)
+
+In `aiperf-client-0` (3.5 CPU, 13 GiB, AIPerf 0.13.0 in a venv), the GLM tokenizer, against a stub
+and then against vLLM (LMCache 512 up, 10 users, 3 min):
+
+- **AIPerf stores every round's full message list** (`dataset.dat`, ~3.7 bytes per input token
+  summed over rounds), so a session's size grows with the square of its rounds: one Codex session
+  of 11,805 rounds took 6 GB, and 1,500 uncut sessions did not build in 5 min (> 20 GB).
+- **Horizon cut** (lossless): each session ends at the rounds reachable within 80 min of replay
+  (think time capped at 20 min, plus a fast service bound: new tokens at 20k tok/s, output at
+  200 tok/s). **Context cut:** before the first round whose input x 1.003 + 100 + output exceeds
+  262,144 (vLLM rejects prompt + max_tokens above the max model length; input alone under 250k is
+  not enough).
+- **Pool per client: 600 sessions** (two disjoint pools from one fixed-seed shuffle). A Monte
+  Carlo of lanes drawing sessions until the horizon gives, for both clients together, p99 836
+  sessions for 300 users over 40 min, 1,042 over 75 min, 1,386 for 400 users over 75 min.
+  `shuffle` re-serves the pool once exhausted (two users would replay the same session: false
+  cache hits), so the harness fails an experiment if the distinct sessions sent reach the pool
+  size; the ramp's top N sets the final pool.
+- **Build:** 600 sessions = 7.8 GiB, built in 197 s, peak anon memory 4.4 GiB, the 13 GiB limit
+  filled by page cache (reclaimable), no OOM. The content-addressed mmap cache
+  (`AIPERF_DATASET_MMAP_CACHE_DIR`; key: pool file, tokenizer, model name, prompt settings) then
+  serves later runs by hardlink: start in 47 s, peak 3.7 GiB. The cache and the run's mmap
+  (`AIPERF_DATASET_MMAP_BASE_PATH`) must live on one filesystem outside the 8 GiB `/work`
+  emptyDir (the first build holds two copies, ~16 GiB); the node has 43 GiB free for both pods.
+- **Settings:** `AIPERF_DATASET_MMAP_PREFAULT=false`,
+  `AIPERF_DATASET_CONFIGURATION_TIMEOUT=1800` with `AIPERF_SERVICE_PROFILE_CONFIGURE_TIMEOUT=1800`
+  (the first build exceeds the 300 s default); **no `HF_HUB_OFFLINE`** with `--tokenizer
+  /work/tokenizer` (0.13 then looks the path up as a Hub repo and fails).
+- **Against vLLM:** server prompt tokens / trace input 0.999-1.002 (chat template +26 tokens
+  median), completion tokens = the recorded output in 145 of 145 requests (`--extra-inputs
+  ignore_eos:true`), 0 errors.
+- **Shared system prompt:** `--shared-system-prompt-length` is synthetic-only; `--system-prompt-file`
+  works with `tracelab` (one identical system message in every session, stub-verified) and adds
+  to the recorded input, so the preparation would subtract its length from every round. The
+  first-round floor in TraceLab (p1-p5: Claude 7.0-9.2k, Codex 2.7-4.1k tokens) bounds the
+  agents' common prompt. Whether to model it, and how long, is the user's call (open).
 
 ## Portability to the target
 
@@ -224,11 +262,9 @@ How the LMCache preset runs, found on the node (study 53's Deployment, rendered 
   p95 47.5 -> 21-24 ms with offload).
 - **Prefill-heavy rounds:** 0.25 % of rounds append > 40k new tokens (> 4 s of prefill); they sit
   inside the p95.
-- **No shared system prompt across sessions:** AIPerf mints block ids per session, so the agents'
-  common tools/system prompt (~15-20k) is not shared; check whether a shared prefix can be added
-  (e.g. `--shared-system-prompt-length`) in calibration step 2; otherwise conservative.
-- **Client sizing:** loading 600 sessions peaked at 5-9 GB in one AIPerf process (spike);
-  `AIPERF_DATASET_MMAP_CACHE_ENABLED` reuses the built dataset across experiments.
+- **Shared system prompt across sessions:** possible with `--system-prompt-file` (calibration
+  above); without it every user carries its own copy and the test is conservative.
+- **Client sizing:** settled by the calibration above (600 sessions, 7.8 GiB per client, cached).
 - **AIPerf 0.13 export format** vs study 38's CSV converter: adapt and test on the spike's records.
 - **Spot reclaim** mid-study: apply waits for the node (study 53's `apply_config.sh`).
 

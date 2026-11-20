@@ -79,8 +79,8 @@ rehearsal (user, 2026-11-19).
 
 - **Node:** g7e.24xlarge spot (4x RTX PRO 6000 Blackwell 96 GB, 96 vCPU, 1 TiB), node group
   `llm-serving-g7e-24xl-spot`, us-east-2c, cluster `vllm-bench`; up since 2026-11-19 16:07 UTC.
-- **Server:** `vllm/vllm-openai:v0.34.0` (LMCache importable in the image, `--kv-offloading-backend
-  {lmcache,native}`, checked 2026-11-20); checkpoint `canada-quant/GLM-5.3-Flash-W4A16-MTP`
+- **Server:** `vllm/vllm-openai:v0.34.0` (LMCache upgraded to 0.5.8rc1 at start for the lmcache
+  backend, see "LMCache on vLLM 0.34.0"); checkpoint `canada-quant/GLM-5.3-Flash-W4A16-MTP`
   revision 5681f7c2 (the target's FP8 leaves no KV on 96 GB GPUs, study 52 smoke).
 - **Fixed arguments** (studies 52/53): `--served-model-name zai-org/GLM-5.3-Flash
   --kv-cache-dtype fp8 --max-model-len 262144 --tool-call-parser glm47 --reasoning-parser glm47
@@ -144,7 +144,7 @@ rehearsal (user, 2026-11-19).
 |---|---|
 | baseline | gmu 0.95, MTP 5, no offload, everything else vLLM's default (not rendered) |
 | Native 128 / 256 / 512 | + `--kv-offloading-size 128/256/512 --kv-offloading-backend native` |
-| LMCache 512 | + `--kv-offloading-size 512 --kv-offloading-backend lmcache` (only if it starts, below) |
+| LMCache 512 | + `--kv-offloading-backend lmcache`, LMCache 0.5.8rc1 server with 512 GB in the container (below) |
 | optimize | 30 experiments, AKAMAS optimizer |
 
 - **Optimize domains** (inside the vLLM pack's; the pack installed on akamas-41 is checked before
@@ -168,10 +168,33 @@ grace, CSV, log dump ~3 min. The watchdog ends most runs at the knee. Study: 35 
 h of GPU (~9 USD/h spot). Not bounded: a cold start on a new node (checkpoint download ~5 min,
 JIT warmup), the loss of the spot node.
 
+## LMCache on vLLM 0.34.0 (smoke 2026-11-20, done)
+
+How the LMCache preset runs, found on the node (study 53's Deployment, rendered by hand):
+
+- `--kv-offloading-backend lmcache` makes vLLM use `LMCacheMPConnector`, which needs a separate
+  **LMCache server** (default `tcp://localhost:5555`); vLLM ignores `--kv-offloading-size` for this
+  backend: the RAM is the server's `--l1-size-gb`. The apply script starts
+  `lmcache server --port 5555 --l1-size-gb <kv_offloading_size> --eviction-policy LRU` in the vLLM
+  container before `vllm serve` (same GPUs, same `/dev/shm`), its log prefixed `[lmcache]`.
+- **LMCache 0.5.8rc1** (`pip install --no-deps` at start): the image's 0.5.7.post1 crashes vLLM
+  on the first request (`'CachedRequestData' object has no attribute 'resumed_req_ids'`, fixed by
+  LMCache PR #6457, in 0.5.8rc1).
+- With 0.5.8rc1 the **extensible KV cache stays on** (vLLM 0.34's default) and gmu 0.95 / MTP 5
+  as in the baseline: Ready in 260 s, **GPU KV 3,670,016 tokens** (native presets 3.77M, study
+  53), two 26k-token requests answered (3.85 s, then 0.29 s with LMCache retrieving chunks).
+- Dead ends, for the target's 0.34 upgrade: with the image's 0.5.7.post1 the extensible cache is
+  refused (legacy CUDA IPC); disabling it makes vLLM size the cache from an estimate that does not
+  count the LMCache server's ~0.8 GiB per GPU (CUDA OOM in warmup at gmu 0.95 and 0.92, start at
+  0.87); 0.5.7.post1's VMM mode fails on GLM's mixed cache ("tensor does not appear to be
+  VMM-backed").
+- **A worker that dies during warmup leaves vLLM hanging** (no restart, "No available shared
+  memory broadcast block" every 60 s): the apply script must fail on `WorkerProc hit an exception`
+  / `OutOfMemoryError` in the log, not only on restarts.
+
 ## Calibration before the build (on the node, no Akamas)
 
-1. **LMCache 512 with GLM-5.3-Flash** (hybrid sparse MLA + KDA): does vLLM start, does it store
-   and read back? If not, the LMCache preset is dropped and noted. (Running on 2026-11-20.)
+1. ~~LMCache 512 with GLM-5.3-Flash~~: starts and serves (above).
 2. **AIPerf 0.13 on the client pods:** memory and CPU while loading the session pool and during a
    ramp of a few hundred users; pod limits and pool size per client from it.
 3. **Three calibration ramps** (baseline, Native 512 and, if it starts, LMCache 512; users

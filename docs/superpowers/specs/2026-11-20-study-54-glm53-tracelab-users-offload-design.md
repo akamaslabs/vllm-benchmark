@@ -1,6 +1,6 @@
 # Study 54 — GLM-5.3-Flash: coding users held per replica, CPU KV offload, TraceLab load (design)
 
-Date: 2026-11-20. Status: draft for the user's approval.
+Date: 2026-11-20. Status: approved by the user (2026-11-20).
 Follows studies 52 and 53 (`studies/52-g7e-glm53-coding-sessions-within-slo/`,
 `studies/53-g7e-glm53-kv-offload-idle-sessions/`) and two spikes
 (`docs/spikes/2026-11-19-aiperf-session-ramp/`, `docs/spikes/2026-11-20-tracelab-replay/`).
@@ -245,10 +245,22 @@ and then against vLLM (LMCache 512 up, 10 users, 3 min):
   prompt length once known). The preparation subtracts K from every round's recorded input (the
   first round's new tokens included; later rounds' appended tokens unchanged), so each round's
   size on the server stays the recorded one and only the share common to all users changes.
-  Sessions whose first round is under K + 200 tokens are dropped (my call: 2.5 % of the Claude
-  and 12.3 % of the Codex sessions, 441 of 7,433; the pools draw 1,200). Before the ramps, the
-  vLLM token check above is repeated with the system prompt on: server prompt tokens = recorded
-  input within the same 0.2 %, and the prefix cache hit on a new session's first round ~K.
+  Sessions with a kept round under K + 200 tokens are dropped before the shuffle (my call: 444 of
+  7,433, mostly Codex; the pools draw 1,200), and K is subtracted after every cut ran on the
+  recorded totals. The prompt file is cut to exactly 8,000 GLM tokens (47,942 characters).
+- **Token check with the system prompt on (2026-11-20, both clients, 10 users each, 3 min):**
+  server prompt tokens - (pool input + K) p5 -8, p50 +10, p95 +27 tokens over 146 requests, all
+  within 0.5 %; one request of 147 failed with "no responses with actual content".
+- **The shared prompt is not shared by the server in the target's configuration.** GLM-5.3-Flash
+  is hybrid (attention + KDA recurrent state): vLLM 0.34 runs prefix caching in Mamba `align`
+  mode with 2,304-token attention blocks and, by default, checkpoints the recurrent state only
+  at a request's prompt tail. A session resumes its own history (75 % of the pod's prompt tokens
+  were prefix hits), but two requests with the same 8k system prompt and different user messages
+  hit 0 of 8,034 tokens (LMCache 512 pod): every user recomputes and holds its own copy.
+  `--enable-mamba-shared-prefix-checkpoint` (off by default) adds a checkpoint at the junction
+  where sibling requests diverge (needs MTP/EAGLE on the Mamba group and fine-grained hash hits);
+  whether it takes effect here, and what it is worth, is open (a candidate lever for the target).
+  The ramps run the target's configuration (flag off) with K = 8,000 as decided.
 
 ## Portability to the target
 

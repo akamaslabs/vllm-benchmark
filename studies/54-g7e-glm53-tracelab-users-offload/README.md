@@ -1,7 +1,7 @@
 # 54 — GLM-5.3-Flash: coding users held per replica, CPU KV offload, TraceLab load (g7e dress rehearsal)
 
-**Status:** TODO (built 2026-11-20; not created on Akamas yet)
-**Dates:** – 
+**Status:** RUNNING (created and started on akamas-41 2026-11-20 21:00 UTC; to stop at convergence or 2026-11-21 06:00 UTC)
+**Dates:** 2026-11-20 – 
 
 Design: `docs/superpowers/specs/2026-11-20-study-54-glm53-tracelab-users-offload-design.md`.
 Plan: `docs/superpowers/plans/2026-11-20-study-54-glm53-tracelab-users-offload.md`.

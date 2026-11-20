@@ -280,6 +280,33 @@ the study is built. My calls, each confirmed or changed at one gate before toolb
   baseline vs Native 512 before the KV fills (the same server) must score within the preset
   differences, or 30 experiments chase noise.
 
+### Slow slope, the gate and the start (2026-11-20, night)
+
+The user went to sleep and handed over the remaining calls ("prova a te ad analizzare e fai partire lo
+study ... spegnilo tu stanotte"; stop it if it converges and scale every GPU node group of vllm-bench to
+0). Decided by me on that mandate:
+
+- **Slow-slope baseline** (2 -> 100 users over 70 min, stopped at minute 34 once both knees were
+  measured): **ITL p95 <= 50 ms holds to 20 users** (minute 13; 8 at the steep slope), **TTFT p95 <=
+  5 s to 28 users** (minute 19.5; 46 at the steep slope: sessions are older at each user count, so
+  the GPU KV fills sooner), ITL <= 100 ms to 48. Through the converter and the offline scorer: 26 rows
+  before the knee, **score 17.7** users (TTFT only: 25.7). At the steep slope every SLO with ITL <= 50
+  gave no valid window at all.
+- **The `max_num_batched_tokens` 2048 and Native 512 slow ramps were cancelled** to fit the study into
+  the night: the study's own baseline and Native 512 run at this slope, and the optimize step explores
+  `max_num_batched_tokens`. The study's baseline repeats the slow-slope baseline (repeatability check).
+- **Frozen at create:** SLO 5 s / 50 ms (the user's); 2 x 50 users over 4,200 s (the knees fall in the
+  first third); native backend outside the presets; `maxFailedExperiments` 30 (a configuration without
+  a valid window counts as failed; final review I3).
+- **Integration on the node** (toolbox, as Akamas runs it): LMCache 512 apply exit 0 in 243 s once the
+  proof step stopped failing under pipefail (final review I1, found by the integration too); RunTest
+  with a forced watchdog, Stop AIPerf and AIPerf to CSV end to end (pools copied into the clients,
+  first request 313 s after the launch with a cold dataset cache, Prometheus query live, records
+  saved, CSV in UTC).
+- **Created and started 2026-11-20 21:00 UTC** (the usual first-start failure, then finish + start).
+- **Night plan:** stop at convergence or at 06:00 UTC at the latest, then every GPU node group of
+  vllm-bench to 0 and AlwaysOn removed; a detached failsafe on the laptop does the same at 06:15 UTC.
+
 ### AIPerf 0.13 on the client pods (calibration 2026-11-20)
 
 In `aiperf-client-0` (3.5 CPU, 13 GiB, AIPerf 0.13.0 in a venv), the GLM tokenizer, against a stub

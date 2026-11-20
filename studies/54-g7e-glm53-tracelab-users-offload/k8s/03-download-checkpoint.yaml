@@ -1,0 +1,35 @@
+# Study 54 (copied from study 53, from 52: same node cache) checkpoint pre-download (no GPU): fills the node's /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304
+# with canada-quant/GLM-5.3-Flash-W4A16-MTP (public, 190.9 GB) ahead of the first experiment, so the
+# vLLM pod's init container finds it complete. Same command as the init container: k8s/download_checkpoint.sh
+# from the ConfigMap download-checkpoint (kubectl -n glm53-coding create configmap download-checkpoint
+# --from-file=download_checkpoint.sh, refreshed by apply_config.sh). HF_TOKEN from the namespace's Secret hf-token (read-only,
+# created by hand with kubectl, never in the repo; optional: anonymous without it). Run once per new node:
+#   kubectl apply -f 03-download-checkpoint.yaml; kubectl -n glm53-coding wait --for=condition=complete job/download-checkpoint --timeout=3h
+apiVersion: batch/v1
+kind: Job
+metadata: {name: download-checkpoint, namespace: glm53-coding}
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector: {node-role: llm-serving-g7e-24xl-spot}
+      tolerations: [{key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}]
+      containers:
+      - name: download
+        image: vllm/vllm-openai:v0.34.0
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          bash /scripts/download_checkpoint.sh canada-quant/GLM-5.3-Flash-W4A16-MTP 5681f7c2dc6436d63f82ab6fb892b4f5062b8304 /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304
+        env:
+        - {name: HF_HOME, value: /hf-cache}
+        - {name: HF_TOKEN, valueFrom: {secretKeyRef: {name: hf-token, key: token, optional: true}}}
+        resources:
+          requests: {cpu: "8", memory: 16Gi}
+          limits: {cpu: "8", memory: 16Gi}
+        volumeMounts: [{name: hf-cache, mountPath: /hf-cache}, {name: scripts, mountPath: /scripts}]
+      volumes:
+      - {name: scripts, configMap: {name: download-checkpoint}}
+      - {name: hf-cache, hostPath: {path: /var/lib/hf-cache-study52, type: DirectoryOrCreate}}

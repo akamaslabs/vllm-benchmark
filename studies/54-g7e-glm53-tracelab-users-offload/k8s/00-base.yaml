@@ -1,0 +1,25 @@
+# Study 54 base resources (copied from study 53, from 52: the same namespace, Service and ServiceMonitor), applied by apply_config.sh (idempotent): the namespace, the vLLM Service
+# (port 8000, label app: vllm) and its ServiceMonitor (every 5 s, like the other vLLM studies).
+# Without the ServiceMonitor every vllm:* query, i.e. the goal and the constraints, is empty.
+apiVersion: v1
+kind: Namespace
+metadata: {name: glm53-coding}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: vllm, namespace: glm53-coding, labels: {app: vllm}}
+spec:
+  selector: {app: vllm}
+  ports: [{name: http, port: 8000, targetPort: 8000}]
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vllm-glm53-coding
+  namespace: monitoring
+  labels: {app: vllm}
+spec:
+  endpoints:
+  - {interval: 5s, path: /metrics, port: http, scrapeTimeout: 4s}
+  namespaceSelector: {matchNames: [glm53-coding]}
+  selector: {matchLabels: {app: vllm}}

@@ -1,6 +1,7 @@
 # Study 54 — GLM-5.3-Flash: coding users held per replica, CPU KV offload, TraceLab load (design)
 
-Date: 2026-11-20. Status: approved by the user (2026-11-20).
+Date: 2026-11-20. Status: approved by the user (2026-11-20); build started 2026-11-20 with the
+calls in "Calls for the build", confirmed at the gate before `akamas create`.
 Follows studies 52 and 53 (`studies/52-g7e-glm53-coding-sessions-within-slo/`,
 `studies/53-g7e-glm53-kv-offload-idle-sessions/`) and two spikes
 (`docs/spikes/2026-11-19-aiperf-session-ramp/`, `docs/spikes/2026-11-20-tracelab-replay/`).
@@ -252,6 +253,32 @@ for 4 buckets (p95 over a trailing 150 s, client side; one bucket = ~4 users at 
   and 1-2 disconnects. Pools: at most 203 distinct sessions per client of 600, no repeat. Client
   CPU ~1.1 of 3.5 cores, no throttling during the ramps; memory up to 10.7 of 13 GiB (page
   cache).
+
+### Calls for the build (2026-11-20)
+
+The user asked to build the study ("fai lo study") and to keep the GPU node up throughout,
+without answering the three calibration questions; they approved three slow-slope ramps run while
+the study is built. My calls, each confirmed or changed at one gate before toolbox sync,
+`akamas create` and start (constraints, `parametersSelection` and windowing freeze there):
+
+- **SLO unchanged:** TTFT p95 <= 5 s and ITL p95 <= 50 ms (the user's; I do not relax it). Both
+  thresholds are single values in the study and the scripts, so a change at the gate is one edit.
+- **`kv_offloading_backend` stays out of the optimize step** (native): LMCache fails requests
+  when its RAM fills. LMCache 512 stays a preset.
+- **Ramp N and R pending the slow-slope ramps** (2 -> 100 users over 70 min, 75 min, watchdog off,
+  fresh pod each): baseline, baseline + `max_num_batched_tokens` 2048, Native 512. Candidate:
+  100 users over 70 min. They say whether the slower slope makes offload move the knee, and
+  whether a smaller prefill chunk moves the ITL knee (read for trend: at ~10k tokens/s a 2,048-token
+  chunk is still ~0.2 s per step). vLLM 0.34 accepts a chunk below the 2,304-token attention block
+  in Mamba align mode (intermediate chunks keep private state until the next block boundary,
+  `_mamba_block_aligned_split`).
+- **The watchdog stays TTFT-only** (server TTFT p95 > 10 s for 120 s): every run goes past the ITL
+  knee, so the CSV holds both knees whatever the ITL threshold; the threshold changes what the
+  optimizer maximizes, not whether the preset sweep is informative.
+- **Scoring check before the gate:** the calibration exports are replayed through the CSV converter
+  and Akamas' windowing rule; the score must match the knee found by `ramp_buckets.py`, and
+  baseline vs Native 512 before the KV fills (the same server) must score within the preset
+  differences, or 30 experiments chase noise.
 
 ### AIPerf 0.13 on the client pods (calibration 2026-11-20)
 

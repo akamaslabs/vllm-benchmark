@@ -1,0 +1,3 @@
+(Worker_TP2 pid=812) ERROR 11-20 10:41:07 [multiproc_executor.py:812] WorkerProc hit an exception.
+(Worker_TP2 pid=812) ERROR 11-20 10:41:07 [multiproc_executor.py:812] torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.00 GiB.
+(EngineCore pid=498) INFO 11-20 10:42:07 [shm_broadcast.py:466] No available shared memory broadcast block found in 60 seconds.

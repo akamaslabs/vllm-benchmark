@@ -1,0 +1,229 @@
+#!/bin/bash
+# Study 54 (study 53's tests plus the LMCache mode). Local tests of apply_config.sh's parameter section (RENDER_ONLY=1: no cluster needed), of the
+# vLLM template's startup budget, and of lib_apply.sh (wait_for_node with a stub kubectl,
+# startup_failure_reason on a fixture log).
+# Usage: bash k8s/test_apply_config.sh   → "N passed, M failed", exit 1 on any failure.
+HERE=$(cd "$(dirname "$0")" && pwd)
+PASS=0; FAIL=0
+VARS="KV_OFFLOADING_SIZE KV_OFFLOADING_BACKEND GPU_MEMORY_UTILIZATION MAX_NUM_SEQS MAX_NUM_BATCHED_TOKENS SPEC_TOKENS MOE_BACKEND MAX_CUDAGRAPH_CAPTURE_SIZE ASYNC_SCHEDULING PERFORMANCE_MODE OPTIMIZATION_LEVEL"
+FIXED="--served-model-name zai-org/GLM-5.3-Flash --kv-cache-dtype fp8 --max-model-len 262144 --tool-call-parser glm47 --reasoning-parser glm47 --enable-auto-tool-choice --tensor-parallel-size 4 --language-model-only"
+
+# render NAME "VAR=value ..." → sets OUT (all output), ARGS1 (the args line: the one before "shm=") and RC
+render() {
+  local tmp; tmp=$(mktemp -d); mkdir -p "$tmp/k8s"
+  for v in $VARS; do echo "$v=" >> "$tmp/k8s/params.env"; done
+  for kv in $2; do sed -i.bak "s|^${kv%%=*}=.*|$kv|" "$tmp/k8s/params.env"; done
+  OUT=$(RENDER_ONLY=1 STUDY_DIR="$tmp" bash "$HERE/apply_config.sh" 2>&1); RC=$?
+  ARGS1=$(RENDER_ONLY=1 STUDY_DIR="$tmp" bash "$HERE/apply_config.sh" 2>/dev/null | tail -2 | head -1)
+  rm -rf "$tmp"
+}
+ok()   { PASS=$((PASS + 1)); }
+bad()  { FAIL=$((FAIL + 1)); echo "FAIL: $1"; echo "$OUT" | sed 's/^/    /'; }
+is()   { [ "$ARGS1" = "$2" ] && ok || bad "$1: args line '$ARGS1', expected '$2'"; }
+has()  { [[ "$ARGS1" == *"$2"* ]] && ok || bad "$1: expected '$2' in the args line"; }
+hasnt(){ [[ "$ARGS1" == *"$2"* ]] && bad "$1: unexpected '$2'" || ok; }
+line() { echo "$OUT" | grep -qx -- "$2" && ok || bad "$1: expected line '$2'"; }
+rc()   { [ "$RC" = "$2" ] && ok || bad "$1: exit $RC, expected $2"; }
+
+render "all empty" ""
+rc "all empty" 0; is "all empty" "$FIXED"; line "all empty" "shm=2 mem=96 lmcache=0"
+
+render "baseline" "GPU_MEMORY_UTILIZATION=0.95 SPEC_TOKENS=5"
+rc "baseline" 0
+is "baseline" "$FIXED --gpu-memory-utilization 0.95 --speculative-config.method mtp --speculative-config.num_speculative_tokens 5"
+
+render "mtp 0" "SPEC_TOKENS=0"
+rc "mtp 0" 0; hasnt "mtp 0" "--speculative-config"
+render "mtp 6" "SPEC_TOKENS=6"
+rc "mtp 6" 2
+
+render "offload 256" "KV_OFFLOADING_SIZE=256"
+rc "offload 256" 0; has "offload 256" "--kv-offloading-size 256 --kv-offloading-backend native"; line "offload 256" "shm=257 mem=352 lmcache=0"
+render "offload 0" "KV_OFFLOADING_SIZE=0"
+rc "offload 0" 0; hasnt "offload 0" "--kv-offloading"; line "offload 0" "shm=2 mem=96 lmcache=0"
+render "offload 513" "KV_OFFLOADING_SIZE=513"
+rc "offload 513" 2
+
+# Study 54: kv_offloading_backend (empty = not rendered = native; lmcache = the LMCache preset).
+render "backend native" "KV_OFFLOADING_SIZE=512 KV_OFFLOADING_BACKEND=native"
+rc "backend native" 0; has "backend native" "--kv-offloading-size 512 --kv-offloading-backend native"; line "backend native" "shm=513 mem=608 lmcache=0"
+render "backend empty" "KV_OFFLOADING_SIZE=512"
+rc "backend empty" 0; has "backend empty" "--kv-offloading-backend native"
+render "backend lmcache" "KV_OFFLOADING_SIZE=512 KV_OFFLOADING_BACKEND=lmcache"
+rc "backend lmcache" 0; has "backend lmcache" "--kv-offloading-size 512 --kv-offloading-backend lmcache"; line "backend lmcache" "shm=513 mem=608 lmcache=1"
+hasnt "backend lmcache" "--kv-offloading-backend native"
+render "lmcache without a size" "KV_OFFLOADING_SIZE=0 KV_OFFLOADING_BACKEND=lmcache"
+rc "lmcache without a size" 2
+render "backend bogus" "KV_OFFLOADING_SIZE=128 KV_OFFLOADING_BACKEND=foo"
+rc "backend bogus" 2
+render "native without a size" "KV_OFFLOADING_SIZE=0 KV_OFFLOADING_BACKEND=native"
+rc "native without a size" 0; hasnt "native without a size" "--kv-offloading"
+
+# DCP is not a parameter any more (no MLA backend supports it on SM120, smoke 2026-11-17).
+render "no dcp" ""
+hasnt "no dcp" "--decode-context-parallel-size"
+grep -q DECODE_CONTEXT_PARALLEL_SIZE "$HERE/params.env.template" && bad "params.env.template still renders DCP" || ok
+
+render "mnbt < mns" "MAX_NUM_BATCHED_TOKENS=64 MAX_NUM_SEQS=128"
+rc "mnbt < mns" 2
+render "integers as reals" "MAX_NUM_SEQS=12.0 MAX_NUM_BATCHED_TOKENS=8192.0"
+rc "integers as reals" 0; has "integers as reals" "--max-num-seqs 12 --max-num-batched-tokens 8192"
+
+render "gmu scientific" "GPU_MEMORY_UTILIZATION=9.5e-1"
+rc "gmu scientific" 0; has "gmu scientific" "--gpu-memory-utilization 0.950000"
+render "gmu 1.5" "GPU_MEMORY_UTILIZATION=1.5"
+rc "gmu 1.5" 2
+
+render "moe nonsense" "MOE_BACKEND=nonsense"
+rc "moe nonsense" 2
+render "moe auto" "MOE_BACKEND=auto"
+rc "moe auto" 0; hasnt "moe auto" "--moe-backend"
+render "moe triton" "MOE_BACKEND=triton"
+rc "moe triton" 0; has "moe triton" "--moe-backend triton"
+# W4A16 checkpoint (2026-11-18): the WNA16 MoE candidates, not the FP8 ones.
+render "moe marlin" "MOE_BACKEND=marlin"
+rc "moe marlin" 0; has "moe marlin" "--moe-backend marlin"
+render "moe deep_gemm" "MOE_BACKEND=deep_gemm"
+rc "moe deep_gemm" 2
+
+render "async false" "ASYNC_SCHEDULING=false"
+rc "async false" 0; has "async false" "--no-async-scheduling"
+render "async true" "ASYNC_SCHEDULING=true"
+has "async true" "--async-scheduling"; hasnt "async true" "--no-async-scheduling"
+
+render "perf mode" "PERFORMANCE_MODE=throughput OPTIMIZATION_LEVEL=3 MAX_CUDAGRAPH_CAPTURE_SIZE=64"
+rc "perf mode" 0; has "perf mode" "--max-cudagraph-capture-size 64"; has "perf mode" "--performance-mode throughput"; has "perf mode" "--optimization-level 3"
+render "perf mode bogus" "PERFORMANCE_MODE=fast"
+rc "perf mode bogus" 2
+
+# A token Akamas did not substitute (broken template) must stop the experiment.
+tmp=$(mktemp -d); mkdir -p "$tmp/k8s"; for v in $VARS; do echo "$v=" >> "$tmp/k8s/params.env"; done
+echo 'MAX_NUM_SEQS=${vllm.max_num_seqs}' >> "$tmp/k8s/params.env"
+OUT=$(RENDER_ONLY=1 STUDY_DIR="$tmp" bash "$HERE/apply_config.sh" 2>&1); RC=$?; rm -rf "$tmp"
+rc "unsubstituted token" 2
+
+# Startup budget: a first start on an empty node downloads 328 GB, then ~4 min of JIT warmup and the
+# weight load; the startupProbe must allow at least 3600 s once the container runs.
+OUT=$(awk '/startupProbe/ { for (k = 1; k <= NF; k++) { if ($k ~ /periodSeconds/) p = $(k+1); if ($k ~ /failureThreshold/) f = $(k+1) } }
+  END { gsub(/[^0-9]/, "", p); gsub(/[^0-9]/, "", f); print p * f }' "$HERE/01-vllm_template.yaml")
+[ "${OUT:-0}" -ge 3600 ] && ok || bad "startupProbe budget ${OUT:-none} s < 3600 s"
+
+# lib_apply.sh
+# shellcheck disable=SC1091
+source "$HERE/lib_apply.sh"
+OUT=$(startup_failure_reason "$HERE/fixtures/mamba-blocks.log")
+[[ "$OUT" == *"exceeds available Mamba cache blocks"* ]] && ok || bad "startup_failure_reason: '$OUT'"
+OUT=$(startup_failure_reason "$HERE/fixtures/no-kv-blocks.log")
+[[ "$OUT" == *"No available memory for the cache blocks"* ]] && ok || bad "startup_failure_reason no KV: '$OUT'"
+# Study 54: the LMCache server that never listens, and a worker that dies in warmup and leaves vLLM
+# hanging without a restart (LMCache smoke 2026-11-20): live_failure_reason reads the running log.
+OUT=$(startup_failure_reason "$HERE/fixtures/lmcache-not-listening.log")
+[[ "$OUT" == *"[lmcache] server not listening"* ]] && ok || bad "startup_failure_reason lmcache: '$OUT'"
+OUT=$(live_failure_reason "$HERE/fixtures/worker-died.log")
+[[ "$OUT" == *"WorkerProc hit an exception"* ]] && ok || bad "live_failure_reason worker died: '$OUT'"
+OUT=$(live_failure_reason "$HERE/fixtures/lmcache-not-listening.log")
+[[ "$OUT" == *"[lmcache] server not listening"* ]] && ok || bad "live_failure_reason lmcache: '$OUT'"
+OUT=$(live_failure_reason "$HERE/fixtures/mamba-blocks.log")
+[ -z "$OUT" ] && ok || bad "live_failure_reason must ignore a crash reason vLLM restarts on: '$OUT'"
+STUB=$(mktemp -d)
+printf '#!/bin/bash\nexit 0\n' > "$STUB/kubectl"; chmod +x "$STUB/kubectl"
+( PATH="$STUB:$PATH" NODE_POLL_S=0 wait_for_node 1 >/dev/null 2>&1 ); RC=$?
+rc "wait_for_node no node" 3
+printf '#!/bin/bash\necho "ip-10-0-0-1 True"\n' > "$STUB/kubectl"
+( PATH="$STUB:$PATH" NODE_POLL_S=0 wait_for_node 1 >/dev/null 2>&1 ); RC=$?
+rc "wait_for_node ready" 0
+rm -rf "$STUB"
+
+# --- final review fixes ------------------------------------------------------------------
+# C1: gpu_memory_utilization compared as numbers (vLLM writes Python str(float), full precision).
+L='vllm:cache_config_info{block_size="64",gpu_memory_utilization="0.9017631142560059",num_gpu_blocks="812"} 1.0'
+gmu_matches "$L" 0.9017631142560059; RC=$?; rc "gmu full precision" 0
+gmu_matches 'vllm:cache_config_info{gpu_memory_utilization="0.95",num_gpu_blocks="9"} 1.0' 0.950000; RC=$?; rc "gmu 0.95 vs 0.950000" 0
+gmu_matches 'vllm:cache_config_info{gpu_memory_utilization="0.9",num_gpu_blocks="9"} 1.0' 0.95; RC=$?; rc "gmu mismatch" 1
+gmu_matches 'vllm:cache_config_info{num_gpu_blocks="9"} 1.0' 0.95; RC=$?; rc "gmu label missing" 1
+# I2: the max_num_seqs the log says would fit.
+OUT=$(max_seqs_hint "$HERE/fixtures/mamba-blocks.log"); [ "$OUT" = 114 ] && ok || bad "max_seqs_hint: '$OUT'"
+OUT=$(max_seqs_hint "$HERE/fixtures/no-kv-blocks.log"); [ -z "$OUT" ] && ok || bad "max_seqs_hint without the hint: '$OUT'"
+# I4 / I5 with a stub kubectl: the previous container's log names the failure; a pod lost with its node.
+STUB=$(mktemp -d)
+cat > "$STUB/kubectl" <<'STUBEOF'
+#!/bin/bash
+case "$*" in
+  *"logs vllm-x --previous"*) cat "${STUB_PREV:-/dev/null}" ;;
+  *"get pod vllm-x"*) printf '%s' "${STUB_POD:-ip-a/}" ;;
+  *"get node ip-a"*) [ "${STUB_NODE:-}" = gone ] && exit 1; printf '%s' "${STUB_NODE:-True}" ;;
+esac
+STUBEOF
+chmod +x "$STUB/kubectl"
+( PATH="$STUB:$PATH" STUB_PREV="$HERE/fixtures/mamba-blocks.log" crash_reason vllm-x >/dev/null ); RC=$?; rc "crash_reason found" 0
+( PATH="$STUB:$PATH" STUB_PREV=/dev/null crash_reason vllm-x >/dev/null ); RC=$?; rc "crash_reason none" 1
+( PATH="$STUB:$PATH" STUB_POD="ip-a/" STUB_NODE=gone node_lost vllm-x >/dev/null ); RC=$?; rc "node_lost: node gone" 0
+( PATH="$STUB:$PATH" STUB_POD="ip-a/" STUB_NODE=False node_lost vllm-x >/dev/null ); RC=$?; rc "node_lost: node NotReady" 0
+( PATH="$STUB:$PATH" STUB_POD="ip-a/NodeShutdown" STUB_NODE=True node_lost vllm-x >/dev/null ); RC=$?; rc "node_lost: NodeShutdown" 0
+( PATH="$STUB:$PATH" STUB_POD="ip-a/Evicted" STUB_NODE=True node_lost vllm-x >/dev/null ); RC=$?; rc "node_lost: evicted on a live node" 1
+rm -rf "$STUB"
+# Smoke 2026-11-17: the previous experiment's pod (crash-looping or terminating) must not count as the
+# new one: only pods created after this apply are checked for restarts and crash reasons.
+STUB=$(mktemp -d)
+cat > "$STUB/kubectl" <<'STUBEOF'
+#!/bin/bash
+printf '%s\n' "${STUB_PODS:-}"
+STUBEOF
+chmod +x "$STUB/kubectl"
+OUT=$(PATH="$STUB:$PATH" STUB_PODS=$'2026-11-17T15:20:00Z vllm-old 2\n2026-11-17T15:30:05Z vllm-new 0' newest_pod_since 2026-11-17T15:30:00Z)
+[ "$OUT" = "vllm-new 0" ] && ok || bad "newest_pod_since: the new pod only ('$OUT')"
+OUT=$(PATH="$STUB:$PATH" STUB_PODS='2026-11-17T15:20:00Z vllm-old 2' newest_pod_since 2026-11-17T15:30:00Z)
+[ -z "$OUT" ] && ok || bad "newest_pod_since: no new pod yet ('$OUT')"
+OUT=$(PATH="$STUB:$PATH" STUB_PODS='2026-11-17T15:30:05Z vllm-new ' newest_pod_since 2026-11-17T15:30:00Z)
+[ "$OUT" = "vllm-new 0" ] && ok || bad "newest_pod_since: no restart count yet = 0 ('$OUT')"
+rm -rf "$STUB"
+OUT=$(startup_failure_reason "$HERE/fixtures/dcp-no-backend.log")
+[[ "$OUT" == *"No valid attention backend"* ]] && ok || bad "startup_failure_reason DCP: '$OUT'"
+# I6: checkpoint and tokenizer pinned to one revision.
+# 2026-11-18: an anonymous download stalled for 8+ minutes (8 connections, no byte); a restart resumed
+# at ~690 MB/s. Every attempt is bounded and retried (hf download resumes the .incomplete files).
+# The checkpoint comes down through download_checkpoint.sh (curl per file with resume; hf download
+# stalled, restarted files with new names and waited on stale locks), mounted from a ConfigMap that
+# apply_config.sh refreshes; the init container and the pre-download Job run the same command.
+CMD='bash /scripts/download_checkpoint.sh canada-quant/GLM-5.3-Flash-W4A16-MTP 5681f7c2dc6436d63f82ab6fb892b4f5062b8304 /hf-cache/canada-quant-w4a16-5681f7c2dc6436d63f82ab6fb892b4f5062b8304'
+grep -qF -- "$CMD" "$HERE/01-vllm_template.yaml" && ok || bad "template: init container does not run download_checkpoint.sh"
+grep -qF -- "$CMD" "$HERE/03-download-checkpoint.yaml" && ok || bad "download Job: does not run download_checkpoint.sh"
+grep -q 'hf download canada-quant' "$HERE/01-vllm_template.yaml" "$HERE/03-download-checkpoint.yaml" && bad "hf download still used for the checkpoint" || ok
+grep -q 'configmap download-checkpoint --from-file=download_checkpoint.sh' "$HERE/apply_config.sh" && ok || bad "apply_config.sh does not refresh the ConfigMap download-checkpoint"
+# Authenticated downloads (anonymous ones stalled): HF_TOKEN from the namespace's Secret hf-token,
+# optional so a missing Secret falls back to anonymous; never a literal token in the repo.
+for f in 01-vllm_template.yaml 03-download-checkpoint.yaml 02-aiperf-clients.yaml; do
+  grep -q 'secretKeyRef: {name: hf-token, key: token, optional: true}' "$HERE/$f" && ok || bad "$f: HF_TOKEN not read from the Secret hf-token"
+done
+grep -rqE 'hf_[A-Za-z0-9]{30,}' "$HERE/.." && bad "a literal Hugging Face token is in the study folder" || ok
+# The 4-bit checkpoint (decided 2026-11-18): canada-quant/GLM-5.3-Flash-W4A16-MTP, pinned.
+REV=5681f7c2dc6436d63f82ab6fb892b4f5062b8304
+grep -q -- "ln -sfn /hf-cache/canada-quant-w4a16-$REV /mnt/models" "$HERE/01-vllm_template.yaml" && ok || bad "template: /mnt/models not the pinned local dir"
+grep -q -- "zai-org/GLM-5.3-Flash --revision" "$HERE/01-vllm_template.yaml" && bad "template: still downloads the FP8 checkpoint" || ok
+# hf 2.x took the names after --include as explicit files and ignored the pattern: tokenizer.json never
+# came down (smoke 2026-11-18). The clients use download_checkpoint.sh with INCLUDE instead.
+grep -qF -- "bash /scripts/download_checkpoint.sh canada-quant/GLM-5.3-Flash-W4A16-MTP $REV /work/tokenizer" "$HERE/02-aiperf-clients.yaml" && ok || bad "clients: tokenizer not fetched with download_checkpoint.sh at $REV"
+grep -q 'tokenizer' "$HERE/02-aiperf-clients.yaml" && grep -qE "INCLUDE=.*tokenizer" "$HERE/02-aiperf-clients.yaml" && ok || bad "clients: INCLUDE does not select the tokenizer files"
+grep -q 'hf download' "$HERE/02-aiperf-clients.yaml" && bad "clients: hf download still used" || ok
+grep -q 'apt-get install -y --no-install-recommends curl' "$HERE/02-aiperf-clients.yaml" && ok || bad "clients: python:3.12-slim has no curl for download_checkpoint.sh"
+
+# Study 54: the LMCache server starts in the vLLM container only when the env says so, pinned to 0.5.8rc1.
+grep -q 'LMCACHE_L1_GB, value: "@LMCACHE_GI@"' "$HERE/01-vllm_template.yaml" && ok || bad "template: no LMCACHE_L1_GB env token"
+grep -q 'pip install --no-deps --quiet lmcache==0.5.8rc1' "$HERE/01-vllm_template.yaml" && ok || bad "template: LMCache not pinned to 0.5.8rc1"
+grep -q 'lmcache server --port 5555 --l1-size-gb "$LMCACHE_L1_GB" --eviction-policy LRU' "$HERE/01-vllm_template.yaml" && ok || bad "template: LMCache server command"
+grep -q 'study54/applied-at' "$HERE/01-vllm_template.yaml" && ok || bad "template: annotation not study54/applied-at"
+grep -q 'KV_OFFLOADING_BACKEND=${vllm.kv_offloading_backend}' "$HERE/params.env.template" && ok || bad "params.env.template: no kv_offloading_backend token"
+# The rendered template is valid YAML (the LMCache block sits inside the container's block scalar).
+OUT=$(sed -e "s|@ADDITIONAL_ARGS@|--x 1|g" -e "s/@SHM_GI@/513/g" -e "s/@MEM_GI@/608/g" -e "s/@LMCACHE_GI@/512/g" \
+  -e "s/@APPLIED_AT@/20261120T000000Z/g" "$HERE/01-vllm_template.yaml" | python3 -c '
+import sys, yaml
+d = yaml.safe_load(sys.stdin)
+c = d["spec"]["template"]["spec"]["containers"][0]
+env = {e["name"]: e.get("value") for e in c["env"]}
+print(d["kind"], env["LMCACHE_L1_GB"], "lmcache server --port 5555" in c["args"][0], c["args"][0].index("lmcache server") < c["args"][0].index("exec vllm serve"))' 2>&1)
+[ "$OUT" = "Deployment 512 True True" ] && ok || bad "rendered template: '$OUT'"
+# Rig values from workload.env (design "Portability").
+grep -qE '^ *(NS|OFFLOAD_MAX|MEM_BASE|FIXED_ARGS)=' "$HERE/apply_config.sh" && bad "apply_config.sh still sets a rig value itself" || ok
+
+echo "$PASS passed, $FAIL failed"
+[ "$FAIL" = 0 ]

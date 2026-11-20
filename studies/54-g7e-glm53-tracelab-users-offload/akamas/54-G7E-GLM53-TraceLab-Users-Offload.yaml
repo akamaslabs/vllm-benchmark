@@ -1,0 +1,155 @@
+kind: study
+name: 54-G7E-GLM53-TraceLab-Users-Offload
+description: >-
+  Coding users one GLM-5.3-Flash replica holds within the SLO (client TTFT p95 <= 5 s and ITL p95 <=
+  50 ms over a trailing 150 s): GLM-5.3-Flash 4-bit (canada-quant W4A16-MTP) at TP4 on vLLM 0.34.0, one
+  g7e.24xlarge spot (4x RTX PRO 6000 96 GB), the target deployment's arguments. Load: real TraceLab
+  Claude Code / Codex sessions (8k shared system prompt) replayed by AIPerf 0.13.0 from two clients,
+  users entering linearly and never leaving, each run ended by a watchdog past the knee. Steps: baseline
+  (the target's arguments), CPU KV offload presets (native 128 / 256 / 512 GiB, LMCache 512 GiB), then
+  30 optimized experiments. Dress rehearsal of the study for the target. Requires vLLM pack 1.15.0,
+  AIPerf pack 1.0.0, GPU pack 1.4.0, Kubernetes pack 1.9.0. Design:
+  docs/superpowers/specs/2026-11-20-study-54-glm53-tracelab-users-offload-design.md.
+system: vLLM_Benchmark_54_G7E_GLM53_TraceLab
+workflow: 54-G7E-GLM53-TraceLab-Workflow
+# Score = the users in the 30 s bucket (TraceLab sessions started minus finished, both clients); with
+# users ramping, the best valid window is the last one before the knee. The CSV ends before the first
+# sustained SLO breach (k8s/aiperf_to_csv.py), so a later window that dips back under the SLO cannot
+# score. The thresholds equal k8s/workload.env's SLO_TTFT_MS and SLO_ITL_MS (k8s/test_akamas.sh).
+goal:
+  objective: maximize
+  function:
+    formula: aiperf.aiperf_active_sessions
+    unit: users
+  constraints:
+    absolute:
+      - name: TTFT P95 150s at most 5 s
+        formula: aiperf.aiperf_time_to_first_token_p95_150s <= 5000
+      - name: ITL P95 150s at most 50 ms
+        formula: aiperf.aiperf_inter_token_latency_p95_150s <= 50
+# Study 38's windowing: windows of 6 samples (3 min of 30 s rows), all stable (maxStdDev huge), the one
+# with the most users among those within the constraints. `when` nested under `stability` as studies 30
+# and 38 (accepted by Akamas 4.1; the plugin reference shows it as a sibling).
+windowing:
+  type: stability
+  stability:
+    metric: aiperf.aiperf_active_sessions
+    width: 6
+    maxStdDev: 300000000
+    when:
+      metric: aiperf.aiperf_active_sessions
+      is: max
+numberOfTrials: 1
+# Domains inside the vLLM pack 1.15.0 ones (checked with `akamas describe component-type vLLM`,
+# 2026-11-20). max_num_seqs: vLLM's default 1024 fits the 4-bit checkpoint at gmu 0.95 (study 52); a
+# value above vLLM's Mamba block count at a low gmu fails the start (apply exit 4, the optimizer learns
+# it). max_num_batched_tokens down to 2048, below the 2,304-token attention block: vLLM 0.34 splits the
+# chunk and re-aligns at the next block (design "Calls for the build").
+parametersSelection:
+  - name: vllm.kv_offloading_size
+    domain: [0, 512]
+  - name: vllm.gpu_memory_utilization
+    domain: [0.85, 0.97]
+  - name: vllm.max_num_batched_tokens
+    domain: [2048, 32768]
+  - name: vllm.max_num_seqs
+    domain: [16, 1024]
+  - name: vllm.spec_tokens
+    domain: [0, 5]
+parameterConstraints:
+  - name: max_num_batched_tokens must be at least max_num_seqs
+    formula: vllm.max_num_batched_tokens >= vllm.max_num_seqs
+kpis:
+  - name: Users
+    formula: aiperf.aiperf_active_sessions
+    direction: maximize
+  - name: TTFT P95 150s
+    formula: aiperf.aiperf_time_to_first_token_p95_150s
+    direction: minimize
+  - name: ITL P95 150s
+    formula: aiperf.aiperf_inter_token_latency_p95_150s
+    direction: minimize
+  - name: Completed requests per s
+    formula: aiperf.aiperf_request_success_rate
+    direction: maximize
+  - name: Prompt from cache incl offload
+    formula: vllm.prefix_cache_hit_rate_with_offload
+    direction: maximize
+  - name: Prompt from CPU offload
+    formula: vllm.cpu_offload_prefix_hit_rate
+    direction: maximize
+  - name: Offload read back GBps
+    formula: vllm.kv_offload_cpu_to_gpu_throughput
+    direction: maximize
+  - name: GPU KV usage
+    formula: vllm.kv_cache_usage_avg
+    direction: minimize
+# Baseline = the target's arguments (gmu 0.95, MTP 5 tokens, no offload; everything else at vLLM's
+# defaults, hence not rendered: max_num_batched_tokens 8192, max_num_seqs 1024). kv_offloading_backend
+# is outside parametersSelection (design: native in the optimize step, LMCache fails requests when its
+# RAM fills): the presets pin it, the other steps render the component's default (native) through
+# renderParameters; apply_config.sh uses it only with an offload size > 0.
+# runOnFailure true on every preset: a failed start or a reclaimed spot node must not stop the sweep.
+steps:
+  - name: baseline
+    type: baseline
+    values:
+      vllm.gpu_memory_utilization: 0.95
+      vllm.spec_tokens: 5
+    renderParameters:
+      - vllm.kv_offloading_backend
+    doNotRenderParameters:
+      - vllm.kv_offloading_size
+      - vllm.max_num_seqs
+      - vllm.max_num_batched_tokens
+  - name: Native 128
+    type: preset
+    runOnFailure: true
+    values:
+      vllm.gpu_memory_utilization: 0.95
+      vllm.spec_tokens: 5
+      vllm.kv_offloading_size: 128
+      vllm.kv_offloading_backend: native
+    doNotRenderParameters:
+      - vllm.max_num_seqs
+      - vllm.max_num_batched_tokens
+  - name: Native 256
+    type: preset
+    runOnFailure: true
+    values:
+      vllm.gpu_memory_utilization: 0.95
+      vllm.spec_tokens: 5
+      vllm.kv_offloading_size: 256
+      vllm.kv_offloading_backend: native
+    doNotRenderParameters:
+      - vllm.max_num_seqs
+      - vllm.max_num_batched_tokens
+  - name: Native 512
+    type: preset
+    runOnFailure: true
+    values:
+      vllm.gpu_memory_utilization: 0.95
+      vllm.spec_tokens: 5
+      vllm.kv_offloading_size: 512
+      vllm.kv_offloading_backend: native
+    doNotRenderParameters:
+      - vllm.max_num_seqs
+      - vllm.max_num_batched_tokens
+  - name: LMCache 512
+    type: preset
+    runOnFailure: true
+    values:
+      vllm.gpu_memory_utilization: 0.95
+      vllm.spec_tokens: 5
+      vllm.kv_offloading_size: 512
+      vllm.kv_offloading_backend: lmcache
+    doNotRenderParameters:
+      - vllm.max_num_seqs
+      - vllm.max_num_batched_tokens
+  - name: optimize
+    type: optimize
+    optimizer: AKAMAS
+    numberOfExperiments: 30
+    maxFailedExperiments: 10
+    renderParameters:
+      - vllm.kv_offloading_backend

@@ -1,0 +1,12 @@
+kind: component
+system: vLLM_Benchmark_54_G7E_GLM53_TraceLab
+
+name: aiperf
+description: >-
+  The two AIPerf 0.13.0 clients replaying TraceLab coding sessions, as they see the server: their
+  per-request records (profile_export.jsonl) turned into 30 s rows by k8s/aiperf_to_csv.py and read
+  by the CSV File telemetry instance (telemetry/aiperf-csv.yaml). Carries the goal
+  (aiperf_active_sessions: the users, TraceLab sessions started minus finished, both clients) and the
+  two constraints (client TTFT and ITL p95 over the trailing 150 s). Metrics only. Requires the AIPerf
+  optimization pack 1.0.0.
+componentType: AIPerf

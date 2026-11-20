@@ -3,6 +3,9 @@
 # (checked against its sha256), build the two client pools with prepare_pool.py (fixed arguments from
 # ../k8s/workload.env), copy the shared system prompt, and fail unless the pools and the prompt are
 # bit for bit the calibration's (sha256 of the decompressed pools, md5 of the prompt).
+# Pools already in OUT_DIR with the right checksums are kept as they are (nothing downloaded or built):
+# building them holds the whole trace in memory (~5 GB), more than the akamas-41 toolbox's container
+# allows (killed, 2026-11-20), so there they are built elsewhere and copied in, and this script checks them.
 # Usage: bash load/prepare_load.sh [OUT_DIR]   (default: workload.env's LOAD_DIR)
 # Exit 0 staged and verified; 2 download or checksum failure.
 set -euo pipefail
@@ -13,6 +16,12 @@ OUT=${1:-$LOAD_DIR}
 mkdir -p "$OUT"
 sha() { if command -v sha256sum >/dev/null; then sha256sum | cut -c1-64; else shasum -a 256 | cut -c1-64; fi; }
 md5() { if command -v md5sum >/dev/null; then md5sum "$1" | cut -c1-32; else md5 -q "$1"; fi; }
+staged() {
+  [ "$(gzip -dc "$OUT/pool_0.jsonl.gz" 2>/dev/null | sha)" = "$POOL0_SHA" ] \
+    && [ "$(gzip -dc "$OUT/pool_1.jsonl.gz" 2>/dev/null | sha)" = "$POOL1_SHA" ] \
+    && [ -f "$OUT/sys8k.txt" ] && [ "$(md5 "$OUT/sys8k.txt")" = "$SYS_MD5" ]
+}
+if staged; then echo "pool_0, pool_1 and sys8k.txt already staged in $OUT, checksums ok"; exit 0; fi
 T=$OUT/syfi_coding_trace.jsonl.gz
 if [ ! -s "$T" ] || [ "$(sha < "$T")" != "$TRACELAB_SHA256" ]; then
   echo "downloading TraceLab v0.0.2 ($TRACELAB_URL)"

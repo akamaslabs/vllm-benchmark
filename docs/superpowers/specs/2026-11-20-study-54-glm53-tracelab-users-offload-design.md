@@ -238,9 +238,17 @@ and then against vLLM (LMCache 512 up, 10 users, 3 min):
   ignore_eos:true`), 0 errors.
 - **Shared system prompt:** `--shared-system-prompt-length` is synthetic-only; `--system-prompt-file`
   works with `tracelab` (one identical system message in every session, stub-verified) and adds
-  to the recorded input, so the preparation would subtract its length from every round. The
-  first-round floor in TraceLab (p1-p5: Claude 7.0-9.2k, Codex 2.7-4.1k tokens) bounds the
-  agents' common prompt. Whether to model it, and how long, is the user's call (open).
+  to the recorded input. The first-round floor in TraceLab (p1-p5: Claude 7.0-9.2k, Codex
+  2.7-4.1k tokens) bounds the agents' common prompt.
+- **Shared system prompt, decided (user, 2026-11-20): modeled, K = 8,000 tokens**, one file for
+  every user of both clients (the target's users run one agent; K changes to the target's real
+  prompt length once known). The preparation subtracts K from every round's recorded input (the
+  first round's new tokens included; later rounds' appended tokens unchanged), so each round's
+  size on the server stays the recorded one and only the share common to all users changes.
+  Sessions whose first round is under K + 200 tokens are dropped (my call: 2.5 % of the Claude
+  and 12.3 % of the Codex sessions, 441 of 7,433; the pools draw 1,200). Before the ramps, the
+  vLLM token check above is repeated with the system prompt on: server prompt tokens = recorded
+  input within the same 0.2 %, and the prefix cache hit on a new session's first round ~K.
 
 ## Portability to the target
 
@@ -262,8 +270,9 @@ and then against vLLM (LMCache 512 up, 10 users, 3 min):
   p95 47.5 -> 21-24 ms with offload).
 - **Prefill-heavy rounds:** 0.25 % of rounds append > 40k new tokens (> 4 s of prefill); they sit
   inside the p95.
-- **Shared system prompt across sessions:** possible with `--system-prompt-file` (calibration
-  above); without it every user carries its own copy and the test is conservative.
+- **Shared system prompt across sessions:** modeled with K = 8,000 tokens (calibration above).
+  If the target's prompt is much shorter, the test here is optimistic by up to ~8k tokens of KV
+  per user; K is one parameter in the env file.
 - **Client sizing:** settled by the calibration above (600 sessions, 7.8 GiB per client, cached).
 - **AIPerf 0.13 export format** vs study 38's CSV converter: adapt and test on the spike's records.
 - **Spot reclaim** mid-study: apply waits for the node (study 53's `apply_config.sh`).

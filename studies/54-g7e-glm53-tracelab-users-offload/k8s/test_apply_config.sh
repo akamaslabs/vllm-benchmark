@@ -207,6 +207,14 @@ grep -q 'tokenizer' "$HERE/02-aiperf-clients.yaml" && grep -qE "INCLUDE=.*tokeni
 grep -q 'hf download' "$HERE/02-aiperf-clients.yaml" && bad "clients: hf download still used" || ok
 grep -q 'apt-get install -y --no-install-recommends curl' "$HERE/02-aiperf-clients.yaml" && ok || bad "clients: python:3.12-slim has no curl for download_checkpoint.sh"
 
+# Final review I1: pod_log_has must not fail under pipefail when the match comes early in a long log
+# (kubectl gets SIGPIPE once grep -q stops reading: 141; the 2026-11-20 integration refused a good pod).
+STUB=$(mktemp -d)
+printf '#!/bin/bash\necho "[lmcache] version 0.5.8rc1"; echo "[lmcache] server listening on 5555"; seq 1 200000\n' > "$STUB/kubectl"; chmod +x "$STUB/kubectl"
+( set -o pipefail; PATH="$STUB:$PATH" pod_log_has vllm-x '\[lmcache\] server listening on 5555' ); RC=$?; rc "pod_log_has early match in a long log" 0
+( set -o pipefail; PATH="$STUB:$PATH" pod_log_has vllm-x 'not in the log' ); RC=$?; rc "pod_log_has no match" 1
+rm -rf "$STUB"
+grep -q 'pod_log_has "$POD"' "$HERE/apply_config.sh" && ok || bad "apply_config.sh does not use pod_log_has for the LMCache proof"
 # Study 54: the LMCache server starts in the vLLM container only when the env says so, pinned to 0.5.8rc1.
 grep -q 'LMCACHE_L1_GB, value: "@LMCACHE_GI@"' "$HERE/01-vllm_template.yaml" && ok || bad "template: no LMCACHE_L1_GB env token"
 grep -q 'pip install --no-deps --quiet lmcache==0.5.8rc1' "$HERE/01-vllm_template.yaml" && ok || bad "template: LMCache not pinned to 0.5.8rc1"

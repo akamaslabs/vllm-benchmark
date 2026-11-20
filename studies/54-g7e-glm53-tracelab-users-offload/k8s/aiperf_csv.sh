@@ -18,7 +18,7 @@ RUN=${1:-$(cat "$RUNS_DIR/current" 2>/dev/null)}
 D=$RUNS_DIR/$RUN
 for i in 0 1; do
   [ -s "$D/c$i.jsonl.gz" ] || { echo "error: $D/c$i.jsonl.gz missing: Stop AIPerf did not save client $i's records" >&2; exit 2; }
-  gzip -dc "$D/c$i.jsonl.gz" > "$D/c$i.jsonl"
+  gzip -dc "$D/c$i.jsonl.gz" > "$D/c$i.jsonl" || { echo "error: $D/c$i.jsonl.gz is not a valid gzip (truncated?)" >&2; exit 2; }
 done
 mkdir -p "$CSV_DIR" "$CSV_FULL_DIR"
 conv() { if [ -n "${CONVERTER:-}" ]; then "$CONVERTER" "$@"; else python3 -I "$HERE/aiperf_to_csv.py" "$@"; fi; }

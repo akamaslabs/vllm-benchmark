@@ -70,18 +70,22 @@ done
 
 # --- 2. Launch both replays (detached) ---------------------------------------------------------------
 S0=$(successes); [[ "$S0" =~ ^[0-9]+$ ]] || S0=0
+# Before the launch, so Stop AIPerf targets this run even if a launch fails (final review M2).
+mkdir -p "$RUNS_DIR" && echo "$RUN" > "$RUNS_DIR/current"
 for c in $CLIENTS; do
   kx "$c" sh -c "ls -dt /tmp/a13/runs/s54-* 2>/dev/null | tail -n +4 | xargs rm -rf; setsid nohup sh /tmp/client_run.sh /tmp/pool.jsonl.gz $RUN $USERS_PER_CLIENT $RAMP_S $DUR_S $URL $MODEL > /dev/null 2>&1 < /dev/null &" \
     || die "$c: launch failed" 1
 done
-mkdir -p "$RUNS_DIR" && echo "$RUN" > "$RUNS_DIR/current"
 t "replays launched"
 
 # --- 3. Watch -------------------------------------------------------------------------------------
 FAIL=""; WATCHDOG=""
 T0=$SECONDS; ARMED_AT=""; OVER_SINCE=""; LAST_OK=$S0; LAST_PROGRESS=$SECONDS; NEXT_PROGRESS=$SECONDS; TTFT=""
 while :; do
-  NOW_STATE=$(state)
+  # A changed state is read again up to 3 times, 5 s apart: one failed API call ("gone") must not fail a
+  # trial that runs over an hour (final review M1); a real restart or replacement persists.
+  NOW_STATE=$(state); k=0
+  while [ "$NOW_STATE" != "$STATE0" ] && [ $k -lt 3 ]; do sleep $((POLL_S > 0 ? 5 : 0)); NOW_STATE=$(state); k=$((k + 1)); done
   [ "$NOW_STATE" = "$STATE0" ] || { FAIL="the vLLM pod restarted or was replaced during the test ($STATE0 -> $NOW_STATE)"; break; }
   n_done=0
   for i in 0 1; do

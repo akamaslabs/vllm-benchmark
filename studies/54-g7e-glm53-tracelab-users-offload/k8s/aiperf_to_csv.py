@@ -9,7 +9,7 @@ named as the metric) adapted to AIPerf 0.13's TraceLab replay:
 
 - Input: one profile_export.jsonl per client, each followed by the pool it replayed. Records:
   metadata.conversation_id (a TraceLab session id; AIPerf's flattened-agent split adds
-  "<session>::sa:..." and "<session>::aux:..." conversations), turn_index, source_outer_idx (the
+  "<session>::sa:...", "::fa:..." and "::aux:..." conversations, all folded into <session>), turn_index, source_outer_idx (the
   round's index in the session), request_start_ns / request_end_ns (wall clock), benchmark_phase,
   was_cancelled; a failed request carries a top-level `error`; metrics.<tag>.value in ms / tokens.
 - Rows: one per 30 s bucket (epoch-aligned), TS = the bucket's end in UTC, a request belongs to the

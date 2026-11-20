@@ -41,7 +41,7 @@ tokens = set(re.findall(r"\$\{vllm\.([a-z_]+)\}", open(os.path.join(k8s, "params
 rendered = {n.split(".", 1)[1] for n in sel}
 for x in s["steps"]:
     rendered |= {n.split(".", 1)[1] for n in x.get("values", {})} | {n.split(".", 1)[1] for n in x.get("renderParameters", [])}
-print("unrendered_tokens", sorted(t for t in tokens if t not in rendered and t not in ("moe_backend", "max_cudagraph_capture_size", "async_scheduling", "performance_mode", "optimization_level")))
+print("unrendered_tokens", sorted(t for t in tokens if t not in rendered))
 dnr = [x for x in s["steps"] if x["type"] == "baseline"][0].get("doNotRenderParameters", [])
 print("baseline_dnr", sorted(dnr))
 print("kpis", len(s["kpis"]))

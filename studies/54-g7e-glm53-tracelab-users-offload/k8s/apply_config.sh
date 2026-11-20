@@ -211,8 +211,7 @@ echo "$CACHE" | grep -Eq 'num_gpu_blocks="[1-9][0-9]*"' || die "cache_config_inf
 if [ "$LMCACHE" = 1 ]; then
   L1=$(kubectl -n $NS get pod "$POD" -o jsonpath='{.spec.containers[0].env[?(@.name=="LMCACHE_L1_GB")].value}')
   [ "$L1" = "$LMCACHE_GI" ] || die "the pod's LMCACHE_L1_GB is '$L1', rendered $LMCACHE_GI" 8
-  kubectl -n $NS logs "$POD" --tail=-1 2>/dev/null | grep -q '\[lmcache\] server listening on 5555' \
-    || die "no LMCache server listening in the pod's log" 8
+  pod_log_has "$POD" '\[lmcache\] server listening on 5555' || die "no LMCache server listening in the pod's log" 8
   echo "LMCache server: L1 $L1 GiB, listening on 5555"
 fi
 

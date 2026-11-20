@@ -150,6 +150,9 @@ steps:
     type: optimize
     optimizer: AKAMAS
     numberOfExperiments: 30
-    maxFailedExperiments: 10
+    # = numberOfExperiments on purpose (final review I3): a configuration that breaks the SLO before any
+    # valid 3-minute window counts as failed, and with ITL <= 50 ms the optimizer will propose some;
+    # the step must not abort unattended on them. Infrastructure failures show in the task logs.
+    maxFailedExperiments: 30
     renderParameters:
       - vllm.kv_offloading_backend

@@ -36,6 +36,15 @@ live_failure_reason() {
   grep -m1 -E 'WorkerProc hit an exception|\[lmcache\] (server not listening|pip install failed)' "$1" | cut -c1-400
 }
 
+# pod_log_has POD REGEX (study 54): 0 when the pod's main log has a line matching REGEX. The log is read
+# into a variable first: `kubectl logs | grep -q` returns 141 under pipefail once grep stops reading
+# early (SIGPIPE), which refused a healthy LMCache pod in the 2026-11-20 integration (final review I1).
+pod_log_has() {
+  local log
+  log=$(kubectl -n "${NS:-glm53-coding}" logs "$1" -c main --tail=-1 2>/dev/null || true)
+  grep -q -- "$2" <<< "$log"
+}
+
 # gmu_matches CACHE_CONFIG_INFO_LINE GMU: 0 when the line's gpu_memory_utilization label equals GMU
 # as a number. vLLM writes the label as Python str(float) at full precision (0.9017631142560059) and
 # Akamas renders optimizer values at full precision too, so a printf-%g string match fails on most

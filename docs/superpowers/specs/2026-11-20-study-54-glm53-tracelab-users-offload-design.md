@@ -197,12 +197,51 @@ How the LMCache preset runs, found on the node (study 53's Deployment, rendered 
 1. ~~LMCache 512 with GLM-5.3-Flash~~: starts and serves (above).
 2. ~~AIPerf 0.13 on the client pods~~: done 2026-11-20, below (CPU under hundreds of users comes
    with the ramps).
-3. **Three calibration ramps** (baseline, Native 512 and, if it starts, LMCache 512; users
+3. ~~Three calibration ramps~~ (baseline, Native 512 and, if it starts, LMCache 512; users
    1 -> 300 over ~40 min, the watchdog off): where each breaks, and on what (TTFT or ITL). They
    fix the ramp's top N and length R so the best configuration's knee falls in the first two
    thirds of the ramp, and whether `kv_offloading_backend` enters the optimize step. If the ITL
    breaks first at similar users in all, the SLO, not the cache, binds on this rig: back to the
-   user.
+   user. Done 2026-11-20, below: **the ITL breaks first in all three** (back to the user).
+
+### Calibration ramps (2026-11-20)
+
+2 -> 300 users over 40 min (two clients of 150), 45 min, shared 8k system prompt, fresh vLLM pod
+each, watchdog off. Users held = the last 30 s bucket before the metric stays above the threshold
+for 4 buckets (p95 over a trailing 150 s, client side; one bucket = ~4 users at this slope).
+
+| Users held | Baseline | Native 512 | LMCache 512 |
+|---|---|---|---|
+| ITL p95 <= 50 ms | 8 | 8 | 12 |
+| ITL p95 <= 100 ms | 27 | 30 | 34 |
+| TTFT p95 <= 5 s | 46 | 50 | 38 |
+| TTFT p95 <= 10 s | 53 | 56 | 53 |
+| Requests completed in 45 min | 1,219 | 2,797 | 2,137 |
+| TTFT p95 at 100 users | 121 s | 37 s | 40 s |
+| ITL p95 at 100 users | 366 ms | 130 ms | 110 ms |
+| Errors | 9 | 40 | 136 |
+
+- **The ITL SLO binds first, at 8-12 users, in every configuration**, with the GPU KV at 11-20 %:
+  the cause is prefill interference, not the cache. vLLM's default `max_num_batched_tokens` 8192
+  puts up to 8k prefill tokens in a step (~0.85 s at ~9.6k tokens/s) next to every running
+  decode, and this load prefills all the time (contexts that grow round after round). Tuning
+  levers for it: `max_num_batched_tokens`, MTP tokens.
+- **The TTFT knee is where the GPU KV fills** (~90 % at 50 users, minute 6.5): offload moves
+  it little at this slope (46 -> 50 users native, 38 LMCache) but changes what happens past it:
+  2.3x the completed requests, TTFT p95 at 100 users 37 s instead of 121 s; the offload serves
+  80 % of the tokens queried from RAM once the GPU is full.
+- **The slope is too steep for these knees**: they fall in minutes 1.5-7 of 45, with young
+  sessions (small contexts). A ramp to ~100 users over 60-75 min puts the knee in its first two
+  thirds, with sessions that have grown, i.e. more KV pressure at the knee.
+- **LMCache 512 holds fewer users than Native 512** (38 vs 50 on TTFT <= 5 s; fewer GPU prefix
+  hits before the KV fills, 54-75 % vs 64-84 %) and **fails requests once its RAM fills**: at
+  ~280 users, L1 at its 80 % eviction watermark, 516 "Some keys not found during retrieve" and
+  129 requests failed with an internal error (LMCache 0.5.8rc1). By the rule above,
+  `kv_offloading_backend` stays out of the optimize step (native).
+- Errors otherwise: "no responses with actual content" (8-38 per ramp, ~1-1.4 % of requests)
+  and 1-2 disconnects. Pools: at most 203 distinct sessions per client of 600, no repeat. Client
+  CPU ~1.1 of 3.5 cores, no throttling during the ramps; memory up to 10.7 of 13 GiB (page
+  cache).
 
 ### AIPerf 0.13 on the client pods (calibration 2026-11-20)
 
@@ -251,16 +290,15 @@ and then against vLLM (LMCache 512 up, 10 users, 3 min):
 - **Token check with the system prompt on (2026-11-20, both clients, 10 users each, 3 min):**
   server prompt tokens - (pool input + K) p5 -8, p50 +10, p95 +27 tokens over 146 requests, all
   within 0.5 %; one request of 147 failed with "no responses with actual content".
-- **The shared prompt is not shared by the server in the target's configuration.** GLM-5.3-Flash
-  is hybrid (attention + KDA recurrent state): vLLM 0.34 runs prefix caching in Mamba `align`
-  mode with 2,304-token attention blocks and, by default, checkpoints the recurrent state only
-  at a request's prompt tail. A session resumes its own history (75 % of the pod's prompt tokens
-  were prefix hits), but two requests with the same 8k system prompt and different user messages
-  hit 0 of 8,034 tokens (LMCache 512 pod): every user recomputes and holds its own copy.
-  `--enable-mamba-shared-prefix-checkpoint` (off by default) adds a checkpoint at the junction
-  where sibling requests diverge (needs MTP/EAGLE on the Mamba group and fine-grained hash hits);
-  whether it takes effect here, and what it is worth, is open (a candidate lever for the target).
-  The ramps run the target's configuration (flag off) with K = 8,000 as decided.
+- **Sharing of the prompt across sessions depends on the KV backend.** GLM-5.3-Flash is hybrid
+  (attention + KDA recurrent state): vLLM 0.34 runs prefix caching in Mamba `align` mode with
+  2,304-token attention blocks. Three requests with the same 8k system prompt and different user
+  messages, on a fresh pod: **Native 512** hits 0, then 6,912 and 6,912 of 8,035 tokens (three
+  whole blocks: the prompt is shared from the second session on); **LMCache 512** hit 0 and 0 of
+  8,034 (pod already used by the token check; the LMCache connector takes another path for hybrid
+  hits). `--enable-mamba-shared-prefix-checkpoint` (off by default) adds a recurrent-state
+  checkpoint where sibling requests diverge (needs MTP/EAGLE on the Mamba group and fine-grained
+  hash hits); a candidate lever, open. The ramps run the target's configuration (flag off).
 
 ## Portability to the target
 

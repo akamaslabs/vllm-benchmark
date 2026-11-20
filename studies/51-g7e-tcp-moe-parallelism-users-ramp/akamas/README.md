@@ -1,6 +1,6 @@
 # akamas/ — study 51's Akamas resources
 
-Created on 2026-11-11 with the `akamas-study-manager` plugin (0.3.0), for **Akamas 4.1.0**
+Created on 2026-11-11 with the `akamas-study-manager` plugin (0.3.0), for **Akamas 4.1.3**
 (`akamas-41`). A copy of study 50's resources (built on 2026-11-10 from studies 48 and 49),
 adapted to two g7e.4xlarge over TCP. Goal: `../README.md`. Design (study 50's):
 `docs/superpowers/specs/2026-11-09-study-50-g7e-efa-moe-parallelism-design.md`.

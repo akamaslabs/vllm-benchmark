@@ -1,6 +1,6 @@
 # akamas/ — study 52's Akamas resources
 
-Created on 2026-11-17 with the `akamas-study-manager` plugin (0.3.0), for **Akamas 4.1.0**
+Created on 2026-11-17 with the `akamas-study-manager` plugin (0.3.0), for **Akamas 4.1.3**
 (`akamas-41`), from study 51's resources adapted to one g7e.24xlarge spot with 4 GPUs. Goal and
 method: `../README.md`. Design: `docs/superpowers/specs/2026-11-17-study-52-glm53-coding-sessions-design.md`.
 

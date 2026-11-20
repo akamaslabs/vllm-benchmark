@@ -81,7 +81,7 @@ seconds as a tie-break. Server-side safety nets: TTFT p95 â‰¤ 600 ms, ITL p95 â‰
     headless on TP and PP. On DP both nodes run an API server
     (`--data-parallel-external-lb`).
 - **Load:** AIPerf 0.11.0, two client pods (3 CPU each) on the load node.
-- **Akamas:** 4.1.0 with packs vLLM 1.15.0, GPU 1.4.0 and Kubernetes 1.9.0. See
+- **Akamas:** 4.1.3 with packs vLLM 1.15.0, GPU 1.4.0 and Kubernetes 1.9.0. See
   `akamas/README.md`.
 - **Telemetry:** Prometheus, 113 metrics.
   - vLLM scraped every 5 s on every pod with an API server.

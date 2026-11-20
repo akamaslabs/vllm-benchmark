@@ -10,7 +10,7 @@ renamed) and study 38's AIPerf CSV telemetry. Goal and method: `../README.md`. D
 - **Packs:** vLLM 1.15.0 (the installed `vLLM` component type: `kv_offloading_size` [0, 512],
   `kv_offloading_backend` {native, lmcache} default native, `max_num_seqs` [1, 4096],
   `max_num_batched_tokens` [1, 65536], `spec_tokens` [0, 16]; checked 2026-11-20), AIPerf 1.0.0 (its
-  31 metrics, the converter's columns), GPU 1.4.0, Kubernetes 1.9.0.
+  32 metrics, the converter's columns), GPU 1.4.0, Kubernetes 1.9.0.
 - **Target:** `vllm/vllm-openai:v0.34.0`, `canada-quant/GLM-5.3-Flash-W4A16-MTP` (revision 5681f7c2)
   served as `zai-org/GLM-5.3-Flash`, TP4; LMCache 0.5.8rc1 for the LMCache preset; AIPerf 0.13.0.
 - **Telemetry:** Prometheus (kube-prometheus-stack on `vllm-bench`) and CSV File (the toolbox).
@@ -23,7 +23,7 @@ renamed) and study 38's AIPerf CSV telemetry. Goal and method: `../README.md`. D
   Container), `cluster` (Kubernetes Cluster) — plus `aiperf` (AIPerf: the client side).
 - **Telemetry** `Prometheus_54_G7E_GLM53_TraceLab` (`telemetry/prometheus.yaml`): study 53's full
   catalog (CLAUDE.md rule 9) with `duration: 30` (study 52's; requests arrive every second or so).
-  `AIPerf_CSV_54_G7E_GLM53_TraceLab` (`telemetry/aiperf-csv.yaml`): the 31 AIPerf metrics from
+  `AIPerf_CSV_54_G7E_GLM53_TraceLab` (`telemetry/aiperf-csv.yaml`): the 32 AIPerf metrics from
   `/work/aiperf-csv/study54/*.csv` on the toolbox over SCP.
 - **Workflow** `54-G7E-GLM53-TraceLab-Workflow`: `Write config` (FileConfigurator,
   `k8s/params.env.template`), `Apply config` (`k8s/apply_config.sh`, 140 min), `RunTest`

@@ -86,7 +86,7 @@ sessions number for the target.
   5681f7c2) served as `zai-org/GLM-5.3-Flash`, TP4, `--language-model-only`; the target's container shape
   (`vllm serve /mnt/models ... ${VLLM_ADDITIONAL_ARGS}`); namespace `glm53-coding`.
 - **Load:** AIPerf 0.11.0 (`k8s/workload.env`).
-- **Akamas:** 4.1 (akamas-41); packs vLLM 1.15.0, GPU 1.4.0, Kubernetes 1.9.0 (checked 2026-11-17), checked again before
+- **Akamas:** 4.1.3 (akamas-41); packs vLLM 1.15.0, GPU 1.4.0, Kubernetes 1.9.0 (checked 2026-11-17), checked again before
   the YAML is written.
 - **Telemetry:** Prometheus; the full catalog (CLAUDE.md rule 9): vLLM, one GPU component per
   GPU, Kubernetes Node, Container (vLLM and AIPerf), Workload, Cluster.

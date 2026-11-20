@@ -7,8 +7,12 @@ and the Claude Code tooling for configuring them and analyzing their results —
 
 ## Akamas version
 
-- **Target: Akamas Studio 4.1.x** from 2026-10-06 (4.1.0, chart 1.9.0-rc14, at
-  <https://akamas41.lab.akamas.io>, namespace `akamas-41` on `vllm-bench`; CLI via
+- **Target: Akamas Studio 4.1.x**, currently **4.1.3** (Helm chart `akamas-1.9.4`, CLI
+  3.1.0). Upgrade history of the `akamas` release in `akamas-41` (check with
+  `helm -n akamas-41 history akamas`): 4.1.0 (chart 1.9.0-rc14) from 2026-10-06, 4.1.1
+  (1.9.1) from 2026-10-16, 4.1.3 from 2026-11-09 17:39 CET (1.9.4-rc1, final 1.9.4 on
+  2026-11-10 09:05 CET). Record in a study's README the version it actually ran on, by its
+  dates. At <https://akamas41.lab.akamas.io>, namespace `akamas-41` on `vllm-bench`; CLI via
   `kubectl -n akamas-41 exec deploy/toolbox -c toolbox -- akamas ...`, SSH via
   `toolbox-ssh vllm-bench akamas-41`). It is the version used at customers. The old 3.7.1
   (<https://akamas.lab.akamas.io>, namespace `akamas`) is kept as it was for the studies run

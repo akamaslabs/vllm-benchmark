@@ -1,6 +1,6 @@
 # akamas/ — study 50's Akamas resources
 
-Created on 2026-11-10 with the `akamas-study-manager` plugin (0.3.0), for **Akamas 4.1.0**
+Created on 2026-11-10 with the `akamas-study-manager` plugin (0.3.0), for **Akamas 4.1.3**
 (`akamas-41`). Adapted from studies 48 (ramp and hold, goal) and 49 (per-GPU DCGM join, two
 AIPerf clients). Goal and design: `../README.md` and
 `docs/superpowers/specs/2026-11-09-study-50-g7e-efa-moe-parallelism-design.md`.
